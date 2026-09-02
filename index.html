@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+
+<style>
+
+body {
+    margin: 0;
+    overflow: hidden;
+}
+
+.active-panel {
+    border: 2px solid #3399ff;
+}
+
+
+
+button {
+
+    width: 40px;
+    height: 28px;
+
+    font-size: 18px;
+
+
+    border: 1px solid #999;
+
+    background: #efefef;
+
+    cursor: pointer;
+
+
+}
+
+button:hover {
+
+    background: #dcecff;
+
+}
+
+
+#splitter {
+    position: absolute;
+
+    left: 800px;
+    top: 40px;
+
+    width: 12px;
+    height: calc(100vh - 40px);
+
+    background: #d0d0d0;
+
+    cursor: col-resize;
+}
+
+#splitter:hover {
+    background: #d0d0d0;
+}
+
+#splitter-handle {
+    position: absolute;
+
+    top: 50%;
+    left: 50%;
+
+    transform: translate(-50%, -50%);
+
+    width: 16px;
+    height: 40px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#splitter-handle::before {
+    content: "●\A●\A●";
+
+    white-space: pre;
+
+    color: #666;
+
+    font-size: 8px;
+
+    line-height: 8px;
+}
+
+#splitter.dragging {
+    background: #0066ff;
+}
+
+#splitter-handle {
+    position: absolute;
+
+    top: 50%;
+    left: 50%;
+
+    transform: translate(-50%, -50%);
+
+    width: auto;
+    height: auto;
+
+    background: transparent;
+}
+
+
+#splitter:hover #splitter-handle::before {
+    color: #666;
+}
+
+
+#splitter.centering {
+    background: #4da3ff;
+
+    transform: scaleX(1.8);
+
+    transition:
+        background 0.2s,
+        transform 0.2s;
+}    
+
+#splitter-layer {
+
+    position: absolute;
+    left: 0;
+    top: 0;
+
+    width: 100%;
+    height: 100%;
+
+    pointer-events: none;
+
+}
+
+
+#url-bar {
+    display: flex;
+    gap: 2px;
+    height: 30px;
+}
+
+#url-bar input {
+    flex: 1;
+    min-width: 100px;
+}
+
+#toolbar {
+    height: 80px;
+}
+
+
+</style>    
+
+</head>
+
+<body>
+
+<div id="toolbar">
+
+    <button id="split-vertical">⇆</button>
+    <button id="split-horizontal">⇅</button>
+    <button id="close-panel">X</button>
+
+    <div id="url-bar"></div>
+
+</div>
+
+<div id="splitter-layer"></div>
+
+
+<script>
+
+
+const input = document.getElementById("panel1-url");
+
+function attachUrlHandler(panelId)
+{
+    const input =
+        document.getElementById(
+            panelId + "-url"
+        );
+
+    if (!input) {
+        return;
+    }
+
+    input.addEventListener(
+        "keydown",
+        (e) => {
+
+            if (e.key !== "Enter") {
+                return;
+            }
+
+            window.api.navigate(
+                panelId,
+                e.target.value
+            );
+
+        }
+    );
+}
+function rebuildUrlBar(panels)
+{
+    const container =
+        document.getElementById(
+            "url-bar"
+        );
+
+    container.innerHTML = "";
+
+    panels.forEach(
+        (panel) => {
+
+            const input =
+                document.createElement(
+                    "input"
+                );
+
+            input.id =
+                panel.id + "-url";
+
+            input.type =
+                "text";
+
+            input.value =
+                panel.url || "";
+
+            input.addEventListener(
+                "click",
+                () => {
+
+                    selectPanel(
+                        panel.id
+                    );
+
+                }
+            );
+
+            input.addEventListener(
+                "focus",
+                () => {
+
+                    selectPanel(
+                        panel.id
+                    );
+
+                }
+            );
+
+            container.appendChild(
+                input
+            );
+
+            attachUrlHandler(
+                panel.id
+            );
+        }
+    );
+}
+
+attachUrlHandler("panel1");
+attachUrlHandler("panel2");
+attachUrlHandler("panel3");
+
+
+const splitVerticalButton =
+    document.getElementById(
+        "split-vertical"
+    );
+
+const splitHorizontalButton =
+    document.getElementById(
+        "split-horizontal"
+    );
+
+const closeButton =
+document.getElementById(
+    "close-panel"
+);
+
+
+console.log(window.api);
+
+
+splitVerticalButton.addEventListener(
+    "click",
+    () => {
+
+        console.log(
+            "Découpage vertical de",
+            activePanel
+        );
+
+    }
+);
+
+splitHorizontalButton.addEventListener(
+    "click",
+    () => {
+
+        console.log(
+            "Découpage horizontal de",
+            activePanel
+        );
+
+    }
+);
+
+
+splitVerticalButton.addEventListener(
+    "click",
+    () => {
+
+        window.api.splitPanel(
+            activePanel,
+            "vertical"
+        );
+
+    }
+);
+
+splitHorizontalButton.addEventListener(
+    "click",
+    () => {
+
+        window.api.splitPanel(
+            activePanel,
+            "horizontal"
+        );
+
+    }
+);
+
+closeButton.addEventListener(
+    "click",
+    () => {
+
+        window.api.closePanel(
+            activePanel
+        );
+
+    }
+);
+
+
+window.api.onPanelsUpdated(
+    (panels) => {
+
+        rebuildUrlBar(
+            panels
+        );
+
+    }
+);
+function selectPanel(panelId)
+{
+    activePanel = panelId;
+
+    console.log(
+        "PANNEAU ACTIF =",
+        activePanel
+    );
+
+    document
+        .querySelectorAll(
+            "#url-bar input"
+        )
+        .forEach(
+            (input) => {
+
+                input.classList.remove(
+                    "active-panel"
+                );
+
+            }
+        );
+
+    document
+        .getElementById(
+            panelId + "-url"
+        )
+        ?.classList.add(
+            "active-panel"
+        );
+}
+let dragging = false;
+
+
+document.addEventListener(
+    "mousedown",
+    (event) => {
+
+        console.log(
+            "DOWN",
+            event.screenX,
+            event.screenY,
+            event.clientY
+        );
+
+        dragging = true;
+
+document.title =
+    "drag-start:" +
+    event.screenX +
+    ":" +
+    event.clientY;
+    }
+);
+
+let currentX = 800;
+
+let activePanel = "panel1";
+
+let draggedSplitter = null;
+
+
+
+const splitterElement =
+    document.createElement(
+        "div"
+    );
+
+splitterElement.className =
+    "splitter";
+
+splitterElement.addEventListener(
+    "mousedown",
+    () => {
+
+        draggedSplitter =
+            splitter.nodeId;
+
+    }
+);
+
+
+document.addEventListener(
+    "mousemove",
+    (event) => {
+
+        if (!dragging) {
+            return;
+        }
+
+console.log(
+    "EVENT",
+    event.screenY,
+    event.clientY,
+    event.pageY,
+    event.y
+);
+
+
+document.title =
+    "move:" +
+    event.screenX +
+    ":" +
+    event.clientY;
+    }
+);  
+
+document.addEventListener(
+    "mouseup",
+    () => {
+
+        window.api.stopSplitterDrag();
+
+    }
+);
+
+
+
+window.addEventListener(
+    "mouseleave",
+    () => {
+        dragging = false;
+        splitter.classList.remove(
+            "dragging"
+        );
+    }
+);
+
+
+
+
+closeButton.addEventListener(
+    "click",
+    () => {
+
+        console.log(
+            "BOUTON X CLIQUE"
+        );
+
+        window.api.closePanel(
+            activePanel
+        );
+
+    }
+);
+
+window.api.onActivePanelChanged(
+    (panelId) => {
+
+        console.log(
+            "PANNEAU ACTIF RECU :",
+            panelId
+        );
+
+        selectPanel(
+            panelId
+        );
+
+    }
+);
+
+window.api.onSplittersUpdated(
+    (splitters) => {
+
+        console.log(
+            "Splitters reçus :",
+            splitters
+        );
+
+        const layer =
+            document.getElementById(
+                "splitter-layer"
+            );
+
+        layer.innerHTML = "";
+
+        splitters.forEach(
+            (splitter) => {
+
+                const div =
+                    document.createElement(
+                        "div"
+                    );
+
+                div.className =
+                    "splitter";
+
+                div.style.left =
+                    splitter.x + "px";
+
+                div.style.top =
+                    splitter.y + "px";
+
+                div.style.width =
+                    splitter.width + "px";
+
+                div.style.height =
+                    splitter.height + "px";
+
+                layer.appendChild(
+                    div
+                );
+
+            }
+        );
+
+    }
+);
+
+
+console.log(
+    "API =",
+    window.api
+);
+
+</script>
+</body>
+</html>
