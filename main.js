@@ -40,35 +40,93 @@ let resizeTimer = null;
 
 const TOOLBAR_HEIGHT = 80;
 
+let history = [];
 
-/*
-class PanelNode {
+let lastClosedPanel = null;
 
-    constructor(
-        id,
-        view,
-        url = ""
-    ) {
 
-        this.type = "panel";
-        this.id = id;
-        this.view = view;
-        this.url = url;
 
-    }
-
-    toJSON() {
-
+function createSnapshot(node)
+{
+    if (node.type === "panel")
+    {
         return {
-            type: this.type,
-            id: this.id,
-            url: this.url
+            type: "panel",
+            id: node.id,
+            url: node.url
         };
-
     }
 
+    return {
+        type: "split",
+        direction: node.direction,
+        ratio: node.ratio,
+        first: createSnapshot(node.first),
+        second: createSnapshot(node.second)
+    };
 }
-*/
+
+function saveState()
+{
+    history.push(
+        JSON.stringify(
+            createSnapshot(rootNode)
+        )
+    );
+
+    if (history.length > 20)
+    {
+        history.shift();
+    }
+}
+
+function restoreTree(snapshot)
+{
+    if (snapshot.type === "panel")
+    {
+        const view =
+            new BrowserView();
+
+        win.addBrowserView(view);
+
+        view.webContents.loadURL(
+            snapshot.url
+        );
+
+        const panel =
+            new PanelNode(
+                snapshot.id,
+                view,
+                snapshot.url
+            );
+
+        setupNavigationTracking(
+            panel
+        );
+
+        return panel;
+    }
+
+    const split =
+        new SplitNode(
+            snapshot.direction
+        );
+
+    split.ratio =
+        snapshot.ratio;
+
+    split.first =
+        restoreTree(
+            snapshot.first
+        );
+
+    split.second =
+        restoreTree(
+            snapshot.second
+        );
+
+    return split;
+}
 
 class PanelNode {
 
@@ -103,7 +161,6 @@ class PanelNode {
 
 }
 
-
 class SplitNode {
 
     constructor(direction) {
@@ -121,8 +178,6 @@ class SplitNode {
     }
 
 }
-
-
 
 function findPanelNode(node, panelId) {
 
@@ -156,8 +211,6 @@ function findPanelNode(node, panelId) {
     return null;
 
 }
-
-
 
 function findParentNode(
     current,
@@ -216,7 +269,6 @@ function findFirstPanel(node)
         node.first
     );
 }
-
 
 function collectPanels(
     node,
@@ -379,8 +431,6 @@ function layoutNode(
 
     }
 
-
-
     if (node.direction === "vertical") {
 
         const firstWidth =
@@ -402,22 +452,10 @@ function layoutNode(
             parentWidth: width
         });
 
-
-
-
-
-
 console.log(
     "SPLITTER",
     x + firstWidth
 );
-
-
-
-
-
-
-
 
 layoutNode(
     node.first,
@@ -459,15 +497,10 @@ width - firstWidth - 20,
             parentHeight: height
         });
 
-
-
-
 console.log(
     "SPLITTER",
     y + firstHeight
 );
-
-
         layoutNode(
             node.first,
             x,
@@ -507,9 +540,8 @@ class Panel {
 
 }
 
-//let splitPosition = 800;
-  let splitPosition1 = 530;
-    let splitPosition2 = 1060;
+let splitPosition1 = 530;
+let splitPosition2 = 1060;
 
 ipcMain.on(
     'navigate',
@@ -529,9 +561,6 @@ ipcMain.on(
 
     }
 );
-
-
-
 
 ipcMain.on(
     'move-splitter',
@@ -553,6 +582,65 @@ forceRebuildSplitters = true;
 );
 
 
+
+
+
+
+ipcMain.on(
+    "undo",
+    () => {
+
+        console.log(
+            "ANNULATION DEMANDEE"
+        );
+
+        const view =
+            new BrowserView();
+
+        win.addBrowserView(
+            view
+        );
+
+        view.webContents.loadURL(
+            lastClosedPanel.url
+        );
+
+        const panel =
+            new PanelNode(
+                lastClosedPanel.id,
+                view,
+                lastClosedPanel.url
+            );
+
+        setupNavigationTracking(
+            panel
+        );
+
+        const split =
+            new SplitNode(
+                "vertical"
+            );
+
+        split.first = panel;
+        split.second = rootNode;
+
+        rootNode = split;
+
+        console.log(
+            "ROOT APRES RESTAURATION",
+            rootNode
+        );
+
+        forceRebuildSplitters = true;
+
+        resizeViews();
+
+        win.webContents.send(
+            "panels-updated",
+            collectPanels(rootNode)
+        );
+    }
+);
 
 ipcMain.on(
     "move-splitter",
@@ -616,8 +704,6 @@ ipcMain.on(
     }
 );
 
-
-
 ipcMain.on(
     "start-splitter-drag",
     (event, mouseX, mouseY) => {
@@ -675,6 +761,8 @@ ipcMain.on(
 
         }
 
+
+
         const parent =
             findParentNode(
                 rootNode,
@@ -690,45 +778,59 @@ ipcMain.on(
             return;
         }
 
+
+if (!node)
+{
+    activePanel =
+        collectPanels(rootNode)[0]?.id;
+
+    return;
+}        
+
+        saveState();
+
         const sibling =
             getSibling(
                 parent,
                 node
             );
 
+        console.log(
+            "SIBLING =",
+            sibling
+        );
+        console.log(
+            "NODE =",
+            node
+        );
 
+        console.log(
+            "PARENT =",
+            parent
+        );
 
-      console.log(
-    "SIBLING =",
-    sibling
-);
-console.log(
-    "NODE =",
-    node
-);
+        console.log(
+            "SIBLING =",
+            sibling
+        );
 
-console.log(
-    "PARENT =",
-    parent
-);
+        if (parent === rootNode)
+        {
+            rootNode = sibling;
+        }
+        else
+        {
+            replaceNode(
+                rootNode,
+                parent,
+                sibling
+            );
+        }
 
-console.log(
-    "SIBLING =",
-    sibling
-);
-
-if (parent === rootNode)
-{
-    rootNode = sibling;
-}
-else
-{
-    replaceNode(
-        rootNode,
-        parent,
-        sibling
-    );
-}
+lastClosedPanel = {
+    id: node.id,
+    url: node.url
+};
 
         win.removeBrowserView(
             node.view
@@ -736,36 +838,39 @@ else
 
 
 
-const newActivePanel =
-    findFirstPanel(
-        sibling
-    );
+        const newActivePanel =
+            findFirstPanel(
+                sibling
+            );
 
-activePanel =
-    newActivePanel.id;
+        activePanel =
+            newActivePanel.id;
 
-console.log(
-    "NOUVEAU PANNEAU ACTIF :",
-    newActivePanel.id
-);
+        console.log(
+            "NOUVEAU PANNEAU ACTIF :",
+            newActivePanel.id
+        );
 
-win.webContents.send(
-    "active-panel-changed",
-    newActivePanel.id
-);
+        win.webContents.send(
+            "active-panel-changed",
+            newActivePanel.id
+        );
 
+        forceRebuildSplitters = true;
+                resizeViews();
 
-
-forceRebuildSplitters = true;
-        resizeViews();
-
-win.webContents.send(
-    "panels-updated",
-    collectPanels(rootNode)
-);
+        win.webContents.send(
+            "panels-updated",
+            collectPanels(rootNode)
+        );
 
     }
 );
+
+//////////////////////////////////
+//////////////////////////////////
+//////////////////////////////////
+
 
 function addPanel(url) {
 
@@ -893,12 +998,6 @@ collectPanelNodes(rootNode)
       mode: 'detach'
     });
 
-
-
-
-
-
-
 console.log("ARBRE CREE");
 
 console.log(
@@ -926,7 +1025,6 @@ console.log(
     "Trouvé :",
     node.id
 );
-
 
     win.loadFile('index.html');
 
@@ -956,7 +1054,6 @@ forceRebuildSplitters = true;
     collectPanels(rootNode)
 );
 
-
     centerView.webContents.loadURL(
         'https://fr.wikipedia.org'
     );
@@ -972,8 +1069,6 @@ forceRebuildSplitters = true;
     rightView.webContents.loadURL(
         'https://www.github.com'
     );
-
-
 
     leftView.webContents.on(
         'did-finish-load',
@@ -1074,8 +1169,6 @@ forceRebuildSplitters = true;
         }
     );
 
-//  win.on('resize', resizeViews);
-
 win.on(
     "resize",
     () => {
@@ -1100,11 +1193,8 @@ forceRebuildSplitters = true;
 
 console.trace("AJOUT LISTENER");
 
-
-
     }
 );
-
 
 }
 
@@ -1120,7 +1210,6 @@ function getSibling(
     return parent.first;
 
 }
-
 
 function replaceNode(
     current,
@@ -1167,40 +1256,9 @@ function replaceNode(
         );
 
     }
-
     return false;
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 function resizeViews() {
 
@@ -1243,7 +1301,6 @@ if (forceRebuildSplitters)
     forceRebuildSplitters = false;
 }
 
-
 layoutNode(
     rootNode,
     0,
@@ -1251,10 +1308,6 @@ layoutNode(
     width,
     height - TOOLBAR_HEIGHT
 );
-
-
-
-
 
 while (
     splitterViews.length >
@@ -1277,20 +1330,6 @@ while (
     }
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 splitters.forEach(
     (splitter, index) => {
@@ -1391,8 +1430,6 @@ document.title =
     }
 );
 
-
-
 document.addEventListener(
     "mouseup",
     () => {
@@ -1485,8 +1522,6 @@ if (
             .slice(11)
             .split(":");
 
-
-
     dragStartMouseX =
         parseInt(parts[0]);
 
@@ -1496,152 +1531,98 @@ if (
     dragStartRatio =
         splitter.node.ratio;
 
-
     return;
 }
-
-
     if (
         title.startsWith("move:")
     )
     {
+        const raw =
+            title.slice(5);
 
-const raw =
-    title.slice(5);
+        const parts =
+            raw.split(":");
 
+        const mouseX =
+            Number(parts[0]);
 
+        const mouseY =
+            Number(parts[1]);
 
-const parts =
-    raw.split(":");
-
-
-
-const mouseX =
-    Number(parts[0]);
-
-const mouseY =
-    Number(parts[1]);
-
-
-
-
-    const mousePos =
-        parseInt(
-            title.slice(5)
-        );
+        const mousePos =
+            parseInt(
+                title.slice(5)
+            );
 
 
 
-    if (
-        splitter.direction === "vertical"
-    )
-    {
-        const deltaX =
-            mouseX -
-            dragStartMouseX;
+        if (
+            splitter.direction === "vertical"
+        )
+        {
+            const deltaX =
+                mouseX -
+                dragStartMouseX;
+
+            splitter.node.ratio =
+                dragStartRatio +
+                (
+                    deltaX /
+                    splitter.parentWidth
+                );
+        }
+        else
+        {
+            const deltaY =
+                mouseY -
+                dragStartMouseY;
+
+            splitter.node.ratio =
+                dragStartRatio +
+                (
+                    deltaY /
+                    splitter.parentHeight
+                );
+        }
 
         splitter.node.ratio =
-            dragStartRatio +
-            (
-                deltaX /
-                splitter.parentWidth
+            Math.max(
+                0.1,
+                Math.min(
+                    0.9,
+                    splitter.node.ratio
+                )
             );
+        if (resizeTimer) {
+        clearTimeout(resizeTimer);
     }
-    else
-    {
-
-
-
-        const deltaY =
-            mouseY -
-            dragStartMouseY;
-
-        splitter.node.ratio =
-            dragStartRatio +
-            (
-                deltaY /
-                splitter.parentHeight
-            );
-    }
-
-    splitter.node.ratio =
-        Math.max(
-            0.1,
-            Math.min(
-                0.9,
-                splitter.node.ratio
-            )
-        );
-
-  
-
     if (resizeTimer) {
-    clearTimeout(resizeTimer);
-}
-
-if (resizeTimer) {
-    clearTimeout(resizeTimer);
-}
-
-resizeViews();
-
-
-
-currentSplitterRatio =
-    splitter.node.ratio;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-}
-
-
+        clearTimeout(resizeTimer);
+    }
+    resizeViews();
+    currentSplitterRatio =
+        splitter.node.ratio;
+    }
 
             }
-
-
         );        
-        
-        
-
-
-
-
-
     }
 );  
-
     console.log(
         "ENVOI SPLITTERS",
         splitters.length
     );
-
     win.webContents.send(
         "splitters-updated",
         splitters
     );
-
 }
-
-
 
 ipcMain.on(
     'move-splitter',
     (event, x) => {
 
         splitPosition = x;
-
-//      resizeViews();
 
         clearTimeout(
             dragTimer
@@ -1661,7 +1642,6 @@ ipcMain.on(
 
     }
 );
-
 
 ipcMain.on(
     "split-panel",
@@ -1696,60 +1676,51 @@ ipcMain.on(
             parent
         );
 
-/////////////////////////////////////
-/////////////////////////////////////
-/////////////////////////////////////
+        if (!parent)
+        {
+            const newSplit =
+                new SplitNode(
+                    direction
+                );
 
-if (!parent)
-{
-    const newSplit =
-        new SplitNode(
-            direction
-        );
+            const newView =
+                new BrowserView();
 
-    const newView =
-        new BrowserView();
+            win.addBrowserView(
+                newView
+            );
 
-    win.addBrowserView(
-        newView
-    );
+            const newPanel =
+                new PanelNode(
+                    "panel" + nextPanelNumber++,
+                    newView,
+                    "https://www.bing.com"
+                );
 
-    const newPanel =
-        new PanelNode(
-            "panel" + nextPanelNumber++,
-            newView,
+            setupNavigationTracking(
+                newPanel
+            );
+
+            newSplit.first = node;
+            newSplit.second = newPanel;
+
+            rootNode = newSplit;
+
+            forceRebuildSplitters = true;
+
+            win.webContents.send(
+                "panels-updated",
+                collectPanels(rootNode)
+            );
+
+            newView.webContents.loadURL(
             "https://www.bing.com"
-        );
+            );
+            
+            resizeViews();
 
-    setupNavigationTracking(
-        newPanel
-    );
-
-    newSplit.first = node;
-    newSplit.second = newPanel;
-
-    rootNode = newSplit;
-
-    forceRebuildSplitters = true;
-
-    win.webContents.send(
-        "panels-updated",
-        collectPanels(rootNode)
-    );
-
-    newView.webContents.loadURL(
-    "https://www.bing.com"
-    );
-    
-    resizeViews();
-
-    return;
-}        
-
-/////////////////////////////////////
-/////////////////////////////////////
-/////////////////////////////////////
-
+            return;
+        }           
 
         const newView =
             new BrowserView();
@@ -1762,16 +1733,17 @@ if (!parent)
             'https://www.bing.com'
         );
 
-const newPanel =
-    new PanelNode(
-        "panel" + nextPanelNumber++,
-        newView,
-        "https://www.bing.com"
-    );
+        const newPanel =
+            new PanelNode(
+                "panel" + nextPanelNumber++,
+                newView,
+                "https://www.bing.com"
+            );
 
-setupNavigationTracking(
-    newPanel
-);            
+        setupNavigationTracking(
+            newPanel
+        );            
+
         const newSplit =
             new SplitNode(
                 direction
@@ -1813,14 +1785,16 @@ setupNavigationTracking(
             { depth: null }
         );
 
-forceRebuildSplitters = true;
+        forceRebuildSplitters = true;
 
-        resizeViews();
+saveState();
 
-win.webContents.send(
-    "panels-updated",
-    collectPanels(rootNode)
-);
+                resizeViews();
+
+        win.webContents.send(
+            "panels-updated",
+            collectPanels(rootNode)
+        );
     }
 );
 

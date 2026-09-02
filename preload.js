@@ -37,7 +37,10 @@ contextBridge.exposeInMainWorld(
 
         },
 
-
+        undo: () =>
+            ipcRenderer.send(
+                "undo"
+            ),
 
         onActivePanelChanged: (
             callback

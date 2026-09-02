@@ -159,6 +159,7 @@ button:hover {
 
 <div id="toolbar">
 
+    <button id="undo">↶</button>
     <button id="split-vertical">⇆</button>
     <button id="split-horizontal">⇅</button>
     <button id="close-panel">X</button>
@@ -500,6 +501,19 @@ closeButton.addEventListener(
 
     }
 );
+
+
+document
+    .getElementById("undo")
+    .addEventListener(
+        "click",
+        () => {
+
+            window.api.undo();
+
+        }
+    );
+
 
 window.api.onActivePanelChanged(
     (panelId) => {
