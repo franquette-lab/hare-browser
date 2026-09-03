@@ -44,6 +44,7 @@ let history = [];
 
 let lastClosedPanel = null;
 
+const SPLITTER_SIZE = 10;
 
 
 function createSnapshot(node)
@@ -76,7 +77,7 @@ function saveState()
 
     if (history.length > 20)
     {
-        history.shift();
+        fistory.shift();
     }
 }
 
@@ -464,7 +465,7 @@ function layoutNode(
             x: x + firstWidth,
             y,
 
-            width: 20,
+            width: SPLITTER_SIZE,
             height,
 
             parentX: x,
@@ -486,9 +487,9 @@ layoutNode(
 
 layoutNode(
     node.second,
-    x + firstWidth + 20,
+    x + firstWidth + SPLITTER_SIZE,
     y,
-width - firstWidth - 20,
+width - firstWidth - SPLITTER_SIZE,
 
     height
 );
@@ -510,7 +511,7 @@ width - firstWidth - 20,
             y: y + firstHeight,
 
             width,
-            height: 20,
+            height: SPLITTER_SIZE,
 
             parentY: y,
             parentHeight: height
@@ -917,19 +918,52 @@ forceRebuildSplitters = true;
 
 function createWindow() {
 
+
+
+
+
     win = new BrowserWindow({
 
-        width: 1600,
-        height: 900,
+    width: 1600,
+    height: 900,
 
-        webPreferences: {
-            preload: path.join(
-                __dirname,
-                "preload.js"
-            )
-        }
+    minWidth: 1000,
+    minHeight: 700,
 
-    });
+    backgroundColor: "#111827",
+
+    titleBarStyle:
+        process.platform === "darwin"
+            ? "hiddenInset"
+            : "default",
+
+    webPreferences: {
+
+        preload: path.join(
+            __dirname,
+            "preload.js"
+        ),
+
+        contextIsolation: true,
+        nodeIntegration: false
+
+    }
+
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     win.webContents.on(
         "before-input-event",
@@ -1385,6 +1419,15 @@ console.log(
     splitter.x
 );
 
+const cursor =
+    splitter.direction === "vertical"
+        ? "col-resize"
+        : "row-resize";
+
+        const handleDirection =
+    splitter.direction === "vertical"
+        ? "column"
+        : "row";
 
 
             const splitterView =
@@ -1406,26 +1449,61 @@ console.log(
             });
 
 
-            
-/////////////////////////////////////////////
-/////////////////////////////////////////////
-/////////////////////////////////////////////
 
-const cursor =
-    splitter.direction === "vertical"
-        ? "col-resize"
-        : "row-resize";
+
 
 splitterView.webContents.loadURL(
     "data:text/html," +
     encodeURIComponent(`
         <html>
 
-        <body style="
-            margin:0;
-            background:red;
-            cursor:${cursor};
-        ">
+        <head>
+
+        <style>
+
+body {
+    margin: 0;
+
+    background: #5a5a5a;
+    transition: background .15s;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: ${cursor};
+}
+
+body:hover {
+background: #808080;
+}
+#handle {
+    display: flex;
+    flex-direction: ${handleDirection};
+    gap: 2px;
+}
+
+.dot {
+    display: block;
+
+    width: 3px;
+    height: 3px;
+
+    background: #cfcfcf;
+
+    border-radius: 50%;
+}        </style>
+
+        </head>
+
+        <body>
+
+            <div id="handle">
+    <div class="dot"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+</div>
+
 
 
 

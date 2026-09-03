@@ -10,15 +10,69 @@
 </head>
 <style>
 
-body {
-    margin: 0;
-    overflow: hidden;
+#toolbar-buttons {
+    height: 32px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    padding-left: 6px;
+    padding-right: 6px;
+
+    background: #252526;
+
+    border-bottom: 1px solid #3c3c3c;
+}
+
+#toolbar-buttons button:focus {
+    outline: 1px solid #007acc;
+    outline-offset: 1px;
+}
+
+#url-bar {
+    display: flex;
+    gap: 6px;
+
+    padding: 4px 6px;
+
+    background: #1e1e1e;
+}
+
+
+#handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    width: 100%;
+    height: 100%;
+}
+
+.dot {
+    display: block;
+
+    width: 2px;
+    height: 2px;
+
+    background: #d0d0d0;
+
+    border-radius: 50%;
+}
+
+#url-bar input {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    border: 1px solid #3c3c3c;
+}
+
+#url-bar input:focus {
+    outline: none;
+    box-shadow: none;
 }
 
 .active-panel {
-    border: 2px solid #3399ff;
+    border: 1px solid #007acc !important;
 }
-
 
 
 
@@ -69,7 +123,7 @@ body {
 }
 
 #splitter.dragging {
-    background: #0066ff;
+    background: #6b6b6b;
 }
 
 #splitter-handle {
@@ -130,7 +184,7 @@ body {
 }
 
 .splitter:hover {
-    background:red;
+    background:#606060;
 }
 
 .vertical-splitter {
@@ -157,41 +211,75 @@ body {
 
 </head>
 
-<body>
+<body class="m-0 flex items-center justify-center bg-gray-100 dark:bg-zinc-900 min-h-screen">
 
-    <div
-    id="toolbar"
-    class="h-20 flex items-center gap-2 px-2"
-    >
 
-    <button id="split-vertical"
-        class="w-10 h-7 text-lg border border-gray-400 bg-gray-200">
-        ⇆
-    </button>
 
-    <button id="split-horizontal"
-        class="w-10 h-7 text-lg border border-gray-400 bg-gray-200">
-        ⇅
-    </button>
 
-    <button id="undo"
-        class="w-10 h-7 text-lg border border-gray-400 bg-gray-200">
-        ↶
-    </button>
 
-    <button id="close-panel"
-        class="w-10 h-7 text-lg border border-gray-400 bg-gray-200">
-        X
-    </button>
 
-    <div
-        id="url-bar"
-        class="flex-1 flex gap-1"
-    ></div>
+
+
+
+<div id="toolbar-buttons">
+
+
+        <button
+            id="split-vertical"
+            style="
+                width:28px;
+                height:24px;
+                background:#2d2d30;
+                color:#d4d4d4;
+                border:1px solid #3c3c3c;
+            "
+        >
+            ⇆
+        </button>
+
+                <button id="split-horizontal"
+            style="
+                background:#2d2d30;
+                color:#d4d4d4;
+                border:1px solid #3c3c3c;
+                width:28px;
+                height:24px;
+            "
+                >
+                    ⇅
+                </button>
+
+                <button id="undo"
+            style="
+                background:#2d2d30;
+                color:#d4d4d4;
+                border:1px solid #3c3c3c;
+                width:28px;
+                height:24px;
+            "
+                >
+                    ↶
+                </button>
+
+                <button id="close-panel"
+            style="
+                background:#2d2d30;
+                color:#d4d4d4;
+                border:1px solid #3c3c3c;
+                width:28px;
+                height:24px;
+            "
+                >
+                    X
+                </button>
+
 
 </div>
 
-<div id="splitter-layer"></div>
+<div id="url-bar"></div>
+
+
+</body>
 
 <script>
 
@@ -242,8 +330,18 @@ function rebuildUrlBar(panels)
                     "input"
                 );
 
+            input.className =
+                "h-6 px-2 rounded";
+
+            input.style.background = "#1e1e1e";
+            input.style.color = "#d4d4d4";
+            input.style.border = "1px solid #3c3c3c";
+
             input.id =
                 panel.id + "-url";
+
+
+
 
             input.type =
                 "text";
@@ -381,6 +479,18 @@ window.api.onPanelsUpdated(
 function selectPanel(panelId)
 {
     activePanel = panelId;
+
+
+document
+    .querySelectorAll("#url-bar input")
+    .forEach((input) => {
+
+        console.log(
+            input.id,
+            input.className
+        );
+
+    });
 
     console.log(
         "PANNEAU ACTIF =",
@@ -596,9 +706,9 @@ console.log(
     "SPLITTER RECU",
     splitter
 );
-div.style.background =
-    "red";
 
+div.style.background =
+    "#454545";
 
                 layer.appendChild(
                     div
