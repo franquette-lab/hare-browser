@@ -353,6 +353,25 @@ function setupNavigationTracking(panel)
 
         }
     );
+
+panel.view.webContents.on(
+    "focus",
+    () => {
+
+        console.log(
+            "FOCUS",
+            panel.id
+        );
+
+        win.webContents.send(
+            "active-panel-changed",
+            panel.id
+        );
+
+    }
+);
+
+
 }
 
 function collectPanelNodes(

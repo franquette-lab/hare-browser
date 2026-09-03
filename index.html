@@ -2,8 +2,12 @@
 <html>
 
 <head>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
 
+    <link rel="stylesheet" href="tailwind.css">
+
+    <title>Tile Browser</title>
+</head>
 <style>
 
 body {
@@ -16,29 +20,6 @@ body {
 }
 
 
-
-button {
-
-    width: 40px;
-    height: 28px;
-
-    font-size: 18px;
-
-
-    border: 1px solid #999;
-
-    background: #efefef;
-
-    cursor: pointer;
-
-
-}
-
-button:hover {
-
-    background: #dcecff;
-
-}
 
 
 #splitter {
@@ -121,28 +102,6 @@ button:hover {
         transform 0.2s;
 }    
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #splitter-layer {
 
     position: absolute;
@@ -170,12 +129,8 @@ button:hover {
     background: rgba(255,0,0,0.4);
 }
 
-
-
-
 .splitter:hover {
     background:red;
-``
 }
 
 .vertical-splitter {
@@ -197,10 +152,6 @@ button:hover {
     min-width: 100px;
 }
 
-#toolbar {
-    height: 80px;
-}
-
 
 </style>    
 
@@ -208,19 +159,39 @@ button:hover {
 
 <body>
 
-<div id="toolbar">
+    <div
+    id="toolbar"
+    class="h-20 flex items-center gap-2 px-2"
+    >
 
-    <button id="undo">↶</button>
-    <button id="split-vertical">⇆</button>
-    <button id="split-horizontal">⇅</button>
-    <button id="close-panel">X</button>
+    <button id="split-vertical"
+        class="w-10 h-7 text-lg border border-gray-400 bg-gray-200">
+        ⇆
+    </button>
 
-    <div id="url-bar"></div>
+    <button id="split-horizontal"
+        class="w-10 h-7 text-lg border border-gray-400 bg-gray-200">
+        ⇅
+    </button>
+
+    <button id="undo"
+        class="w-10 h-7 text-lg border border-gray-400 bg-gray-200">
+        ↶
+    </button>
+
+    <button id="close-panel"
+        class="w-10 h-7 text-lg border border-gray-400 bg-gray-200">
+        X
+    </button>
+
+    <div
+        id="url-bar"
+        class="flex-1 flex gap-1"
+    ></div>
 
 </div>
 
 <div id="splitter-layer"></div>
-
 
 <script>
 
