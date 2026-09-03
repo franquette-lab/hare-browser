@@ -121,6 +121,28 @@ button:hover {
         transform 0.2s;
 }    
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #splitter-layer {
 
     position: absolute;
@@ -132,8 +154,37 @@ button:hover {
 
     pointer-events: none;
 
+    z-index: 9999;
 }
 
+.splitter {
+    position: absolute;
+
+    min-width: 8px;
+    min-height: 8px;
+
+    pointer-events: auto;
+
+    z-index: 10000;
+
+    background: rgba(255,0,0,0.4);
+}
+
+
+
+
+.splitter:hover {
+    background:red;
+``
+}
+
+.vertical-splitter {
+    cursor: col-resize;
+}
+
+.horizontal-splitter {
+    cursor: row-resize;
+}
 
 #url-bar {
     display: flex;
@@ -419,23 +470,16 @@ let draggedSplitter = null;
 
 
 
-const splitterElement =
-    document.createElement(
-        "div"
-    );
 
-splitterElement.className =
-    "splitter";
 
-splitterElement.addEventListener(
-    "mousedown",
-    () => {
 
-        draggedSplitter =
-            splitter.nodeId;
 
-    }
-);
+
+
+
+
+
+
 
 
 document.addEventListener(
@@ -548,13 +592,22 @@ window.api.onSplittersUpdated(
         splitters.forEach(
             (splitter) => {
 
-                const div =
-                    document.createElement(
-                        "div"
-                    );
+const div =
+    document.createElement(
+        "div"
+    );
 
-                div.className =
-                    "splitter";
+div.className =
+    "splitter";
+
+div.style.cursor =
+    splitter.direction === "vertical"
+        ? "col-resize"
+        : "row-resize";
+
+
+
+
 
                 div.style.left =
                     splitter.x + "px";
@@ -568,11 +621,39 @@ window.api.onSplittersUpdated(
                 div.style.height =
                     splitter.height + "px";
 
+console.log(
+    "SPLITTER RECU",
+    splitter
+);
+div.style.background =
+    "red";
+
+
                 layer.appendChild(
                     div
                 );
 
+                if (
+                    splitter.direction ===
+                    "vertical"
+                )
+                {
+
+div.classList.add(
+    "vertical-splitter"
+);                    
+                }
+                else
+                {
+
+div.classList.add(
+    "horizontal-splitter"
+);
+                }
+
             }
+
+
         );
 
     }

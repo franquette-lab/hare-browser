@@ -1169,6 +1169,10 @@ forceRebuildSplitters = true;
         }
     );
 
+win.removeAllListeners(
+    "resize"
+);
+
 win.on(
     "resize",
     () => {
@@ -1382,21 +1386,39 @@ console.log(
                 height: splitter.height
             });
 
-            splitterView.webContents.loadURL(
-                "data:text/html," +
-                encodeURIComponent(`
-                    <html>
 
-                    <body style="
-                        margin:0;
-                        background:red;
-                        cursor:col-resize;
-                    ">
+            
+/////////////////////////////////////////////
+/////////////////////////////////////////////
+/////////////////////////////////////////////
+
+const cursor =
+    splitter.direction === "vertical"
+        ? "col-resize"
+        : "row-resize";
+
+splitterView.webContents.loadURL(
+    "data:text/html," +
+    encodeURIComponent(`
+        <html>
+
+        <body style="
+            margin:0;
+            background:red;
+            cursor:${cursor};
+        ">
+
+
+
+
                     <script>
 
                     let dragging = false;
 
                     let startMouseX = 0;
+
+console.log("SPLITTER CHARGE");
+                    
 
 document.addEventListener(
     "mousedown",
@@ -1409,6 +1431,8 @@ document.addEventListener(
             event.clientY,
             event.pageY
         );
+
+console.log("MOUSEDOWN");
 
         dragging = true;
 
@@ -1467,9 +1491,12 @@ document.title =
                 `)
             );
 
+console.trace(
+    "AJOUT LISTENER page-title-updated"
+);
 
-            splitterView.webContents.on(
-                "page-title-updated",
+splitterView.webContents.on(
+    "page-title-updated",
                 (
                     event,
                     title
@@ -1528,6 +1555,12 @@ if (
     dragStartMouseY =
         parseInt(parts[1]);
 
+
+console.log(
+    "SPLITTER =",
+    splitter
+);
+
     dragStartRatio =
         splitter.node.ratio;
 
@@ -1543,6 +1576,11 @@ if (
         const parts =
             raw.split(":");
 
+console.log(
+    "PARTS =",
+    parts
+);
+
         const mouseX =
             Number(parts[0]);
 
@@ -1554,6 +1592,10 @@ if (
                 title.slice(5)
             );
 
+console.log(
+    "MOVE RECU",
+    title
+);
 
 
         if (
@@ -1608,6 +1650,13 @@ if (
         );        
     }
 );  
+
+////////////////////////////////
+////////////////////////////////
+////////////////////////////////
+
+
+
     console.log(
         "ENVOI SPLITTERS",
         splitters.length
