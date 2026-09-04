@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld(
     'api',
     {
 
+
+        
         navigate: (panelId, url) => {
             ipcRenderer.send(
                 'navigate',
@@ -14,6 +16,26 @@ contextBridge.exposeInMainWorld(
                 url
             );
         },
+
+
+        goBack: (panelId) =>
+            ipcRenderer.invoke(
+                "go-back",
+                panelId
+            ),
+
+        goForward: (panelId) =>
+            ipcRenderer.invoke(
+                "go-forward",
+                panelId
+            ),
+
+
+refresh: (panelId) =>
+    ipcRenderer.invoke(
+        "refresh",
+        panelId
+    ),
 
         splitPanel: (
             panelId,
@@ -75,30 +97,47 @@ contextBridge.exposeInMainWorld(
         },
 
 
-onPanelsUpdated: (callback) =>
+        onPanelsUpdated: (callback) =>
+            ipcRenderer.on(
+                "panels-updated",
+                (event, panels) =>
+                    callback(panels)
+            ),
+
+onUndoAvailable: (callback) =>
     ipcRenderer.on(
-        "panels-updated",
-        (event, panels) =>
-            callback(panels)
+        "undo-available",
+        (event, available) =>
+            callback(available)
     ),
 
-
-        startSplitterDrag: (
-            x,
-            y
-        ) => {
-
-            ipcRenderer.send(
-                "start-splitter-drag",
+            startSplitterDrag: (
                 x,
                 y
-            );
+            ) => {
 
-        },
-        
+                ipcRenderer.send(
+                    "start-splitter-drag",
+                    x,
+                    y
+                );
+
+            },
+ 
+            
+stopSplitterDrag: () => {
+    ipcRenderer.send(
+        "stop-splitter-drag"
+    );
+},            
 
 
-    }
+            }
+
+
+
+
+            
 );
 
 

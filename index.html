@@ -14,30 +14,27 @@
     height: 32px;
     display: flex;
     align-items: center;
-    gap: 4px;
-
-    padding-left: 6px;
-    padding-right: 6px;
-
+    gap: 2px;
     background: #252526;
-
     border-bottom: 1px solid #3c3c3c;
+    padding: 4px 4px 2px 4px;
+    margin-left: 8px;
+    margin-right: 8px;
 }
 
 #toolbar-buttons button:focus {
-    outline: 1px solid #007acc;
-    outline-offset: 1px;
+    outline: none;
+    box-shadow: none;
 }
 
-#url-bar {
-    display: flex;
-    gap: 6px;
-
-    padding: 4px 6px;
-
-    background: #1e1e1e;
+#toolbar-buttons button:focus {
+    outline: none;
 }
 
+#toolbar-buttons button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
 
 #handle {
     display: flex;
@@ -47,6 +44,7 @@
     width: 100%;
     height: 100%;
 }
+
 
 .dot {
     display: block;
@@ -59,11 +57,8 @@
     border-radius: 50%;
 }
 
-#url-bar input {
-    background: #1e1e1e;
-    color: #d4d4d4;
-    border: 1px solid #3c3c3c;
-}
+
+
 
 #url-bar input:focus {
     outline: none;
@@ -197,15 +192,31 @@
 
 #url-bar {
     display: flex;
-    gap: 2px;
+    gap: 8px;
     height: 30px;
+    padding: 0 4px;
+    background: #1e1e1e;
+    margin-top: 6px;      /* espace avec les boutons */
+    margin-left: 8px;
+    margin-right: 8px;
+    width: calc(100% - 16px);
+    box-sizing: border-box;
 }
 
 #url-bar input {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    border: 1px solid #3c3c3c;
     flex: 1;
-    min-width: 100px;
+    min-width: 0;
 }
 
+#url-bar {
+    display: flex;
+    gap: 8px;
+    margin-left: 10px;
+    margin-right: 10px;
+}
 
 </style>    
 
@@ -213,19 +224,11 @@
 
 <body class="m-0 flex items-center justify-center bg-gray-100 dark:bg-zinc-900 min-h-screen">
 
-
-
-
-
-
-
-
-
 <div id="toolbar-buttons">
 
-
         <button
-            id="split-vertical"
+            id="back-button"
+            title="Revenir"
             style="
                 width:28px;
                 height:24px;
@@ -234,10 +237,67 @@
                 border:1px solid #3c3c3c;
             "
         >
-            ⇆
+            ←
         </button>
 
-                <button id="split-horizontal"
+        <button
+            title="Avancer"
+            id="forward-button"
+            style="
+            width:28px;
+            height:24px;
+            background:#2d2d30;
+            color:#d4d4d4;
+            border:1px solid #3c3c3c;
+            "
+        >
+            →
+        </button>
+
+        <button
+            id="refresh-button"
+            title="Actualiser"
+            style="
+                width:28px;
+                height:24px;
+                background:#2d2d30;
+                color:#d4d4d4;
+                border:1px solid #3c3c3c;
+            "
+        >
+            ↻
+        </button>
+
+        <button
+            id="split-vertical"
+            title="Scinder à droite"
+            style="
+                width:28px;
+                height:24px;
+                background:#2d2d30;
+                color:#d4d4d4;
+                border:1px solid #3c3c3c;
+            "
+        >
+            ◫
+        </button>
+
+        <button id="split-horizontal"
+            title="Scinder vers le bas"
+                style="
+                background:#2d2d30;
+                color:#d4d4d4;
+                border:1px solid #3c3c3c;
+                width:28px;
+                height:24px;
+            "
+        >
+            ◩
+        </button>
+
+        <button id="undo"
+            title="Rouvrir le dernier panneau fermé"
+            disabled
             style="
                 background:#2d2d30;
                 color:#d4d4d4;
@@ -245,11 +305,12 @@
                 width:28px;
                 height:24px;
             "
-                >
-                    ⇅
-                </button>
+            >
+            ↶
+        </button>
 
-                <button id="undo"
+        <button id="close-panel"
+            title="Fermer le panneau actif"
             style="
                 background:#2d2d30;
                 color:#d4d4d4;
@@ -257,32 +318,16 @@
                 width:28px;
                 height:24px;
             "
-                >
-                    ↶
-                </button>
-
-                <button id="close-panel"
-            style="
-                background:#2d2d30;
-                color:#d4d4d4;
-                border:1px solid #3c3c3c;
-                width:28px;
-                height:24px;
-            "
-                >
-                    X
-                </button>
-
-
+        >
+            ✕
+        </button>
 </div>
 
 <div id="url-bar"></div>
 
-
 </body>
 
 <script>
-
 
 const input = document.getElementById("panel1-url");
 
@@ -313,6 +358,7 @@ function attachUrlHandler(panelId)
         }
     );
 }
+
 function rebuildUrlBar(panels)
 {
     const container =
@@ -340,14 +386,14 @@ function rebuildUrlBar(panels)
             input.id =
                 panel.id + "-url";
 
-
-
-
             input.type =
                 "text";
 
             input.value =
                 panel.url || "";
+
+            input.dataset.url =
+                panel.realUrl || "";
 
             input.addEventListener(
                 "click",
@@ -359,15 +405,25 @@ function rebuildUrlBar(panels)
 
                 }
             );
-
+             
             input.addEventListener(
                 "focus",
                 () => {
+                    selectPanel(panel.id);
+                    input.value =
+                        input.dataset.url;
+                    input.select();
+                }
+            );
 
-                    selectPanel(
-                        panel.id
-                    );
+            console.log(panel);
 
+            input.addEventListener(
+                "blur",
+                () => {
+
+                    input.value =
+                        panel.url || "";
                 }
             );
 
@@ -386,7 +442,6 @@ attachUrlHandler("panel1");
 attachUrlHandler("panel2");
 attachUrlHandler("panel3");
 
-
 const splitVerticalButton =
     document.getElementById(
         "split-vertical"
@@ -403,8 +458,59 @@ document.getElementById(
 );
 
 
-console.log(window.api);
+const backButton =
+    document.getElementById(
+        "back-button"
+    );
 
+backButton.addEventListener(
+    "click",
+    () => {
+
+        console.log(
+            "RETOUR",
+            activePanel
+        );
+
+        window.api.goBack(
+            activePanel
+        );
+
+    }
+);
+
+const forwardButton =
+    document.getElementById(
+        "forward-button"
+    );  
+
+forwardButton.addEventListener(
+    "click",
+    () => {
+
+        window.api.goForward(
+            activePanel
+        );
+
+    }
+);
+    console.log(window.api);
+
+const refreshButton =
+    document.getElementById(
+        "refresh-button"
+    );
+
+refreshButton.addEventListener(
+    "click",
+    () => {
+
+        window.api.refresh(
+            activePanel
+        );
+
+    }
+);
 
 splitVerticalButton.addEventListener(
     "click",
@@ -429,7 +535,6 @@ splitHorizontalButton.addEventListener(
 
     }
 );
-
 
 splitVerticalButton.addEventListener(
     "click",
@@ -466,7 +571,6 @@ closeButton.addEventListener(
     }
 );
 
-
 window.api.onPanelsUpdated(
     (panels) => {
 
@@ -476,265 +580,253 @@ window.api.onPanelsUpdated(
 
     }
 );
+
+window.api.onUndoAvailable(
+    (available) => {
+
+        document.getElementById(
+            "undo"
+        ).disabled = !available;
+    }
+);
+
+console.log(
+    "Listener undo enregistré"
+);
+
+
 function selectPanel(panelId)
 {
     activePanel = panelId;
 
-
-document
-    .querySelectorAll("#url-bar input")
-    .forEach((input) => {
-
-        console.log(
-            input.id,
-            input.className
-        );
-
-    });
-
-    console.log(
-        "PANNEAU ACTIF =",
-        activePanel
-    );
-
     document
-        .querySelectorAll(
-            "#url-bar input"
-        )
-        .forEach(
-            (input) => {
+        .querySelectorAll("#url-bar input")
+        .forEach((input) => {
 
-                input.classList.remove(
-                    "active-panel"
-                );
+            console.log(
+                input.id,
+                input.className
+            );
 
-            }
-        );
-
-    document
-        .getElementById(
-            panelId + "-url"
-        )
-        ?.classList.add(
-            "active-panel"
-        );
-}
-let dragging = false;
-
-
-document.addEventListener(
-    "mousedown",
-    (event) => {
+        });
 
         console.log(
-            "DOWN",
-            event.screenX,
-            event.screenY,
-            event.clientY
-        );
-
-        dragging = true;
-
-document.title =
-    "drag-start:" +
-    event.screenX +
-    ":" +
-    event.clientY;
-    }
-);
-
-let currentX = 800;
-
-let activePanel = "panel1";
-
-let draggedSplitter = null;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-document.addEventListener(
-    "mousemove",
-    (event) => {
-
-        if (!dragging) {
-            return;
-        }
-
-console.log(
-    "EVENT",
-    event.screenY,
-    event.clientY,
-    event.pageY,
-    event.y
-);
-
-
-document.title =
-    "move:" +
-    event.screenX +
-    ":" +
-    event.clientY;
-    }
-);  
-
-document.addEventListener(
-    "mouseup",
-    () => {
-
-        window.api.stopSplitterDrag();
-
-    }
-);
-
-
-
-window.addEventListener(
-    "mouseleave",
-    () => {
-        dragging = false;
-        splitter.classList.remove(
-            "dragging"
-        );
-    }
-);
-
-
-
-
-closeButton.addEventListener(
-    "click",
-    () => {
-
-        console.log(
-            "BOUTON X CLIQUE"
-        );
-
-        window.api.closePanel(
+            "PANNEAU ACTIF =",
             activePanel
         );
 
+        document
+            .querySelectorAll(
+                "#url-bar input"
+            )
+            .forEach(
+                (input) => {
+
+                    input.classList.remove(
+                        "active-panel"
+                    );
+
+                }
+            );
+
+        document
+            .getElementById(
+                panelId + "-url"
+            )
+            ?.classList.add(
+                "active-panel"
+            );
     }
-);
+    let dragging = false;
 
 
-document
-    .getElementById("undo")
-    .addEventListener(
-        "click",
+    document.addEventListener(
+        "mousedown",
+        (event) => {
+
+            console.log(
+                "DOWN",
+                event.screenX,
+                event.screenY,
+                event.clientY
+            );
+
+            dragging = true;
+
+    document.title =
+        "drag-start:" +
+        event.screenX +
+        ":" +
+        event.clientY;
+        }
+    );
+
+    let currentX = 800;
+
+    let activePanel = "panel1";
+
+    let draggedSplitter = null;
+
+    document.addEventListener(
+        "mousemove",
+        (event) => {
+
+            if (!dragging) {
+                return;
+            }
+
+    console.log(
+        "EVENT",
+        event.screenY,
+        event.clientY,
+        event.pageY,
+        event.y
+    );
+
+
+    document.title =
+        "move:" +
+        event.screenX +
+        ":" +
+        event.clientY;
+        }
+    );  
+
+    document.addEventListener(
+        "mouseup",
         () => {
 
-            window.api.undo();
+            window.api.stopSplitterDrag();
 
         }
     );
 
-
-window.api.onActivePanelChanged(
-    (panelId) => {
-
-        console.log(
-            "PANNEAU ACTIF RECU :",
-            panelId
-        );
-
-        selectPanel(
-            panelId
-        );
-
-    }
-);
-
-window.api.onSplittersUpdated(
-    (splitters) => {
-
-        console.log(
-            "Splitters reçus :",
-            splitters
-        );
-
-        const layer =
-            document.getElementById(
-                "splitter-layer"
+    window.addEventListener(
+        "mouseleave",
+        () => {
+            dragging = false;
+            splitter.classList.remove(
+                "dragging"
             );
-
-        layer.innerHTML = "";
-
-        splitters.forEach(
-            (splitter) => {
-
-const div =
-    document.createElement(
-        "div"
+        }
     );
 
-div.className =
-    "splitter";
+    closeButton.addEventListener(
+        "click",
+        () => {
 
-div.style.cursor =
-    splitter.direction === "vertical"
-        ? "col-resize"
-        : "row-resize";
+            console.log(
+                "BOUTON X CLIQUE"
+            );
+
+            window.api.closePanel(
+                activePanel
+            );
+
+        }
+    );
+
+    document
+        .getElementById("undo")
+        .addEventListener(
+            "click",
+            () => {
+                window.api.undo();
+            }
+        );
 
 
+        
+      
 
+    window.api.onActivePanelChanged(
+        (panelId) => {
 
+            console.log(
+                "PANNEAU ACTIF RECU :",
+                panelId
+            );
 
-                div.style.left =
-                    splitter.x + "px";
+            selectPanel(
+                panelId
+            );
 
-                div.style.top =
-                    splitter.y + "px";
+        }
+    );
 
-                div.style.width =
-                    splitter.width + "px";
+    window.api.onSplittersUpdated(
+        (splitters) => {
 
-                div.style.height =
-                    splitter.height + "px";
+            console.log(
+                "Splitters reçus :",
+                splitters
+            );
 
-console.log(
-    "SPLITTER RECU",
-    splitter
-);
-
-div.style.background =
-    "#454545";
-
-                layer.appendChild(
-                    div
+            const layer =
+                document.getElementById(
+                    "splitter-layer"
                 );
 
-                if (
-                    splitter.direction ===
-                    "vertical"
-                )
-                {
+            layer.innerHTML = "";
 
-div.classList.add(
-    "vertical-splitter"
-);                    
-                }
-                else
-                {
+            splitters.forEach(
+                (splitter) => {
 
-div.classList.add(
-    "horizontal-splitter"
-);
-                }
+    const div =
+        document.createElement(
+            "div"
+        );
 
+    div.className =
+        "splitter";
+
+    div.style.cursor =
+        splitter.direction === "vertical"
+            ? "col-resize"
+            : "row-resize";
+
+    div.style.left =
+        splitter.x + "px";
+
+    div.style.top =
+        splitter.y + "px";
+
+    div.style.width =
+        splitter.width + "px";
+
+    div.style.height =
+        splitter.height + "px";
+
+    console.log(
+        "SPLITTER RECU",
+        splitter
+    );
+
+    div.style.background =
+        "#454545";
+
+    layer.appendChild(
+        div
+    );
+
+    if (
+        splitter.direction ===
+        "vertical"
+    )
+    {
+
+    div.classList.add(
+        "vertical-splitter"
+    );                    
+}
+else
+{
+
+    div.classList.add(
+        "horizontal-splitter"
+    );
+}
             }
-
-
         );
 
     }
