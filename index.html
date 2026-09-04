@@ -325,6 +325,8 @@
 
 <div id="url-bar"></div>
 
+<div id="splitter-layer"></div>
+
 </body>
 
 <script>
@@ -637,61 +639,84 @@ function selectPanel(panelId)
                 "active-panel"
             );
     }
+
     let dragging = false;
 
+    let lastClickTime = 0;
 
-    document.addEventListener(
-        "mousedown",
-        (event) => {
+document.addEventListener(
+    "mousedown",
+    (event) => {
 
+
+console.log(
+    "DELTA =",
+    Date.now() - lastClickTime
+);
+
+        const now = Date.now();
+
+        if (
+            now - lastClickTime < 300
+        )
+        {
             console.log(
-                "DOWN",
-                event.screenX,
-                event.screenY,
-                event.clientY
+                "DOUBLE CLICK"
             );
 
-            dragging = true;
+            document.title =
+                "reset-splitter";
 
-    document.title =
-        "drag-start:" +
-        event.screenX +
-        ":" +
-        event.clientY;
+            return;
         }
-    );
 
-    let currentX = 800;
+        lastClickTime = now;
 
-    let activePanel = "panel1";
+        console.log(
+            "DOWN",
+            event.screenX,
+            event.screenY,
+            event.clientY
+        );
 
-    let draggedSplitter = null;
+        dragging = true;
 
-    document.addEventListener(
-        "mousemove",
-        (event) => {
+        document.title =
+            "drag-start:" +
+            event.screenX +
+            ":" +
+            event.clientY;
+    }
+);
 
-            if (!dragging) {
-                return;
-            }
+document.addEventListener(
+    "dblclick",
+    () => {
 
-    console.log(
-        "EVENT",
-        event.screenY,
-        event.clientY,
-        event.pageY,
-        event.y
-    );
+        console.log(
+            "DOUBLE CLICK NATIF"
+        );
 
+        document.title =
+            "reset-splitter";
+    }
+);
 
-    document.title =
-        "move:" +
-        event.screenX +
-        ":" +
-        event.clientY;
-        }
-    );  
+document.addEventListener(
+    "dblclick",
+    (event) => {
 
+        event.preventDefault();
+        event.stopPropagation();
+
+        console.log(
+            "DOUBLE CLICK NATIF"
+        );
+
+        document.title =
+            "reset-splitter";
+    }
+);
     document.addEventListener(
         "mouseup",
         () => {
@@ -762,12 +787,26 @@ function selectPanel(panelId)
                 splitters
             );
 
-            const layer =
-                document.getElementById(
-                    "splitter-layer"
-                );
 
-            layer.innerHTML = "";
+
+
+const layer =
+    document.getElementById(
+        "splitter-layer"
+    );
+
+if (!layer)
+{
+    console.error(
+        "splitter-layer introuvable"
+    );
+
+    return;
+}
+
+layer.innerHTML = "";
+
+
 
             splitters.forEach(
                 (splitter) => {

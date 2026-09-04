@@ -1690,12 +1690,36 @@ function resizeViews() {
                 "AJOUT LISTENER page-title-updated"
             );
 
+let lastSplitterClickTime = 0;
+
             splitterView.webContents.on(
                 "page-title-updated",
                             (
                                 event,
                                 title
                             ) => {
+
+
+                                console.log(
+                                    "TITLE RECU =",
+                                    title
+                                );
+
+if (
+    title === "reset-splitter"
+)
+{
+    console.log(
+        "RESET SPLITTER RECU"
+    );
+
+    splitter.node.ratio = 0.5;
+
+    resizeViews();
+
+    return;
+}
+
 
                                 if (
                                     title === "drag-end"
@@ -1715,11 +1739,66 @@ function resizeViews() {
                                     return;
                                 }
 
+if (
+    title === "reset-splitter"
+)
+{
+    splitter.node.ratio = 0.5;
 
-                                if (
-                                    title.startsWith("drag-start:")
-                                )
-                                {
+    resizeViews();
+
+    return;
+}
+
+
+
+
+
+
+
+
+
+
+let lastDragStart = 0;
+
+if (
+    title.startsWith("drag-start:")
+)
+{
+
+
+
+
+ 
+
+const now = Date.now();
+
+if (
+    now - lastSplitterClickTime < 300
+)
+{
+    console.log(
+        "DOUBLE CLICK SPLITTER"
+    );
+
+    splitter.node.ratio = 0.5;
+
+    resizeViews();
+
+    lastSplitterClickTime = 0;
+
+    return;
+}
+
+lastSplitterClickTime = now;
+dragInProgress = false;
+
+
+
+
+
+    lastDragStart = now;
+
                                     console.log(
                                         "DRAG START RECU",
                                         dragInProgress
@@ -1762,6 +1841,11 @@ function resizeViews() {
                                     title.startsWith("move:")
                                 )
                                 {
+
+if (!dragInProgress)
+{
+    return;
+}                                    
                                     const raw =
                                         title.slice(5);
 
