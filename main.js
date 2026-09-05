@@ -1,3 +1,23 @@
+const {
+    app,
+    BrowserWindow,
+    WebContentsView,
+    BrowserView,
+    ipcMain
+} = require('electron');
+
+
+
+const fs = require("fs");
+const path = require("path");
+
+const WORKSPACE_FILE =
+    path.join(
+        app.getPath("userData"),
+        "workspace.json"
+    );
+
+
 const panelMap = new Map();
 
 const MIN_PANEL_WIDTH = 150;
@@ -46,6 +66,27 @@ let lastClosedPanel = null;
 
 const SPLITTER_SIZE = 10;
 
+
+function saveWorkspace()
+{
+    const snapshot =
+        createSnapshot(
+            rootNode
+        );
+
+    fs.writeFileSync(
+        WORKSPACE_FILE,
+        JSON.stringify(
+            snapshot,
+            null,
+            2
+        )
+    );
+
+    console.log(
+        "Workspace sauvegardé"
+    );
+}
 
 
 function getDisplayText(urlString)
@@ -565,14 +606,19 @@ function layoutNode(
 
 }
 
-const {
-    app,
-    BrowserWindow,
-    BrowserView,
-    ipcMain
-} = require('electron');
 
-const path = require('path');
+
+
+
+
+
+
+
+
+
+
+
+
 
 class Panel {
 
@@ -624,13 +670,6 @@ forceRebuildSplitters = true;
 
     }
 );
-
-
-
-
-/////////////////////////////////////
-/////////////////////////////////////
-/////////////////////////////////////
 
 ipcMain.on(
     "undo",
@@ -722,9 +761,6 @@ win.webContents.send(
 
     }
 );
-/////////////////////////////
-/////////////////////////////
-/////////////////////////////
 
 ipcMain.on(
     "move-splitter",
@@ -1023,84 +1059,9 @@ function getDisplayText(urlString)
     }
 }
 
-function createWindow() {
 
-    win = new BrowserWindow({
-
-    width: 1600,
-    height: 900,
-
-    minWidth: 1000,
-    minHeight: 700,
-
-    backgroundColor: "#111827",
-
-    titleBarStyle:
-        process.platform === "darwin"
-            ? "hiddenInset"
-            : "default",
-
-    webPreferences: {
-
-        preload: path.join(
-            __dirname,
-            "preload.js"
-        ),
-
-        contextIsolation: true,
-        nodeIntegration: false
-
-    }
-
-});
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    win.webContents.on(
-        "before-input-event",
-        (event, input) => {
-
-            if (
-                input.type === "mouseDown"
-            ) {
-
-                console.log(
-                    "INPUT :",
-                    input
-                );
-
-            }
-
-        }
-    );
-
-
-console.log(
-    "leftView =",
-    leftView
-);
-
-console.log(
-    "centerView =",
-    centerView
-);
-
-console.log(
-    "rightView =",
-    rightView
-);
+function createDefaultLayout()
+{
 
     leftView = new BrowserView();
     centerView = new BrowserView();
@@ -1137,50 +1098,169 @@ console.log(
 
 
 
-collectPanelNodes(rootNode)
-    .forEach(
-        (panel) => {
+    collectPanelNodes(rootNode)
+        .forEach(
+            (panel) => {
 
-            setupNavigationTracking(
-                panel
+                setupNavigationTracking(
+                    panel
+                );
+
+            }
+        );
+
+            console.log("ARBRE CREE");
+
+    console.log(
+        "panel1 =",
+        rootNode.first.id
+    );
+
+    console.log(
+        "panel2 =",
+        rootNode.second.first.id
+    );
+
+    console.log(
+        "panel3 =",
+        rootNode.second.second.id
+    );
+
+
+}
+
+function createWindow() {
+
+    if (
+        fs.existsSync(
+            WORKSPACE_FILE
+        )
+    )
+    {
+        const snapshot =
+            JSON.parse(
+                fs.readFileSync(
+                    WORKSPACE_FILE,
+                    "utf8"
+                )
             );
+
+        rootNode =
+            restoreSnapshot(
+                snapshot
+            );
+    }
+    else
+    {
+        createDefaultLayout();
+    }
+
+
+    win = new BrowserWindow({
+
+        width: 1600,
+        height: 900,
+
+        minWidth: 1000,
+        minHeight: 700,
+
+        backgroundColor: "#111827",
+
+        titleBarStyle:
+            process.platform === "darwin"
+                ? "hiddenInset"
+                : "default",
+
+        webPreferences: {
+
+            preload: path.join(
+                __dirname,
+                "preload.js"
+            ),
+
+            contextIsolation: true,
+            nodeIntegration: false
+
+        }
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    win.webContents.on(
+        "before-input-event",
+        (event, input) => {
+
+            if (
+                input.type === "mouseDown"
+            ) {
+
+                console.log(
+                    "INPUT :",
+                    input
+                );
+
+            }
 
         }
     );
-    
-    win.setMenu(null);
 
-    win.webContents.openDevTools({
-      mode: 'detach'
-    });
 
-console.log("ARBRE CREE");
-
-console.log(
-    "panel1 =",
-    rootNode.first.id
-);
-
-console.log(
-    "panel2 =",
-    rootNode.second.first.id
-);
-
-console.log(
-    "panel3 =",
-    rootNode.second.second.id
-);
-
-const node =
-    findPanelNode(
-        rootNode,
-        "panel2"
+    console.log(
+        "leftView =",
+        leftView
     );
 
-console.log(
-    "Trouvé :",
-    node.id
-);
+    console.log(
+        "centerView =",
+        centerView
+    );
+
+    console.log(
+        "rightView =",
+        rightView
+    );
+
+
+
+/////////////////////////////////////
+/////////////////////////////////////
+/////////////////////////////////////
+
+
+        win.setMenu(null);
+
+        win.webContents.openDevTools({
+        mode: 'detach'
+        });
+
+    const node =
+        findPanelNode(
+            rootNode,
+            "panel2"
+        );
+
+    console.log(
+        "Trouvé :",
+        node.id
+    );
+
+
+
+////////////////////////////////
+///////////////////////////////
+////////////////////////////////
 
     win.loadFile('index.html');
 
@@ -1201,14 +1281,14 @@ console.log(
     win.addBrowserView(centerView);
     win.addBrowserView(rightView);
 
-forceRebuildSplitters = true;
-    resizeViews();
+    forceRebuildSplitters = true;
+        resizeViews();
 
 
     win.webContents.send(
-    "panels-updated",
-    collectPanels(rootNode)
-);
+        "panels-updated",
+        collectPanels(rootNode)
+    );
 
     centerView.webContents.loadURL(
         'https://fr.wikipedia.org'
@@ -1325,38 +1405,51 @@ forceRebuildSplitters = true;
         }
     );
 
-win.removeAllListeners(
-    "resize"
-);
+    win.removeAllListeners(
+        "resize"
+    );
 
-win.on(
-    "resize",
+    win.on(
+        "resize",
+        () => {
+
+            if (resizingWindow) {
+                return;
+            }
+
+            resizingWindow = true;
+
+            setTimeout(
+                () => {
+
+    forceRebuildSplitters = true;
+                    resizeViews();
+
+                    resizingWindow = false;
+
+                },
+                100
+            );
+
+    console.trace("AJOUT LISTENER");
+
+        }
+    );
+
+}
+
+
+app.on(
+    "before-quit",
     () => {
 
-        if (resizingWindow) {
-            return;
-        }
-
-        resizingWindow = true;
-
-        setTimeout(
-            () => {
-
-forceRebuildSplitters = true;
-                resizeViews();
-
-                resizingWindow = false;
-
-            },
-            100
-        );
-
-console.trace("AJOUT LISTENER");
-
+        saveWorkspace();
     }
 );
 
-}
+console.log(
+    app.getPath("userData")
+);
 
 function getSibling(
     parent,
