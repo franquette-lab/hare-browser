@@ -414,119 +414,115 @@ function attachUrlHandler(panelId)
 
 function rebuildUrlBar(panels)
 {
-    const container =
-        document.getElementById(
-            "url-bar"
-        );
-
+    const container = document.getElementById("url-bar");
+    if (!container) return;
+    
     container.innerHTML = "";
 
-    panels.forEach(
-        (panel) => {
+    // Force la barre d'URL à se comporter comme une ligne flexible pour aligner les panneaux côte à côte
+    container.style.display = "flex";
+    container.style.gap = "8px";
+    container.style.alignItems = "center";
 
-            const input =
-                document.createElement(
-                    "input"
-                );
+    panels.forEach((panel) => {
+        // 1. Conteneur principal de l'onglet/tuile d'adresse
+        const tabWrapper = document.createElement("div");
+        tabWrapper.className = "flex items-center gap-2 p-1 rounded";
+        tabWrapper.style.background = "#2d2d30";
+        tabWrapper.style.border = "1px solid #3c3c3c";
+        tabWrapper.style.flex = "1";
+        tabWrapper.style.minWidth = "0";
+        tabWrapper.setAttribute("draggable", "true");
+        tabWrapper.style.cursor = "grab";
 
-            input.className =
-                "h-6 px-2 rounded";
-
-            input.style.background = "#1e1e1e";
-            input.style.color = "#d4d4d4";
-            input.style.border = "1px solid #3c3c3c";
-
-            input.id =
-                panel.id + "-url";
-
-            input.type =
-                "text";
-
-
-
-input.dataset.url =
-    panel.realUrl ||
-    panel.url ||
-    "";
-
-/*
-input.value =
-    getDisplayUrl(
-        input.dataset.url
-    );
-*/
-
-input.value =
-    getDisplayUrl(
-        input.dataset.url
-    );
-
-
-            input.addEventListener(
-                "click",
-                () => {
-
-window.api.setActivePanel(panel.id);
-                }
-            );
-             
-input.addEventListener(
-    "focus",
-    () => {
-
-window.api.setActivePanel(panel.id);
-
-        console.log(
-            "URL REELLE =",
-            input.dataset.url
-        );
-
-        input.value =
-            input.dataset.url;
-
-        input.select();
-
-
-/*
-win.webContents.send(
-    "active-panel-changed",
-    {f
-        id: panel.id,
-        bounds: panel.bounds
-    }
-);
-*/
-
-
-    }
-);            
-
-
-
-
-
-console.log(panel);
-
-input.addEventListener(
-    "blur",
-    () => {
-
-        input.value =
-            getDisplayUrl(
-                input.dataset.url
-            );
-    }
-);
-            container.appendChild(
-                input
-            );
-
-            attachUrlHandler(
-                panel.id
-            );
+        // Style actif si c'est le panneau sélectionné
+        if (typeof activePanel !== "undefined" && panel.id === activePanel) {
+            tabWrapper.style.borderColor = "#3b82f6";
+            tabWrapper.style.background = "#203a5d";
         }
-    );
-}
+
+        // Événements natifs Drag & Drop HTML5
+        tabWrapper.addEventListener("dragstart", (e) => {
+            tabWrapper.style.opacity = "0.4";
+            e.dataTransfer.setData("text/plain", panel.id);
+            e.dataTransfer.effectAllowed = "move";
+        });
+
+        tabWrapper.addEventListener("dragend", () => {
+            tabWrapper.style.opacity = "1";
+            tabWrapper.style.borderColor = "#3c3c3c";
+        });
+
+        tabWrapper.addEventListener("dragover", (e) => {
+            e.preventDefault(); // Autorise le drop
+            e.dataTransfer.dropEffect = "move";
+            tabWrapper.style.borderColor = "#3b82f6";
+        });
+
+        tabWrapper.addEventListener("dragleave", () => {
+            if (typeof activePanel !== "undefined" && panel.id === activePanel) {
+                tabWrapper.style.borderColor = "#3b82f6";
+            } else {
+                tabWrapper.style.borderColor = "#3c3c3c";
+            }
+        });
+
+        tabWrapper.addEventListener("drop", (e) => {
+            e.preventDefault();
+            const draggedPanelId = e.dataTransfer.getData("text/plain");
+            const targetPanelId = panel.id;
+
+            if (draggedPanelId && draggedPanelId !== targetPanelId) {
+                window.api.movePanel(draggedPanelId, targetPanelId);
+            }
+        });
+
+        // 2. Input de texte interne (l'URL)
+        const input = document.createElement("input");
+        input.type = "text";
+        input.id = panel.id + "-url";
+        input.className = "h-6 px-1 rounded";
+        input.style.background = "transparent";
+        input.style.color = "#d4d4d4";
+        input.style.border = "none";
+        input.style.outline = "none";
+        input.style.width = "100%";
+        input.style.fontSize = "12px";
+
+        input.dataset.url = panel.realUrl || panel.url || "";
+        input.value = getDisplayUrl(input.dataset.url);
+
+        // Bloque le drag'n'drop si l'utilisateur essaie de sélectionner du texte à l'intérieur de l'input
+        input.addEventListener("mousedown", (e) => {
+            tabWrapper.setAttribute("draggable", "false");
+        });
+        window.addEventListener("mouseup", () => {
+            tabWrapper.setAttribute("draggable", "true");
+        });
+
+        // Événements de Focus / Navigation d'origine
+        input.addEventListener("click", (e) => {
+            e.stopPropagation();
+            window.api.setActivePanel(panel.id);
+        });
+             
+        input.addEventListener("focus", () => {
+            window.api.setActivePanel(panel.id);
+            input.value = input.dataset.url;
+            input.select();
+        });            
+
+        input.addEventListener("blur", () => {
+            input.value = getDisplayUrl(input.dataset.url);
+        });
+
+        // ... fin de la boucle panels.forEach
+        tabWrapper.appendChild(input);
+        container.appendChild(tabWrapper);
+
+        attachUrlHandler(panel.id);
+    });
+} // <-- C'est la fin de votre fonction rebuildUrlBar
 
 attachUrlHandler("panel1");
 attachUrlHandler("panel2");

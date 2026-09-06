@@ -40,6 +40,13 @@ setActivePanel: (panelId) => {
             ),
 
 
+// Dans preload.js, à ajouter à la liste des fonctions de l'API
+movePanel: (draggedPanelId, targetPanelId) => {
+    ipcRenderer.send('move-panel', draggedPanelId, targetPanelId);
+},
+
+
+
 refresh: (panelId) =>
     ipcRenderer.invoke(
         "refresh",

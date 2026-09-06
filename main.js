@@ -1327,48 +1327,18 @@ function createWindow() {
     );
 */
 
-
-    // Dans main.js, à l'intérieur de createWindow()
+    // Remplacer l'ancien bloc win.on("resize") par celui-ci unique dans createWindow()
     win.removeAllListeners("resize");
-
     let resizeDebounceTimer = null;
+    
     win.on("resize", () => {
-        // Annule le redimensionnement précédent s'il y en a un en cours
-        if (resizeDebounceTimer) {
-            clearTimeout(resizeDebounceTimer);
-        }
-
-        // On attend 10ms que la fenêtre se stabilise avant de recalculer les positions
+        if (resizeDebounceTimer) clearTimeout(resizeDebounceTimer);
         resizeDebounceTimer = setTimeout(() => {
             if (win.isDestroyed()) return;
-
-            // 1. On reconstruit entièrement les splitters et les positions des panneaux
             forceRebuildSplitters = true;
             resizeViews();
-
-            // 2. On force la mise à jour immédiate du rectangle bleu s'il y a un panneau actif
-            if (borderView && activePanel) {
-                const activeNode = findPanelNode(rootNode, activePanel);
-                if (activeNode && activeNode.bounds) {
-                    // On vérifie que la vue de bordure n'est pas détruite
-                    if (!borderView.webContents || borderView.webContents.isDestroyed()) return;
-                    
-                    borderView.setBounds(activeNode.bounds);
-
-                    try {
-                        const views = win.getBrowserViews();
-                        if (views.includes(borderView)) {
-                            win.setTopBrowserView(borderView);
-                        }
-                    }
-                    catch (err) {
-                        console.error("borderView error", err);
-                    }
-                }
-            }
-        }, 10);
+        }, 30); // Petit délai pour laisser Electron respirer
     });
-
 
 
 }
@@ -2077,6 +2047,77 @@ if (borderView && activePanel) {
 
 
 }
+
+
+
+// Dans main.js, gestion de l'événement de Drag & Drop entre panneaux
+ipcMain.on("move-panel", (event, draggedPanelId, targetPanelId) => {
+    console.log(`Drag & Drop : Déplacement de ${draggedPanelId} sur ${targetPanelId}`);
+
+    // 1. Trouver les nœuds correspondants dans l'arbre
+    const draggedNode = findPanelNode(rootNode, draggedPanelId);
+    const targetNode = findPanelNode(rootNode, targetPanelId);
+
+    if (!draggedNode || !targetNode || draggedPanelId === targetPanelId) return;
+
+    // 2. Trouver les parents pour modifier la structure de l'arbre
+    const draggedParent = findParentNode(rootNode, draggedPanelId);
+    const targetParent = findParentNode(rootNode, targetPanelId);
+
+    // Sauvegarde de l'état actuel pour le Undo au besoin
+    saveState();
+
+    // 3. Retirer le panneau déplacé de sa position d'origine
+    if (!draggedParent) {
+        // Si le panneau déplacé n'a pas de parent, c'est le seul panneau existant (impossible théoriquement ici)
+        return;
+    }
+
+    const draggedSibling = getSibling(draggedParent, draggedNode);
+
+    if (draggedParent === rootNode) {
+        rootNode = draggedSibling;
+    } else {
+        const draggedGrandParent = findParentNode(rootNode, draggedParent.first.id === draggedPanelId ? draggedParent.second.id : draggedParent.first.id);
+        // Note: une fonction utilitaire plus robuste pour trouver le parent du parent :
+        const realDraggedGrandParent = findParentNode(rootNode, draggedParent.first.id); 
+        // Remplacement simplifié :
+        replaceNode(rootNode, draggedParent, draggedSibling);
+    }
+
+    // 4. Créer un nouveau SplitNode pour accueillir la cible et l'élément déplacé
+    // Par défaut, on va scinder verticalement (côte à côte) à l'emplacement de la cible
+    const newSplit = new SplitNode("vertical");
+    newSplit.ratio = 0.5;
+
+    // On récupère à nouveau le parent de la cible au cas où l'arbre a bougé suite au retrait du premier nœud
+    const freshTargetParent = findParentNode(rootNode, targetPanelId);
+
+    newSplit.first = targetNode;
+    newSplit.second = draggedNode;
+
+    if (!freshTargetParent) {
+        // Si la cible était devenue la racine (root)
+        rootNode = newSplit;
+    } else {
+        if (freshTargetParent.first === targetNode) {
+            freshTargetParent.first = newSplit;
+        } else {
+            freshTargetParent.second = newSplit;
+        }
+    }
+
+    // 5. Mettre à jour l'interface graphique
+    activePanel = draggedPanelId; // On donne le focus au panneau déplacé
+    forceRebuildSplitters = true;
+    
+    resizeViews();
+
+    // Notifier le renderer de la nouvelle structure des inputs/onglets
+    win.webContents.send("panels-updated", collectPanels(rootNode));
+});
+
+
 
 ipcMain.on(
     "set-active-panel",
