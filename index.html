@@ -65,8 +65,26 @@
     box-shadow: none;
 }
 
+
+
+.panel {
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.03),
+        0 4px 12px rgba(0,0,0,0.18);
+}
+
+
+
+
 .active-panel {
-    border: 1px solid #007acc !important;
+    background: #18355c;
+    border: 1px solid #3b82f6 !important;
+}
+
+
+.active-panel::before {
+    content: "●";
+    color: #3b82f6;
 }
 
 
@@ -152,35 +170,28 @@
 }    
 
 #splitter-layer {
-
-    position: absolute;
-    left: 0;
-    top: 0;
-
-    width: 100%;
-    height: 100%;
-
+    opacity: 0;
     pointer-events: none;
+}
 
-    z-index: 9999;
+html,
+body {
+    overflow: hidden;
 }
 
 .splitter {
-    position: absolute;
+    background: #2f3541;
 
-    min-width: 8px;
-    min-height: 8px;
-
-    pointer-events: auto;
-
-    z-index: 10000;
-
-    background: rgba(255,0,0,0.4);
+    transition:
+        background-color 150ms ease,
+        transform 150ms ease;
 }
+
 
 .splitter:hover {
-    background:#606060;
+    background: #3b82f6;
 }
+
 
 .vertical-splitter {
     cursor: col-resize;
@@ -327,11 +338,36 @@
 
 <div id="splitter-layer"></div>
 
+<div id="active-panel-frame"></div>
+
+<div id="active-panel-top"></div>
+<div id="active-panel-left"></div>
+<div id="active-panel-right"></div>
+<div id="active-panel-bottom"></div>
+
 </body>
 
 <script>
 
 const input = document.getElementById("panel1-url");
+
+
+function getDisplayUrl(url)
+{
+    try
+    {
+        return (
+            "🔒 " +
+            new URL(url)
+                .hostname
+                .replace(/^www\./, "")
+        );
+    }
+    catch
+    {
+        return url || "";
+    }
+}
 
 function attachUrlHandler(panelId)
 {
@@ -391,11 +427,25 @@ function rebuildUrlBar(panels)
             input.type =
                 "text";
 
-            input.value =
-                panel.url || "";
 
-            input.dataset.url =
-                panel.realUrl || "";
+
+input.dataset.url =
+    panel.realUrl ||
+    panel.url ||
+    "";
+
+/*
+input.value =
+    getDisplayUrl(
+        input.dataset.url
+    );
+*/
+
+input.value =
+    getDisplayUrl(
+        input.dataset.url
+    );
+
 
             input.addEventListener(
                 "click",
@@ -408,27 +458,55 @@ function rebuildUrlBar(panels)
                 }
             );
              
-            input.addEventListener(
-                "focus",
-                () => {
-                    selectPanel(panel.id);
-                    input.value =
-                        input.dataset.url;
-                    input.select();
-                }
+input.addEventListener(
+    "focus",
+    () => {
+
+        selectPanel(
+            panel.id
+        );
+
+        console.log(
+            "URL REELLE =",
+            input.dataset.url
+        );
+
+        input.value =
+            input.dataset.url;
+
+        input.select();
+
+
+/*
+win.webContents.send(
+    "active-panel-changed",
+    {f
+        id: panel.id,
+        bounds: panel.bounds
+    }
+);
+*/
+
+
+    }
+);            
+
+
+
+
+
+console.log(panel);
+
+input.addEventListener(
+    "blur",
+    () => {
+
+        input.value =
+            getDisplayUrl(
+                input.dataset.url
             );
-
-            console.log(panel);
-
-            input.addEventListener(
-                "blur",
-                () => {
-
-                    input.value =
-                        panel.url || "";
-                }
-            );
-
+    }
+);
             container.appendChild(
                 input
             );
@@ -603,91 +681,29 @@ function selectPanel(panelId)
 
     document
         .querySelectorAll("#url-bar input")
-        .forEach((input) => {
+        .forEach(
+            (input) => {
 
-            console.log(
-                input.id,
-                input.className
-            );
+                input.classList.remove(
+                    "active-panel"
+                );
 
-        });
-
-        console.log(
-            "PANNEAU ACTIF =",
-            activePanel
+            }
         );
 
-        document
-            .querySelectorAll(
-                "#url-bar input"
-            )
-            .forEach(
-                (input) => {
-
-                    input.classList.remove(
-                        "active-panel"
-                    );
-
-                }
-            );
-
-        document
-            .getElementById(
-                panelId + "-url"
-            )
-            ?.classList.add(
-                "active-panel"
-            );
-    }
-
-    let dragging = false;
-
-    let lastClickTime = 0;
-
-document.addEventListener(
-    "mousedown",
-    (event) => {
-
-
-console.log(
-    "DELTA =",
-    Date.now() - lastClickTime
-);
-
-        const now = Date.now();
-
-        if (
-            now - lastClickTime < 300
+    document
+        .getElementById(
+            panelId + "-url"
         )
-        {
-            console.log(
-                "DOUBLE CLICK"
-            );
-
-            document.title =
-                "reset-splitter";
-
-            return;
-        }
-
-        lastClickTime = now;
-
-        console.log(
-            "DOWN",
-            event.screenX,
-            event.screenY,
-            event.clientY
+        ?.classList.add(
+            "active-panel"
         );
 
-        dragging = true;
-
-        document.title =
-            "drag-start:" +
-            event.screenX +
-            ":" +
-            event.clientY;
-    }
-);
+    console.log(
+        "PANNEAU ACTIF =",
+        panelId
+    );
+}
 
 document.addEventListener(
     "dblclick",
@@ -760,24 +776,56 @@ document.addEventListener(
             }
         );
 
+       
+window.api.onActivePanelChanged(
+    (panel) => {
 
-        
-      
+        console.log(
+            "ACTIVE PANEL RECU",
+            panel
+        );
 
-    window.api.onActivePanelChanged(
-        (panelId) => {
+        selectPanel(
+            panel.id
+        );
 
-            console.log(
-                "PANNEAU ACTIF RECU :",
-                panelId
+
+
+
+        const frame =
+            document.getElementById(
+                "active-panel-frame"
             );
 
-            selectPanel(
-                panelId
-            );
-
+        if (!frame)
+        {
+            return;
         }
-    );
+
+        console.log(
+            "ACTIVE PANEL",
+            panel
+        );        
+
+
+
+        frame.style.display =
+            "block";
+
+        frame.style.left =
+            panel.bounds.x + "px";
+
+        frame.style.top =
+            panel.bounds.y + "px";
+
+        frame.style.width =
+            panel.bounds.width + "px";
+
+        frame.style.height =
+            panel.bounds.height + "px";
+
+    }
+);
 
     window.api.onSplittersUpdated(
         (splitters) => {
@@ -827,8 +875,11 @@ layer.innerHTML = "";
     div.style.left =
         splitter.x + "px";
 
+//  div.style.top =
+//      splitter.y + "px";
+
     div.style.top =
-        splitter.y + "px";
+        (splitter.y - layer.getBoundingClientRect().top) + "px";
 
     div.style.width =
         splitter.width + "px";
@@ -844,9 +895,7 @@ layer.innerHTML = "";
     div.style.background =
         "#454545";
 
-    layer.appendChild(
-        div
-    );
+//  layer.appendChild(div);
 
     if (
         splitter.direction ===

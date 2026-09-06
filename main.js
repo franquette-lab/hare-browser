@@ -28,10 +28,6 @@ const splitters = [];
 
 let win;
 
-let leftView;
-let centerView;
-let rightView;
-
 let rootNode = null;
 
 let activePanel = null;
@@ -142,6 +138,11 @@ function saveState()
         fistory.shift();
     }
 }
+
+
+///////////////////////////
+///////////////////////////
+////////////////////////////
 
 function restoreTree(snapshot)
 {
@@ -365,8 +366,6 @@ function collectPanels(
 
 function updatePanelUrl(panel, url)
 {
-    panel.url = url;
-
     panel.title =
         panel.view.webContents.getTitle();
 
@@ -433,12 +432,29 @@ panel.view.webContents.on(
 
         win.webContents.send(
             "active-panel-changed",
-            panel.id
+            {
+                id: panel.id,
+                bounds: panel.bounds
+            }
         );
 
     }
 );
 
+panel.view.webContents.on(
+    "page-title-updated",
+    (event, title) => {
+
+        event.preventDefault();
+
+        win.webContents.send(
+            "title-changed",
+            panel.id,
+            title
+        );
+
+    }
+);
 
 }
 
@@ -497,6 +513,13 @@ function layoutNode(
 
     if (node.type === "panel") {
 
+        node.bounds = {
+            x,
+            y,
+            width,
+            height
+        };
+
         console.log(
             node.id,
             x,
@@ -516,6 +539,8 @@ function layoutNode(
 
     }
 
+
+ 
     if (node.direction === "vertical") {
 
         const firstWidth =
@@ -606,20 +631,6 @@ function layoutNode(
 
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class Panel {
 
     constructor(id, url, view) {
@@ -634,19 +645,23 @@ let splitPosition1 = 530;
 let splitPosition2 = 1060;
 
 ipcMain.on(
-    'navigate',
+    "navigate",
     (event, panelId, url) => {
 
-        if (panelId === 'panel1') {
-            leftView.webContents.loadURL(url);
-        }
+        const panel =
+            findPanelNode(
+                rootNode,
+                panelId
+            );
 
-        if (panelId === 'panel2') {
-            centerView.webContents.loadURL(url);
-        }
-
-        if (panelId === 'panel3') {
-            rightView.webContents.loadURL(url);
+        if (
+            panel &&
+            panel.view
+        )
+        {
+            panel.view.webContents.loadURL(
+                url
+            );
         }
 
     }
@@ -1001,11 +1016,14 @@ win.webContents.send(
             newActivePanel.id
         );
 
-        win.webContents.send(
-            "active-panel-changed",
-            newActivePanel.id
-        );
-
+  
+win.webContents.send(
+    "active-panel-changed",
+    {
+        id: newActivePanel.id,
+        bounds: newActivePanel.bounds
+    }
+);        
         forceRebuildSplitters = true;
                 resizeViews();
 
@@ -1016,7 +1034,6 @@ win.webContents.send(
 
     }
 );
-
 
 function addPanel(url) {
 
@@ -1058,7 +1075,6 @@ function getDisplayText(urlString)
         return urlString;
     }
 }
-
 
 function createDefaultLayout()
 {
@@ -1126,34 +1142,19 @@ function createDefaultLayout()
         rootNode.second.second.id
     );
 
-
 }
 
 function createWindow() {
 
-    if (
-        fs.existsSync(
-            WORKSPACE_FILE
-        )
-    )
-    {
-        const snapshot =
-            JSON.parse(
-                fs.readFileSync(
-                    WORKSPACE_FILE,
-                    "utf8"
-                )
-            );
 
-        rootNode =
-            restoreSnapshot(
-                snapshot
-            );
-    }
-    else
-    {
-        createDefaultLayout();
-    }
+
+
+/////////////////////////////////////////
+/////////////////////////////////////////
+/////////////////////////////////////////
+/////////////////////////////////////////
+/////////////////////////////////////////
+
 
 
     win = new BrowserWindow({
@@ -1185,17 +1186,29 @@ function createWindow() {
     });
 
 
+        if (
+        fs.existsSync(
+            WORKSPACE_FILE
+        )
+    )
+    {
+        const snapshot =
+            JSON.parse(
+                fs.readFileSync(
+                    WORKSPACE_FILE,
+                    "utf8"
+                )
+            );
 
-
-
-
-
-
-
-
-
-
-
+        rootNode =
+            restoreTree(
+                snapshot
+            );
+    }
+    else
+    {
+        createDefaultLayout();
+    }
 
 
     win.webContents.on(
@@ -1216,51 +1229,15 @@ function createWindow() {
         }
     );
 
-
-    console.log(
-        "leftView =",
-        leftView
-    );
-
-    console.log(
-        "centerView =",
-        centerView
-    );
-
-    console.log(
-        "rightView =",
-        rightView
-    );
-
-
-
-/////////////////////////////////////
-/////////////////////////////////////
-/////////////////////////////////////
-
-
-        win.setMenu(null);
+    win.setMenu(null);
 
         win.webContents.openDevTools({
         mode: 'detach'
         });
 
-    const node =
-        findPanelNode(
-            rootNode,
-            "panel2"
-        );
-
-    console.log(
-        "Trouvé :",
-        node.id
-    );
 
 
 
-////////////////////////////////
-///////////////////////////////
-////////////////////////////////
 
     win.loadFile('index.html');
 
@@ -1277,10 +1254,6 @@ function createWindow() {
         }
     );
 
-    win.setBrowserView(leftView);
-    win.addBrowserView(centerView);
-    win.addBrowserView(rightView);
-
     forceRebuildSplitters = true;
         resizeViews();
 
@@ -1288,121 +1261,6 @@ function createWindow() {
     win.webContents.send(
         "panels-updated",
         collectPanels(rootNode)
-    );
-
-    centerView.webContents.loadURL(
-        'https://fr.wikipedia.org'
-    );
-
-    leftView.webContents.loadURL(
-        'https://www.google.com'
-    );
-
-    centerView.webContents.loadURL(
-        'https://fr.wikipedia.org'
-    );
-
-    rightView.webContents.loadURL(
-        'https://www.github.com'
-    );
-
-    leftView.webContents.on(
-        'did-finish-load',
-        () => {
-            console.log('Google chargé');
-        }
-    );
-
-    leftView.webContents.on(
-        'did-navigate',
-        (event, url) => {
-
-            win.webContents.send(
-                'url-changed',
-                'panel1',
-                url
-            );
-
-        }
-    );
-
-    leftView.webContents.on(
-        'did-navigate-in-page',
-        (event, url) => {
-
-            win.webContents.send(
-                'url-changed',
-                'panel1',
-                url
-            );
-
-        }
-    );
-
-    centerView.webContents.on(
-        'did-finish-load',
-        () => {
-            console.log('Wikipedia chargée');
-        }
-    );
-
-    centerView.webContents.on(
-        'did-navigate',
-        (event, url) => {
-
-            win.webContents.send(
-                'url-changed',
-                'panel2',
-                url
-            );
-
-        }
-    );
-
-    centerView.webContents.on(
-        'did-navigate-in-page',
-        (event, url) => {
-
-            win.webContents.send(
-                'url-changed',
-                'panel2',
-                url
-            );
-
-        }
-    );
-
-    rightView.webContents.on(
-        'did-finish-load',
-        () => {
-            console.log('GitHub chargé');
-        }
-    );
-
-    rightView.webContents.on(
-        'did-navigate',
-        (event, url) => {
-
-            win.webContents.send(
-                'url-changed',
-                'panel3',
-                url
-            );
-
-        }
-    );
-
-    rightView.webContents.on(
-        'did-navigate-in-page',
-        (event, url) => {
-
-            win.webContents.send(
-                'url-changed',
-                'panel3',
-                url
-            );
-
-        }
     );
 
     win.removeAllListeners(
@@ -1430,9 +1288,6 @@ function createWindow() {
                 },
                 100
             );
-
-    console.trace("AJOUT LISTENER");
-
         }
     );
 
@@ -1510,6 +1365,12 @@ function replaceNode(
     }
     return false;
 }
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 function resizeViews() {
 
@@ -1632,6 +1493,16 @@ function resizeViews() {
                 splitterView
             );            
 
+
+console.log(
+    "SPLITTER BOUNDS",
+    splitter.x,
+    splitter.y,
+    splitter.width,
+    splitter.height
+);
+
+
             splitterView.setBounds({
                 x: splitter.x,
                 y: splitter.y,
@@ -1640,7 +1511,11 @@ function resizeViews() {
             });
 
 
-
+console.log(
+    "BOUNDS",
+    splitter.width,
+    splitter.height
+);
 
 
             splitterView.webContents.loadURL(
@@ -1650,22 +1525,52 @@ function resizeViews() {
 
                     <head>
 
-                    <style>
+<style>
 
-                    body {
-                        margin: 0;
 
-                        background: #5a5a5a;
-                        transition: background .15s;
+html,
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden !important;
+}
 
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
+body {
+    box-sizing: border-box;
 
-                        cursor: ${cursor};
-                    }
+    background: #374151;
 
-                    body:hover {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: ${cursor};
+}
+
+* {
+    box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+#handle {
+    position: absolute;
+
+    top: 50%;
+    left: 50%;
+
+    transform: translate(-50%, -50%);
+
+    display: flex;
+    flex-direction: ${handleDirection};
+    gap: 2px;
+}  
+
+body:hover {
                     background: #808080;
                     }
                     #handle {
@@ -1775,28 +1680,48 @@ function resizeViews() {
             );
 
 
+/*
+console.log(
+    document.body.scrollHeight,
+    document.body.clientHeight
+);
+*/
 
 
-
-
-            console.trace(
-                "AJOUT LISTENER page-title-updated"
-            );
+splitterView.webContents.on(
+    "did-finish-load",
+    () => {
+        console.log(
+            "SPLITTER LOADED"
+        );
+    }
+);
 
 let lastSplitterClickTime = 0;
 
-            splitterView.webContents.on(
-                "page-title-updated",
-                            (
-                                event,
-                                title
-                            ) => {
 
 
-                                console.log(
-                                    "TITLE RECU =",
-                                    title
-                                );
+splitterView.webContents.on(
+    "page-title-updated",
+    (
+        event,
+        title
+    ) => {
+
+        event.preventDefault();
+
+        console.log(
+            "TITLE RECU =",
+            title
+        );
+
+        // tout ton code :
+        // reset-splitter
+        // drag-start
+        // move
+        // drag-end
+
+
 
 if (
     title === "reset-splitter"
@@ -1814,34 +1739,26 @@ if (
 }
 
 
-                                if (
-                                    title === "drag-end"
-                                ) {
+ 
 
-                                    win.setTitle(
-                                        "Tile Browser"
-                                    );
+    if (
+    title === "drag-end"
+) {
 
-                                    dragInProgress = false;
+    console.log(
+        "DRAG END RECU"
+    );
 
-                                    console.log(
-                                    "IGNORE DRAG START",
-                                    dragInProgress
-                                    );
+    win.setTitle(
+        "Tile Browser"
+    );
+
+    dragInProgress = false;
+
 
                                     return;
                                 }
 
-if (
-    title === "reset-splitter"
-)
-{
-    splitter.node.ratio = 0.5;
-
-    resizeViews();
-
-    return;
-}
 
 
 
