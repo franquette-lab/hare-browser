@@ -1,3 +1,7 @@
+<!-- ------------------- -->
+<!-- SCRIPT : index.html -->
+<!-- ------------------- -->
+
 <!DOCTYPE html>
 <html>
 
@@ -45,6 +49,16 @@
     height: 100%;
 }
 
+/* À ajouter dans la balise <style> de index.html */
+#active-panel-frame {
+    position: absolute;
+    border: 2px solid #3b82f6;   /* Bordure bleue épaisse */
+    box-sizing: border-box;
+    pointer-events: none;        /* Permet de cliquer à travers le rectangle */
+    z-index: 9999;               /* S'affiche au-dessus des vues */
+    display: none;               /* Caché par défaut tant qu'aucun panneau n'est sélectionné */
+}
+
 
 .dot {
     display: block;
@@ -75,12 +89,13 @@
 
 
 
-
 .active-panel {
-    background: #18355c;
+    background: #203a5d;
+    color: white;
+
     border: 1px solid #3b82f6 !important;
 }
-
+`   
 
 .active-panel::before {
     content: "●";
@@ -451,10 +466,7 @@ input.value =
                 "click",
                 () => {
 
-                    selectPanel(
-                        panel.id
-                    );
-
+window.api.setActivePanel(panel.id);
                 }
             );
              
@@ -462,9 +474,7 @@ input.addEventListener(
     "focus",
     () => {
 
-        selectPanel(
-            panel.id
-        );
+window.api.setActivePanel(panel.id);
 
         console.log(
             "URL REELLE =",

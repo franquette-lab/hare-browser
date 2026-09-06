@@ -1,3 +1,7 @@
+// ------------------- //
+// SCRIPT : preload.js //
+// ------------------- //
+
 const {
     contextBridge,
     ipcRenderer
@@ -7,7 +11,12 @@ contextBridge.exposeInMainWorld(
     'api',
     {
 
-
+setActivePanel: (panelId) => {
+    ipcRenderer.send(
+        "set-active-panel",
+        panelId
+    );
+},
         
         navigate: (panelId, url) => {
             ipcRenderer.send(
@@ -64,22 +73,14 @@ refresh: (panelId) =>
                 "undo"
             ),
 
-        onActivePanelChanged: (
-            callback
-        ) => {
-
+        onActivePanelChanged: (callback) => {
             ipcRenderer.on(
                 "active-panel-changed",
-                (event, panelId) => {
-
-                    callback(panelId);
-
+                (event, panel) => { // <-- Correction ici : renommé en panel
+                    callback(panel); // <-- Renvoie l'objet entier (id + bounds)
                 }
             );
-
         },
-
-
 
         onSplittersUpdated: (callback) => {
 
@@ -104,33 +105,35 @@ refresh: (panelId) =>
                     callback(panels)
             ),
 
-onUndoAvailable: (callback) =>
-    ipcRenderer.on(
-        "undo-available",
-        (event, available) =>
-            callback(available)
-    ),
+        onUndoAvailable: (callback) =>
+            ipcRenderer.on(
+                "undo-available",
+                (event, available) =>
+                    callback(available)
+            ),
 
-            startSplitterDrag: (
-                x,
-                y
-            ) => {
+                    startSplitterDrag: (
+                        x,
+                        y
+                    ) => {
 
-                ipcRenderer.send(
-                    "start-splitter-drag",
-                    x,
-                    y
-                );
+                        ipcRenderer.send(
+                            "start-splitter-drag",
+                            x,
+                            y
+                        );
 
-            },
+                    },
  
             
-stopSplitterDrag: () => {
-    ipcRenderer.send(
-        "stop-splitter-drag"
-    );
-},            
+        stopSplitterDrag: () => {
+            ipcRenderer.send(
+                "stop-splitter-drag"
+            );
+        },            
 
+
+        
 
             }
 

@@ -1,3 +1,7 @@
+// ---------------- //
+// SCRIPT : main.js //
+// ---------------- //
+
 const {
     app,
     BrowserWindow,
@@ -25,6 +29,10 @@ const MIN_PANEL_WIDTH = 150;
 const panels = [];
 
 const splitters = [];
+
+// Tout en haut de main.js avec les autres variables globales
+let borderView = null;
+
 
 let win;
 
@@ -85,6 +93,46 @@ function saveWorkspace()
 }
 
 
+function updateActiveBorder(bounds) {
+    if (!bounds) return;
+
+    // Si la vue de bordure n'existe pas encore, on la crée
+    if (!borderView) {
+        borderView = new BrowserView();
+        win.addBrowserView(borderView);
+        
+        // On charge un arrière-plan transparent avec une bordure bleue
+        borderView.webContents.loadURL("data:text/html," + encodeURIComponent(`
+            <html>
+            <body style="margin:0; padding:0; box-sizing:border-box; border:3px solid #3b82f6; background:transparent; overflow:hidden;">
+            </body>
+            </html>
+        `));
+    }
+
+    // On force Electron à placer la bordure tout au-dessus des autres vues
+    try {
+        const views = win.getBrowserViews();
+
+        if (views.includes(borderView)) {
+            win.setTopBrowserView(borderView);
+        }
+    }
+    catch (err) {
+        console.error("borderView error", err);
+    }
+
+
+    // On positionne la bordure exactement sur les contours du panneau
+    borderView.setBounds({
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height
+    });
+}
+
+
 function getDisplayText(urlString)
 {
     try
@@ -138,11 +186,6 @@ function saveState()
         fistory.shift();
     }
 }
-
-
-///////////////////////////
-///////////////////////////
-////////////////////////////
 
 function restoreTree(snapshot)
 {
@@ -421,14 +464,13 @@ function setupNavigationTracking(panel)
         }
     );
 
+
+
+// Dans main.js, à l'intérieur de setupNavigationTracking(panel) :
 panel.view.webContents.on(
     "focus",
     () => {
-
-        console.log(
-            "FOCUS",
-            panel.id
-        );
+        console.log("FOCUS", panel.id);
 
         win.webContents.send(
             "active-panel-changed",
@@ -438,8 +480,14 @@ panel.view.webContents.on(
             }
         );
 
+        // AJOUT : On dessine le rectangle bleu natif par-dessus la vue
+        updateActiveBorder(panel.bounds);
     }
 );
+
+
+
+
 
 panel.view.webContents.on(
     "page-title-updated",
@@ -757,9 +805,6 @@ ipcMain.on(
             collectPanels(rootNode)
         );
 
-        // Plus rien à restaurer
-        lastClosedPanel = null;
-
         lastClosedPanel = null;
 
 console.log(
@@ -981,15 +1026,7 @@ console.log(
     "ENVOI undo-available = true"
 );
 
-/*
-win.webContents.send(
-    "undo-available",
-    true
-);
-*/
 
-
-// Nouveau
 win.webContents.send(
     "enable-undo"
 );
@@ -1146,17 +1183,6 @@ function createDefaultLayout()
 
 function createWindow() {
 
-
-
-
-/////////////////////////////////////////
-/////////////////////////////////////////
-/////////////////////////////////////////
-/////////////////////////////////////////
-/////////////////////////////////////////
-
-
-
     win = new BrowserWindow({
 
         width: 1600,
@@ -1183,6 +1209,12 @@ function createWindow() {
             nodeIntegration: false
 
         }
+
+
+
+        
+
+
     });
 
 
@@ -1263,6 +1295,9 @@ function createWindow() {
         collectPanels(rootNode)
     );
 
+
+
+/*
     win.removeAllListeners(
         "resize"
     );
@@ -1290,6 +1325,51 @@ function createWindow() {
             );
         }
     );
+*/
+
+
+    // Dans main.js, à l'intérieur de createWindow()
+    win.removeAllListeners("resize");
+
+    let resizeDebounceTimer = null;
+    win.on("resize", () => {
+        // Annule le redimensionnement précédent s'il y en a un en cours
+        if (resizeDebounceTimer) {
+            clearTimeout(resizeDebounceTimer);
+        }
+
+        // On attend 10ms que la fenêtre se stabilise avant de recalculer les positions
+        resizeDebounceTimer = setTimeout(() => {
+            if (win.isDestroyed()) return;
+
+            // 1. On reconstruit entièrement les splitters et les positions des panneaux
+            forceRebuildSplitters = true;
+            resizeViews();
+
+            // 2. On force la mise à jour immédiate du rectangle bleu s'il y a un panneau actif
+            if (borderView && activePanel) {
+                const activeNode = findPanelNode(rootNode, activePanel);
+                if (activeNode && activeNode.bounds) {
+                    // On vérifie que la vue de bordure n'est pas détruite
+                    if (!borderView.webContents || borderView.webContents.isDestroyed()) return;
+                    
+                    borderView.setBounds(activeNode.bounds);
+
+                    try {
+                        const views = win.getBrowserViews();
+                        if (views.includes(borderView)) {
+                            win.setTopBrowserView(borderView);
+                        }
+                    }
+                    catch (err) {
+                        console.error("borderView error", err);
+                    }
+                }
+            }
+        }, 10);
+    });
+
+
 
 }
 
@@ -1367,10 +1447,12 @@ function replaceNode(
 }
 
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
 
 function resizeViews() {
 
@@ -1440,6 +1522,7 @@ function resizeViews() {
     }
 
     splitters.forEach(
+
         (splitter, index) => {
 
             if (
@@ -1494,13 +1577,13 @@ function resizeViews() {
             );            
 
 
-console.log(
-    "SPLITTER BOUNDS",
-    splitter.x,
-    splitter.y,
-    splitter.width,
-    splitter.height
-);
+            console.log(
+                "SPLITTER BOUNDS",
+                splitter.x,
+                splitter.y,
+                splitter.width,
+                splitter.height
+            );
 
 
             splitterView.setBounds({
@@ -1511,429 +1594,398 @@ console.log(
             });
 
 
-console.log(
-    "BOUNDS",
-    splitter.width,
-    splitter.height
-);
+            console.log(
+                "BOUNDS",
+                splitter.width,
+                splitter.height
+            );
 
 
             splitterView.webContents.loadURL(
                 "data:text/html," +
-                encodeURIComponent(`
-                    <html>
+                encodeURIComponent
+                (`
+                            <html>
 
-                    <head>
+                            <head>
 
-<style>
-
-
-html,
-body {
-    margin: 0;
-    padding: 0;
-    overflow: hidden !important;
-}
-
-body {
-    box-sizing: border-box;
-
-    background: #374151;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    cursor: ${cursor};
-}
-
-* {
-    box-sizing: border-box;
-}
-
-::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-    display: none;
-}
-
-#handle {
-    position: absolute;
-
-    top: 50%;
-    left: 50%;
-
-    transform: translate(-50%, -50%);
-
-    display: flex;
-    flex-direction: ${handleDirection};
-    gap: 2px;
-}  
-
-body:hover {
-                    background: #808080;
-                    }
-                    #handle {
-                        display: flex;
-                        flex-direction: ${handleDirection};
-                        gap: 2px;
-                    }
-
-                    .dot {
-                        display: block;
-
-                        width: 3px;
-                        height: 3px;
-
-                        background: #cfcfcf;
-
-                        border-radius: 50%;
-                    }        </style>
-
-                    </head>
-
-                    <body>
-
-                    <div id="handle">
-                    <div class="dot"></div>
-                    <div class="dot"></div>
-                    <div class="dot"></div>
-                    </div>
-
-                    <script>
-
-                    let dragging = false;
-
-                    let startMouseX = 0;
-
-                    console.log("SPLITTER CHARGE");
-                                        
-
-                    document.addEventListener(
-                        "mousedown",
-                        (event) => {
-
-                            console.log(
-                                "EVENT",
-                                event.screenX,
-                                event.screenY,
-                                event.clientY,
-                                event.pageY
-                            );
-
-                            console.log("MOUSEDOWN");
-
-                                    dragging = true;
-
-                            console.log(
-                                "DOWN VALUES",
-                                event.screenX,
-                                event.screenY,
-                                event.clientY,
-                                event.pageY
-                            );
-
-                            document.title =
-                                "drag-start:" +
-                                event.screenX +
-                                ":" +
-                                event.screenY;
+                            <style>
 
 
-                                }
-                            );
+                            html,
+                            body {
+                                margin: 0;
+                                padding: 0;
+                                overflow: hidden !important;
+                            }
 
-                            document.addEventListener(
-                                "mouseup",
-                                () => {
+                            body {
+                                box-sizing: border-box;
 
-                                    dragging = false;
+                                background: #374151;
 
-                                    document.title =
-                                        "drag-end";
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
 
-                                }
-                            );
+                                cursor: ${cursor};
+                            }
 
-                            document.addEventListener(
-                                "mousemove",
-                                (event) => {
+                            * {
+                                box-sizing: border-box;
+                            }
 
-                                    if (!dragging) {
-                                        return;
-                                    }
+                            ::-webkit-scrollbar {
+                                width: 0;
+                                height: 0;
+                                display: none;
+                            }
 
-                                    document.title =
-                                        "move:" +
-                                        event.screenX +
-                                        ":" +
-                                        event.screenY;
-                        }
-                    );  
+                            #handle {
+                                position: absolute;
 
-                    </script>
+                                top: 50%;
+                                left: 50%;
 
-                    </body>
+                                transform: translate(-50%, -50%);
 
-                    </html>
+                                display: flex;
+                                flex-direction: ${handleDirection};
+                                gap: 2px;
+                            }  
+
+                            body:hover {
+                                                background: #808080;
+                                                }
+                                                #handle {
+                                                    display: flex;
+                                                    flex-direction: ${handleDirection};
+                                                    gap: 2px;
+                                                }
+
+                                                .dot {
+                                                    display: block;
+
+                                                    width: 3px;
+                                                    height: 3px;
+
+                                                    background: #cfcfcf;
+
+                                                    border-radius: 50%;
+                                                }        </style>
+
+                                                </head>
+
+                                                <body>
+
+                                                <div id="handle">
+                                                <div class="dot"></div>
+                                                <div class="dot"></div>
+                                                <div class="dot"></div>
+                                                </div>
+
+                                                <script>
+
+                                                let dragging = false;
+
+                                                let startMouseX = 0;
+
+                                                console.log("SPLITTER CHARGE");
+                                                                    
+
+                                                document.addEventListener(
+                                                    "mousedown",
+                                                    (event) => {
+
+                                                        console.log(
+                                                            "EVENT",
+                                                            event.screenX,
+                                                            event.screenY,
+                                                            event.clientY,
+                                                            event.pageY
+                                                        );
+
+                                                        console.log("MOUSEDOWN");
+
+                                                                dragging = true;
+
+                                                        console.log(
+                                                            "DOWN VALUES",
+                                                            event.screenX,
+                                                            event.screenY,
+                                                            event.clientY,
+                                                            event.pageY
+                                                        );
+
+                                                        document.title =
+                                                            "drag-start:" +
+                                                            event.screenX +
+                                                            ":" +
+                                                            event.screenY;
+
+
+                                                            }
+                                                        );
+
+                                                        document.addEventListener(
+                                                            "mouseup",
+                                                            () => {
+
+                                                                dragging = false;
+
+                                                                document.title =
+                                                                    "drag-end";
+
+                                                            }
+                                                        );
+
+                                                        document.addEventListener(
+                                                            "mousemove",
+                                                            (event) => {
+
+                                                                if (!dragging) {
+                                                                    return;
+                                                                }
+
+                                                                document.title =
+                                                                    "move:" +
+                                                                    event.screenX +
+                                                                    ":" +
+                                                                    event.screenY;
+                                                    }
+                                                );  
+
+                                                </script>
+
+                                                </body>
+
+                                                </html>
                 `)
+          );
+
+
+
+
+            splitterView.webContents.on(
+                "did-finish-load",
+                () => {
+                    console.log(
+                        "SPLITTER LOADED"
+                    );
+                }
+
+
+
             );
 
-
-/*
-console.log(
-    document.body.scrollHeight,
-    document.body.clientHeight
-);
-*/
+            let lastSplitterClickTime = 0;
 
 
-splitterView.webContents.on(
-    "did-finish-load",
-    () => {
-        console.log(
-            "SPLITTER LOADED"
-        );
+
+            splitterView.webContents.on(
+                "page-title-updated",
+                (
+                    event,
+                    title
+                ) => {
+
+                    event.preventDefault();
+
+                    console.log(
+                        "TITLE RECU =",
+                        title
+                    );
+
+            if (
+                title === "reset-splitter"
+            )
+            {
+                console.log(
+                    "RESET SPLITTER RECU"
+                );
+
+                splitter.node.ratio = 0.5;
+
+                resizeViews();
+
+                return;
+            }
+
+            if (
+                title === "drag-end"
+            ) {
+
+                console.log(
+                    "DRAG END RECU"
+                );
+
+                win.setTitle(
+                    "Tile Browser"
+                );
+
+                dragInProgress = false;
+
+
+                return;
+            }
+
+            let lastDragStart = 0;
+
+            if (
+                title.startsWith("drag-start:")
+            )
+            {
+
+                const now = Date.now();
+
+                if (
+                    now - lastSplitterClickTime < 300
+                )
+                {
+                    console.log(
+                        "DOUBLE CLICK SPLITTER"
+                    );
+
+                    splitter.node.ratio = 0.5;
+
+                    resizeViews();
+
+                    lastSplitterClickTime = 0;
+
+                    return;
+                }
+
+                lastSplitterClickTime = now;
+                dragInProgress = false;
+
+                lastDragStart = now;
+
+                console.log(
+                    "DRAG START RECU",
+                    dragInProgress
+                );
+
+                if (dragInProgress) {
+
+                    console.log(
+                        "DRAG START IGNORE"
+                    );
+
+                    return;
+                }
+
+                dragInProgress = true;
+
+                const parts =
+                    title
+                        .slice(11)
+                        .split(":");
+
+                dragStartMouseX =
+                    parseInt(parts[0]);
+
+                dragStartMouseY =
+                    parseInt(parts[1]);
+
+                console.log(
+                    "SPLITTER =",
+                    splitter
+                );
+
+                dragStartRatio =
+                    splitter.node.ratio;
+
+                return;
+            }
+
+            if (
+                title.startsWith("move:")
+            )
+            {
+
+                if (!dragInProgress)
+                {
+                    return;
+                }
+                                                
+                const raw =
+                    title.slice(5);
+
+                const parts =
+                    raw.split(":");
+
+                console.log(
+                    "PARTS =",
+                    parts
+                );
+
+                const mouseX =
+                    Number(parts[0]);
+
+                const mouseY =
+                    Number(parts[1]);
+
+                const mousePos =
+                    parseInt(
+                        title.slice(5)
+                    );
+
+                console.log(
+                    "MOVE RECU",
+                    title
+                );
+
+                if (
+                    splitter.direction === "vertical"
+                )
+                {
+                    const deltaX =
+                        mouseX -
+                        dragStartMouseX;
+
+                    splitter.node.ratio =
+                        dragStartRatio +
+                        (
+                            deltaX /
+                            splitter.parentWidth
+                        );
+                }
+                else
+                {
+                    const deltaY =
+                        mouseY -
+                        dragStartMouseY;
+
+                    splitter.node.ratio =
+                        dragStartRatio +
+                        (
+                            deltaY /
+                            splitter.parentHeight
+                        );
+                }
+
+                splitter.node.ratio =
+                    Math.max(
+                        0.1,
+                        Math.min(
+                            0.9,
+                            splitter.node.ratio
+                        )
+                    );
+                if (resizeTimer) {
+                clearTimeout(resizeTimer);
+                }
+
+                if (resizeTimer) {
+                    clearTimeout(resizeTimer);
+                }
+
+                resizeViews();
+                currentSplitterRatio =
+                    splitter.node.ratio;
     }
-);
 
-let lastSplitterClickTime = 0;
-
-
-
-splitterView.webContents.on(
-    "page-title-updated",
-    (
-        event,
-        title
-    ) => {
-
-        event.preventDefault();
-
-        console.log(
-            "TITLE RECU =",
-            title
-        );
-
-        // tout ton code :
-        // reset-splitter
-        // drag-start
-        // move
-        // drag-end
-
-
-
-if (
-    title === "reset-splitter"
-)
-{
-    console.log(
-        "RESET SPLITTER RECU"
-    );
-
-    splitter.node.ratio = 0.5;
-
-    resizeViews();
-
-    return;
 }
-
-
- 
-
-    if (
-    title === "drag-end"
-) {
-
-    console.log(
-        "DRAG END RECU"
-    );
-
-    win.setTitle(
-        "Tile Browser"
-    );
-
-    dragInProgress = false;
-
-
-                                    return;
-                                }
-
-
-
-
-
-
-
-
-
-
-
-let lastDragStart = 0;
-
-if (
-    title.startsWith("drag-start:")
-)
-{
-
-
-
-
- 
-
-const now = Date.now();
-
-if (
-    now - lastSplitterClickTime < 300
-)
-{
-    console.log(
-        "DOUBLE CLICK SPLITTER"
-    );
-
-    splitter.node.ratio = 0.5;
-
-    resizeViews();
-
-    lastSplitterClickTime = 0;
-
-    return;
-}
-
-lastSplitterClickTime = now;
-dragInProgress = false;
-
-
-
-
-
-    lastDragStart = now;
-
-                                    console.log(
-                                        "DRAG START RECU",
-                                        dragInProgress
-                                    );
-
-                                    if (dragInProgress) {
-
-                                        console.log(
-                                            "DRAG START IGNORE"
-                                        );
-
-                                        return;
-                                    }
-
-                                    dragInProgress = true;
-
-                                    const parts =
-                                        title
-                                            .slice(11)
-                                            .split(":");
-
-                                    dragStartMouseX =
-                                        parseInt(parts[0]);
-
-                                    dragStartMouseY =
-                                        parseInt(parts[1]);
-
-                                    console.log(
-                                        "SPLITTER =",
-                                        splitter
-                                    );
-
-                                    dragStartRatio =
-                                        splitter.node.ratio;
-
-                                    return;
-                                }
-
-                                if (
-                                    title.startsWith("move:")
-                                )
-                                {
-
-if (!dragInProgress)
-{
-    return;
-}                                    
-                                    const raw =
-                                        title.slice(5);
-
-                                    const parts =
-                                        raw.split(":");
-
-                                    console.log(
-                                        "PARTS =",
-                                        parts
-                                    );
-
-                                    const mouseX =
-                                        Number(parts[0]);
-
-                                    const mouseY =
-                                        Number(parts[1]);
-
-                                    const mousePos =
-                                        parseInt(
-                                            title.slice(5)
-                                        );
-
-                                    console.log(
-                                        "MOVE RECU",
-                                        title
-                                    );
-
-                                    if (
-                                        splitter.direction === "vertical"
-                                    )
-                                    {
-                                        const deltaX =
-                                            mouseX -
-                                            dragStartMouseX;
-
-                                        splitter.node.ratio =
-                                            dragStartRatio +
-                                            (
-                                                deltaX /
-                                                splitter.parentWidth
-                                            );
-                                    }
-                                    else
-                                    {
-                                        const deltaY =
-                                            mouseY -
-                                            dragStartMouseY;
-
-                                        splitter.node.ratio =
-                                            dragStartRatio +
-                                            (
-                                                deltaY /
-                                                splitter.parentHeight
-                                            );
-                                    }
-
-                                    splitter.node.ratio =
-                                        Math.max(
-                                            0.1,
-                                            Math.min(
-                                                0.9,
-                                                splitter.node.ratio
-                                            )
-                                        );
-                                    if (resizeTimer) {
-                                    clearTimeout(resizeTimer);
-                                    }
-
-                                    if (resizeTimer) {
-                                        clearTimeout(resizeTimer);
-                                    }
-
-                                    resizeViews();
-                                    currentSplitterRatio =
-                                        splitter.node.ratio;
-                                }
-
-                            }
             ); 
             
             
@@ -1951,49 +2003,84 @@ if (!dragInProgress)
         "splitters-updated",
         splitters
     );
+
+
+// À rajouter à la toute dernière ligne de la fonction resizeViews() dans main.js
+if (borderView && activePanel) {
+    const activeNode = findPanelNode(rootNode, activePanel);
+    if (activeNode && activeNode.bounds) {
+        borderView.setBounds(activeNode.bounds);
+
+        try {
+            const views = win.getBrowserViews();
+
+            if (views.includes(borderView)) {
+                win.setTopBrowserView(borderView);
+            }
+        }
+        catch (err) {
+            console.error("borderView error", err);
+        }
+        
+    }
 }
 
+    // À mettre à la TOUTE DERNIÈRE LIGNE de votre fonction resizeViews() dans main.js
+    if (borderView) {
+        if (activePanel) {
+            const activeNode = findPanelNode(rootNode, activePanel);
+            if (activeNode && activeNode.bounds) {
+                borderView.setBounds(activeNode.bounds);
+
+                try {
+                    const views = win.getBrowserViews();
+
+                    if (views.includes(borderView)) {
+                        win.setTopBrowserView(borderView);
+                    }
+                }
+                catch (err) {
+                    console.error("borderView error", err);
+                }
+                
+            }
+        } else {
+            // S'il n'y a pas de panneau actif, on cache la bordure hors de l'écran
+            borderView.setBounds({ x: -100, y: -100, width: 0, height: 0 });
+        }
+    }
+
+
+    // À mettre à la TOUTE DERNIÈRE LIGNE de votre fonction resizeViews() dans main.js
+    if (borderView && borderView.webContents && !borderView.webContents.isDestroyed()) {
+        if (activePanel) {
+            const activeNode = findPanelNode(rootNode, activePanel);
+            if (activeNode && activeNode.bounds) {
+                borderView.setBounds(activeNode.bounds);
+
+                try {
+                    const views = win.getBrowserViews();
+                    if (views.includes(borderView)) {
+                        win.setTopBrowserView(borderView);
+                    }
+                }
+                catch (err) {
+                    console.error("borderView error", err);
+                }
+            }
+        } else {
+            // S'il n'y a pas de panneau actif, on cache la bordure hors de l'écran
+            borderView.setBounds({ x: -100, y: -100, width: 0, height: 0 });
+        }
+    }
 
 
 
+}
 
 ipcMain.on(
-    'move-splitter',
-    (event, x) => {
-
-        splitPosition = x;
-
-        clearTimeout(
-            dragTimer
-        );
-
-        dragTimer =
-            setTimeout(
-                () => {
-
-                    forceRebuildSplitters = true;
-                    resizeViews();
-
-                },
-                16
-            );
-
-
-    }
-);
-
-
-ipcMain.handle(
-    "go-back",
-    (
-        event,
-        panelId
-    ) => {
-
-        console.log(
-            "GO BACK",
-            panelId
-        );
+    "set-active-panel",
+    (event, panelId) => {
 
         const panel =
             findPanelNode(
@@ -2001,99 +2088,165 @@ ipcMain.handle(
                 panelId
             );
 
-        console.log(
-            "PANEL =",
-            panel
+        if (!panel) {
+            return;
+        }
+
+        activePanel = panelId;
+
+        win.webContents.send(
+            "active-panel-changed",
+            {
+                id: panel.id,
+                bounds: panel.bounds
+            }
         );
 
-        if (
-            panel &&
-            panel.view
-        ) {
+        updateActiveBorder(
+            panel.bounds
+        );
+    }
+);
 
-            console.log(
-                "canGoBack =",
-                panel.view.webContents.canGoBack()
-            );
 
-            if (
-                panel.view.webContents.canGoBack()
-            ) {
 
-                panel.view.webContents.goBack();
+        ipcMain.on(
+            'move-splitter',
+            (event, x) => {
+
+                splitPosition = x;
+
+                clearTimeout(
+                    dragTimer
+                );
+
+                dragTimer =
+                    setTimeout(
+                        () => {
+
+                            forceRebuildSplitters = true;
+                            resizeViews();
+
+                        },
+                        16
+                    );
+
 
             }
-
-        }
-
-    }
-);
-
-
-ipcMain.handle(
-    "go-forward",
-    (
-        event,
-        panelId
-    ) => {
-
-        console.log(
-            "GO FORWARD",
-            panelId
         );
 
-        const panel =
-            findPanelNode(
-                rootNode,
+
+        ipcMain.handle(
+            "go-back",
+            (
+                event,
                 panelId
-            );
+            ) => {
 
-        if (
-            panel &&
-            panel.view &&
-            panel.view.webContents.canGoForward()
-        ) {
+                console.log(
+                    "GO BACK",
+                    panelId
+                );
 
-            panel.view.webContents.goForward();
+                const panel =
+                    findPanelNode(
+                        rootNode,
+                        panelId
+                    );
 
-        }
+                console.log(
+                    "PANEL =",
+                    panel
+                );
 
-    }
-);
+                if (
+                    panel &&
+                    panel.view
+                ) {
 
-ipcMain.handle(
-    "refresh",
-    (
-        event,
-        panelId
-    ) => {
+                    console.log(
+                        "canGoBack =",
+                        panel.view.webContents.canGoBack()
+                    );
 
-        console.log(
-            "REFRESH",
-            panelId
+                    if (
+                        panel.view.webContents.canGoBack()
+                    ) {
+
+                        panel.view.webContents.goBack();
+
+                    }
+
+                }
+
+            }
         );
 
-        const panel =
-            findPanelNode(
-                rootNode,
+
+        ipcMain.handle(
+            "go-forward",
+            (
+                event,
                 panelId
-            );
+            ) => {
 
-        if (
-            panel &&
-            panel.view
-        ) {
+                console.log(
+                    "GO FORWARD",
+                    panelId
+                );
 
-            panel.view.webContents.reload();
+                const panel =
+                    findPanelNode(
+                        rootNode,
+                        panelId
+                    );
 
-        }
+                if (
+                    panel &&
+                    panel.view &&
+                    panel.view.webContents.canGoForward()
+                ) {
 
-    }
-);
+                    panel.view.webContents.goForward();
 
-ipcMain.on(
-    "split-panel",
-    (event, panelId, direction) => {
+                }
+
+            }
+        );
+
+        ipcMain.handle(
+            "refresh",
+            (
+                event,
+                panelId
+            ) => {
+
+                console.log(
+                    "REFRESH",
+                    panelId
+                );
+
+                const panel =
+                    findPanelNode(
+                        rootNode,
+                        panelId
+                    );
+
+                if (
+                    panel &&
+                    panel.view
+                ) {
+
+                    panel.view.webContents.reload();
+
+                }
+
+            }
+        );
+
+        ipcMain.on(
+            "split-panel",
+            (event, panelId, direction) => {
 
         console.log(
             "Découpage",
@@ -2235,15 +2388,23 @@ ipcMain.on(
 
         forceRebuildSplitters = true;
 
-saveState();
+        saveState();
 
-                resizeViews();
+                        resizeViews();
 
-        win.webContents.send(
-            "panels-updated",
-            collectPanels(rootNode)
-        );
-    }
+
+
+
+                win.webContents.send(
+                    "panels-updated",
+                    collectPanels(rootNode)
+                );
+            }
+
+
+
+
+
 );
 
 app.whenReady().then(createWindow);
