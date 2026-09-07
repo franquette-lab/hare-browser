@@ -1,0 +1,937 @@
+<!-- ------------------- -->
+<!-- SCRIPT : index.html -->
+<!-- ------------------- -->
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+
+    <link rel="stylesheet" href="tailwind.css">
+
+    <title>Tile Browser</title>
+</head>
+<style>
+
+#toolbar-buttons {
+    height: 32px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: #252526;
+    border-bottom: 1px solid #3c3c3c;
+    padding: 4px 4px 2px 4px;
+    margin-left: 8px;
+    margin-right: 8px;
+}
+
+#toolbar-buttons button:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+#toolbar-buttons button:focus {
+    outline: none;
+}
+
+#toolbar-buttons button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+#handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    width: 100%;
+    height: 100%;
+}
+
+/* À ajouter dans la balise <style> de index.html */
+#active-panel-frame {
+    position: absolute;
+    border: 2px solid #3b82f6;   /* Bordure bleue épaisse */
+    box-sizing: border-box;
+    pointer-events: none;        /* Permet de cliquer à travers le rectangle */
+    z-index: 9999;               /* S'affiche au-dessus des vues */
+    display: none;               /* Caché par défaut tant qu'aucun panneau n'est sélectionné */
+}
+
+
+.dot {
+    display: block;
+
+    width: 2px;
+    height: 2px;
+
+    background: #d0d0d0;
+
+    border-radius: 50%;
+}
+
+
+
+
+#url-bar input:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+
+
+.panel {
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.03),
+        0 4px 12px rgba(0,0,0,0.18);
+}
+
+
+
+.active-panel {
+    background: #203a5d;
+    color: white;
+
+    border: 1px solid #3b82f6 !important;
+}
+`   
+
+.active-panel::before {
+    content: "●";
+    color: #3b82f6;
+}
+
+
+
+#splitter {
+    position: absolute;
+
+    left: 800px;
+    top: 40px;
+
+    width: 12px;
+    height: calc(100vh - 40px);
+
+    background: #d0d0d0;
+
+    cursor: col-resize;
+}
+
+#splitter:hover {
+    background: #d0d0d0;
+}
+
+#splitter-handle {
+    position: absolute;
+
+    top: 50%;
+    left: 50%;
+
+    transform: translate(-50%, -50%);
+
+    width: 16px;
+    height: 40px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#splitter-handle::before {
+    content: "●\A●\A●";
+
+    white-space: pre;
+
+    color: #666;
+
+    font-size: 8px;
+
+    line-height: 8px;
+}
+
+#splitter.dragging {
+    background: #6b6b6b;
+}
+
+#splitter-handle {
+    position: absolute;
+
+    top: 50%;
+    left: 50%;
+
+    transform: translate(-50%, -50%);
+
+    width: auto;
+    height: auto;
+
+    background: transparent;
+}
+
+
+#splitter:hover #splitter-handle::before {
+    color: #666;
+}
+
+
+#splitter.centering {
+    background: #4da3ff;
+
+    transform: scaleX(1.8);
+
+    transition:
+        background 0.2s,
+        transform 0.2s;
+}    
+
+#splitter-layer {
+    opacity: 0;
+    pointer-events: none;
+}
+
+html,
+body {
+    overflow: hidden;
+}
+
+.splitter {
+    background: #2f3541;
+
+    transition:
+        background-color 150ms ease,
+        transform 150ms ease;
+}
+
+
+.splitter:hover {
+    background: #3b82f6;
+}
+
+
+.vertical-splitter {
+    cursor: col-resize;
+}
+
+.horizontal-splitter {
+    cursor: row-resize;
+}
+
+#url-bar {
+    display: flex;
+    gap: 8px;
+    height: 30px;
+    padding: 0 4px;
+    background: #1e1e1e;
+    margin-top: 6px;      /* espace avec les boutons */
+    margin-left: 8px;
+    margin-right: 8px;
+    width: calc(100% - 16px);
+    box-sizing: border-box;
+}
+
+#url-bar input {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    border: 1px solid #3c3c3c;
+    flex: 1;
+    min-width: 0;
+}
+
+#url-bar {
+    display: flex;
+    gap: 8px;
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+</style>    
+
+</head>
+
+<body class="m-0 flex items-center justify-center bg-gray-100 dark:bg-zinc-900 min-h-screen">
+
+<div id="toolbar-buttons">
+
+        <button
+            id="back-button"
+            title="Revenir"
+            style="
+                width:28px;
+                height:24px;
+                background:#2d2d30;
+                color:#d4d4d4;
+                border:1px solid #3c3c3c;
+            "
+        >
+            ←
+        </button>
+
+        <button
+            title="Avancer"
+            id="forward-button"
+            style="
+            width:28px;
+            height:24px;
+            background:#2d2d30;
+            color:#d4d4d4;
+            border:1px solid #3c3c3c;
+            "
+        >
+            →
+        </button>
+
+        <button
+            id="refresh-button"
+            title="Actualiser"
+            style="
+                width:28px;
+                height:24px;
+                background:#2d2d30;
+                color:#d4d4d4;
+                border:1px solid #3c3c3c;
+            "
+        >
+            ↻
+        </button>
+
+        <button
+            id="split-vertical"
+            title="Scinder à droite"
+            style="
+                width:28px;
+                height:24px;
+                background:#2d2d30;
+                color:#d4d4d4;
+                border:1px solid #3c3c3c;
+            "
+        >
+            ◫
+        </button>
+
+        <button id="split-horizontal"
+            title="Scinder vers le bas"
+                style="
+                background:#2d2d30;
+                color:#d4d4d4;
+                border:1px solid #3c3c3c;
+                width:28px;
+                height:24px;
+            "
+        >
+            ◩
+        </button>
+
+        <button id="undo"
+            title="Rouvrir le dernier panneau fermé"
+            disabled
+            style="
+                background:#2d2d30;
+                color:#d4d4d4;
+                border:1px solid #3c3c3c;
+                width:28px;
+                height:24px;
+            "
+            >
+            ↶
+        </button>
+
+        <button id="close-panel"
+            title="Fermer le panneau actif"
+            style="
+                background:#2d2d30;
+                color:#d4d4d4;
+                border:1px solid #3c3c3c;
+                width:28px;
+                height:24px;
+            "
+        >
+            ✕
+        </button>
+</div>
+
+<div id="url-bar"></div>
+
+<div id="splitter-layer"></div>
+
+<div id="active-panel-frame"></div>
+
+<div id="active-panel-top"></div>
+<div id="active-panel-left"></div>
+<div id="active-panel-right"></div>
+<div id="active-panel-bottom"></div>
+
+</body>
+
+<script>
+
+const input = document.getElementById("panel1-url");
+
+
+function getDisplayUrl(url)
+{
+    try
+    {
+        return (
+            "🔒 " +
+            new URL(url)
+                .hostname
+                .replace(/^www\./, "")
+        );
+    }
+    catch
+    {
+        return url || "";
+    }
+}
+
+function attachUrlHandler(panelId)
+{
+    const input =
+        document.getElementById(
+            panelId + "-url"
+        );
+
+    if (!input) {
+        return;
+    }
+
+    input.addEventListener(
+        "keydown",
+        (e) => {
+
+            if (e.key !== "Enter") {
+                return;
+            }
+
+            window.api.navigate(
+                panelId,
+                e.target.value
+            );
+
+        }
+    );
+}
+
+function rebuildUrlBar(panels)
+{
+    const container = document.getElementById("url-bar");
+    if (!container) return;
+    
+    container.innerHTML = "";
+
+    // Force la barre d'URL à se comporter comme une ligne flexible pour aligner les panneaux côte à côte
+    container.style.display = "flex";
+    container.style.gap = "8px";
+    container.style.alignItems = "center";
+
+    panels.forEach((panel) => {
+        // 1. Conteneur principal de l'onglet/tuile d'adresse
+        const tabWrapper = document.createElement("div");
+        tabWrapper.className = "flex items-center gap-2 p-1 rounded";
+        tabWrapper.style.background = "#2d2d30";
+        tabWrapper.style.border = "1px solid #3c3c3c";
+        tabWrapper.style.flex = "1";
+        tabWrapper.style.minWidth = "0";
+        tabWrapper.setAttribute("draggable", "true");
+        tabWrapper.style.cursor = "grab";
+
+        // Style actif si c'est le panneau sélectionné
+        if (typeof activePanel !== "undefined" && panel.id === activePanel) {
+            tabWrapper.style.borderColor = "#3b82f6";
+            tabWrapper.style.background = "#203a5d";
+        }
+
+        // Événements natifs Drag & Drop HTML5
+        tabWrapper.addEventListener("dragstart", (e) => {
+            tabWrapper.style.opacity = "0.4";
+            e.dataTransfer.setData("text/plain", panel.id);
+            e.dataTransfer.effectAllowed = "move";
+        });
+
+        tabWrapper.addEventListener("dragend", () => {
+            tabWrapper.style.opacity = "1";
+            tabWrapper.style.borderColor = "#3c3c3c";
+        });
+
+        tabWrapper.addEventListener("dragover", (e) => {
+            e.preventDefault(); // Autorise le drop
+            e.dataTransfer.dropEffect = "move";
+            tabWrapper.style.borderColor = "#3b82f6";
+        });
+
+        tabWrapper.addEventListener("dragleave", () => {
+            if (typeof activePanel !== "undefined" && panel.id === activePanel) {
+                tabWrapper.style.borderColor = "#3b82f6";
+            } else {
+                tabWrapper.style.borderColor = "#3c3c3c";
+            }
+        });
+
+        tabWrapper.addEventListener("drop", (e) => {
+            e.preventDefault();
+            const draggedPanelId = e.dataTransfer.getData("text/plain");
+            const targetPanelId = panel.id;
+
+            if (draggedPanelId && draggedPanelId !== targetPanelId) {
+                window.api.movePanel(draggedPanelId, targetPanelId);
+            }
+        });
+
+        // 2. Input de texte interne (l'URL)
+        const input = document.createElement("input");
+        input.type = "text";
+        input.id = panel.id + "-url";
+        input.className = "h-6 px-1 rounded";
+        input.style.background = "transparent";
+        input.style.color = "#d4d4d4";
+        input.style.border = "none";
+        input.style.outline = "none";
+        input.style.width = "100%";
+        input.style.fontSize = "12px";
+
+        input.dataset.url = panel.realUrl || panel.url || "";
+        input.value = getDisplayUrl(input.dataset.url);
+
+        // Bloque le drag'n'drop si l'utilisateur essaie de sélectionner du texte à l'intérieur de l'input
+        input.addEventListener("mousedown", (e) => {
+            tabWrapper.setAttribute("draggable", "false");
+        });
+        window.addEventListener("mouseup", () => {
+            tabWrapper.setAttribute("draggable", "true");
+        });
+
+        // Événements de Focus / Navigation d'origine
+        input.addEventListener("click", (e) => {
+            e.stopPropagation();
+            window.api.setActivePanel(panel.id);
+        });
+             
+        input.addEventListener("focus", () => {
+            window.api.setActivePanel(panel.id);
+            input.value = input.dataset.url;
+            input.select();
+        });            
+
+        input.addEventListener("blur", () => {
+            input.value = getDisplayUrl(input.dataset.url);
+        });
+
+        // ... fin de la boucle panels.forEach
+        tabWrapper.appendChild(input);
+        container.appendChild(tabWrapper);
+
+        attachUrlHandler(panel.id);
+    });
+} // <-- C'est la fin de votre fonction rebuildUrlBar
+
+attachUrlHandler("panel1");
+attachUrlHandler("panel2");
+attachUrlHandler("panel3");
+
+const splitVerticalButton =
+    document.getElementById(
+        "split-vertical"
+    );
+
+const splitHorizontalButton =
+    document.getElementById(
+        "split-horizontal"
+    );
+
+const closeButton =
+document.getElementById(
+    "close-panel"
+);
+
+
+const backButton =
+    document.getElementById(
+        "back-button"
+    );
+
+backButton.addEventListener(
+    "click",
+    () => {
+
+        console.log(
+            "RETOUR",
+            activePanel
+        );
+
+        window.api.goBack(
+            activePanel
+        );
+
+    }
+);
+
+const forwardButton =
+    document.getElementById(
+        "forward-button"
+    );  
+
+forwardButton.addEventListener(
+    "click",
+    () => {
+
+        window.api.goForward(
+            activePanel
+        );
+
+    }
+);
+    console.log(window.api);
+
+const refreshButton =
+    document.getElementById(
+        "refresh-button"
+    );
+
+refreshButton.addEventListener(
+    "click",
+    () => {
+
+        window.api.refresh(
+            activePanel
+        );
+
+    }
+);
+
+splitVerticalButton.addEventListener(
+    "click",
+    () => {
+
+        console.log(
+            "Découpage vertical de",
+            activePanel
+        );
+
+    }
+);
+
+splitHorizontalButton.addEventListener(
+    "click",
+    () => {
+
+        console.log(
+            "Découpage horizontal de",
+            activePanel
+        );
+
+    }
+);
+
+splitVerticalButton.addEventListener(
+    "click",
+    () => {
+
+        window.api.splitPanel(
+            activePanel,
+            "vertical"
+        );
+
+    }
+);
+
+splitHorizontalButton.addEventListener(
+    "click",
+    () => {
+
+        window.api.splitPanel(
+            activePanel,
+            "horizontal"
+        );
+
+    }
+);
+
+closeButton.addEventListener(
+    "click",
+    () => {
+
+        window.api.closePanel(
+            activePanel
+        );
+
+    }
+);
+
+window.api.onPanelsUpdated(
+    (panels) => {
+
+        rebuildUrlBar(
+            panels
+        );
+
+    }
+);
+
+window.api.onUndoAvailable(
+    (available) => {
+
+        document.getElementById(
+            "undo"
+        ).disabled = !available;
+    }
+);
+
+console.log(
+    "Listener undo enregistré"
+);
+
+
+function selectPanel(panelId)
+{
+    activePanel = panelId;
+
+    document
+        .querySelectorAll("#url-bar input")
+        .forEach(
+            (input) => {
+
+                input.classList.remove(
+                    "active-panel"
+                );
+
+            }
+        );
+
+    document
+        .getElementById(
+            panelId + "-url"
+        )
+        ?.classList.add(
+            "active-panel"
+        );
+
+    console.log(
+        "PANNEAU ACTIF =",
+        panelId
+    );
+}
+
+document.addEventListener(
+    "dblclick",
+    () => {
+
+        console.log(
+            "DOUBLE CLICK NATIF"
+        );
+
+        document.title =
+            "reset-splitter";
+    }
+);
+
+document.addEventListener(
+    "dblclick",
+    (event) => {
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        console.log(
+            "DOUBLE CLICK NATIF"
+        );
+
+        document.title =
+            "reset-splitter";
+    }
+);
+    document.addEventListener(
+        "mouseup",
+        () => {
+
+            window.api.stopSplitterDrag();
+
+        }
+    );
+
+    window.addEventListener(
+        "mouseleave",
+        () => {
+            dragging = false;
+            splitter.classList.remove(
+                "dragging"
+            );
+        }
+    );
+
+    closeButton.addEventListener(
+        "click",
+        () => {
+
+            console.log(
+                "BOUTON X CLIQUE"
+            );
+
+            window.api.closePanel(
+                activePanel
+            );
+
+        }
+    );
+
+    document
+        .getElementById("undo")
+        .addEventListener(
+            "click",
+            () => {
+                window.api.undo();
+            }
+        );
+
+       
+window.api.onActivePanelChanged(
+    (panel) => {
+
+        console.log(
+            "ACTIVE PANEL RECU",
+            panel
+        );
+
+        selectPanel(
+            panel.id
+        );
+
+
+
+
+        const frame =
+            document.getElementById(
+                "active-panel-frame"
+            );
+
+        if (!frame)
+        {
+            return;
+        }
+
+        console.log(
+            "ACTIVE PANEL",
+            panel
+        );        
+
+
+
+        frame.style.display =
+            "block";
+
+        frame.style.left =
+            panel.bounds.x + "px";
+
+        frame.style.top =
+            panel.bounds.y + "px";
+
+        frame.style.width =
+            panel.bounds.width + "px";
+
+        frame.style.height =
+            panel.bounds.height + "px";
+
+    }
+);
+
+    window.api.onSplittersUpdated(
+        (splitters) => {
+
+            console.log(
+                "Splitters reçus :",
+                splitters
+            );
+
+
+
+
+const layer =
+    document.getElementById(
+        "splitter-layer"
+    );
+
+if (!layer)
+{
+    console.error(
+        "splitter-layer introuvable"
+    );
+
+    return;
+}
+
+layer.innerHTML = "";
+
+
+
+            splitters.forEach(
+                (splitter) => {
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+    div.className =
+        "splitter";
+
+    div.style.cursor =
+        splitter.direction === "vertical"
+            ? "col-resize"
+            : "row-resize";
+
+    div.style.left =
+        splitter.x + "px";
+
+//  div.style.top =
+//      splitter.y + "px";
+
+    div.style.top =
+        (splitter.y - layer.getBoundingClientRect().top) + "px";
+
+    div.style.width =
+        splitter.width + "px";
+
+    div.style.height =
+        splitter.height + "px";
+
+    console.log(
+        "SPLITTER RECU",
+        splitter
+    );
+
+    div.style.background =
+        "#454545";
+
+//  layer.appendChild(div);
+
+    if (
+        splitter.direction ===
+        "vertical"
+    )
+    {
+
+    div.classList.add(
+        "vertical-splitter"
+    );                    
+}
+else
+{
+
+    div.classList.add(
+        "horizontal-splitter"
+    );
+}
+            }
+        );
+
+    }
+);
+
+
+console.log(
+    "API =",
+    window.api
+);
+
+</script>
+</body>
+</html>

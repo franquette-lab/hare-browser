@@ -19,7 +19,7 @@ html, body {
 }
 
 #toolbar-buttons {
-    height: 32px;
+    height: 48px;
     width: 100%;
     display: flex;
     align-items: center;
@@ -31,19 +31,23 @@ html, body {
 }
 
 #url-bar {
-    height: 28px;
+    height: 36px;
     width: 100%;
     background: #252526;
     border-bottom: 1px solid #3c3c3c;
-    padding: 8px;
     box-sizing: border-box;
     display: flex;
     gap: 8px;
+    padding: 0 8px;
     align-items: center;
+    top: 35px;
 }
 
-#url-bar input {
-    height: 24px;
+
+
+ 
+#url-bar > div {
+    margin: 0;
 }
 
 #toolbar-buttons button:focus { outline: none; box-shadow: none; }
@@ -54,7 +58,7 @@ html, body {
     background: transparent;
     color: #d4d4d4;
 }
-
+    
 #url-bar input:focus,
 #url-bar input:focus-visible {
     outline: none !important;
@@ -137,7 +141,13 @@ function rebuildUrlBar(panels) {
 
     panels.forEach((panel) => {
         const tabWrapper = document.createElement("div");
-        tabWrapper.className = "flex items-center gap-2 p-1 rounded";
+
+        tabWrapper.className = "flex items-center gap-2 rounded";
+
+        tabWrapper.style.padding = "0 4px";        
+
+        tabWrapper.style.boxSizing = "border-box";
+
         tabWrapper.style.background = "#2d2d30";
         tabWrapper.style.border = "1px solid #3c3c3c";
 
@@ -205,13 +215,21 @@ console.log("activePanel =", activePanel);
         const input = document.createElement("input");
         input.type = "text";
         input.id = panel.id + "-url";
-        input.className = "h-6 px-1 rounded";
-        input.style.background = "transparent";
-        input.style.color = "#d4d4d4";
-        input.style.border = "none";
-        input.style.outline = "none";
-        input.style.width = "100%";
-        input.style.fontSize = "12px";
+
+
+
+input.className = "px-1 rounded";
+
+input.style.height = "18px";
+input.style.lineHeight = "18px";
+input.style.padding = "0";
+input.style.margin = "0";
+input.style.background = "transparent";
+input.style.color = "#d4d4d4";
+input.style.border = "none";
+input.style.width = "100%";
+input.style.fontSize = "12px";
+
         input.dataset.url = panel.realUrl || panel.url || "";
         input.value = getDisplayUrl(input.dataset.url);
 
@@ -281,7 +299,15 @@ window.api.onActivePanelChanged((panel) => {
         frame.style.width = panel.bounds.width + "px";
         frame.style.height = panel.bounds.height + "px";
     }
-});S
+});
+
+window.api.onNavigationState((state) => {
+    document.getElementById("back-button").disabled =
+        !state.canGoBack;
+
+    document.getElementById("forward-button").disabled =
+        !state.canGoForward;
+});
 
 
 </script>

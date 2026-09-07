@@ -31,7 +31,12 @@ contextBridge.exposeInMainWorld(
         },
         onUndoAvailable: (callback) => {
             ipcRenderer.on("undo-available", (event, available) => callback(available));
-        }
+        },
+
+        onNavigationState: (callback) =>
+    ipcRenderer.on("navigation-state",
+        (_event, state) => callback(state)),
+
     }
 );
 

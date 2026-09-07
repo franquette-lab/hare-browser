@@ -26,17 +26,25 @@ let dragTimer = null;
 let dragInProgress = false;
 let resizeTimer = null;
 
-const TOOLBAR_HEIGHT = 88;
+//const TOOLBAR_HEIGHT = 88;
+//const TOOLBAR_HEIGHT = 77;
+  const TOOLBAR_HEIGHT = 77;
 let history = [];
 let lastClosedPanel = null;
 const SPLITTER_SIZE = 10;
 
 let leftView, centerView, rightView;
 
+
+
 function updateActiveBorder(bounds) {
     if (!bounds) return;
+
     if (!borderView) {
         borderView = new BrowserView();
+
+
+
         win.addBrowserView(borderView);
 
         borderView.setAutoResize({ width: true, height: true });
@@ -48,6 +56,7 @@ function updateActiveBorder(bounds) {
             </html>
         `));
     }
+
     try {
         const views = win.getBrowserViews();
         if (views.includes(borderView)) {
@@ -56,6 +65,7 @@ function updateActiveBorder(bounds) {
     } catch (err) {
         console.error("borderView error", err);
     }
+
     borderView.setBounds({ x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height });
 }
 
@@ -91,7 +101,6 @@ function saveState() {
 
 class PanelNode {
     constructor(id, view, url = "") {
-        console.log("NEW PANEL", id);
         this.type = "panel";
         this.id = id;
         this.view = view;
@@ -168,7 +177,17 @@ function updatePanelUrl(panel, url) {
     win.webContents.send("panels-updated", collectPanels(rootNode));
 }
 
+function updateNavigationButtons() {
+    if (!activePanel) return;
 
+    const panel = findPanelNode(rootNode, activePanel);
+    if (!panel || !panel.view) return;
+
+    win.webContents.send("navigation-state", {
+        canGoBack: panel.view.webContents.canGoBack(),
+        canGoForward: panel.view.webContents.canGoForward()
+    });
+}
 
 function setupNavigationTracking(panel) {
     if (!panel || !panel.view) return;
@@ -177,19 +196,18 @@ function setupNavigationTracking(panel) {
     panel.view.webContents.on("did-navigate-in-page", (event, url) => updatePanelUrl(panel, url));
 
     panel.view.webContents.on("focus", () => {
-        console.log(
-            "FOCUS",
-            panel.id,
-            panel.url
-        );
 
         activePanel = panel.id;
+        updateNavigationButtons();
         win.webContents.send("active-panel-changed", {
             id: panel.id,
             bounds: panel.bounds
         });
 
         updateActiveBorder(panel.bounds);
+
+        updateNavigationButtons(); // <-- ajout
+
     });
 
     panel.view.webContents.on("dom-ready", () => {
@@ -228,13 +246,15 @@ function setupNavigationTracking(panel) {
         `).catch(err => console.error(err));
     });
 
-    // === AJOUTER CES LIGNES ICI ===
     panel.view.setAutoResize({
         width: true,   // Force la vue à s'étirer en largeur avec la fenêtre
         height: true,  // Force la vue à s'étirer en hauteur avec la fenêtre
         horizontal: false,
         vertical: false
     });
+
+
+
 }
 
 
@@ -274,6 +294,8 @@ function layoutNode(node, x, y, width, height) {
     }
 }
 
+
+
 ipcMain.on("navigate", (event, panelId, url) => {
     const panel = findPanelNode(rootNode, panelId);
     if (panel && panel.view) panel.view.webContents.loadURL(url.startsWith('http') ? url : 'https://' + url);
@@ -284,6 +306,7 @@ ipcMain.on("navigate", (event, panelId, url) => {
 
 // Échange de contenu robuste : les ID restent fixes à leur emplacement d'écran
 function swapPanelsInTree(idA, idB) {
+
     saveState();
     
     const nodeA = findPanelNode(rootNode, idA);
@@ -304,8 +327,10 @@ function swapPanelsInTree(idA, idB) {
     nodeB.url = tempUrl;
     nodeB.title = tempTitle;
 
+/*
     setupNavigationTracking(nodeA);
     setupNavigationTracking(nodeB);
+*/
 
     // Ré-attache les calques pour forcer la mise à jour visuelle d'Electron
     win.addBrowserView(nodeA.view);
@@ -317,28 +342,19 @@ function swapPanelsInTree(idA, idB) {
     // Notifie la vue et renvoie le focus correct
     win.webContents.send("panels-updated", collectPanels(rootNode));
 
-    
-console.log("nodeA.id =", nodeA.id);
-console.log("nodeB.id =", nodeB.id);
-console.log("nodeA.url =", nodeA.url);
-console.log("nodeB.url =", nodeB.url);
+activePanel = idB;
 
-console.log("activePanel =", activePanel);
-console.log("idA =", idA);
-console.log("idB =", idB);
+const activeNode = findPanelNode(rootNode, activePanel);
 
-activePanel = idA;
+updateActiveBorder(activeNode.bounds);
 
 win.webContents.send(
     "active-panel-changed",
     {
-        id: idA,
-        bounds: nodeA.bounds
+        id: activePanel,
+        bounds: activeNode.bounds
     }
-);
-
-updateActiveBorder(nodeA.bounds);
-
+);  
 }
 
 
@@ -405,7 +421,6 @@ app.on('drag-end', () => {
 
 // === À PLACER DANS MAIN.JS AVEC LES AUTRES IPCMAIN ===
 ipcMain.on("move-panel", (event, draggedPanelId, targetPanelId) => {
-    console.log(`Permutation demandée via Onglets : ${draggedPanelId} <=> ${targetPanelId}`);
     if (draggedPanelId && targetPanelId && draggedPanelId !== targetPanelId) {
         swapPanelsInTree(draggedPanelId, targetPanelId);
     }
@@ -502,6 +517,7 @@ function createDefaultLayout() {
 }
 
 function createWindow() {
+
     win = new BrowserWindow({
         width: 1600, height: 900,
         minWidth: 1000, minHeight: 700,
@@ -513,12 +529,22 @@ function createWindow() {
         }
     });
 
+    win.setMaxListeners(30);
+
+process.on("warning", (warning) => {
+    console.log("WARNING NAME:", warning.name);
+    console.log("WARNING MESSAGE:", warning.message);
+    console.log("WARNING STACK:", warning.stack);
+});
+
     createDefaultLayout();
     win.setMenu(null);
     win.loadFile('index.html');
 
     forceRebuildSplitters = true;
     resizeViews();
+
+    
 
     win.webContents.on('did-finish-load', () => {
         win.webContents.send("panels-updated", collectPanels(rootNode));
@@ -558,6 +584,8 @@ function createWindow() {
     });
 
 
+
+
 }
 
 function replaceNode(current, target, replacement) {
@@ -569,6 +597,8 @@ function replaceNode(current, target, replacement) {
     }
     return false;
 }
+
+
 
 function resizeViews() {
     if (win.isDestroyed()) return;
@@ -604,9 +634,15 @@ function resizeViews() {
         const cursor = splitter.direction === "vertical" ? "col-resize" : "row-resize";
         const handleDirection = splitter.direction === "vertical" ? "column" : "row";
 
+
         const splitterView = new BrowserView();
         win.addBrowserView(splitterView);
-        splitterViews.push(splitterView);            
+        splitterViews.push(splitterView);
+        
+        
+        
+
+
 
         splitterView.setBounds({ x: splitter.x, y: splitter.y, width: splitter.width, height: splitter.height });
         splitterView.webContents.loadURL("data:text/html," + encodeURIComponent(`
@@ -621,6 +657,9 @@ function resizeViews() {
             <script>
                 let dragging = false;
                 let dragStartX = 0, dragStartY = 0;
+                document.addEventListener("dblclick", () => {
+                    document.title = "reset-splitter";
+                });
                 document.addEventListener("mousedown", (e) => {
                     if (e.button !== 0) return;
                     dragging = true;
@@ -679,7 +718,8 @@ function resizeViews() {
             borderView.setBounds({ x: -100, y: -100, width: 0, height: 0 });
         }
     }
-}
+}   
+
 
 
 ipcMain.on("set-active-panel", (event, panelId) => {
@@ -692,12 +732,18 @@ ipcMain.on("set-active-panel", (event, panelId) => {
 
 ipcMain.handle("go-back", (event, panelId) => {
     const panel = findPanelNode(rootNode, panelId);
-    if (panel && panel.view && panel.view.webContents.canGoBack()) panel.view.webContents.goBack();
+    if (panel && panel.view && panel.view.webContents.canGoBack()) {
+        panel.view.webContents.goBack();
+        updateNavigationButtons();
+    }
 });
 
 ipcMain.handle("go-forward", (event, panelId) => {
     const panel = findPanelNode(rootNode, panelId);
-    if (panel && panel.view && panel.view.webContents.canGoForward()) panel.view.webContents.goForward();
+    if (panel && panel.view && panel.view.webContents.canGoForward()) {
+        panel.view.webContents.goForward();
+        updateNavigationButtons();
+    }
 });
 
 ipcMain.handle("refresh", (event, panelId) => {
