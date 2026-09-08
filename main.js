@@ -117,9 +117,9 @@ function updateActiveBorder(bounds) {
     });
 }
 
+
+/*
 let handleDraggedPanelId = null; // Variable de suivi du déplacement global
-
-
 
 function updatePanelHandles() {
     if (!win || win.isDestroyed()) return;
@@ -231,6 +231,136 @@ function updatePanelHandles() {
         } catch(e) {}
     });
 }
+*/
+
+let handleDraggedPanelId = null;
+
+function updatePanelHandles() {
+    if (!win || win.isDestroyed()) return;
+
+    const panelsList = collectPanelNodes(rootNode);
+    const activeIds = panelsList.map(p => p.id);
+
+    // 1. Nettoyer les poignées des panneaux fermés
+    Object.keys(handleViews).forEach(id => {
+        if (!activeIds.includes(id)) {
+            try { win.removeBrowserView(handleViews[id]); } catch(e) {}
+            delete handleViews[id];
+        }
+    });
+
+    // 2. Mettre à jour ou créer la poignée pour chaque panneau
+    panelsList.forEach((panel) => {
+        if (!panel.bounds) return;
+
+        // CORRECTION : Largeur augmentée à 48px pour contenir DEUX boutons
+        const handleBounds = {
+            x: panel.bounds.x + 6,
+            y: panel.bounds.y + 6,
+            width: 48, 
+            height: 24
+        };
+
+        if (!handleViews[panel.id]) {
+            const hView = new BrowserView();
+            win.addBrowserView(hView);
+            
+            hView.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(`
+                <html><head><style>
+                html, body { margin: 0; padding: 0; overflow: hidden !important; width: 100%; height: 100%; }
+                #container {
+                    display: flex; width: 100%; height: 100%;
+                    background: #2d2d30; border: 1px solid #3c3c3c; border-radius: 4px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.3); box-sizing: border-box; overflow: hidden;
+                }
+                .btn {
+                    flex: 1; height: 100%; color: #cfcfcf;
+                    display: flex; align-items: center; justify-content: center;
+                    font-family: sans-serif; font-size: 13px; user-select: none;
+                }
+                #drag-btn { cursor: grab; font-size: 14px; border-right: 1px solid #3c3c3c; }
+                #drag-btn:hover { background: #3f3f46; color: #ffffff; }
+                #fullscreen-btn { cursor: pointer; }
+                #fullscreen-btn:hover { background: #1e3a8a; color: #3b82f6; }
+                </style></head><body>
+                <div id="container">
+                    <div id="drag-btn" class="btn" title="Glisser pour déplacer">⠿</div>
+                    <div id="fullscreen-btn" class="btn" title="Ouvrir en plein écran">↗</div>
+                </div>
+                <script>
+                    let dragging = false;
+                    document.getElementById("drag-btn").addEventListener("mousedown", (e) => {
+                        if (e.button !== 0) return;
+                        dragging = true;
+                        document.title = "drag-start";
+                    });
+                    document.addEventListener("mouseup", () => {
+                        if (dragging) {
+                            dragging = false;
+                            document.title = "drag-end";
+                        }
+                    });
+                    document.getElementById("fullscreen-btn").addEventListener("click", () => {
+                        document.title = "action-fullscreen";
+                    });
+                </script></body></html>
+            `));
+
+            // Gestion des actions de la poignée
+            hView.webContents.on("page-title-updated", (event, title) => {
+                event.preventDefault();
+                
+                if (title === "drag-start") {
+                    activePanel = panel.id;
+                    win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
+                    updateActiveBorder(panel.bounds);
+                    handleDraggedPanelId = panel.id;
+                }
+                
+                // ACTION : Clic sur le bouton plein écran ↗
+                if (title === "action-fullscreen") {
+                    detachPanelToFullscreen(panel.id);
+                }
+                
+                if (title === "drag-end" && handleDraggedPanelId) {
+                    const { screen } = require('electron');
+                    const mousePoint = screen.getCursorScreenPoint();
+                    const winContentBounds = win.getContentBounds();
+                    
+                    const localX = mousePoint.x - winContentBounds.x;
+                    const localY = mousePoint.y - winContentBounds.y;
+
+                    const list = collectPanelNodes(rootNode);
+                    let targetPanel = null;
+
+                    for (const p of list) {
+                        if (p.bounds && p.id !== handleDraggedPanelId) {
+                            if (localX >= p.bounds.x && localX <= (p.bounds.x + p.bounds.width) &&
+                                localY >= p.bounds.y && localY <= (p.bounds.y + p.bounds.height)) {
+                                targetPanel = p;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (targetPanel) {
+                        swapPanelsInTree(handleDraggedPanelId, targetPanel.id);
+                    }
+                    handleDraggedPanelId = null;
+                }
+            });
+
+            handleViews[panel.id] = hView;
+        }
+
+        const currentHandle = handleViews[panel.id];
+        currentHandle.setBounds(handleBounds);
+        try {
+            win.setTopBrowserView(currentHandle);
+        } catch(e) {}
+    });
+}
+
 
 
 
@@ -1105,6 +1235,78 @@ function brbringActiveViewToFront() {
     }
 }
 */
+function detachPanelToFullscreen(panelId) {
+    const node = findPanelNode(rootNode, panelId);
+    if (!node || !node.view) return;
+
+    // 1. Sauvegarder l'URL actuelle du calque avant détachement
+    const currentUrl = node.view.webContents.getURL();
+
+    // 2. Créer une nouvelle fenêtre indépendante
+    const fullscreenWin = new BrowserWindow({
+        width: 1280,
+        height: 720,
+        backgroundColor: "#111827",
+        autoHideMenuBar: true // Masque la barre de menu supérieure
+    });
+
+    // 3. Maximiser immédiatement la nouvelle fenêtre
+    fullscreenWin.maximize();
+
+    // 4. Décrocher la BrowserView de la fenêtre principale et l'attacher à la nouvelle
+    try {
+        win.removeBrowserView(node.view);
+        fullscreenWin.setBrowserView(node.view);
+        
+        // Ajuster la vue pour qu'elle prenne 100% de la nouvelle fenêtre
+        const fsBounds = fullscreenWin.getContentBounds();
+        node.view.setBounds({ x: 0, y: 0, width: fsBounds.width, height: fsBounds.height });
+        node.view.setAutoResize({ width: true, height: true });
+        
+        // Redonner le focus à la page web
+        node.view.webContents.focus();
+    } catch (err) {
+        console.error("Erreur lors du transfert de calque :", err);
+    }
+
+    // 5. Gérer le redimensionnement de la nouvelle fenêtre indépendante
+    fullscreenWin.on("resize", () => {
+        if (fullscreenWin.isDestroyed()) return;
+        const fsBounds = fullscreenWin.getContentBounds();
+        try { node.view.setBounds({ x: 0, y: 0, width: fsBounds.width, height: fsBounds.height }); } catch(e) {}
+    });
+
+    // Nettoyer la vue si l'utilisateur ferme la fenêtre plein écran
+    fullscreenWin.on("closed", () => {
+        // Optionnel : vous pouvez détruire la vue ici si nécessaire
+    });
+
+    // 6. Fermer le panneau désormais vide dans la fenêtre principale du Tile Browser
+    // On simule l'action du bouton Fermer pour ré-agencer l'arbre proprement
+    const parent = findParentNode(rootNode, panelId);
+    if (parent) {
+        saveState();
+        const sibling = (parent.first === node) ? parent.second : parent.first;
+
+        if (parent === rootNode) {
+            rootNode = sibling;
+        } else {
+            replaceNode(rootNode, parent, sibling);
+        }
+
+        // Supprimer définitivement sa poignée graphique
+        try { win.removeBrowserView(handleViews[panelId]); } catch(e) {}
+        delete handleViews[panelId];
+
+        const newActivePanel = findFirstPanel(sibling);
+        activePanel = newActivePanel.id;
+
+        win.webContents.send("active-panel-changed", { id: newActivePanel.id, bounds: newActivePanel.bounds });        
+        forceRebuildSplitters = true;
+        resizeViews();
+        win.webContents.send("panels-updated", collectPanels(rootNode));
+    }
+}
 
 
 
