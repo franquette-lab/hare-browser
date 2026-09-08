@@ -18,8 +18,18 @@ html, body {
     flex-direction: column; /* Aligne la barre de boutons puis la barre d'URL */
 }
 
+
+#active-panel-frame {
+    position: absolute;
+    border: 2px solid #3b82f6;
+    box-sizing: border-box;
+    pointer-events: none; /* TRÈS IMPORTANT : permet de cliquer à travers */
+    z-index: 9999;
+    display: none;
+}
+
 #toolbar-buttons {
-    height: 48px;
+    height: 38px;
     width: 100%;
     display: flex;
     align-items: center;
@@ -309,6 +319,60 @@ window.api.onNavigationState((state) => {
         !state.canGoForward;
 });
 
+// Stockage local des états de navigation pour chaque panneau
+const navigationStates = {};
+
+window.api.onNavigationStateChanged((data) => {
+    // On enregistre l'état du panneau qui vient de naviguer
+    navigationStates[data.panelId] = {
+        canGoBack: data.canGoBack,
+        canGoForward: data.canGoForward
+    };
+
+    // Si le panneau mis à jour est celui actuellement actif à l'écran, on applique les changements
+    if (activePanel === data.panelId) {
+        updateToolbarButtons(data.canGoBack, data.canGoForward);
+    }
+});
+
+// Épauler le changement de panneau actif pour rafraîchir aussi les boutons
+window.api.onActivePanelChanged((panel) => {
+    activePanel = panel.id;
+    
+    // ... votre code existant pour la bordure et la classe active-panel ...
+    document.querySelectorAll("#url-bar input").forEach(i => i.classList.remove("active-panel"));
+    document.getElementById(panel.id + "-url")?.classList.add("active-panel");
+    
+    const frame = document.getElementById("active-panel-frame");
+    if (frame && panel.bounds) {
+        frame.style.display = "block";
+        frame.style.left = panel.bounds.x + "px";
+        frame.style.top = panel.bounds.y + "px";
+        frame.style.width = panel.bounds.width + "px";
+        frame.style.height = panel.bounds.height + "px";
+    }
+
+    // Récupérer l'état sauvegardé de ce panneau ou mettre false par défaut
+    const state = navigationStates[panel.id] || { canGoBack: false, canGoForward: false };
+    updateToolbarButtons(state.canGoBack, state.canGoForward);
+});
+
+// Fonction utilitaire pour modifier l'état visuel des boutons de la barre d'outils
+function updateToolbarButtons(canGoBack, canGoForward) {
+    const backBtn = document.getElementById("back-button");
+    const forwardBtn = document.getElementById("forward-button");
+
+    if (backBtn) {
+        backBtn.disabled = !canGoBack;
+        backBtn.style.opacity = canGoBack ? "1" : "0.4";
+        backBtn.style.cursor = canGoBack ? "pointer" : "not-allowed";
+    }
+    if (forwardBtn) {
+        forwardBtn.disabled = !canGoForward;
+        forwardBtn.style.opacity = canGoForward ? "1" : "0.4";
+        forwardBtn.style.cursor = canGoForward ? "pointer" : "not-allowed";
+    }
+}
 
 </script>
 

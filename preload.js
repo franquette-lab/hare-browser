@@ -1,3 +1,7 @@
+// ------------------- //
+// SCRIPT : preload.js //
+// ------------------- //
+
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld(
@@ -33,10 +37,14 @@ contextBridge.exposeInMainWorld(
             ipcRenderer.on("undo-available", (event, available) => callback(available));
         },
 
-        onNavigationState: (callback) =>
-    ipcRenderer.on("navigation-state",
-        (_event, state) => callback(state)),
+        onNavigationState: (callback) => {
+            ipcRenderer.on("navigation-state",(_event, state) => callback(state));
+        },
 
+        // À insérer à l'intérieur de l'objet exposé sous 'api' dans preload.js :
+        onNavigationStateChanged: (callback) => {
+            ipcRenderer.on("navigation-state-changed", (event, data) => callback(data));
+        }
     }
 );
 
