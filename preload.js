@@ -48,11 +48,33 @@ contextBridge.exposeInMainWorld(
     }
 );
 
+
 // Intercepte les requêtes de Long Press des pages internet et les pousse vers le système
+
+/*
 window.addEventListener("message", (event) => {
     if (event.data && event.data.source === "tile-browser-drag") {
         if (event.data.type === "start") {
             ipcRenderer.send("panel-drag-start", event.data.panelId);
         }
+    }
+});
+*/
+
+// Intercepte les requêtes de la poignée injectée et les pousse vers Electron
+window.addEventListener("message", (event) => {
+    if (!event.data) return;
+
+    if (event.data.source === "tile-browser-focus") {
+        ipcRenderer.send("set-active-panel-from-handle", event.data.panelId);
+    }
+    if (event.data.source === "handle-drag-start") {
+        ipcRenderer.send("handle-drag-start", event.data.panelId);
+    }
+    if (event.data.source === "handle-drag-move") {
+        ipcRenderer.send("handle-drag-move");
+    }
+    if (event.data.source === "handle-drag-end") {
+        ipcRenderer.send("handle-drag-end");
     }
 });
