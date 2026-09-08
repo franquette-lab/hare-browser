@@ -243,6 +243,31 @@ function getDisplayText(urlString) {
     }
 }
 
+
+function rebuildTreeFromSnapshot(snapshotNode, restoredView) {
+    if (!snapshotNode) return null;
+
+    if (snapshotNode.type === "panel") {
+        // Si c'est le panneau qu'on vient de restaurer, on lui donne la nouvelle vue
+        if (snapshotNode.id === lastClosedPanel.id) {
+            return new PanelNode(snapshotNode.id, restoredView, snapshotNode.url);
+        } else {
+            // Sinon, on cherche le panneau déjà existant à l'écran pour récupérer sa vue actuelle
+            const existingPanel = findPanelNode(rootNode, snapshotNode.id);
+            return new PanelNode(snapshotNode.id, existingPanel ? existingPanel.view : null, snapshotNode.url);
+        }
+    }
+
+    // Si c'est un nœud de division (split), on reconstruit ses deux enfants récursivement
+    const splitNode = new SplitNode(snapshotNode.direction);
+    splitNode.ratio = snapshotNode.ratio;
+    splitNode.first = rebuildTreeFromSnapshot(snapshotNode.first, restoredView);
+    splitNode.second = rebuildTreeFromSnapshot(snapshotNode.second, restoredView);
+    return splitNode;
+}
+
+
+
 function createSnapshot(node) {
     if (node.type === "panel") {
         return { type: "panel", id: node.id, url: node.url, realUrl: node.url };
@@ -825,6 +850,49 @@ ipcMain.on("close-panel", (event, panelId) => {
     resizeViews();
     win.webContents.send("panels-updated", collectPanels(rootNode));
 });
+
+ipcMain.on("undo", (event) => {
+    // 1. S'il n'y a pas d'historique ou si aucun panneau n'a été fermé, on annule
+    if (history.length === 0 || !lastClosedPanel) return;
+
+    // 2. On récupère la toute dernière structure d'arbre sauvegardée avant la fermeture
+    const previousStateString = history.pop();
+    const previousState = JSON.parse(previousStateString);
+
+    // 3. On recrée une BrowserView toute neuve pour le panneau à restaurer
+    const restoredView = new BrowserView();
+    win.addBrowserView(restoredView);
+    restoredView.webContents.loadURL(lastClosedPanel.url);
+
+    // 4. On reconstruit l'arbre complet à partir du snapshot sauvegardé
+    // Cette fonction utilitaire va ré-associer les BrowserViews existantes et injecter la nouvelle
+    rootNode = rebuildTreeFromSnapshot(previousState, restoredView);
+
+    // 5. On réactive le suivi de navigation pour le panneau restauré
+    const restoredNode = findPanelNode(rootNode, lastClosedPanel.id);
+    if (restoredNode) {
+        setupNavigationTracking(restoredNode);
+    }
+
+    // 6. On applique le focus sur le panneau rouvert
+    activePanel = lastClosedPanel.id;
+
+    // 7. On nettoie la variable et on désactive le bouton dans l'IHM
+    lastClosedPanel = null;
+    win.webContents.send("undo-available", false);
+
+    // 8. On force Electron à recalculer tout l'affichage géométrique
+    forceRebuildSplitters = true;
+    resizeViews();
+
+    // 9. Mise à jour complète de la barre d'onglets HTML et du rectangle de focus
+    win.webContents.send("panels-updated", collectPanels(rootNode));
+    if (restoredNode && restoredNode.bounds) {
+        win.webContents.send("active-panel-changed", { id: restoredNode.id, bounds: restoredNode.bounds });
+        updateActiveBorder(restoredNode.bounds);
+    }
+});
+
 
 /*
 ipcMain.on("split-panel", (event, panelId, direction) => {
