@@ -42,43 +42,192 @@ const SPLITTER_SIZE = 10;
 
 let leftView, centerView, rightView;
 
+const https = require("https");
 
-/*    
+async function searchDuckDuckGo(query) {
 
-function updateActiveBorder(bounds) {
-    // Supprimé pour éviter de bloquer les clics. 
-    // La bordure est maintenant dessinée par #active-panel-frame dans index.html
-    if (!bounds) return;
+    return new Promise((resolve, reject) => {
 
-    if (!borderView) {
-        borderView = new BrowserView();
+        const url =
+        `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&kl=fr-fr&no_html=1`;
 
+        console.log("URL API :", url);
 
+        https.get(url, (res) => {
 
-        win.addBrowserView(borderView);
+            let data = "";
 
-        borderView.setAutoResize({ width: true, height: true });
+            res.on("data", chunk => {
+                data += chunk;
+            });
+
+            res.on("end", () => {
+
+                try {
+
+                    const result = JSON.parse(data);
+
+                    resolve(result);
+
+                } catch (err) {
+
+                    reject(err);
+
+                }
+
+            });
+
+        }).on("error", reject);
+
         
-        borderView.webContents.loadURL("data:text/html," + encodeURIComponent(`
-            <html>
-            <body style="margin:0; padding:0; box-sizing:border-box; border:3px solid #3b82f6; background:transparent; overflow:hidden;">
-            </body>
-            </html>
-        `));
-    }
 
-    try {
-        const views = win.getBrowserViews();
-        if (views.includes(borderView)) {
-            win.setTopBrowserView(borderView);
+    });
+
+}
+
+
+/*
+searchDuckDuckGo("Albert Einstein")
+    .then(result => {
+
+        const url = result.RelatedTopics[0].FirstURL;
+
+        for (let i = 0; i < url.length; i++) {
+            console.log(i, url.charCodeAt(i), url[i]);
         }
-    } catch (err) {
-        console.error("borderView error", err);
+
+    });
+*/
+
+
+
+function extractResults(data) {
+
+    const results = [];
+
+    for (const item of data.RelatedTopics || []) {
+
+        if (item.Text) {
+            results.push({
+                title: item.Text,
+                url: item.FirstURL
+            });
+        }
+
+        if (item.Topics) {
+
+            for (const topic of item.Topics) {
+
+                results.push({
+                    title: topic.Text,
+                    url: topic.FirstURL
+                });
+
+            }
+        }
+
     }
 
-    borderView.setBounds({ x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height });
+    return results;
+}
+
+
+
+async function buildSearchPage(query) {
+
+    const data = await searchDuckDuckGo(query);
+
+    const results = extractResults(data);
+
+const htmlResults = results.map(r => `
+<div class="result">
+    ${r.url}
+        ${r.title}
+    </a>
+    <div class="url">
+        ${r.url}
+    </div>
+</div>
+`).join("");
+
+console.log("Résultats trouvés :", results.length);
+
+console.log(results[0]);
+
+/*
+if (results.length === 0) {
+
+    return `
+    <!DOCTYPE html>
+    <html>
+    <body style="
+        background:#202124;
+        color:white;
+        font-family:Segoe UI;
+        padding:20px;
+    ">
+        <h1>Recherche : ${query}</h1>
+
+        <p>Aucune réponse instantanée trouvée.</p>
+
+        <p>
+            Ouvrir les résultats DuckDuckGo :
+        </p>
+
+        ${`https://duckduckgo.com/?q=${encodeURIComponent(query)}`}
+            Rechercher "${query}"
+        </a>
+    </body>
+    </html>
+    `;
 }
 */
+
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>${query}</title>
+        </head>
+        <style>
+body {
+    font-family: Segoe UI, sans-serif;
+    background: #202124;
+    color: white;
+}
+
+.result {
+    margin-bottom: 16px;
+}
+
+.result a {
+    color: #8ab4f8;
+    font-size: 18px;
+    text-decoration: none;
+}
+
+.result a:hover {
+    text-decoration: underline;
+}
+
+.url {
+    color: #7cb342;
+    font-size: 12px;
+}
+</style>
+
+        <body>
+            <h1>Recherche : ${query}</h1>
+            ${htmlResults}
+        </body>
+        </html>
+    `;
+}
+
+
+
+
 
 function updateActiveBorder(bounds) {
     if (!bounds) return;
@@ -633,11 +782,6 @@ function layoutNode(node, x, y, width, height) {
 
 
 /*
-ipcMain.on("navigate", (event, panelId, url) => {
-    const panel = findPanelNode(rootNode, panelId);
-    if (panel && panel.view) panel.view.webContents.loadURL(url.startsWith('http') ? url : 'https://' + url);
-});
-*/
 ipcMain.on("navigate", (event, panelId, input) => {
 
     const panel = findPanelNode(rootNode, panelId);
@@ -650,8 +794,50 @@ ipcMain.on("navigate", (event, panelId, input) => {
     panel.view.webContents.loadURL(target);
 });
 
+*/
 
+ipcMain.on("navigate", async (event, panelId, input) => {
 
+    const panel = findPanelNode(rootNode, panelId);
+
+    if (!panel || !panel.view)
+        return;
+
+    input = input.trim();
+
+    // Recherche (plusieurs mots)
+    if (input.includes(" ")) {
+
+        const data = await searchDuckDuckGo(input);
+
+        const results = extractResults(data);
+
+        if (results.length > 0) {
+
+            const html = await buildSearchPage(input);
+
+            panel.view.webContents.loadURL(
+                "data:text/html;charset=utf-8," +
+                encodeURIComponent(html)
+            );
+
+        } else {
+
+            panel.view.webContents.loadURL(
+                `https://duckduckgo.com/?q=${encodeURIComponent(input)}`
+            );
+
+        }
+
+        return;
+    }
+
+    // Navigation classique
+    const target = buildNavigationTarget(input);
+
+    panel.view.webContents.loadURL(target);
+
+});
 function swapPanelsInTree(idA, idB) {
     saveState();
     
