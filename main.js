@@ -1141,7 +1141,60 @@ process.on("warning", (warning) => {
 });
 
     createDefaultLayout();
-    win.setMenu(null);
+
+//  win.setMenu(null);
+    // Configuration des raccourcis clavier via un menu invisible
+    const { Menu } = require('electron');
+    const template = [
+        {
+            label: 'Navigation',
+            submenu: [
+                {
+                    label: 'Scinder verticalement',
+                    accelerator: 'CmdOrCtrl+T',
+                    click: () => {
+                        if (activePanel) {
+                            // On simule exactement l'action de l'IpcMain split-panel
+                            ipcMain.emit('split-panel', null, activePanel, 'vertical');
+                        }
+                    }
+                },
+                {
+                    label: 'Scinder horizontalement',
+                    accelerator: 'CmdOrCtrl+H',
+                    click: () => {
+                        if (activePanel) {
+                            ipcMain.emit('split-panel', null, activePanel, 'horizontal');
+                        }
+                    }
+                },
+                {
+                    label: 'Fermer la tuile active',
+                    accelerator: 'CmdOrCtrl+W',
+                    click: () => {
+                        if (activePanel) {
+                            // On s'assure qu'il reste plus d'un panneau avant de fermer, 
+                            // ou on laisse close-panel gérer selon votre logique existante
+                            ipcMain.emit('close-panel', null, activePanel);
+                        }
+                    }
+                },
+                {
+                    label: 'Annuler la fermeture',
+                    accelerator: 'CmdOrCtrl+Z',
+                    click: () => {
+                        ipcMain.emit('undo', null);
+                    }
+                }
+            ]
+        }
+    ];
+
+    const menu = Menu.buildFromTemplate(template);
+    win.setMenu(menu); // Le menu est configuré avec les raccourcis actifs
+    
+    
+    
     win.loadFile('index.html');
 
     forceRebuildSplitters = true;
