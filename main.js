@@ -44,14 +44,16 @@ let leftView, centerView, rightView;
 
 const https = require("https");
 
+/*
 async function searchDuckDuckGo(query) {
 
     return new Promise((resolve, reject) => {
 
-        const url =
-        `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&kl=fr-fr&no_html=1`;
 
-        console.log("URL API :", url);
+
+        const url =
+        `https://searxng-hww1.onrender.com/search?q=${encodeURIComponent(query)}`;
+
 
         https.get(url, (res) => {
 
@@ -85,6 +87,7 @@ async function searchDuckDuckGo(query) {
 
 }
 
+*/
 
 /*
 searchDuckDuckGo("Albert Einstein")
@@ -601,18 +604,16 @@ function buildNavigationTarget(input) {
 
     input = input.trim();
 
-    // URL complète
     if (isValidUrl(input)) {
         return input;
     }
 
-    // Domaine sans protocole
     if (/^[a-z0-9-]+\.[a-z]{2,}/i.test(input)) {
         return "https://" + input;
     }
 
-    // Sinon recherche DuckDuckGo
-    return `https://duckduckgo.com/?q=${encodeURIComponent(input)}`;
+//  return `https://searxng-hww1.onrender.com/search?q=${encodeURIComponent(input)}`;
+    return `http://129.151.254.175:8080/search?q=${encodeURIComponent(input)}`;
 }
 
 function findPanelByWebContents(webContents) {
@@ -796,48 +797,20 @@ ipcMain.on("navigate", (event, panelId, input) => {
 
 */
 
-ipcMain.on("navigate", async (event, panelId, input) => {
+ipcMain.on("navigate", (event, panelId, input) => {
 
     const panel = findPanelNode(rootNode, panelId);
 
     if (!panel || !panel.view)
         return;
 
-    input = input.trim();
-
-    // Recherche (plusieurs mots)
-    if (input.includes(" ")) {
-
-        const data = await searchDuckDuckGo(input);
-
-        const results = extractResults(data);
-
-        if (results.length > 0) {
-
-            const html = await buildSearchPage(input);
-
-            panel.view.webContents.loadURL(
-                "data:text/html;charset=utf-8," +
-                encodeURIComponent(html)
-            );
-
-        } else {
-
-            panel.view.webContents.loadURL(
-                `https://duckduckgo.com/?q=${encodeURIComponent(input)}`
-            );
-
-        }
-
-        return;
-    }
-
-    // Navigation classique
-    const target = buildNavigationTarget(input);
-
-    panel.view.webContents.loadURL(target);
+    panel.view.webContents.loadURL(
+        buildNavigationTarget(input)
+    );
 
 });
+
+
 function swapPanelsInTree(idA, idB) {
     saveState();
     
