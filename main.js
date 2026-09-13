@@ -231,7 +231,7 @@ body {
 
 
 
-
+/*
 function updateActiveBorder(bounds) {
     if (!bounds) return;
 
@@ -268,122 +268,56 @@ function updateActiveBorder(bounds) {
         }
     });
 }
+*/
 
+function updateActiveBorder(bounds) {
+    if (!bounds || !win || win.isDestroyed()) return;
 
-/*
-let handleDraggedPanelId = null; // Variable de suivi du déplacement global
+    const BORDER_THICKNESS = 2; // Épaisseur idéale et élégante
 
-function updatePanelHandles() {
-    if (!win || win.isDestroyed()) return;
+    // Calcule un positionnement extérieur exact au pixel près
+    const borderLayouts = [
+        // TOP : Se place juste au-dessus du panneau
+        { x: bounds.x, y: bounds.y, width: bounds.width, height: BORDER_THICKNESS }, 
+        // BOTTOM : Se place pile sur la limite basse
+        { x: bounds.x, y: bounds.y + bounds.height - BORDER_THICKNESS, width: bounds.width, height: BORDER_THICKNESS }, 
+        // LEFT : Se place sur le bord gauche
+        { x: bounds.x, y: bounds.y, width: BORDER_THICKNESS, height: bounds.height }, 
+        // RIGHT : Se place sur le bord droit
+        { x: bounds.x + bounds.width - BORDER_THICKNESS, y: bounds.y, width: BORDER_THICKNESS, height: bounds.height }
+    ];
 
-    const panelsList = collectPanelNodes(rootNode);
-    const activeIds = panelsList.map(p => p.id);
-
-    // 1. Nettoyer les poignées des panneaux qui ont été fermés
-    Object.keys(handleViews).forEach(id => {
-        if (!activeIds.includes(id)) {
-            try { win.removeBrowserView(handleViews[id]); } catch(e) {}
-            delete handleViews[id];
+    // Création des 4 vues si elles n'existent pas encore
+    if (borderViews.length === 0) {
+        for (let i = 0; i < 4; i++) {
+            const bView = new BrowserView();
+            win.addBrowserView(bView);
+            
+            // OPTIMISATION CRUCIALE : Rend le liseré transparent aux clics de souris
+            bView.webContents.setIgnoreMenuShortcuts(true);
+            
+            bView.webContents.loadURL("data:text/html," + encodeURIComponent(`
+                <html><body style="margin:0; padding:0; background:#3b82f6; overflow:hidden;"></body></html>
+            `));
+            borderViews.push(bView);
         }
-    });
+    }
 
-    // 2. Mettre à jour ou créer la poignée pour chaque panneau existant
-    panelsList.forEach((panel) => {
-        if (!panel.bounds) return;
-
-        // Positionnement de la poignée en haut à gauche du panneau (avec un décalage de 6px)
-        const handleBounds = {
-            x: panel.bounds.x + 6,
-            y: panel.bounds.y + 6,
-            width: 24,
-            height: 24
-        };
-
-        if (!handleViews[panel.id]) {
-            const hView = new BrowserView();
-            win.addBrowserView(hView);
-			
-			// CORRECTION : On ajoute ";charset=utf-8" juste après "data:text/html"
-			hView.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(`
-				<html><head><style>
-				html, body { margin: 0; padding: 0; overflow: hidden !important; width: 100%; height: 100%; }
-				#handle {
-					width: 100%; height: 100%;
-					background: #2d2d30; border: 1px solid #3c3c3c; border-radius: 4px;
-					color: #cfcfcf; display: flex; align-items: center; justify-content: center;
-					cursor: grab; font-family: sans-serif; font-size: 14px; user-select: none;
-					box-shadow: 0 2px 4px rgba(0,0,0,0.3); box-sizing: border-box;
-				}
-				#handle:hover { background: #3f3f46; color: #ffffff; }
-				</style></head><body>
-				<div id="handle">⠿</div>
-				<script>
-					let dragging = false;
-					document.getElementById("handle").addEventListener("mousedown", (e) => {
-						if (e.button !== 0) return;
-						dragging = true;
-						document.title = "drag-start";
-					});
-					document.addEventListener("mouseup", () => {
-						if (dragging) {
-							dragging = false;
-							document.title = "drag-end";
-						}
-					});
-				</script></body></html>
-			`));
-
-            // Écoute des actions de la souris émises via le titre de la BrowserView de la poignée
-            hView.webContents.on("page-title-updated", (event, title) => {
-                event.preventDefault();
-                
-                if (title === "drag-start") {
-                    activePanel = panel.id;
-                    win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
-                    updateActiveBorder(panel.bounds);
-                    handleDraggedPanelId = panel.id;
-                }
-                
-                if (title === "drag-end" && handleDraggedPanelId) {
-                    const { screen } = require('electron');
-                    const mousePoint = screen.getCursorScreenPoint();
-                    const winContentBounds = win.getContentBounds();
-                    
-                    const localX = mousePoint.x - winContentBounds.x;
-                    const localY = mousePoint.y - winContentBounds.y;
-
-                    const list = collectPanelNodes(rootNode);
-                    let targetPanel = null;
-
-                    for (const p of list) {
-                        if (p.bounds && p.id !== handleDraggedPanelId) {
-                            if (localX >= p.bounds.x && localX <= (p.bounds.x + p.bounds.width) &&
-                                localY >= p.bounds.y && localY <= (p.bounds.y + p.bounds.height)) {
-                                targetPanel = p;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (targetPanel) {
-                        swapPanelsInTree(handleDraggedPanelId, targetPanel.id);
-                    }
-                    handleDraggedPanelId = null;
-                }
-            });
-
-            handleViews[panel.id] = hView;
+    // Application des positions et mise au premier plan absolu
+    borderLayouts.forEach((layout, index) => {
+        const bView = borderViews[index];
+        if (bView && !bView.webContents.isDestroyed()) {
+            bView.setBounds(layout);
+            try {
+                win.setTopBrowserView(bView);
+                // Empêche le liseré de bloquer les clics de l'utilisateur sur la page Web sous-jacente
+                bView.webContents.userAgent = "InternalBorder";
+            } catch (e) {}
         }
-
-        // Appliquer la position géométrique et la pousser au premier plan absolu
-        const currentHandle = handleViews[panel.id];
-        currentHandle.setBounds(handleBounds);
-        try {
-            win.setTopBrowserView(currentHandle);
-        } catch(e) {}
     });
 }
-*/
+
+
 
 let handleDraggedPanelId = null;
 
@@ -1529,40 +1463,17 @@ function resizeViews() {
     win.webContents.send("splitters-updated", splitters);
 
 
-    
-    // 4. Gérer la bordure active sans bloquer les clics de l'utilisateur
-    /*
-    if (borderView && borderView.webContents && !borderView.webContents.isDestroyed()) {
-        if (activePanel) {
-            const activeNode = findPanelNode(rootNode, activePanel);
-            if (activeNode && activeNode.bounds) {
-                borderView.setBounds(activeNode.bounds);
-                
-                try {
-                    // Supprime puis ré-ajoute pour forcer un rafraîchissement d'ordre visuel
-                    win.removeBrowserView(borderView);
-                    win.addBrowserView(borderView);
-                    
-                    // IMPORTANT : On remonte le panneau Web ACTIF au-dessus de la bordure 
-                    // pour que l'utilisateur puisse interagir et cliquer sur les liens.
-                    if (activeNode.view) {
-                        win.setTopBrowserView(activeNode.view);
-                    }
-                } catch (err) {
-                    console.error("Erreur de gestion de l'ordre des calques :", err);
-                }
-            }
-        } else {
-            borderView.setBounds({ x: -100, y: -100, width: 0, height: 0 });
-        }
-    }
-    */  
 
-    // 4. Mettre à jour la position des liserés bleus
+    // 4. Mettre à jour la position des liserés bleus (Placé tout à la fin de resizeViews)
     if (activePanel) {
         const activeNode = findPanelNode(rootNode, activePanel);
         if (activeNode && activeNode.bounds) {
             updateActiveBorder(activeNode.bounds);
+            
+            // OPTIMISATION : On remonte également la poignée du panneau actif pour qu'elle reste accessible
+            if (handleViews[activePanel]) {
+                try { win.setTopBrowserView(handleViews[activePanel]); } catch(e) {}
+            }
         }
     } else {
         borderViews.forEach(bView => {
@@ -1572,7 +1483,7 @@ function resizeViews() {
         });
     }
 
-    // === AJOUT : On force le rafraîchissement des poignées de déplacement ===
+    // === On force le rafraîchissement des poignées de déplacement ===
     updatePanelHandles();
 
     win.webContents.send("splitters-updated", splitters);
