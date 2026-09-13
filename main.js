@@ -1143,7 +1143,9 @@ process.on("warning", (warning) => {
     createDefaultLayout();
 
 //  win.setMenu(null);
-    // Configuration des raccourcis clavier via un menu invisible
+
+
+    // Configuration des raccourcis clavier via un menu invisible (Correction historique)
     const { Menu } = require('electron');
     const template = [
         {
@@ -1153,30 +1155,21 @@ process.on("warning", (warning) => {
                     label: 'Scinder verticalement',
                     accelerator: 'CmdOrCtrl+T',
                     click: () => {
-                        if (activePanel) {
-                            // On simule exactement l'action de l'IpcMain split-panel
-                            ipcMain.emit('split-panel', null, activePanel, 'vertical');
-                        }
+                        if (activePanel) ipcMain.emit('split-panel', null, activePanel, 'vertical');
                     }
                 },
                 {
                     label: 'Scinder horizontalement',
                     accelerator: 'CmdOrCtrl+H',
                     click: () => {
-                        if (activePanel) {
-                            ipcMain.emit('split-panel', null, activePanel, 'horizontal');
-                        }
+                        if (activePanel) ipcMain.emit('split-panel', null, activePanel, 'horizontal');
                     }
                 },
                 {
                     label: 'Fermer la tuile active',
                     accelerator: 'CmdOrCtrl+W',
                     click: () => {
-                        if (activePanel) {
-                            // On s'assure qu'il reste plus d'un panneau avant de fermer, 
-                            // ou on laisse close-panel gérer selon votre logique existante
-                            ipcMain.emit('close-panel', null, activePanel);
-                        }
+                        if (activePanel) ipcMain.emit('close-panel', null, activePanel);
                     }
                 },
                 {
@@ -1185,12 +1178,86 @@ process.on("warning", (warning) => {
                     click: () => {
                         ipcMain.emit('undo', null);
                     }
+                },
+                // === CORRECTION DES RACCOURCIS D'HISTORIQUE ===
+                {
+                    label: 'Page précédente',
+                    accelerator: 'Alt+Left',
+                    click: () => {
+                        if (activePanel) {
+                            const panel = findPanelNode(rootNode, activePanel);
+                            if (panel && panel.view && panel.view.webContents.navigationHistory.canGoBack()) {
+                                panel.view.webContents.navigationHistory.goBack();
+                                updateNavigationButtons();
+                            }
+                        }
+                    }
+                },
+
+
+
+                // (Vos raccourcis précédents : Scinder, Fermer, Précédent, Suivant...)
+                {
+                    label: 'Page suivante',
+                    accelerator: 'Alt+Right',
+                    click: () => {
+                        if (activePanel) {
+                            const panel = findPanelNode(rootNode, activePanel);
+                            if (panel && panel.view && panel.view.webContents.navigationHistory.canGoForward()) {
+                                panel.view.webContents.navigationHistory.goForward();
+                                updateNavigationButtons();
+                            }
+                        }
+                    }
+                },
+
+                // (Vos raccourcis précédents : Scinder, Fermer, Précédent, Suivant, Ctrl+L...)
+                {
+                    label: 'Cibler la barre d\'adresse',
+                    accelerator: 'CmdOrCtrl+L',
+                    click: () => {
+                        if (activePanel) {
+                            win.webContents.focus(); 
+                            win.webContents.send('focus-url-bar', activePanel);
+                        }
+                    }
+                },
+                // === AJOUT : RACCOURCIS D'ACTUALISATION (F5 & CTRL+R) ===
+                {
+                    label: 'Actualiser la page (F5)',
+                    accelerator: 'F5',
+                    click: () => {
+                        if (activePanel) {
+                            const panel = findPanelNode(rootNode, activePanel);
+                            if (panel && panel.view) {
+                                panel.view.webContents.reload();
+                            }
+                        }
+                    }
+                },
+                {
+                    label: 'Actualiser la page (Ctrl+R)',
+                    accelerator: 'CmdOrCtrl+R',
+                    click: () => {
+                        if (activePanel) {
+                            const panel = findPanelNode(rootNode, activePanel);
+                            if (panel && panel.view) {
+                                panel.view.webContents.reload();
+                            }
+                        }
+                    }
                 }
+
+
+
             ]
         }
     ];
 
     const menu = Menu.buildFromTemplate(template);
+
+
+
     win.setMenu(menu); // Le menu est configuré avec les raccourcis actifs
     
     

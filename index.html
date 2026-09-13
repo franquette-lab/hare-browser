@@ -380,12 +380,20 @@ function rebuildUrlBar(panels) {
             e.stopPropagation();
             window.api.setActivePanel(panel.id);
         });
-             
+        
+        // Modifiez ce bloc spécifique à l'intérieur de rebuildUrlBar :
         input.addEventListener("focus", () => {
             window.api.setActivePanel(panel.id);
             input.value = input.dataset.url;
-            input.select();
+            
+            // L'utilisation d'un très léger délai empêche le clic de souris 
+            // d'annuler la sélection juste après l'activation du focus
+            setTimeout(() => {
+                input.setSelectionRange(0, input.value.length);
+            }, 10);
         });            
+
+
 
         input.addEventListener("blur", () => {
             input.value = getDisplayUrl(input.dataset.url);
@@ -486,21 +494,36 @@ function rebuildUrlBar(panels) {
         updateToolbarButtons(state.canGoBack, state.canGoForward);
     });
 
-// Fonction utilitaire pour modifier l'état visuel des boutons de la barre d'outils
-function updateToolbarButtons(canGoBack, canGoForward) {
-    const backBtn = document.getElementById("back-button");
-    const forwardBtn = document.getElementById("forward-button");
 
-    if (backBtn) {
-        backBtn.disabled = !canGoBack;
-        backBtn.style.opacity = canGoBack ? "1" : "0.4";
-        backBtn.style.cursor = canGoBack ? "pointer" : "not-allowed";
-    }
-    if (forwardBtn) {
-        forwardBtn.disabled = !canGoForward;
-        forwardBtn.style.opacity = canGoForward ? "1" : "0.4";
-        forwardBtn.style.cursor = canGoForward ? "pointer" : "not-allowed";
-    }
+    // Écoute l'ordre du raccourci Ctrl+L pour donner le focus et tout sélectionner
+    window.api.onFocusUrlBar?.((panelId) => {
+        const input = document.getElementById(panelId + "-url");
+        if (input) {
+            setTimeout(() => {
+                input.focus();
+                // Force la sélection absolue de tous les caractères du champ
+                input.setSelectionRange(0, input.value.length);
+            }, 5);
+        }
+    });
+
+
+
+    // Fonction utilitaire pour modifier l'état visuel des boutons de la barre d'outils
+    function updateToolbarButtons(canGoBack, canGoForward) {
+        const backBtn = document.getElementById("back-button");
+        const forwardBtn = document.getElementById("forward-button");
+
+        if (backBtn) {
+            backBtn.disabled = !canGoBack;
+            backBtn.style.opacity = canGoBack ? "1" : "0.4";
+            backBtn.style.cursor = canGoBack ? "pointer" : "not-allowed";
+        }
+        if (forwardBtn) {
+            forwardBtn.disabled = !canGoForward;
+            forwardBtn.style.opacity = canGoForward ? "1" : "0.4";
+            forwardBtn.style.cursor = canGoForward ? "pointer" : "not-allowed";
+        }
 }
 
 </script>

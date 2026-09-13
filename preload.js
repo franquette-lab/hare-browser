@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld(
         closePanel: (panelId) => ipcRenderer.send('close-panel', panelId),
         undo: () => ipcRenderer.send("undo"),
         
+
+
         onActivePanelChanged: (callback) => {
             ipcRenderer.on("active-panel-changed", (event, panel) => callback(panel));
         },
@@ -40,6 +42,9 @@ contextBridge.exposeInMainWorld(
         onNavigationState: (callback) => {
             ipcRenderer.on("navigation-state",(_event, state) => callback(state));
         },
+
+        // À ajouter dans l'objet 'api' de preload.js :
+        onFocusUrlBar: (callback) => ipcRenderer.on("focus-url-bar", (event, panelId) => callback(panelId)),
 
         // À insérer à l'intérieur de l'objet exposé sous 'api' dans preload.js :
         onNavigationStateChanged: (callback) => {
