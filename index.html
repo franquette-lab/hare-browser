@@ -380,12 +380,27 @@ function rebuildUrlBar(panels) {
             e.stopPropagation();
             window.api.setActivePanel(panel.id);
         });
-             
+
+  /*      
         input.addEventListener("focus", () => {
             window.api.setActivePanel(panel.id);
             input.value = input.dataset.url;
             input.select();
         });            
+*/
+        // Modifiez ce bloc spécifique à l'intérieur de rebuildUrlBar :
+        input.addEventListener("focus", () => {
+            window.api.setActivePanel(panel.id);
+            input.value = input.dataset.url;
+            
+            // L'utilisation d'un très léger délai empêche le clic de souris 
+            // d'annuler la sélection juste après l'activation du focus
+            setTimeout(() => {
+                input.setSelectionRange(0, input.value.length);
+            }, 10);
+        });            
+
+
 
         input.addEventListener("blur", () => {
             input.value = getDisplayUrl(input.dataset.url);
@@ -398,6 +413,22 @@ function rebuildUrlBar(panels) {
         // === LA FUITE DE MÉMOIRE A ÉTÉ SUPPRIMÉE ICI ===
         // Le bloc "window.api.onPanelsUpdated" qui s'auto-répétait a été retiré.
     });
+
+
+        // Modifiez ce bloc spécifique à l'intérieur de rebuildUrlBar :
+        input.addEventListener("focus", () => {
+            window.api.setActivePanel(panel.id);
+            input.value = input.dataset.url;
+            
+            // L'utilisation d'un très léger délai empêche le clic de souris 
+            // d'annuler la sélection juste après l'activation du focus
+            setTimeout(() => {
+                input.setSelectionRange(0, input.value.length);
+            }, 10);
+        });            
+
+
+
 }
 
 
@@ -424,6 +455,21 @@ function rebuildUrlBar(panels) {
     });
 
     window.api.onUndoAvailable((available) => document.getElementById("undo").disabled = !available);
+
+
+
+    // Écoute l'ordre du raccourci Ctrl+L pour donner le focus et tout sélectionner
+    window.api.onFocusUrlBar?.((panelId) => {
+        const input = document.getElementById(panelId + "-url");
+        if (input) {
+            setTimeout(() => {
+                input.focus();
+                // Force la sélection absolue de tous les caractères du champ
+                input.setSelectionRange(0, input.value.length);
+            }, 5);
+        }
+    });
+
 
     window.api.onActivePanelChanged((panel) => {
         activePanel = panel.id;

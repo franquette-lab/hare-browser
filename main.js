@@ -1185,7 +1185,52 @@ process.on("warning", (warning) => {
                     click: () => {
                         ipcMain.emit('undo', null);
                     }
+                },
+
+                // À l'intérieur de la fonction createWindow() -> dans le template du menu invisible :
+                {
+                    label: 'Cibler la barre d\'adresse',
+                    accelerator: 'CmdOrCtrl+L',
+                    click: () => {
+                        if (activePanel) {
+                            // 1. Force la fenêtre principale à capter le focus clavier au détriment de la page web
+                            win.webContents.focus(); 
+                            // 2. Transmet l'ordre à l'interface HTML
+                            win.webContents.send('focus-url-bar', activePanel);
+                        }
+                    }
+                },
+
+
+                // === AJOUT : RACCOURCIS D'ACTUALISATION (F5 & CTRL+R) ===
+                {
+                    label: 'Actualiser la page (F5)',
+                    accelerator: 'F5',
+                    click: () => {
+                        if (activePanel) {
+                            const panel = findPanelNode(rootNode, activePanel);
+                            if (panel && panel.view) {
+                                panel.view.webContents.reload();
+                            }
+                        }
+                    }
+                },
+
+                {
+                    label: 'Actualiser la page (Ctrl+R)',
+                    accelerator: 'CmdOrCtrl+R',
+                    click: () => {
+                        if (activePanel) {
+                            const panel = findPanelNode(rootNode, activePanel);
+                            if (panel && panel.view) {
+                                panel.view.webContents.reload();
+                            }
+                        }
+                    }
                 }
+
+
+
             ]
         }
     ];
