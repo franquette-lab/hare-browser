@@ -1166,6 +1166,57 @@ process.on("warning", (warning) => {
                     }
                 },
 
+
+
+                // === AJOUT : NAVIGATION ENTRE LES TUILES AVEC CTRL+TAB / CTRL+SHIFT+TAB ===
+                {
+                    label: 'Tuile suivante',
+                    accelerator: 'Ctrl+Tab',
+                    click: () => {
+                        const panelsList = collectPanelNodes(rootNode);
+                        if (panelsList.length <= 1) return;
+
+                        // Trouve l'index de la tuile actuellement active
+                        const currentIndex = panelsList.findIndex(p => p.id === activePanel);
+                        // Calcule l'index suivant (boucle au début si on est à la fin)
+                        const nextIndex = (currentIndex + 1) % panelsList.length;
+                        const nextPanel = panelsList[nextIndex];
+
+                        if (nextPanel) {
+                            // Active le panneau et met à jour l'IHM + la bordure bleue
+                            activePanel = nextPanel.id;
+                            win.webContents.send("active-panel-changed", { id: nextPanel.id, bounds: nextPanel.bounds });
+                            updateActiveBorder(nextPanel.bounds);
+                            if (nextPanel.view) nextPanel.view.webContents.focus();
+                        }
+                    }
+                },
+                {
+                    label: 'Tuile précédente',
+                    accelerator: 'Ctrl+Shift+Tab',
+                    click: () => {
+                        const panelsList = collectPanelNodes(rootNode);
+                        if (panelsList.length <= 1) return;
+
+                        const currentIndex = panelsList.findIndex(p => p.id === activePanel);
+                        // Calcule l'index précédent (boucle à la fin si on est au début)
+                        const prevIndex = (currentIndex - 1 + panelsList.length) % panelsList.length;
+                        const prevPanel = panelsList[prevIndex];
+
+                        if (prevPanel) {
+                            activePanel = prevPanel.id;
+                            win.webContents.send("active-panel-changed", { id: prevPanel.id, bounds: prevPanel.bounds });
+                            updateActiveBorder(prevPanel.bounds);
+                            if (prevPanel.view) prevPanel.view.webContents.focus();
+                        }
+                    }
+                },
+
+
+
+
+
+
                 // === RACCOURCI AVEC FENÊTRE DE VALIDATION (CTRL+Q) ===
                 {
                     label: 'Quitter l\'application',
