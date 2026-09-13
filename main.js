@@ -1143,9 +1143,7 @@ process.on("warning", (warning) => {
     createDefaultLayout();
 
 //  win.setMenu(null);
-
-
-    // Configuration des raccourcis clavier via un menu invisible (Correction historique)
+    // Configuration des raccourcis clavier via un menu invisible
     const { Menu } = require('electron');
     const template = [
         {
@@ -1155,23 +1153,36 @@ process.on("warning", (warning) => {
                     label: 'Scinder verticalement',
                     accelerator: 'CmdOrCtrl+T',
                     click: () => {
-                        if (activePanel) ipcMain.emit('split-panel', null, activePanel, 'vertical');
+                        if (activePanel) {
+                            // On simule exactement l'action de l'IpcMain split-panel
+                            ipcMain.emit('split-panel', null, activePanel, 'vertical');
+                        }
                     }
                 },
                 {
                     label: 'Scinder horizontalement',
                     accelerator: 'CmdOrCtrl+H',
                     click: () => {
-                        if (activePanel) ipcMain.emit('split-panel', null, activePanel, 'horizontal');
+                        if (activePanel) {
+                            ipcMain.emit('split-panel', null, activePanel, 'horizontal');
+                        }
                     }
                 },
                 {
                     label: 'Fermer la tuile active',
                     accelerator: 'CmdOrCtrl+W',
                     click: () => {
-                        if (activePanel) ipcMain.emit('close-panel', null, activePanel);
+                        if (activePanel) {
+                            // On s'assure qu'il reste plus d'un panneau avant de fermer, 
+                            // ou on laisse close-panel gérer selon votre logique existante
+                            ipcMain.emit('close-panel', null, activePanel);
+                        }
                     }
                 },
+
+
+
+                // (Vos raccourcis précédents : Scinder, Fermer, Annuler...)
                 {
                     label: 'Annuler la fermeture',
                     accelerator: 'CmdOrCtrl+Z',
@@ -1179,7 +1190,7 @@ process.on("warning", (warning) => {
                         ipcMain.emit('undo', null);
                     }
                 },
-                // === CORRECTION DES RACCOURCIS D'HISTORIQUE ===
+                // === RÉINSTALLATION : RACCOURCIS D'HISTORIQUE DE NAVIGATION ===
                 {
                     label: 'Page précédente',
                     accelerator: 'Alt+Left',
@@ -1188,15 +1199,11 @@ process.on("warning", (warning) => {
                             const panel = findPanelNode(rootNode, activePanel);
                             if (panel && panel.view && panel.view.webContents.navigationHistory.canGoBack()) {
                                 panel.view.webContents.navigationHistory.goBack();
-                                updateNavigationButtons();
+                                updateNavigationButtons(); // Met à jour l'état visuel des boutons ← →
                             }
                         }
                     }
                 },
-
-
-
-                // (Vos raccourcis précédents : Scinder, Fermer, Précédent, Suivant...)
                 {
                     label: 'Page suivante',
                     accelerator: 'Alt+Right',
@@ -1210,8 +1217,7 @@ process.on("warning", (warning) => {
                         }
                     }
                 },
-
-                // (Vos raccourcis précédents : Scinder, Fermer, Précédent, Suivant, Ctrl+L...)
+                // === VOTRE RACCOURCI CTRL+L ACTUELLEMENT RÉPARÉ ===
                 {
                     label: 'Cibler la barre d\'adresse',
                     accelerator: 'CmdOrCtrl+L',
@@ -1222,6 +1228,10 @@ process.on("warning", (warning) => {
                         }
                     }
                 },
+
+
+
+
                 // === AJOUT : RACCOURCIS D'ACTUALISATION (F5 & CTRL+R) ===
                 {
                     label: 'Actualiser la page (F5)',
@@ -1235,6 +1245,7 @@ process.on("warning", (warning) => {
                         }
                     }
                 },
+
                 {
                     label: 'Actualiser la page (Ctrl+R)',
                     accelerator: 'CmdOrCtrl+R',
@@ -1255,9 +1266,6 @@ process.on("warning", (warning) => {
     ];
 
     const menu = Menu.buildFromTemplate(template);
-
-
-
     win.setMenu(menu); // Le menu est configuré avec les raccourcis actifs
     
     

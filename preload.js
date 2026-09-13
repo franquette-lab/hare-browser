@@ -30,6 +30,10 @@ contextBridge.exposeInMainWorld(
             ipcRenderer.on("splitters-updated", (event, splitters) => callback(splitters));
         },
 
+        // À l'intérieur de contextBridge.exposeInMainWorld('api', { ... }) :
+        onFocusUrlBar: (callback) => ipcRenderer.on("focus-url-bar", (event, panelId) => callback(panelId)),
+
+
         onPanelsUpdated: (callback) => {
             ipcRenderer.on("panels-updated", (_event, panels) => {
                 callback(panels);
