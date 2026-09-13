@@ -7,8 +7,10 @@ const {
     BrowserWindow,
     BrowserView,
     ipcMain,
-    nativeImage
+    nativeImage,
+    dialog // <-- Ajoutez dialog ici s'il n'y est pas déjà
 } = require('electron');
+
 
 const fs = require("fs");
 const path = require("path");
@@ -1151,7 +1153,8 @@ process.on("warning", (warning) => {
                         }
                     }
                 },
-                // === VOTRE RACCOURCI CTRL+L ACTUELLEMENT RÉPARÉ ===
+
+                // (Vos raccourcis précédents : Scinder, Fermer, Précédent, Suivant, Ctrl+L...)
                 {
                     label: 'Cibler la barre d\'adresse',
                     accelerator: 'CmdOrCtrl+L',
@@ -1159,6 +1162,28 @@ process.on("warning", (warning) => {
                         if (activePanel) {
                             win.webContents.focus(); 
                             win.webContents.send('focus-url-bar', activePanel);
+                        }
+                    }
+                },
+
+                // === RACCOURCI AVEC FENÊTRE DE VALIDATION (CTRL+Q) ===
+                {
+                    label: 'Quitter l\'application',
+                    accelerator: 'CmdOrCtrl+Q',
+                    click: () => {
+                        // On demande confirmation avant de quitter
+                        const response = dialog.showMessageBoxSync(win, {
+                            type: 'question',
+                            buttons: ['Oui, quitter', 'Annuler'],
+                            defaultId: 1, // Le focus par défaut est sur "Annuler" pour éviter les erreurs
+                            title: 'Confirmation',
+                            message: 'Êtes-vous sûr de vouloir fermer Tile Browser ?',
+                            detail: 'Tous vos panneaux et onglets ouverts seront perdus.'
+                        });
+
+                        // Si l'utilisateur clique sur "Oui, quitter" (index 0)
+                        if (response === 0) {
+                            app.exit(0); // Ferme proprement et immédiatement
                         }
                     }
                 },
@@ -1246,6 +1271,26 @@ process.on("warning", (warning) => {
     win.on("leave-full-screen", () => {
         forceRebuildSplitters = true;
         resizeViews();
+    });
+
+    // Intercepte le clic sur la croix de fermeture de la fenêtre
+    win.on('close', (e) => {
+        // Empêche la fermeture immédiate pour laisser le temps au dialogue de s'afficher
+        e.preventDefault();
+
+        const response = dialog.showMessageBoxSync(win, {
+            type: 'question',
+            buttons: ['Oui, quitter', 'Annuler'],
+            defaultId: 1,
+            title: 'Confirmation',
+            message: 'Êtes-vous sûr de vouloir fermer Tile Browser ?',
+            detail: 'Tous vos panneaux et onglets ouverts seront perdus.'
+        });
+
+        if (response === 0) {
+            // Détruit la fenêtre proprement si validé
+            win.destroy();
+        }
     });
 
 
