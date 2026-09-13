@@ -1179,6 +1179,10 @@ process.on("warning", (warning) => {
                         }
                     }
                 },
+
+
+
+                // (Vos raccourcis précédents : Scinder, Fermer, Annuler...)
                 {
                     label: 'Annuler la fermeture',
                     accelerator: 'CmdOrCtrl+Z',
@@ -1186,20 +1190,46 @@ process.on("warning", (warning) => {
                         ipcMain.emit('undo', null);
                     }
                 },
-
-                // À l'intérieur de la fonction createWindow() -> dans le template du menu invisible :
+                // === RÉINSTALLATION : RACCOURCIS D'HISTORIQUE DE NAVIGATION ===
+                {
+                    label: 'Page précédente',
+                    accelerator: 'Alt+Left',
+                    click: () => {
+                        if (activePanel) {
+                            const panel = findPanelNode(rootNode, activePanel);
+                            if (panel && panel.view && panel.view.webContents.navigationHistory.canGoBack()) {
+                                panel.view.webContents.navigationHistory.goBack();
+                                updateNavigationButtons(); // Met à jour l'état visuel des boutons ← →
+                            }
+                        }
+                    }
+                },
+                {
+                    label: 'Page suivante',
+                    accelerator: 'Alt+Right',
+                    click: () => {
+                        if (activePanel) {
+                            const panel = findPanelNode(rootNode, activePanel);
+                            if (panel && panel.view && panel.view.webContents.navigationHistory.canGoForward()) {
+                                panel.view.webContents.navigationHistory.goForward();
+                                updateNavigationButtons();
+                            }
+                        }
+                    }
+                },
+                // === VOTRE RACCOURCI CTRL+L ACTUELLEMENT RÉPARÉ ===
                 {
                     label: 'Cibler la barre d\'adresse',
                     accelerator: 'CmdOrCtrl+L',
                     click: () => {
                         if (activePanel) {
-                            // 1. Force la fenêtre principale à capter le focus clavier au détriment de la page web
                             win.webContents.focus(); 
-                            // 2. Transmet l'ordre à l'interface HTML
                             win.webContents.send('focus-url-bar', activePanel);
                         }
                     }
                 },
+
+
 
 
                 // === AJOUT : RACCOURCIS D'ACTUALISATION (F5 & CTRL+R) ===
