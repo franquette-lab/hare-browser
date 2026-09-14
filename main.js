@@ -331,8 +331,6 @@ let handleDraggedPanelId = null;
 
 
 
-
-
 function updatePanelHandles() {
     if (!win || win.isDestroyed()) return;
 
@@ -350,110 +348,25 @@ function updatePanelHandles() {
     // 2. Mettre à jour ou créer la poignée pour chaque panneau
     panelsList.forEach((panel) => {
 
-
-        // === AJOUT CORRECTION : Si un panneau est maximisé, on cache les poignées des AUTRES panneaux ===
+        // Si un panneau est maximisé, on cache les poignées des AUTRES panneaux
         if (maximizedPanelId && panel.id !== maximizedPanelId) {
             if (handleViews[panel.id]) {
                 try {
-                    // On déplace la poignée hors de l'écran pour la masquer proprement sans la détruire
                     handleViews[panel.id].setBounds({ x: -1000, y: -1000, width: 0, height: 0 });
                 } catch(e) {}
             }
-            return; // On passe au panneau suivant sans exécuter le positionnement standard
+            return; 
         }
 
         if (!panel.bounds) return;
 
-/*
-        if (!handleViews[panel.id]) {
-            const hView = new BrowserView();
-            win.addBrowserView(hView);
-            
-            // On calcule si le bouton doit afficher "Agrandir" ou "Réduire" au chargement
-            const isMaximized = (maximizedPanelId === panel.id);
-
-
-
-            // Gestion des actions de la poignée
-            hView.webContents.on("page-title-updated", (event, title) => {
-                event.preventDefault();
-                
-                if (title === "drag-start") {
-                    activePanel = panel.id;
-                    win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
-                    updateActiveBorder(panel.bounds);
-                    handleDraggedPanelId = panel.id;
-                }
-                
-                // NOUVELLE ACTION : Interception du clic sur le bouton d'agrandissement interne
-                if (title === "action-toggle-zoom") {
-                    if (maximizedPanelId === panel.id) {
-                        maximizedPanelId = null; // Revenir au départ (toutes les tuiles)
-                    } else {
-                        maximizedPanelId = panel.id; // Zoomer sur ce panneau
-                    }
-                    forceRebuildSplitters = true;
-                    resizeViews();
-                    // On force le rechargement de la poignée pour mettre à jour son icône (🗖 ou 🗗)
-                    try { win.removeBrowserView(hView); } catch(e){}
-                    delete handleViews[panel.id];
-                    updatePanelHandles();
-                    return;
-                }
-
-                if (title === "action-fullscreen") {
-                    // Si le panneau était zoomé avant d'être détaché, on annule le zoom global
-                    if (maximizedPanelId === panel.id) maximizedPanelId = null;
-                    detachPanelToFullscreen(panel.id);
-                }
-                
-                if (title === "drag-end" && handleDraggedPanelId) {
-                    // (Le reste de votre logique drag-end inchangée...)
-                    const { screen } = require('electron');
-                    const mousePoint = screen.getCursorScreenPoint();
-                    const winContentBounds = win.getContentBounds();
-                    const localX = mousePoint.x - winContentBounds.x;
-                    const localY = mousePoint.y - winContentBounds.y;
-                    const list = collectPanelNodes(rootNode);
-                    let targetPanel = null;
-                    for (const p of list) {
-                        if (p.bounds && p.id !== handleDraggedPanelId) {
-                            if (localX >= p.bounds.x && localX <= (p.bounds.x + p.bounds.width) &&
-                                localY >= p.bounds.y && localY <= (p.bounds.y + p.bounds.height)) {
-                                targetPanel = p;
-                                break;
-                            }
-                        }
-                    }
-                    if (targetPanel) { swapPanelsInTree(handleDraggedPanelId, targetPanel.id); }
-                    handleDraggedPanelId = null;
-                }
-            });
-
-            handleViews[panel.id] = hView;
-        }
-
-        // CORRECTION : Augmenter la taille de la poignée à 64px pour héberger les 3 icônes à l'aise
-        const handleBounds = {
-            x: panel.bounds.x + 6,
-            y: panel.bounds.y + 6,
-            width: 64, 
-            height: 24
-        };
-
-        const currentHandle = handleViews[panel.id];
-        currentHandle.setBounds(handleBounds);
-        try {
-            win.setTopBrowserView(currentHandle);
-        } catch(e) {}
-*/
+        // === AJOUT/CORRECTION : Définition propre et globale de la variable isMaximized ===
+        const isMaximized = (maximizedPanelId === panel.id);
 
         if (!handleViews[panel.id]) {
             const hView = new BrowserView();
             win.addBrowserView(hView);
             
-            const isMaximized = (maximizedPanelId === panel.id);
-
             hView.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(`
                 <html><head><style>
                 html, body { margin: 0; padding: 0; overflow: hidden !important; width: 100%; height: 100%; }
@@ -473,22 +386,28 @@ function updatePanelHandles() {
                 #zoom-btn:hover { background: #15803d; color: #4ade80; }
                 #fullscreen-btn { border-left: 1px solid #3c3c3c; border-right: 1px solid #3c3c3c; }
                 #fullscreen-btn:hover { background: #1e3a8a; color: #3b82f6; }
-                /* Style spécifique pour le bouton rouge de fermeture */
                 #close-btn:hover { background: #991b1b; color: #fca5a5; }
+                
+                /* Masquage dynamique du bouton de déplacement */
+                .hide-drag { display: none !important; }
+                .flex-3-btns .action { flex: 1 1 33.33% !important; }
                 </style></head><body>
-                <div id="container">
-                    <div id="drag-btn" class="btn" title="Glisser pour déplacer">⠿</div>
+                <div id="container" class="${isMaximized ? 'flex-3-btns' : ''}">
+                    <div id="drag-btn" class="btn ${isMaximized ? 'hide-drag' : ''}" title="Glisser pour déplacer">⠿</div>
                     <div id="zoom-btn" class="btn action" title="${isMaximized ? 'Restaurer la taille d\'origine' : 'Agrandir le panneau'}">${isMaximized ? '🗗' : '🗖'}</div>
                     <div id="fullscreen-btn" class="btn action" title="Détacher dans une nouvelle fenêtre">↗</div>
                     <div id="close-btn" class="btn action" title="Fermer ce panneau">✕</div>
                 </div>
                 <script>
                     let dragging = false;
-                    document.getElementById("drag-btn").addEventListener("mousedown", (e) => {
-                        if (e.button !== 0) return;
-                        dragging = true;
-                        document.title = "drag-start";
-                    });
+                    const dragBtn = document.getElementById("drag-btn");
+                    if (dragBtn) {
+                        dragBtn.addEventListener("mousedown", (e) => {
+                            if (e.button !== 0) return;
+                            dragging = true;
+                            document.title = "drag-start";
+                        });
+                    }
                     document.addEventListener("mouseup", () => {
                         if (dragging) {
                             dragging = false;
@@ -518,7 +437,6 @@ function updatePanelHandles() {
                     handleDraggedPanelId = panel.id;
                 }
                 
-/*
                 if (title === "action-toggle-zoom") {
                     if (maximizedPanelId === panel.id) {
                         maximizedPanelId = null;
@@ -527,22 +445,6 @@ function updatePanelHandles() {
                     }
                     forceRebuildSplitters = true;
                     resizeViews();
-                    try { win.removeBrowserView(hView); } catch(e){}
-                    delete handleViews[panel.id];
-                    updatePanelHandles();
-                    return;
-                }
-*/
-                if (title === "action-toggle-zoom") {
-                    if (maximizedPanelId === panel.id) {
-                        maximizedPanelId = null;
-                    } else {
-                        maximizedPanelId = panel.id;
-                    }
-                    forceRebuildSplitters = true;
-                    resizeViews();
-                    
-                   // === CORRECTION RADICALE : On envoie l'info directement au HTML ===
                     win.webContents.send("zoom-changed", maximizedPanelId);
                     
                     try { win.removeBrowserView(hView); } catch(e){}
@@ -556,9 +458,7 @@ function updatePanelHandles() {
                     detachPanelToFullscreen(panel.id);
                 }
 
-                // NOUVELLE ACTION : Fermeture du panneau au clic sur le bouton rouge ✕
                 if (title === "action-close") {
-                    // On simule l'événement IPC close-panel existant pour déclencher la suppression propre
                     ipcMain.emit("close-panel", null, panel.id);
                     return;
                 }
@@ -588,28 +488,26 @@ function updatePanelHandles() {
             handleViews[panel.id] = hView;
         }
 
-        // AJUSTEMENT CRUCIAL : Largeur augmentée à 80px pour accueillir confortablement les 4 boutons (4 * 20px)
+        // Configuration de la boîte avec largeur adaptative sécurisée
         const handleBounds = {
             x: panel.bounds.x + 6,
             y: panel.bounds.y + 6,
-            width: 80, 
+            width: isMaximized ? 60 : 80, 
             height: 24
         };
 
         const currentHandle = handleViews[panel.id];
-        currentHandle.setBounds(handleBounds);
-        try {
-            win.setTopBrowserView(currentHandle);
-        } catch(e) {}
-
-
-
-
-
-
-
+        if (currentHandle) {
+            currentHandle.setBounds(handleBounds);
+            try {
+                win.setTopBrowserView(currentHandle);
+            } catch(e) {}
+        }
     });
 }
+
+
+
 
 
 function findNeighborPanel(activeBounds, direction, panelsList) {

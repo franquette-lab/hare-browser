@@ -124,6 +124,19 @@ html, body {
     flex: 1 1 0% !important;
 }
 
+/* ... vos styles existants ... */
+#fullscreen-btn { border-left: 1px solid #3c3c3c; border-right: 1px solid #3c3c3c; }
+#fullscreen-btn:hover { background: #1e3a8a; color: #3b82f6; }
+#close-btn:hover { background: #991b1b; color: #fca5a5; }
+
+/* === AJOUT : Masquer le bouton de drag si la classe est présente === */
+.hide-drag { display: none !important; }
+
+/* === AJOUT : Si le drag est masqué, on redistribue la largeur sur les 3 boutons restants === */
+.flex-3-btns .action { flex: 1 1 33.33% !important; }
+</style>
+
+
 </style>
 
 <body class="m-0 flex items-center justify-center bg-gray-100 dark:bg-zinc-900 min-h-screen">
@@ -141,6 +154,15 @@ html, body {
 
 <div id="url-bar" style="position: fixed; top: 38px; left: 0; right: 0; z-index: 50;"></div>
 <div id="active-panel-frame"></div>
+
+<div id="container" class="${isMaximized ? 'flex-3-btns' : ''}">
+    <!-- La classe hide-drag s'applique si isMaximized est vrai -->
+    <div id="drag-btn" class="btn ${isMaximized ? 'hide-drag' : ''}" title="Glisser pour déplacer">⠿</div>
+    <div id="zoom-btn" class="btn action" title="${isMaximized ? 'Restaurer la taille d\'origine' : 'Agrandir le panneau'}">${isMaximized ? '🗗' : '🗖'}</div>
+    <div id="fullscreen-btn" class="btn action" title="Détacher dans une nouvelle fenêtre">↗</div>
+    <div id="close-btn" class="btn action" title="Fermer ce panneau">✕</div>
+</div>
+
 
 <script>
 
