@@ -59,8 +59,7 @@ contextBridge.exposeInMainWorld(
             ipcRenderer.on("navigation-state",(_event, state) => callback(state));
         },
 
-
-        // À insérer proprement au sein de l'objet exposé sous 'api' dans preload.js :
+        // === FIX : Séparation correcte des fonctions IPC dans le contextBridge ===
         onDownloadProgress: (callback) => {
             ipcRenderer.on("download-progress", (event, data) => callback(data));
         },

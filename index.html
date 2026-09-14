@@ -124,40 +124,6 @@ html, body {
     flex: 1 1 0% !important;
 }
 
-/* ... vos styles existants ... */
-#fullscreen-btn { border-left: 1px solid #3c3c3c; border-right: 1px solid #3c3c3c; }
-#fullscreen-btn:hover { background: #1e3a8a; color: #3b82f6; }
-#close-btn:hover { background: #991b1b; color: #fca5a5; }
-
-/* === AJOUT : Masquer le bouton de drag si la classe est présente === */
-.hide-drag { display: none !important; }
-
-/* === AJOUT : Si le drag est masqué, on redistribue la largeur sur les 3 boutons restants === */
-.flex-3-btns .action { flex: 1 1 33.33% !important; }
-
-
-
-.btn-favori {
-    cursor: pointer;
-    font-size: 14px;
-    user-select: none;
-    color: #6b7280; /* Gris par défaut */
-    transition: color 0.2s, transform 0.1s;
-    margin-right: 6px;
-    z-index: 20;
-}
-.btn-favori.active {
-    color: #eab308; /* Jaune éclatant quand le site est en favori */
-    transform: scale(1.1);
-}
-.btn-favori:hover {
-    transform: scale(1.2);
-}
-
-
-</style>
-
-
 </style>
 
 <body class="m-0 flex items-center justify-center bg-gray-100 dark:bg-zinc-900 min-h-screen">
@@ -175,15 +141,6 @@ html, body {
 
 <div id="url-bar" style="position: fixed; top: 38px; left: 0; right: 0; z-index: 50;"></div>
 <div id="active-panel-frame"></div>
-
-<div id="container" class="${isMaximized ? 'flex-3-btns' : ''}">
-    <!-- La classe hide-drag s'applique si isMaximized est vrai -->
-    <div id="drag-btn" class="btn ${isMaximized ? 'hide-drag' : ''}" title="Glisser pour déplacer">⠿</div>
-    <div id="zoom-btn" class="btn action" title="${isMaximized ? 'Restaurer la taille d\'origine' : 'Agrandir le panneau'}">${isMaximized ? '🗗' : '🗖'}</div>
-    <div id="fullscreen-btn" class="btn action" title="Détacher dans une nouvelle fenêtre">↗</div>
-    <div id="close-btn" class="btn action" title="Fermer ce panneau">✕</div>
-</div>
-
 
 <script>
 
@@ -302,40 +259,6 @@ function rebuildUrlBar(panels) {
         input.dataset.url = panel.realUrl || panel.url || "";
         input.value = getDisplayUrl(input.dataset.url);
 
-
-
-
-        // --- CRÉATION DE L'INPUT D'URL (votre code existant) ---
-        // ...
-        tabWrapper.appendChild(input);
-
-        // --- AJOUT : CRÉATION DU BOUTON ÉTOILE DE FAVORI ---
-        const starBtn = document.createElement("div");
-        starBtn.className = "btn-favori";
-        starBtn.id = `star-${panel.id}`;
-        starBtn.innerText = "☆"; // Étoile vide par défaut
-        starBtn.title = "Ajouter aux favoris";
-
-        // Empêche le clic de perturber le drag and drop de l'onglet
-        starBtn.addEventListener("mousedown", (e) => e.stopPropagation());
-        
-        starBtn.addEventListener("click", async (e) => {
-            e.stopPropagation();
-            const currentUrl = input.dataset.url || panel.url || "";
-            const currentTitle = panel.title || input.value;
-            
-            // Appel au processus principal
-            const isAdded = await window.api.toggleFavori({ url: currentUrl, title: currentTitle });
-            
-            // Mise à jour visuelle immédiate de l'étoile cliquée
-            starBtn.innerText = isAdded ? "★" : "☆";
-            starBtn.classList.toggle("active", isAdded);
-        });
-
-        tabWrapper.appendChild(starBtn);
-
-
-
         input.addEventListener("mousedown", () => tabWrapper.setAttribute("draggable", "false"));
         window.addEventListener("mouseup", () => tabWrapper.setAttribute("draggable", "true"));
 
@@ -383,6 +306,7 @@ function rebuildUrlBar(panels) {
         attachUrlHandler(panel.id);
     });
 }
+
 // --- ÉCOUTEURS DES BOUTONS DE LA BARRE D'OUTILS ---
 document.getElementById("back-button").addEventListener("click", () => window.api.goBack(activePanel));
 document.getElementById("forward-button").addEventListener("click", () => window.api.goForward(activePanel));
@@ -407,51 +331,20 @@ window.api.onPanelsUpdated((panels, maximizedPanelId) => {
         }
     }
 
-    // === AJOUT : On vérifie l'état des étoiles dès que les panneaux changent de page ===
-    checkFavorisState();
-
     setTimeout(() => {
         if (document.activeElement instanceof HTMLInputElement) {
             document.activeElement.blur();
         }
     }, 0);
-}); // <-- Cette accolade ferme proprement et uniquement onPanelsUpdated
-
-// === COUPLAGE ET SÉPARATION DES FONCTIONS DE FAVORIS ===
-
-// 1. La fonction est déclarée TOUTE SEULE à la racine du script
-async function checkFavorisState() {
-    if (typeof currentPanels === 'undefined' || !currentPanels) return;
-    
-    const favoris = await window.api.getFavoris();
-    
-    currentPanels.forEach(panel => {
-        const input = document.getElementById(`${panel.id}-url`);
-        const starBtn = document.getElementById(`star-${panel.id}`);
-        
-        if (input && starBtn) {
-            const currentUrl = input.dataset.url || panel.url || "";
-            const isFavori = favoris.some(f => f.url === currentUrl);
-            
-            starBtn.innerText = isFavori ? "★" : "☆";
-            starBtn.classList.toggle("active", isFavori);
-            starBtn.title = isFavori ? "Retirer des favoris" : "Ajouter aux favoris";
-        }
-    });
-}
-
-// 2. L'écouteur de mise à jour est lui aussi déclaré SEUL à la racine
-window.api.onFavorisUpdated?.((favoris) => {
-    checkFavorisState();
 });
 
-// Écouteur pour le bouton Annuler/Undo
-window.api.onUndoAvailable((available) => {
-    const undoBtn = document.getElementById("undo");
-    if (undoBtn) undoBtn.disabled = !available;
-});
+window.api.onUndoAvailable((available) => document.getElementById("undo").disabled = !available);
 
+// === SÉCURISATION DU FOCUS DU PANNEAU ===
 window.api.onFocusUrlBar?.((panelId) => {
+    activePanel = panelId;
+    refreshTabBorders();
+    
     const input = document.getElementById(panelId + "-url");
     if (input) {
         setTimeout(() => {
@@ -459,9 +352,13 @@ window.api.onFocusUrlBar?.((panelId) => {
             input.setSelectionRange(0, input.value.length);
         }, 5);
     }
+    
+    // On demande à Electron de réactiver le liseré au focus de manière propre
+    window.api.setActivePanel(panelId);
 });
 
 window.api.onActivePanelChanged((panel) => {
+    if (!panel) return;
     activePanel = panel.id;
     refreshTabBorders();
 
@@ -529,30 +426,27 @@ function updateToolbarButtons(canGoBack, canGoForward) {
 
 // --- ÉCOUTEURS DE TÉLÉCHARGEMENT SÉCURISÉS ---
 window.api.onDownloadProgress((data) => {
-    // 1. Vérification de sécurité : on s'assure que data et data.panelId existent
     if (!data || !data.panelId) return;
 
     const progBar = document.getElementById(`prog-${data.panelId}`);
     const cancelBtn = document.getElementById(`cancel-dl-${data.panelId}`);
     const input = document.getElementById(`${data.panelId}-url`);
     
-    // 2. On n'applique les styles QUE si l'élément HTML correspondant est bien présent dans la page
     if (progBar) {
         progBar.style.width = `${data.percent}%`;
     }
-    
     if (cancelBtn) {
         cancelBtn.style.display = "flex";
     }
-
     if (input && document.activeElement !== input) {
         input.value = `📥 (${data.percent}%) ${data.filename}`;
-        input.style.color = "#f97316"; // Écrit en orange pendant le téléchargement
+        input.style.color = "#f97316"; 
     }
 });
 
 window.api.onDownloadDone((data) => {
-    // === CORRECTION : Ajout des accents graves (backticks) obligatoires en JavaScript ===
+    if (!data || !data.panelId) return;
+
     const progBar = document.getElementById(`prog-${data.panelId}`);
     const cancelBtn = document.getElementById(`cancel-dl-${data.panelId}`);
 
@@ -561,7 +455,7 @@ window.api.onDownloadDone((data) => {
 
     refreshTabBorders();
 
-    if (typeof currentPanels !== 'undefined') {
+    if (typeof currentPanels !== 'undefined' && currentPanels) {
         const input = document.getElementById(`${data.panelId}-url`);
         const panelData = currentPanels.find(p => p.id === data.panelId);
         if (input && panelData) {
@@ -570,29 +464,16 @@ window.api.onDownloadDone((data) => {
         }
     }
 
-    // Force la réapplication de la classe de zoom pour éviter la disparition
     const container = document.getElementById("url-bar");
     if (container && currentMaximizedId) {
         container.classList.add("maximized-mode");
-        const activeInput = document.getElementById(currentMaximizedId + "-url");
+        const activeInput = document.getElementById(`${currentMaximizedId}-url`);
         if (activeInput && activeInput.parentElement) {
             activeInput.parentElement.classList.add("panel-is-maximized");
         }
     }
 });
-
-
-
-
-
-
-
-
-
-
 </script>
-
-
 
 </body>
 </html>

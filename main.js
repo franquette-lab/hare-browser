@@ -297,27 +297,22 @@ function updateActiveBorder(bounds) {
 function updateActiveBorder(bounds) {
     if (!bounds || !win || win.isDestroyed()) return;
 
-    const BORDER_THICKNESS = 2; // Épaisseur idéale et élégante
+    const BORDER_THICKNESS = 2; // Épaisseur fine et élégante
 
-    // Calcule un positionnement extérieur exact au pixel près
     const borderLayouts = [
-        // TOP : Se place juste au-dessus du panneau
-        { x: bounds.x, y: bounds.y, width: bounds.width, height: BORDER_THICKNESS }, 
-        // BOTTOM : Se place pile sur la limite basse
-        { x: bounds.x, y: bounds.y + bounds.height - BORDER_THICKNESS, width: bounds.width, height: BORDER_THICKNESS }, 
-        // LEFT : Se place sur le bord gauche
-        { x: bounds.x, y: bounds.y, width: BORDER_THICKNESS, height: bounds.height }, 
-        // RIGHT : Se place sur le bord droit
-        { x: bounds.x + bounds.width - BORDER_THICKNESS, y: bounds.y, width: BORDER_THICKNESS, height: bounds.height }
+        { x: bounds.x, y: bounds.y, width: bounds.width, height: BORDER_THICKNESS }, // TOP
+        { x: bounds.x, y: bounds.y + bounds.height - BORDER_THICKNESS, width: bounds.width, height: BORDER_THICKNESS }, // BOTTOM
+        { x: bounds.x, y: bounds.y, width: BORDER_THICKNESS, height: bounds.height }, // LEFT
+        { x: bounds.x + bounds.width - BORDER_THICKNESS, y: bounds.y, width: BORDER_THICKNESS, height: bounds.height } // RIGHT
     ];
 
-    // Création des 4 vues si elles n'existent pas encore
+    // Création des 4 bordures si elles n'existent pas
     if (borderViews.length === 0) {
         for (let i = 0; i < 4; i++) {
             const bView = new BrowserView();
             win.addBrowserView(bView);
             
-            // OPTIMISATION CRUCIALE : Rend le liseré transparent aux clics de souris
+            // === CORRECTIF CRUCIAL A : Empêche le liseré d'intercepter les clics ===
             bView.webContents.setIgnoreMenuShortcuts(true);
             
             bView.webContents.loadURL("data:text/html," + encodeURIComponent(`
@@ -327,14 +322,13 @@ function updateActiveBorder(bounds) {
         }
     }
 
-    // Application des positions et mise au premier plan absolu
     borderLayouts.forEach((layout, index) => {
         const bView = borderViews[index];
         if (bView && !bView.webContents.isDestroyed()) {
             bView.setBounds(layout);
             try {
                 win.setTopBrowserView(bView);
-                // Empêche le liseré de bloquer les clics de l'utilisateur sur la page Web sous-jacente
+                // Indique à Chromium de laisser passer le clic à travers le liseré bleu
                 bView.webContents.userAgent = "InternalBorder";
             } catch (e) {}
         }
@@ -806,6 +800,26 @@ function setupNavigationTracking(panel) {
             `;
             panel.view.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(httpErrorHtml));
         }
+    });
+
+    panel.view.webContents.on("focus", () => {
+        activePanel = panel.id;
+        
+        // === CORRECTIF CRUCIAL B : Forcer la mise à jour géométrique à chaque clic dans la page ===
+        if (win && !win.isDestroyed()) {
+            win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
+            
+            // Met également à jour l'état des en-têtes et des onglets de index.html
+            win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
+        }
+        
+        updateActiveBorder(panel.bounds);
+        
+        win.webContents.send("navigation-state-changed", {
+            panelId: panel.id,
+            canGoBack: panel.view.webContents.navigationHistory.canGoBack(),
+            canGoForward: panel.view.webContents.navigationHistory.canGoForward()
+        });
     });
 
 
@@ -2084,8 +2098,6 @@ function moveActivePanelKeyboard(direction) {
         swapPanelsInTree(activePanel, targetPanel.id);
     }
 }
-
-
 
 ipcMain.on("set-active-panel", (event, panelId) => {
     const panel = findPanelNode(rootNode, panelId);
