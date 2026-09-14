@@ -1540,19 +1540,18 @@ function createWindow() {
                     label: 'Quitter l\'application',
                     accelerator: 'CmdOrCtrl+Q',
                     click: () => {
-                        // On demande confirmation avant de quitter
                         const response = dialog.showMessageBoxSync(win, {
                             type: 'question',
                             buttons: ['Oui, quitter', 'Annuler'],
-                            defaultId: 1, // Le focus par défaut est sur "Annuler" pour éviter les erreurs
+                            defaultId: 1,
+                            cancelId: 1, // === ASSURE QUE ÉCHAP ANNULE AUSSI ICI ===
                             title: 'Confirmation',
                             message: 'Êtes-vous sûr de vouloir fermer Tile Browser ?',
                             detail: 'Tous vos panneaux et onglets ouverts seront perdus.'
                         });
 
-                        // Si l'utilisateur clique sur "Oui, quitter" (index 0)
                         if (response === 0) {
-                            app.exit(0); // Ferme proprement et immédiatement
+                            app.exit(0); 
                         }
                     }
                 },
@@ -1644,22 +1643,24 @@ function createWindow() {
 
     // Intercepte le clic sur la croix de fermeture de la fenêtre
     win.on('close', (e) => {
-        // Empêche la fermeture immédiate pour laisser le temps au dialogue de s'afficher
+        // Empêche la fermeture immédiate
         e.preventDefault();
 
         const response = dialog.showMessageBoxSync(win, {
             type: 'question',
             buttons: ['Oui, quitter', 'Annuler'],
-            defaultId: 1,
+            defaultId: 1, // Met le focus initial sur "Annuler"
+            cancelId: 1,  // === ENTRAÎNE QUE L'APPUI SUR ÉCHAP RENVOIE L'INDEX 1 (ANNULER) ===
             title: 'Confirmation',
             message: 'Êtes-vous sûr de vouloir fermer Tile Browser ?',
             detail: 'Tous vos panneaux et onglets ouverts seront perdus.'
         });
 
+        // Seul l'index 0 ("Oui, quitter") détruit la fenêtre
         if (response === 0) {
-            // Détruit la fenêtre proprement si validé
-            win.destroy();
+            win.destroy(); 
         }
+        // Si response === 1 (Annuler ou Échap), on ne fait rien, l'application reste ouverte !
     });
 
 
