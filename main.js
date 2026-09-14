@@ -762,51 +762,106 @@ function updateNavigationButtons() {
 function setupNavigationTracking(panel) {
     if (!panel || !panel.view) return;
 
-    // Intercepte les touches Ctrl/Cmd + (+ / - / 0) directement dans la page web
-    panel.view.webContents.on('before-input-event', (event, input) => {
-        const isControl = input.control || input.meta;
-        
-        if (isControl && input.type === 'keydown') {
-            if (input.key === '+' || input.key === '=') {
-                event.preventDefault();
-                handlePanelZoom(panel, "in");
-            }
-            else if (input.key === '-') {
-                event.preventDefault();
-                handlePanelZoom(panel, "out");
-            }
-            else if (input.key === '0') {
-                event.preventDefault();
-                handlePanelZoom(panel, "reset");
-            }
+
+
+    // === AJOUT : GESTION DES ERREURS HTTP (404, 500, etc.) ===
+    panel.view.webContents.on("did-redirect-navigation", (event, url, isInPlace, isMainFrame) => {
+        // Utile si le serveur redirige vers une page d'erreur spécifique
+    });
+
+    panel.view.webContents.on("did-navigate", (event, url, httpResponseCode, httpStatusText) => {
+        // Si le code de réponse du serveur indique une erreur (ex: 404 Page introuvable, 503 Service indisponible)
+        if (httpResponseCode >= 400) {
+            console.log(`Erreur HTTP détectée [${httpResponseCode}]: ${httpStatusText}`);
+            
+            const httpErrorHtml = `
+                <!DOCTYPE html>
+                <html>
+                <body style="background:#1e1e1e; color:#f3f4f6; font-family:sans-serif; text-align:center; padding-top:100px;">
+                    <div style="font-size:48px;">⚠️</div>
+                    <h1 style="color:#ef4444;">Erreur ${httpResponseCode}</h1>
+                    <p style="color:#9ca3af;">Le serveur a répondu : ${httpStatusText || 'Page introuvable ou indisponible'}</p>
+                    <p style="font-family:monospace; background:#2d2d30; display:inline-block; padding:4px 8px; border-radius:4px; color:#facc15;">${url}</p>
+                    <br><br>
+                    <button style="background:#2563eb; color:white; border:none; padding:10px 20px; border-radius:6px; cursor:pointer;" onclick="window.location.reload()">Actualiser</button>
+                </body>
+                </html>
+            `;
+            panel.view.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(httpErrorHtml));
         }
     });
 
-    function handleNavigationUpdate(url) {
-        updatePanelUrl(panel, url);
-        const canGoBack = panel.view.webContents.navigationHistory.canGoBack();
-        const canGoForward = panel.view.webContents.navigationHistory.canGoForward();
-        win.webContents.send("navigation-state-changed", {
-            panelId: panel.id, canGoBack: canGoBack, canGoForward: canGoForward
-        });
-    }
 
-    panel.view.webContents.on("did-navigate", (event, url) => handleNavigationUpdate(url));
-    panel.view.webContents.on("did-navigate-in-page", (event, url) => handleNavigationUpdate(url));
 
-    panel.view.webContents.on("focus", () => {
-        activePanel = panel.id;
-        win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
-        updateActiveBorder(panel.bounds);
-        win.webContents.send("navigation-state-changed", {
-            panelId: panel.id,
-            canGoBack: panel.view.webContents.navigationHistory.canGoBack(),
-            canGoForward: panel.view.webContents.navigationHistory.canGoForward()
-        });
+    // ... vos écouteurs existants (before-input-event, did-navigate, focus, etc.) ...
+
+    // === AJOUT : GESTION DES ERREURS RÉSEAU ===
+    panel.view.webContents.on("did-fail-load", (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+        // On gère uniquement les erreurs du cadre principal, pas les pubs ou sous-éléments qui plantent
+        if (!isMainFrame) return;
+
+        // On ignore les annulations volontaires (ex: quand l'utilisateur clique sur "Annuler" ou change de page vite)
+        if (errorDescription === "ERR_ABORTED") return;
+
+        console.log(`Échec de chargement sur la tuile ${panel.id} [${errorCode}]: ${errorDescription} pour l'URL: ${validatedURL}`);
+
+        // Génération d'une page d'erreur locale ultra-propre et stylisée au design de votre navigateur
+        const errorHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <style>
+                    body {
+                        font-family: 'Segoe UI', system-ui, sans-serif;
+                        background-color: #1e1e1e;
+                        color: #f3f4f6;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        height: 100vh;
+                        margin: 0;
+                        padding: 20px;
+                        box-sizing: border-box;
+                        text-align: center;
+                    }
+                    .container { max-width: 500px; }
+                    .icon { font-size: 48px; margin-bottom: 16px; }
+                    h1 { font-size: 22px; margin-bottom: 8px; color: #f97316; font-weight: 600; }
+                    p { font-size: 14px; color: #9ca3af; margin-bottom: 24px; line-height: 1.5; }
+                    .url { font-family: monospace; background: #2d2d30; padding: 4px 8px; border-radius: 4px; color: #facc15; word-break: break-all; }
+                    .btn-retry {
+                        background-color: #2563eb;
+                        color: white;
+                        border: none;
+                        padding: 10px 20px;
+                        font-size: 14px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-weight: 500;
+                        transition: background 0.2s;
+                    }
+                    .btn-retry:hover { background-color: #1d4ed8; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="icon">🌐</div>
+                    <h1>Impossible d'accéder au site</h1>
+                    <p>Une erreur réseau est survenue (<span style="color:#ef4444;">${errorDescription}</span>). Vérifiez votre connexion Internet ou l'adresse saisie.</p>
+                    <p>Adresse ciblée : <br><span class="url">${validatedURL}</span></p>
+                    <button class="btn-retry" onclick="window.location.reload()">Réessayer</button>
+                </div>
+            </body>
+            </html>
+        `;
+
+        // On injecte le code HTML directement dans la BrowserView défaillante
+        panel.view.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(errorHtml));
     });
-
-    panel.view.setAutoResize({ width: true, height: true, horizontal: false, vertical: false });
 }
+
 
 /*
 function layoutNode(node, x, y, width, height) {
