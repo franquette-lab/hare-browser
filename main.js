@@ -608,6 +608,48 @@ function updatePanelHandles() {
 }
 
 
+function findNeighborPanel(activeBounds, direction, panelsList) {
+    if (!activeBounds) return null;
+    
+    let bestTarget = null;
+    let minDistance = Infinity;
+
+    // Centre du panneau actif
+    const ax = activeBounds.x + activeBounds.width / 2;
+    const ay = activeBounds.y + activeBounds.height / 2;
+
+    panelsList.forEach(p => {
+        if (p.id === activePanel || !p.bounds) return;
+
+        // Centre du panneau cible
+        const tx = p.bounds.x + p.bounds.width / 2;
+        const ty = p.bounds.y + p.bounds.height / 2;
+
+        const dx = tx - ax;
+        const dy = ty - ay;
+
+        let isValid = false;
+
+        // Vérification stricte de la direction
+        if (direction === 'Left' && dx < -10 && Math.abs(dy) < (activeBounds.height + p.bounds.height) / 2) isValid = true;
+        if (direction === 'Right' && dx > 10 && Math.abs(dy) < (activeBounds.height + p.bounds.height) / 2) isValid = true;
+        if (direction === 'Up' && dy < -10 && Math.abs(dx) < (activeBounds.width + p.bounds.width) / 2) isValid = true;
+        if (direction === 'Down' && dy > 10 && Math.abs(dx) < (activeBounds.width + p.bounds.width) / 2) isValid = true;
+
+        if (isValid) {
+            // Calcul de la distance brute entre les centres
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < minDistance) {
+                minDistance = distance;
+                bestTarget = p;
+            }
+        }
+    });
+
+    return bestTarget;
+}
+
+
 
 function getDisplayText(urlString) {
     try {
@@ -811,8 +853,29 @@ function updateNavigationButtons() {
     });
 }
 
+
 function setupNavigationTracking(panel) {
     if (!panel || !panel.view) return;
+
+    // Intercepte les touches Ctrl/Cmd + (+ / - / 0) directement dans la page web
+    panel.view.webContents.on('before-input-event', (event, input) => {
+        const isControl = input.control || input.meta;
+        
+        if (isControl && input.type === 'keydown') {
+            if (input.key === '+' || input.key === '=') {
+                event.preventDefault();
+                handlePanelZoom(panel, "in");
+            }
+            else if (input.key === '-') {
+                event.preventDefault();
+                handlePanelZoom(panel, "out");
+            }
+            else if (input.key === '0') {
+                event.preventDefault();
+                handlePanelZoom(panel, "reset");
+            }
+        }
+    });
 
     function handleNavigationUpdate(url) {
         updatePanelUrl(panel, url);
@@ -1260,9 +1323,13 @@ function createDefaultLayout() {
     rootNode.second.first = new PanelNode("panel2", centerView, "https://fr.wikipedia.org");
     rootNode.second.second = new PanelNode("panel3", rightView, "https://github.com");
 
+    // Tout à la fin de la fonction createDefaultLayout() :
     collectPanelNodes(rootNode).forEach((panel) => {
-        setupNavigationTracking(panel);
+        setupNavigationTracking(panel); // <-- C'est cet appel qui va injecter l'intercepteur de zoom
     });
+
+
+
 }
 
 function createWindow() {
@@ -1325,22 +1392,6 @@ function createWindow() {
                         }
                     }
                 },
-
-
-/*
-                {
-                    label: 'Basculer la taille du panneau actif',
-                    accelerator: 'CmdOrCtrl+M',
-                    click: () => {
-                        if (activePanel) {
-                            maximizedPanelId = (maximizedPanelId === activePanel) ? null : activePanel;
-                            forceRebuildSplitters = true;
-                            resizeViews();
-                            updatePanelHandles();
-                        }
-                    }
-                },
-*/
 
                 // === AJOUT : RACCOURCI CTRL+M POUR MAXIMISER/RESTAURER LA TUILE ACTIVE ===
                 {
@@ -1496,8 +1547,27 @@ function createWindow() {
                     }
                 },
 
-
-
+                // === AJOUT : RÉORGANISATION DES TUILES AU CLAVIER (ALT + SHIFT + FLÈCHES) ===
+                {
+                    label: 'Intervertir avec la tuile à gauche',
+                    accelerator: 'Alt+Shift+Left',
+                    click: () => moveActivePanelKeyboard('Left')
+                },
+                {
+                    label: 'Intervertir avec la tuile à droite',
+                    accelerator: 'Alt+Shift+Right',
+                    click: () => moveActivePanelKeyboard('Right')
+                },
+                {
+                    label: 'Intervertir avec la tuile au-dessus',
+                    accelerator: 'Alt+Shift+Up',
+                    click: () => moveActivePanelKeyboard('Up')
+                },
+                {
+                    label: 'Intervertir avec la tuile en dessous',
+                    accelerator: 'Alt+Shift+Down',
+                    click: () => moveActivePanelKeyboard('Down')
+                },
 
 
 
@@ -1883,26 +1953,26 @@ function resizeViews() {
 
 
 
-/*
-    // 4. Mettre à jour la position des liserés bleus (Placé tout à la fin de resizeViews)
-    if (activePanel) {
-        const activeNode = findPanelNode(rootNode, activePanel);
-        if (activeNode && activeNode.bounds) {
-            updateActiveBorder(activeNode.bounds);
-            
-            // OPTIMISATION : On remonte également la poignée du panneau actif pour qu'elle reste accessible
-            if (handleViews[activePanel]) {
-                try { win.setTopBrowserView(handleViews[activePanel]); } catch(e) {}
+    /*
+        // 4. Mettre à jour la position des liserés bleus (Placé tout à la fin de resizeViews)
+        if (activePanel) {
+            const activeNode = findPanelNode(rootNode, activePanel);
+            if (activeNode && activeNode.bounds) {
+                updateActiveBorder(activeNode.bounds);
+                
+                // OPTIMISATION : On remonte également la poignée du panneau actif pour qu'elle reste accessible
+                if (handleViews[activePanel]) {
+                    try { win.setTopBrowserView(handleViews[activePanel]); } catch(e) {}
+                }
             }
+        } else {
+            borderViews.forEach(bView => {
+                if (bView && !bView.webContents.isDestroyed()) {
+                    bView.setBounds({ x: -100, y: -100, width: 0, height: 0 });
+                }
+            });
         }
-    } else {
-        borderViews.forEach(bView => {
-            if (bView && !bView.webContents.isDestroyed()) {
-                bView.setBounds({ x: -100, y: -100, width: 0, height: 0 });
-            }
-        });
-    }
-*/
+    */
 
     // 4. Mettre à jour la position des liserés bleus (Placé tout à la fin de resizeViews)
     if (activePanel) {
@@ -1961,6 +2031,22 @@ function resizeViews() {
 }
 
 
+function moveActivePanelKeyboard(direction) {
+    if (!activePanel || maximizedPanelId) return; // Désactivé si un panneau est zoomé
+
+    const panelsList = collectPanelNodes(rootNode);
+    const activeNode = findPanelNode(rootNode, activePanel);
+    
+    if (!activeNode || !activeNode.bounds) return;
+
+    // Recherche de la tuile voisine dans la direction demandée
+    const targetPanel = findNeighborPanel(activeNode.bounds, direction, panelsList);
+
+    if (targetPanel) {
+        // Utilise votre fonction atomique existante pour intervertir les places dans l'arbre
+        swapPanelsInTree(activePanel, targetPanel.id);
+    }
+}
 
 
 
@@ -2000,7 +2086,6 @@ ipcMain.handle("go-forward", (event, panelId) => {
     }
 });
 
-
 ipcMain.handle("refresh", (event, panelId) => {
     const panel = findPanelNode(rootNode, panelId);
     if (panel && panel.view) panel.view.webContents.reload();
@@ -2010,6 +2095,5 @@ app.on('will-quit', () => {
     // Désactive absolument tous les raccourcis globaux propres à l'application
     globalShortcut.unregisterAll();
 });
-
 
 app.whenReady().then(createWindow);
