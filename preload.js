@@ -72,7 +72,11 @@ contextBridge.exposeInMainWorld(
         cancelDownload: (panelId) => {
             ipcRenderer.send("cancel-download", panelId);
         },
-        
+
+        // À ajouter dans contextBridge.exposeInMainWorld('api', { ... })
+        getFavoris: () => ipcRenderer.invoke('get-favoris'),
+        toggleFavori: (data) => ipcRenderer.invoke('toggle-favori', data),
+        onFavorisUpdated: (callback) => ipcRenderer.on('favoris-updated', (event, favoris) => callback(favoris)),
 
         // À ajouter dans l'objet 'api' de preload.js :
         onFocusUrlBar: (callback) => ipcRenderer.on("focus-url-bar", (event, panelId) => callback(panelId)),

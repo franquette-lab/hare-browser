@@ -18,6 +18,9 @@ const path = require("path");
 
 const splitters = [];
 
+// Chemin vers le fichier de stockage des favoris
+const favorisPath = path.join(app.getPath('userData'), 'favoris.json');
+
 // Stockage des 4 bordures bleues
 let borderViews = []; 
 
@@ -51,6 +54,20 @@ let leftView, centerView, rightView;
 
 const https = require("https");
 
+// Fonction pour lire les favoris sur le disque
+function getFavoris() {
+    try {
+        if (!fs.existsSync(favorisPath)) {
+            fs.writeFileSync(favorisPath, JSON.stringify([]));
+            return [];
+        }
+        const data = fs.readFileSync(favorisPath, 'utf-8');
+        return JSON.parse(data);
+    } catch (e) {
+        console.error("Erreur lors de la lecture des favoris :", e);
+        return [];
+    }
+}
 
 function registerDownloadHandler(session) {
     session.on('will-download', (event, item, webContents) => {
@@ -2088,6 +2105,32 @@ ipcMain.on("set-active-panel-from-handle", (event, panelId) => {
     updateActiveBorder(panel.bounds);
 });
 
+
+// Écouteurs IPC pour que l'interface graphique puisse interagir avec les favoris
+ipcMain.handle('get-favoris', () => {
+    return getFavoris();
+});
+
+ipcMain.handle('toggle-favori', (event, { url, title }) => {
+    let favoris = getFavoris();
+    const index = favoris.findIndex(f => f.url === url);
+
+    if (index >= 0) {
+        // Si le site est déjà en favori, on le retire
+        favoris.splice(index, 1);
+        console.log(`Retiré des favoris : ${url}`);
+    } else {
+        // Sinon, on l'ajoute
+        favoris.push({ url, title: title || url });
+        console.log(`Ajouté aux favoris : ${url}`);
+    }
+
+    fs.writeFileSync(favorisPath, JSON.stringify(favoris, null, 2));
+    
+    // On renvoie la nouvelle liste et l'état mis à jour à l'IHM
+    win.webContents.send('favoris-updated', favoris);
+    return index < 0; // Renvoie true si ajouté, false si retiré
+});
 
 
 ipcMain.handle("go-back", (event, panelId) => {
