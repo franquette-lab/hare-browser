@@ -1,14 +1,14 @@
 // ---------------- //
 // SCRIPT : main.js //
 // ---------------- //
-
 const {
     app,
     BrowserWindow,
     BrowserView,
     ipcMain,
     nativeImage,
-    dialog // <-- Ajoutez dialog ici s'il n'y est pas déjà
+    dialog,
+    globalShortcut // <-- AJOUTEZ globalShortcut ICI
 } = require('electron');
 
 
@@ -1280,11 +1280,11 @@ function createWindow() {
 
     win.setMaxListeners(30);
 
-process.on("warning", (warning) => {
-    console.log("WARNING NAME:", warning.name);
-    console.log("WARNING MESSAGE:", warning.message);
-    console.log("WARNING STACK:", warning.stack);
-});
+    process.on("warning", (warning) => {
+        console.log("WARNING NAME:", warning.name);
+        console.log("WARNING MESSAGE:", warning.message);
+        console.log("WARNING STACK:", warning.stack);
+    });
 
     createDefaultLayout();
 
@@ -1327,6 +1327,7 @@ process.on("warning", (warning) => {
                 },
 
 
+/*
                 {
                     label: 'Basculer la taille du panneau actif',
                     accelerator: 'CmdOrCtrl+M',
@@ -1335,6 +1336,37 @@ process.on("warning", (warning) => {
                             maximizedPanelId = (maximizedPanelId === activePanel) ? null : activePanel;
                             forceRebuildSplitters = true;
                             resizeViews();
+                            updatePanelHandles();
+                        }
+                    }
+                },
+*/
+
+                // === AJOUT : RACCOURCI CTRL+M POUR MAXIMISER/RESTAURER LA TUILE ACTIVE ===
+                {
+                    label: 'Maximiser / Restaurer la tuile active',
+                    accelerator: 'CmdOrCtrl+M',
+                    click: () => {
+                        if (activePanel) {
+                            // Si le panneau est déjà maximisé, on l'annule. Sinon, on le maximise.
+                            if (maximizedPanelId === activePanel) {
+                                maximizedPanelId = null;
+                            } else {
+                                maximizedPanelId = activePanel;
+                            }
+
+                            // 1. Force le recalcul géométrique complet des vues
+                            forceRebuildSplitters = true;
+                            resizeViews();
+
+                            // 2. Notifie instantanément l'IHM HTML pour masquer/afficher les barres d'URL
+                            win.webContents.send("zoom-changed", maximizedPanelId);
+
+                            // 3. Recrée proprement la poignée flottante pour mettre à jour son icône (🗖 ou 🗗)
+                            if (handleViews[activePanel]) {
+                                try { win.removeBrowserView(handleViews[activePanel]); } catch(e){}
+                                delete handleViews[activePanel];
+                            }
                             updatePanelHandles();
                         }
                     }
@@ -1566,6 +1598,39 @@ process.on("warning", (warning) => {
             // Détruit la fenêtre proprement si validé
             win.destroy();
         }
+    });
+
+
+        // === ENREGISTREMENT DU RACCOURCI FORCE CTRL+M ===
+    // 'CommandOrControl+M' est intercepté lorsque la fenêtre a le focus
+    win.on('focus', () => {
+        globalShortcut.register('CommandOrControl+M', () => {
+            if (!win || win.isDestroyed() || !activePanel) return;
+
+            // Logique de bascule de zoom identique
+            if (maximizedPanelId === activePanel) {
+                maximizedPanelId = null;
+            } else {
+                maximizedPanelId = activePanel;
+            }
+
+            forceRebuildSplitters = true;
+            resizeViews();
+
+            win.webContents.send("zoom-changed", maximizedPanelId);
+
+            if (handleViews[activePanel]) {
+                try { win.removeBrowserView(handleViews[activePanel]); } catch(e){}
+                delete handleViews[activePanel];
+            }
+            updatePanelHandles();
+        });
+    });
+
+    // Très important : Libérer le raccourci quand la fenêtre perd le focus 
+    // pour éviter de bloquer le Ctrl+M des autres applications de votre PC
+    win.on('blur', () => {
+        globalShortcut.unregister('CommandOrControl+M');
     });
 
 
@@ -1912,5 +1977,11 @@ ipcMain.handle("refresh", (event, panelId) => {
     const panel = findPanelNode(rootNode, panelId);
     if (panel && panel.view) panel.view.webContents.reload();
 });
+
+app.on('will-quit', () => {
+    // Désactive absolument tous les raccourcis globaux propres à l'application
+    globalShortcut.unregisterAll();
+});
+
 
 app.whenReady().then(createWindow);
