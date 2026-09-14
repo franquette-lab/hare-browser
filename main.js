@@ -8,7 +8,8 @@ const {
     ipcMain,
     nativeImage,
     dialog,
-    globalShortcut // <-- AJOUTEZ globalShortcut ICI
+    globalShortcut, // <-- AJOUTEZ globalShortcut ICI
+    shell           // <-- AJOUTEZ shell ICI pour gérer les fichiers et dossiers
 } = require('electron');
 
 
@@ -47,64 +48,75 @@ let leftView, centerView, rightView;
 
 const https = require("https");
 
-/*
-async function searchDuckDuckGo(query) {
-
-    return new Promise((resolve, reject) => {
 
 
+function registerDownloadHandler(session) {
+    session.on('will-download', (event, item, webContents) => {
+        console.log(`Téléchargement initié : ${item.getFilename()}`);
 
-        const url =
-        `https://searxng-hww1.onrender.com/search?q=${encodeURIComponent(query)}`;
+        // Écouteur de progression en temps réel
+        item.on('updated', (event, state) => {
+            if (state === 'interrupted') {
+                console.log('Téléchargement interrompu');
+            } else if (state === 'progressing') {
+                if (!item.isPaused()) {
+                    const totalBytes = item.getTotalBytes();
+                    const receivedBytes = item.getReceivedBytes();
+                    if (totalBytes > 0) {
+                        const percent = Math.round((receivedBytes / totalBytes) * 100);
+                        console.log(`Progression : ${percent}%`);
+                    }
+                }
+            }
+        });
 
+        // Écouteur de fin de téléchargement
+        item.once('done', (event, state) => {
+            if (state === 'completed') {
+                const finalPath = item.getSavePath();
+                const filename = item.getFilename();
+                console.log(`Téléchargement réussi ! Enregistré ici : ${finalPath}`);
+                
+                // Détection de l'extension du fichier
+                const ext = path.extname(filename).toLowerCase();
+                const dangerousExtensions = ['.exe', '.msi', '.bat', '.cmd', '.vbs', '.sh', '.scr'];
 
-        https.get(url, (res) => {
-
-            let data = "";
-
-            res.on("data", chunk => {
-                data += chunk;
-            });
-
-            res.on("end", () => {
-
-                try {
-
-                    const result = JSON.parse(data);
-
-                    resolve(result);
-
-                } catch (err) {
-
-                    reject(err);
-
+                if (dangerousExtensions.includes(ext)) {
+                    // Demande de confirmation asynchrone pour ne pas bloquer Electron
+                    dialog.showMessageBox(win, {
+                        type: 'warning',
+                        buttons: ['Exécuter le fichier', 'Annuler'],
+                        defaultId: 1, // Le focus est mis par sécurité sur "Annuler"
+                        cancelId: 1,
+                        title: 'Alerte de sécurité',
+                        message: `Téléchargement terminé : ${filename}`,
+                        detail: "Ce type de fichier (.exe, .msi, etc.) peut contenir des virus ou endommager votre ordinateur. Êtes-vous sûr de vouloir l'exécuter ?"
+                    }).then((response) => {
+                        // index 0 correspond au bouton 'Exécuter le fichier'
+                        if (response.response === 0) {
+                            console.log(`Ouverture sécurisée validée pour : ${filename}`);
+                            shell.openPath(finalPath).catch((error) => {
+                                if (error) console.error("Erreur lors de l'ouverture :", error);
+                            });
+                        } else {
+                            console.log(`Exécution annulée par l'utilisateur pour : ${filename}`);
+                        }
+                    });
+                } else {
+                    // Pour les fichiers classiques (PDF, Images, Textes), on ouvre directement sans alerte
+                    shell.openPath(finalPath).catch((error) => {
+                        if (error) console.error("Erreur lors de l'ouverture :", error);
+                    });
                 }
 
-            });
-
-        }).on("error", reject);
-
-        
-
+            } else if (state === 'cancelled') {
+                console.log('Téléchargement annulé par l\'utilisateur ou le site.');
+            } else {
+                console.log(`Échec du téléchargement. Statut : ${state}`);
+            }
+        });
     });
-
 }
-
-*/
-
-/*
-searchDuckDuckGo("Albert Einstein")
-    .then(result => {
-
-        const url = result.RelatedTopics[0].FirstURL;
-
-        for (let i = 0; i < url.length; i++) {
-            console.log(i, url.charCodeAt(i), url[i]);
-        }
-
-    });
-*/
-
 
 
 function extractResults(data) {
@@ -1346,6 +1358,9 @@ function createWindow() {
     });
 
     win.setMaxListeners(30);
+
+    // === APPLIQUER LE GESTIONNAIRE DE TÉLÉCHARGEMENT ===
+    registerDownloadHandler(win.webContents.session);
 
     process.on("warning", (warning) => {
         console.log("WARNING NAME:", warning.name);
