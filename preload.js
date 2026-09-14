@@ -21,6 +21,10 @@ contextBridge.exposeInMainWorld(
         closePanel: (panelId) => ipcRenderer.send('close-panel', panelId),
         undo: () => ipcRenderer.send("undo"),
         
+        // À ajouter dans l'objet 'api' de preload.js :
+        onZoomChanged: (callback) => {
+            ipcRenderer.on("zoom-changed", (event, maximizedPanelId) => callback(maximizedPanelId));
+        },
 
 
         onActivePanelChanged: (callback) => {
@@ -33,12 +37,20 @@ contextBridge.exposeInMainWorld(
         // À l'intérieur de contextBridge.exposeInMainWorld('api', { ... }) :
         onFocusUrlBar: (callback) => ipcRenderer.on("focus-url-bar", (event, panelId) => callback(panelId)),
 
-
+/*
         onPanelsUpdated: (callback) => {
             ipcRenderer.on("panels-updated", (_event, panels) => {
                 callback(panels);
             });
         },
+*/
+        onPanelsUpdated: (callback) => {
+            // === CORRECTION : Transmettre tous les arguments reçus (...args) ===
+            ipcRenderer.on("panels-updated", (_event, ...args) => {
+                callback(...args);
+            });
+        },
+
         onUndoAvailable: (callback) => {
             ipcRenderer.on("undo-available", (event, available) => callback(available));
         },
