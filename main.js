@@ -1373,6 +1373,34 @@ function createWindow() {
                 },
 
 
+                // === AJOUT : TOUCHE ÉCHAP POUR QUITTER LE MODE MAXIMISÉ ===
+                {
+                    label: 'Quitter le mode agrandi',
+                    accelerator: 'Escape',
+                    click: () => {
+                        // On n'agit que si un panneau est actuellement maximisé
+                        if (maximizedPanelId) {
+                            const panelIdToRestore = maximizedPanelId;
+                            maximizedPanelId = null; // Désactive le zoom
+
+                            // 1. Force le recalcul géométrique complet des vues pour afficher la mosaïque
+                            forceRebuildSplitters = true;
+                            resizeViews();
+
+                            // 2. Notifie l'IHM HTML pour réafficher toutes les barres d'URL
+                            win.webContents.send("zoom-changed", maximizedPanelId);
+
+                            // 3. Recrée la poignée flottante du panneau pour remettre son icône à jour (🗖)
+                            if (handleViews[panelIdToRestore]) {
+                                try { win.removeBrowserView(handleViews[panelIdToRestore]); } catch(e){}
+                                delete handleViews[panelIdToRestore];
+                            }
+                            updatePanelHandles();
+                        }
+                    }
+                },
+
+
 
                 // (Vos raccourcis précédents : Scinder, Fermer, Annuler...)
                 {
