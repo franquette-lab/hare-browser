@@ -279,22 +279,54 @@ function rebuildUrlBar(panels) {
             input.value = getDisplayUrl(input.dataset.url);
         });
 
-        // Insertion de l'input d'abord
+
+
+
+
+
+
+
+
+
+
+        // --- CRÉATION DE L'INPUT D'URL (votre code existant) ---
         tabWrapper.appendChild(input);
 
-        // --- CRÉATION DU BOUTON D'ANNULATION DU TÉLÉCHARGEMENT ---
-        const cancelBtn = document.createElement("div");
-        cancelBtn.className = "download-cancel-btn";
-        cancelBtn.id = `cancel-dl-${panel.id}`;
-        cancelBtn.innerText = "✕";
-        cancelBtn.title = "Annuler le téléchargement en cours";
+        // === AJOUT : BOUTON ÉTOILE DE FAVORI ===
+        const starBtn = document.createElement("div");
+        starBtn.className = "btn-favori";
+        starBtn.id = `star-${panel.id}`;
+        starBtn.innerText = "☆"; // Étoile vide par défaut
+        starBtn.title = "Ajouter aux favoris";
+
+        // Style de base en ligne pour s'assurer de sa visibilité immédiate
+        starBtn.style.cursor = "pointer";
+        starBtn.style.fontSize = "14px";
+        starBtn.style.marginRight = "6px";
+        starBtn.style.userSelect = "none";
+        starBtn.style.color = "#6b7280"; // Gris par défaut
+        starBtn.style.zIndex = "20";
+
+        // Empêche le clic de perturber le drag and drop ou le focus de l'onglet
+        starBtn.addEventListener("mousedown", (e) => e.stopPropagation());
         
-        cancelBtn.addEventListener("mousedown", (e) => e.stopPropagation());
-        cancelBtn.addEventListener("click", (e) => {
+        starBtn.addEventListener("click", async (e) => {
             e.stopPropagation();
-            window.api.cancelDownload(panel.id);
+            const currentUrl = input.dataset.url || panel.url || "";
+            const currentTitle = panel.title || input.value;
+            
+            // Appel au processus principal
+            const isAdded = await window.api.toggleFavori({ url: currentUrl, title: currentTitle });
+            
+            // Mise à jour visuelle immédiate locale
+            starBtn.innerText = isAdded ? "★" : "☆";
+            starBtn.style.color = isAdded ? "#eab308" : "#6b7280"; // Jaune si actif
         });
-        tabWrapper.appendChild(cancelBtn);
+
+        tabWrapper.appendChild(starBtn);
+
+        // --- CRÉATION DU BOUTON D'ANNULATION DU TÉLÉCHARGEMENT (votre code existant) ---
+        const cancelBtn = document.createElement("div");
 
         // --- CRÉATION DE LA BARRE DE PROGRESSION ---
         const progBar = document.createElement("div");
@@ -316,6 +348,8 @@ document.getElementById("split-horizontal").addEventListener("click", () => wind
 document.getElementById("close-panel").addEventListener("click", () => window.api.closePanel(activePanel));
 document.getElementById("undo").addEventListener("click", () => window.api.undo());
 
+
+
 // --- ÉCOUTEURS DES ÉVÉNEMENTS IPC ELECTRON ---
 window.api.onPanelsUpdated((panels, maximizedPanelId) => {
     currentPanels = panels;
@@ -331,6 +365,9 @@ window.api.onPanelsUpdated((panels, maximizedPanelId) => {
         }
     }
 
+    // === FORCE LE VÉRIFICATION DES ÉTOILES À CHAQUE CHANGEMENT DE PAGE ===
+    checkFavorisState();
+
     setTimeout(() => {
         if (document.activeElement instanceof HTMLInputElement) {
             document.activeElement.blur();
@@ -338,7 +375,40 @@ window.api.onPanelsUpdated((panels, maximizedPanelId) => {
     }, 0);
 });
 
+
+
 window.api.onUndoAvailable((available) => document.getElementById("undo").disabled = !available);
+
+
+// === FONCTIONS GLOBALES POUR LA SYNCHRONISATION DES FAVORIS ===
+
+// 1. Déclaration de la fonction de vérification
+async function checkFavorisState() {
+    if (typeof currentPanels === 'undefined' || !currentPanels) return;
+    
+    // On demande la liste des favoris à Electron
+    const favoris = await window.api.getFavoris?.() || [];
+    
+    currentPanels.forEach(panel => {
+        const input = document.getElementById(`${panel.id}-url`);
+        const starBtn = document.getElementById(`star-${panel.id}`);
+        
+        if (input && starBtn) {
+            const currentUrl = input.dataset.url || panel.url || "";
+            const isFavori = favoris.some(f => f.url === currentUrl);
+            
+            starBtn.innerText = isFavori ? "★" : "☆";
+            starBtn.style.color = isFavori ? "#eab308" : "#6b7280"; // Allume en jaune si favori
+            starBtn.title = isFavori ? "Retirer des favoris" : "Ajouter aux favoris";
+        }
+    });
+}
+
+// 2. Écouteur pour intercepter le signal de mise à jour (ex: clic ou Ctrl+D)
+window.api.onFavorisUpdated?.((favoris) => {
+    checkFavorisState();
+});
+
 
 // === SÉCURISATION DU FOCUS DU PANNEAU ===
 window.api.onFocusUrlBar?.((panelId) => {
