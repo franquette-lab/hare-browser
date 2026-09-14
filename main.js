@@ -36,6 +36,9 @@ let dragTimer = null;
 let dragInProgress = false;
 let resizeTimer = null;
 
+// En haut de main.js avec vos autres variables globales (ex: sous let handleViews = {})
+let activeDownloads = {}; 
+
 // Stocke l'ID du panneau actuellement zoomé/maximisé au premier plan (null si aucun)
 let maximizedPanelId = null; 
 
@@ -49,75 +52,64 @@ let leftView, centerView, rightView;
 const https = require("https");
 
 
-
 function registerDownloadHandler(session) {
     session.on('will-download', (event, item, webContents) => {
-        console.log(`Téléchargement initié : ${item.getFilename()}`);
+        const filename = item.getFilename();
 
-        // Écouteur de progression en temps réel
+        const panelNode = findPanelByWebContents(webContents);
+        const panelId = panelNode ? panelNode.id : activePanel;
+
+        // On enregistre l'objet de téléchargement pour ce panneau
+        activeDownloads[panelId] = item;
+
         item.on('updated', (event, state) => {
-            if (state === 'interrupted') {
-                console.log('Téléchargement interrompu');
-            } else if (state === 'progressing') {
-                if (!item.isPaused()) {
-                    const totalBytes = item.getTotalBytes();
-                    const receivedBytes = item.getReceivedBytes();
-                    if (totalBytes > 0) {
-                        const percent = Math.round((receivedBytes / totalBytes) * 100);
-                        console.log(`Progression : ${percent}%`);
+            if (state === 'progressing' && !item.isPaused()) {
+                const totalBytes = item.getTotalBytes();
+                const receivedBytes = item.getReceivedBytes();
+                
+                if (totalBytes > 0) {
+                    const percent = Math.round((receivedBytes / totalBytes) * 100);
+                    if (win && !win.isDestroyed()) {
+                        win.webContents.send('download-progress', { panelId, percent, filename });
                     }
                 }
             }
         });
 
-        // Écouteur de fin de téléchargement
         item.once('done', (event, state) => {
+            // Nettoyage de la référence
+            delete activeDownloads[panelId];
+
+            if (win && !win.isDestroyed()) {
+                win.webContents.send('download-done', { panelId });
+            }
+
             if (state === 'completed') {
                 const finalPath = item.getSavePath();
-                const filename = item.getFilename();
-                console.log(`Téléchargement réussi ! Enregistré ici : ${finalPath}`);
-                
-                // Détection de l'extension du fichier
                 const ext = path.extname(filename).toLowerCase();
                 const dangerousExtensions = ['.exe', '.msi', '.bat', '.cmd', '.vbs', '.sh', '.scr'];
 
                 if (dangerousExtensions.includes(ext)) {
-                    // Demande de confirmation asynchrone pour ne pas bloquer Electron
                     dialog.showMessageBox(win, {
                         type: 'warning',
                         buttons: ['Exécuter le fichier', 'Annuler'],
-                        defaultId: 1, // Le focus est mis par sécurité sur "Annuler"
+                        defaultId: 1,
                         cancelId: 1,
                         title: 'Alerte de sécurité',
                         message: `Téléchargement terminé : ${filename}`,
-                        detail: "Ce type de fichier (.exe, .msi, etc.) peut contenir des virus ou endommager votre ordinateur. Êtes-vous sûr de vouloir l'exécuter ?"
+                        detail: "Ce type de fichier peut contenir des virus. Voulez-vous l'exécuter ?"
                     }).then((response) => {
-                        // index 0 correspond au bouton 'Exécuter le fichier'
                         if (response.response === 0) {
-                            console.log(`Ouverture sécurisée validée pour : ${filename}`);
-                            shell.openPath(finalPath).catch((error) => {
-                                if (error) console.error("Erreur lors de l'ouverture :", error);
-                            });
-                        } else {
-                            console.log(`Exécution annulée par l'utilisateur pour : ${filename}`);
+                            shell.openPath(finalPath).catch((e) => console.error(e));
                         }
                     });
                 } else {
-                    // Pour les fichiers classiques (PDF, Images, Textes), on ouvre directement sans alerte
-                    shell.openPath(finalPath).catch((error) => {
-                        if (error) console.error("Erreur lors de l'ouverture :", error);
-                    });
+                    shell.openPath(finalPath).catch((e) => console.error(e));
                 }
-
-            } else if (state === 'cancelled') {
-                console.log('Téléchargement annulé par l\'utilisateur ou le site.');
-            } else {
-                console.log(`Échec du téléchargement. Statut : ${state}`);
             }
         });
     });
 }
-
 
 function extractResults(data) {
 
@@ -1026,6 +1018,14 @@ ipcMain.on("navigate", (event, panelId, input) => {
 
 });
 
+// Écouteur pour intercepter le clic sur le bouton d'annulation de l'IHM
+ipcMain.on("cancel-download", (event, panelId) => {
+    const item = activeDownloads[panelId];
+    if (item && !item.isDestroyed?.()) {
+        console.log(`Téléchargement du panneau ${panelId} annulé manuellement.`);
+        item.cancel();
+    }
+});
 
 function swapPanelsInTree(idA, idB) {
     saveState();

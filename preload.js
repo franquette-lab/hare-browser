@@ -59,6 +59,21 @@ contextBridge.exposeInMainWorld(
             ipcRenderer.on("navigation-state",(_event, state) => callback(state));
         },
 
+
+        // À insérer proprement au sein de l'objet exposé sous 'api' dans preload.js :
+        onDownloadProgress: (callback) => {
+            ipcRenderer.on("download-progress", (event, data) => callback(data));
+        },
+        
+        onDownloadDone: (callback) => {
+            ipcRenderer.on("download-done", (event, data) => callback(data));
+        },
+
+        cancelDownload: (panelId) => {
+            ipcRenderer.send("cancel-download", panelId);
+        },
+        
+
         // À ajouter dans l'objet 'api' de preload.js :
         onFocusUrlBar: (callback) => ipcRenderer.on("focus-url-bar", (event, panelId) => callback(panelId)),
 

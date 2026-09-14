@@ -53,11 +53,48 @@ html, body {
     top: 35px;
 }
 
-
-
- 
+/* S'assurer que le conteneur de l'onglet aligne l'input et la croix horizontalement */
 #url-bar > div {
-    margin: 0;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Jauge ultra-visible avec dégradé vif et lueur */
+.download-progress-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #f97316, #22c55e); 
+    box-shadow: 0 -1px 6px rgba(34, 197, 94, 0.6);
+    width: 0%;
+    transition: width 0.1s ease-out;
+    z-index: 10;
+}
+
+/* Bouton d'annulation affiché proprement à droite */
+.download-cancel-btn {
+    display: none; 
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background: #ef4444;
+    color: white;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+    user-select: none;
+    margin-right: 4px;
+    flex-shrink: 0; /* Empêche le bouton d'être écrasé */
+    z-index: 20;
+}
+.download-cancel-btn:hover {
+    background: #b91c1c;
 }
 
 #toolbar-buttons button:focus { outline: none; box-shadow: none; }
@@ -106,42 +143,23 @@ html, body {
 <div id="active-panel-frame"></div>
 
 <script>
+
 let activePanel = null;
+let currentPanels = []; // Stockage global pour maintenir la liste des panneaux
+let currentMaximizedId = null; // Mémoire globale du mode zoom
 
-/*
-function refreshTabBorders() {
-    document.querySelectorAll("#url-bar > div").forEach(tab => {
-        tab.style.borderColor = "#3c3c3c";
-        tab.style.background = "#2d2d30";
-    });
-
-    if (activePanel) {
-        const activeInput = document.getElementById(activePanel + "-url");
-        if (activeInput) {
-            const wrapper = activeInput.parentElement;
-            wrapper.style.borderColor = "#3b82f6";
-            wrapper.style.background = "#203a5d";
-        }
-    }
-}
-*/
 function refreshTabBorders() {
     const container = document.getElementById("url-bar");
     if (!container) return;
 
-    // Récupère tous les wrappers d'onglets enfants directs du url-bar
     const tabs = container.children;
-    
     for (let i = 0; i < tabs.length; i++) {
         const tabWrapper = tabs[i];
-        // Retrouve l'input interne pour identifier à quel panneau il est lié
         const input = tabWrapper.querySelector("input");
         if (!input) continue;
 
-        // Extrait l'ID du panneau depuis l'ID de l'input (ex: "panel1-url" -> "panel1")
         const panelId = input.id.replace("-url", "");
 
-        // Applique le style correspondant à l'état actif ou inactif
         if (activePanel && panelId === activePanel) {
             tabWrapper.style.borderColor = "#3b82f6";
             tabWrapper.style.background = "#203a5d";
@@ -151,7 +169,6 @@ function refreshTabBorders() {
         }
     }
 }
-
 
 function getDisplayUrl(url) {
     try {
@@ -172,7 +189,6 @@ function attachUrlHandler(panelId) {
     });
 }
 
-/*
 function rebuildUrlBar(panels) {
     const container = document.getElementById("url-bar");
     if (!container) return;
@@ -195,130 +211,10 @@ function rebuildUrlBar(panels) {
         if (activePanel && panel.id === activePanel) {
             tabWrapper.style.borderColor = "#3b82f6";
             tabWrapper.style.background = "#203a5d";
-        }
-
-        tabWrapper.addEventListener("dragstart", (e) => {
-            tabWrapper.style.opacity = "0.4";
-            e.dataTransfer.setData("text/plain", panel.id);
-            e.dataTransfer.effectAllowed = "move";
-        });
-
-        tabWrapper.addEventListener("dragend", () => {
-            tabWrapper.style.opacity = "1";
-            refreshTabBorders();
-        });
-
-        tabWrapper.addEventListener("dragover", (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = "move";
-            tabWrapper.style.borderColor = "#3b82f6";
-        });
-
-        tabWrapper.addEventListener("dragleave", () => {
-            tabWrapper.style.borderColor = (activePanel && panel.id === activePanel) ? "#3b82f6" : "#3c3c3c";
-        });
-
-        tabWrapper.addEventListener("drop", (e) => {
-            e.preventDefault();
-
-            const draggedPanelId =
-                e.dataTransfer.getData("text/plain");
-
-            if (draggedPanelId && draggedPanelId !== panel.id) {
-                window.api.movePanel(draggedPanelId, panel.id);
-            }
-
-            refreshTabBorders();
-        });
-
-        const input = document.createElement("input");
-        input.type = "text";
-        input.id = panel.id + "-url";
-        input.className = "h-6 px-1 rounded";
-        input.style.background = "transparent";
-        input.style.color = "#d4d4d4";
-        input.style.border = "none";
-        input.style.outline = "none";
-        input.style.width = "100%";
-        input.style.fontSize = "12px";
-        input.dataset.url = panel.realUrl || panel.url || "";
-        input.value = getDisplayUrl(input.dataset.url);
-
-        input.addEventListener("mousedown", () => tabWrapper.setAttribute("draggable", "false"));
-        window.addEventListener("mouseup", () => tabWrapper.setAttribute("draggable", "true"));
-
-        input.addEventListener("click", (e) => {
-            e.stopPropagation();
-            window.api.setActivePanel(panel.id);
-        });
-
-        // Modifiez ce bloc spécifique à l'intérieur de rebuildUrlBar :
-        input.addEventListener("focus", () => {
-            window.api.setActivePanel(panel.id);
-            input.value = input.dataset.url;
-            
-            // L'utilisation d'un très léger délai empêche le clic de souris 
-            // d'annuler la sélection juste après l'activation du focus
-            setTimeout(() => {
-                input.setSelectionRange(0, input.value.length);
-            }, 10);
-        });            
-
-        input.addEventListener("blur", () => {
-            input.value = getDisplayUrl(input.dataset.url);
-        });
-
-        tabWrapper.appendChild(input);
-        container.appendChild(tabWrapper);
-        attachUrlHandler(panel.id);
-
-        // === LA FUITE DE MÉMOIRE A ÉTÉ SUPPRIMÉE ICI ===
-        // Le bloc "window.api.onPanelsUpdated" qui s'auto-répétait a été retiré.
-    });
-
-        // Modifiez ce bloc spécifique à l'intérieur de rebuildUrlBar :
-        input.addEventListener("focus", () => {
-            window.api.setActivePanel(panel.id);
-            input.value = input.dataset.url;
-            
-            // L'utilisation d'un très léger délai empêche le clic de souris 
-            // d'annuler la sélection juste après l'activation du focus
-            setTimeout(() => {
-                input.setSelectionRange(0, input.value.length);
-            }, 10);
-        });            
-}
-*/
-
-
-function rebuildUrlBar(panels) {
-    const container = document.getElementById("url-bar");
-    if (!container) return;
-    
-    container.innerHTML = "";
-    container.style.display = "flex";
-    container.style.gap = "8px";
-    container.style.alignItems = "center";
-
-    panels.forEach((panel) => {
-        const tabWrapper = document.createElement("div");
-        tabWrapper.className = "flex items-center gap-2 p-1 rounded";
-        tabWrapper.style.background = "#2d2d30";
-        tabWrapper.style.border = "1px solid #3c3c3c";
-        tabWrapper.style.flex = "1";
-        tabWrapper.style.minWidth = "0";
-        tabWrapper.setAttribute("draggable", "true");
-        tabWrapper.style.cursor = "grab";
-
-        if (activePanel && panel.id === activePanel) {
-            tabWrapper.style.borderColor = "#3b82f6";
-            tabWrapper.style.background = "#203a5d";
-            // Ajout de la classe de repère pour le CSS
             tabWrapper.classList.add("panel-is-maximized"); 
         }
 
-
-        // ... Tout le reste de votre boucle panels.forEach (dragstart, drop, input, etc.) reste STRICTEMENT identique
+        // --- GESTION DU DRAG & DROP ---
         tabWrapper.addEventListener("dragstart", (e) => {
             tabWrapper.style.opacity = "0.4";
             e.dataTransfer.setData("text/plain", panel.id);
@@ -342,17 +238,14 @@ function rebuildUrlBar(panels) {
 
         tabWrapper.addEventListener("drop", (e) => {
             e.preventDefault();
-
-            const draggedPanelId =
-                e.dataTransfer.getData("text/plain");
-
+            const draggedPanelId = e.dataTransfer.getData("text/plain");
             if (draggedPanelId && draggedPanelId !== panel.id) {
                 window.api.movePanel(draggedPanelId, panel.id);
             }
-
             refreshTabBorders();
         });
 
+        // --- CRÉATION DE L'INPUT D'URL ---
         const input = document.createElement("input");
         input.type = "text";
         input.id = panel.id + "-url";
@@ -374,13 +267,9 @@ function rebuildUrlBar(panels) {
             window.api.setActivePanel(panel.id);
         });
 
-        // Modifiez ce bloc spécifique à l'intérieur de rebuildUrlBar :
         input.addEventListener("focus", () => {
             window.api.setActivePanel(panel.id);
             input.value = input.dataset.url;
-            
-            // L'utilisation d'un très léger délai empêche le clic de souris 
-            // d'annuler la sélection juste après l'activation du focus
             setTimeout(() => {
                 input.setSelectionRange(0, input.value.length);
             }, 10);
@@ -390,164 +279,128 @@ function rebuildUrlBar(panels) {
             input.value = getDisplayUrl(input.dataset.url);
         });
 
+        // Insertion de l'input d'abord
         tabWrapper.appendChild(input);
+
+        // --- CRÉATION DU BOUTON D'ANNULATION DU TÉLÉCHARGEMENT ---
+        const cancelBtn = document.createElement("div");
+        cancelBtn.className = "download-cancel-btn";
+        cancelBtn.id = `cancel-dl-${panel.id}`;
+        cancelBtn.innerText = "✕";
+        cancelBtn.title = "Annuler le téléchargement en cours";
+        
+        cancelBtn.addEventListener("mousedown", (e) => e.stopPropagation());
+        cancelBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            window.api.cancelDownload(panel.id);
+        });
+        tabWrapper.appendChild(cancelBtn);
+
+        // --- CRÉATION DE LA BARRE DE PROGRESSION ---
+        const progBar = document.createElement("div");
+        progBar.className = "download-progress-bar";
+        progBar.id = `prog-${panel.id}`;
+        tabWrapper.appendChild(progBar);
+
         container.appendChild(tabWrapper);
         attachUrlHandler(panel.id);
-
-        // === LA FUITE DE MÉMOIRE A ÉTÉ SUPPRIMÉE ICI ===
-        // Le bloc "window.api.onPanelsUpdated" qui s'auto-répétait a été retiré.
     });
-
-        // Modifiez ce bloc spécifique à l'intérieur de rebuildUrlBar :
-        input.addEventListener("focus", () => {
-            window.api.setActivePanel(panel.id);
-            input.value = input.dataset.url;
-            
-            // L'utilisation d'un très léger délai empêche le clic de souris 
-            // d'annuler la sélection juste après l'activation du focus
-            setTimeout(() => {
-                input.setSelectionRange(0, input.value.length);
-            }, 10);
-        });            
 }
 
 
+// --- ÉCOUTEURS DES BOUTONS DE LA BARRE D'OUTILS ---
+document.getElementById("back-button").addEventListener("click", () => window.api.goBack(activePanel));
+document.getElementById("forward-button").addEventListener("click", () => window.api.goForward(activePanel));
+document.getElementById("refresh-button").addEventListener("click", () => window.api.refresh(activePanel));
+document.getElementById("split-vertical").addEventListener("click", () => window.api.splitPanel(activePanel, "vertical"));
+document.getElementById("split-horizontal").addEventListener("click", () => window.api.splitPanel(activePanel, "horizontal"));
+document.getElementById("close-panel").addEventListener("click", () => window.api.closePanel(activePanel));
+document.getElementById("undo").addEventListener("click", () => window.api.undo());
 
+// --- ÉCOUTEURS DES ÉVÉNEMENTS IPC ELECTRON ---
+window.api.onPanelsUpdated((panels, maximizedPanelId) => {
+    currentPanels = panels;
+    currentMaximizedId = maximizedPanelId; // Garde la synchro
+    rebuildUrlBar(panels);
 
-
-
-    document.getElementById("back-button").addEventListener("click", () => window.api.goBack(activePanel));
-    document.getElementById("forward-button").addEventListener("click", () => window.api.goForward(activePanel));
-    document.getElementById("refresh-button").addEventListener("click", () => window.api.refresh(activePanel));
-    document.getElementById("split-vertical").addEventListener("click", () => window.api.splitPanel(activePanel, "vertical"));
-    document.getElementById("split-horizontal").addEventListener("click", () => window.api.splitPanel(activePanel, "horizontal"));
-    document.getElementById("close-panel").addEventListener("click", () => window.api.closePanel(activePanel));
-    document.getElementById("undo").addEventListener("click", () => window.api.undo());
-
-
-    window.api.onPanelsUpdated((panels, maximizedPanelId) => {
-        currentPanels = panels;
-        rebuildUrlBar(panels);
-
-        // === AJOUT ICI : Gestion de la classe sur le conteneur global ===
-        const container = document.getElementById("url-bar");
-        if (container) {
-            if (maximizedPanelId) {
-                container.classList.add("maximized-mode");
-            } else {
-                container.classList.remove("maximized-mode");
-            }
-        }
-
-        setTimeout(() => {
-            if (document.activeElement instanceof HTMLInputElement) {
-                document.activeElement.blur();
-            }
-        }, 0);
-    });
-
-
-    window.api.onUndoAvailable((available) => document.getElementById("undo").disabled = !available);
-
-
-
-    // Écoute l'ordre du raccourci Ctrl+L pour donner le focus et tout sélectionner
-    window.api.onFocusUrlBar?.((panelId) => {
-        const input = document.getElementById(panelId + "-url");
-        if (input) {
-            setTimeout(() => {
-                input.focus();
-                // Force la sélection absolue de tous les caractères du champ
-                input.setSelectionRange(0, input.value.length);
-            }, 5);
-        }
-    });
-
-
-    window.api.onActivePanelChanged((panel) => {
-        activePanel = panel.id;
-
-        refreshTabBorders();
-
-        const frame = document.getElementById("active-panel-frame");
-        if (frame && panel.bounds) {
-            frame.style.display = "block";
-            frame.style.left = panel.bounds.x + "px";
-            frame.style.top = panel.bounds.y + "px";
-            frame.style.width = panel.bounds.width + "px";
-            frame.style.height = panel.bounds.height + "px";
-        }
-    });
-
-    window.api.onNavigationState((state) => {
-        document.getElementById("back-button").disabled =
-            !state.canGoBack;
-
-        document.getElementById("forward-button").disabled =
-            !state.canGoForward;
-    });
-
-    // Stockage local des états de navigation pour chaque panneau
-    const navigationStates = {};
-
-    window.api.onNavigationStateChanged((data) => {
-        // On enregistre l'état du panneau qui vient de naviguer
-        navigationStates[data.panelId] = {
-            canGoBack: data.canGoBack,
-            canGoForward: data.canGoForward
-        };
-
-        // Si le panneau mis à jour est celui actuellement actif à l'écran, on applique les changements
-        if (activePanel === data.panelId) {
-            updateToolbarButtons(data.canGoBack, data.canGoForward);
-        }
-    });
-
-
-    // === NOUVEL ÉCOUTEUR DIRECT DE ZOOM ===
-    window.api.onZoomChanged((maximizedPanelId) => {
-        const container = document.getElementById("url-bar");
-        if (!container) return;
-
+    const container = document.getElementById("url-bar");
+    if (container) {
         if (maximizedPanelId) {
             container.classList.add("maximized-mode");
-            
-            // On s'assure qu'un onglet est bien marqué comme actif au cas où
-            const activeInput = document.getElementById(maximizedPanelId + "-url");
-            if (activeInput && activeInput.parentElement) {
-                activeInput.parentElement.classList.add("panel-is-maximized");
-            }
         } else {
             container.classList.remove("maximized-mode");
         }
-    });
+    }
 
-
-
-
-    // Épauler le changement de panneau actif pour rafraîchir aussi les boutons
-    window.api.onActivePanelChanged((panel) => {
-        activePanel = panel.id;
-        
-        // ... votre code existant pour la bordure et la classe active-panel ...
-        document.querySelectorAll("#url-bar input").forEach(i => i.classList.remove("active-panel"));
-        document.getElementById(panel.id + "-url")?.classList.add("active-panel");
-        
-        const frame = document.getElementById("active-panel-frame");
-        if (frame && panel.bounds) {
-            frame.style.display = "block";
-            frame.style.left = panel.bounds.x + "px";
-            frame.style.top = panel.bounds.y + "px";
-            frame.style.width = panel.bounds.width + "px";
-            frame.style.height = panel.bounds.height + "px";
+    setTimeout(() => {
+        if (document.activeElement instanceof HTMLInputElement) {
+            document.activeElement.blur();
         }
+    }, 0);
+});
 
-        // Récupérer l'état sauvegardé de ce panneau ou mettre false par défaut
-        const state = navigationStates[panel.id] || { canGoBack: false, canGoForward: false };
-        updateToolbarButtons(state.canGoBack, state.canGoForward);
-    });
+window.api.onUndoAvailable((available) => document.getElementById("undo").disabled = !available);
 
-// Fonction utilitaire pour modifier l'état visuel des boutons de la barre d'outils
+window.api.onFocusUrlBar?.((panelId) => {
+    const input = document.getElementById(panelId + "-url");
+    if (input) {
+        setTimeout(() => {
+            input.focus();
+            input.setSelectionRange(0, input.value.length);
+        }, 5);
+    }
+});
+
+window.api.onActivePanelChanged((panel) => {
+    activePanel = panel.id;
+    refreshTabBorders();
+
+    const frame = document.getElementById("active-panel-frame");
+    if (frame && panel.bounds) {
+        frame.style.display = "block";
+        frame.style.left = panel.bounds.x + "px";
+        frame.style.top = panel.bounds.y + "px";
+        frame.style.width = panel.bounds.width + "px";
+        frame.style.height = panel.bounds.height + "px";
+    }
+
+    const state = navigationStates[panel.id] || { canGoBack: false, canGoForward: false };
+    updateToolbarButtons(state.canGoBack, state.canGoForward);
+});
+
+window.api.onNavigationState((state) => {
+    document.getElementById("back-button").disabled = !state.canGoBack;
+    document.getElementById("forward-button").disabled = !state.canGoForward;
+});
+
+const navigationStates = {};
+
+window.api.onNavigationStateChanged((data) => {
+    navigationStates[data.panelId] = {
+        canGoBack: data.canGoBack,
+        canGoForward: data.canGoForward
+    };
+    if (activePanel === data.panelId) {
+        updateToolbarButtons(data.canGoBack, data.canGoForward);
+    }
+});
+
+window.api.onZoomChanged((maximizedPanelId) => {
+    currentMaximizedId = maximizedPanelId; // Garde la synchro
+    const container = document.getElementById("url-bar");
+    if (!container) return;
+
+    if (maximizedPanelId) {
+        container.classList.add("maximized-mode");
+        const activeInput = document.getElementById(maximizedPanelId + "-url");
+        if (activeInput && activeInput.parentElement) {
+            activeInput.parentElement.classList.add("panel-is-maximized");
+        }
+    } else {
+        container.classList.remove("maximized-mode");
+    }
+});
+
 function updateToolbarButtons(canGoBack, canGoForward) {
     const backBtn = document.getElementById("back-button");
     const forwardBtn = document.getElementById("forward-button");
@@ -563,6 +416,69 @@ function updateToolbarButtons(canGoBack, canGoForward) {
         forwardBtn.style.cursor = canGoForward ? "pointer" : "not-allowed";
     }
 }
+
+// --- ÉCOUTEURS DE TÉLÉCHARGEMENT SÉCURISÉS ---
+window.api.onDownloadProgress((data) => {
+    // 1. Vérification de sécurité : on s'assure que data et data.panelId existent
+    if (!data || !data.panelId) return;
+
+    const progBar = document.getElementById(`prog-${data.panelId}`);
+    const cancelBtn = document.getElementById(`cancel-dl-${data.panelId}`);
+    const input = document.getElementById(`${data.panelId}-url`);
+    
+    // 2. On n'applique les styles QUE si l'élément HTML correspondant est bien présent dans la page
+    if (progBar) {
+        progBar.style.width = `${data.percent}%`;
+    }
+    
+    if (cancelBtn) {
+        cancelBtn.style.display = "flex";
+    }
+
+    if (input && document.activeElement !== input) {
+        input.value = `📥 (${data.percent}%) ${data.filename}`;
+        input.style.color = "#f97316"; // Écrit en orange pendant le téléchargement
+    }
+});
+
+window.api.onDownloadDone((data) => {
+    // === CORRECTION : Ajout des accents graves (backticks) obligatoires en JavaScript ===
+    const progBar = document.getElementById(`prog-${data.panelId}`);
+    const cancelBtn = document.getElementById(`cancel-dl-${data.panelId}`);
+
+    if (progBar) progBar.style.width = "0%";
+    if (cancelBtn) cancelBtn.style.display = "none";
+
+    refreshTabBorders();
+
+    if (typeof currentPanels !== 'undefined') {
+        const input = document.getElementById(`${data.panelId}-url`);
+        const panelData = currentPanels.find(p => p.id === data.panelId);
+        if (input && panelData) {
+            input.value = getDisplayUrl(panelData.realUrl || panelData.url || "");
+            input.style.color = "#d4d4d4";
+        }
+    }
+
+    // Force la réapplication de la classe de zoom pour éviter la disparition
+    const container = document.getElementById("url-bar");
+    if (container && currentMaximizedId) {
+        container.classList.add("maximized-mode");
+        const activeInput = document.getElementById(currentMaximizedId + "-url");
+        if (activeInput && activeInput.parentElement) {
+            activeInput.parentElement.classList.add("panel-is-maximized");
+        }
+    }
+});
+
+
+
+
+
+
+
+
+
 
 </script>
 
