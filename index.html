@@ -124,6 +124,49 @@ html, body {
     flex: 1 1 0% !important;
 }
 
+/* Style de la barre horizontale des favoris */
+#bookmarks-bar {
+    height: 28px;
+    width: 100%;
+    background: #252526;
+    border-bottom: 1px solid #3c3c3c;
+    box-sizing: border-box;
+    display: flex;
+    gap: 6px;
+    padding: 0 8px;
+    align-items: center;
+    overflow-x: auto; /* Permet de défiler horizontalement si vous avez beaucoup de favoris */
+}
+
+/* Masquer la barre de défilement pour garder l'interface propre */
+#bookmarks-bar::-webkit-scrollbar {
+    display: none;
+}
+
+/* Style des petits boutons de favoris */
+.bookmark-item {
+    background: #2d2d30;
+    border: 1px solid #3c3c3c;
+    color: #cfcfcf;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background 0.2s, color 0.2s;
+}
+
+.bookmark-item:hover {
+    background: #3f3f46;
+    color: #ffffff;
+    border-color: #555555;
+}
+
+
 </style>
 
 <body class="m-0 flex items-center justify-center bg-gray-100 dark:bg-zinc-900 min-h-screen">
@@ -140,6 +183,12 @@ html, body {
 </div>
 
 <div id="url-bar" style="position: fixed; top: 38px; left: 0; right: 0; z-index: 50;"></div>
+<div id="active-panel-frame"></div>
+
+
+<!-- === AJOUT : CONTENEUR DE LA BARRE DES FAVORIS === -->
+<div id="bookmarks-bar" style="position: fixed; top: 74px; left: 0; right: 0; z-index: 50;"></div>
+
 <div id="active-panel-frame"></div>
 
 <script>
@@ -169,7 +218,6 @@ function refreshTabBorders() {
         }
     }
 }
-
 function getDisplayUrl(url) {
     try {
         return "🔒 " + new URL(url).hostname.replace(/^www\./, "");
@@ -543,6 +591,84 @@ window.api.onDownloadDone((data) => {
         }
     }
 });
+
+
+
+// === FONCTION POUR DESSINER LA BARRE DES FAVORIS ===
+async function rebuildBookmarksBar() {
+    const bar = document.getElementById("bookmarks-bar");
+    if (!bar) return;
+
+    // On récupère la liste des favoris depuis le fichier JSON
+    const favoris = await window.api.getFavoris?.() || [];
+    
+    // On vide la barre avant de la reconstruire
+    bar.innerHTML = "";
+
+    if (favoris.length === 0) {
+        // Optionnel : afficher un petit texte discret s'il n'y a aucun favori
+        const emptyText = document.createElement("span");
+        emptyText.style.color = "#6b7280";
+        emptyText.style.fontSize = "11px";
+        emptyText.innerText = "Aucun favori enregistré. Cliquez sur ☆ pour en ajouter.";
+        bar.appendChild(emptyText);
+        return;
+    }
+
+    // On crée un bouton pour chaque favori historique
+    favoris.forEach(fav => {
+        const btn = document.createElement("div");
+        btn.className = "bookmark-item";
+        
+        // Nettoyer le titre pour l'affichage (ex: retirer le superflu)
+        btn.innerText = "🔖 " + fav.title.replace("🔒 ", "");
+        btn.title = fav.url;
+
+        // Clic sur le favori : charge l'URL dans la tuile active (liseré bleu)
+        btn.addEventListener("click", () => {
+            if (activePanel) {
+                window.api.navigate(activePanel, fav.url);
+            }
+        });
+
+        bar.appendChild(btn);
+    });
+}
+
+// === METTRE À JOUR LES ÉCOUTEURS EXISTANTS POUR INCLURE LA BARRE ===
+
+// Modifiez votre écouteur onFavorisUpdated existant pour qu'il rafraîchisse aussi la barre :
+window.api.onFavorisUpdated?.((favoris) => {
+    checkFavorisState();
+    rebuildBookmarksBar(); // <-- AJOUTÉ ICI
+});
+
+// Appeler la fonction une première fois au démarrage (dans l'écouteur onPanelsUpdated par exemple)
+window.api.onPanelsUpdated((panels, maximizedPanelId) => {
+    currentPanels = panels;
+    currentMaximizedId = maximizedPanelId;
+    rebuildUrlBar(panels);
+
+    const container = document.getElementById("url-bar");
+    if (container) {
+        if (maximizedPanelId) {
+            container.classList.add("maximized-mode");
+        } else {
+            container.classList.remove("maximized-mode");
+        }
+    }
+
+    checkFavorisState();
+    rebuildBookmarksBar(); // <-- AJOUTÉ ICI pour l'initialisation au démarrage
+
+    setTimeout(() => {
+        if (document.activeElement instanceof HTMLInputElement) {
+            document.activeElement.blur();
+        }
+    }, 0);
+});
+
+
 </script>
 
 </body>

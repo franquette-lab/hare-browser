@@ -45,8 +45,10 @@ let activeDownloads = {};
 // Stocke l'ID du panneau actuellement zoomé/maximisé au premier plan (null si aucun)
 let maximizedPanelId = null; 
 
-const TOOLBAR_HEIGHT = 77;
-let history = [];
+//const TOOLBAR_HEIGHT = 77;
+  const TOOLBAR_HEIGHT = 105; // Ajusté pour accueillir la barre des favoris
+
+  let history = [];
 let lastClosedPanel = null;
 const SPLITTER_SIZE = 10;
 
