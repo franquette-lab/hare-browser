@@ -329,8 +329,6 @@ function updateActiveBorder(bounds) {
 let handleDraggedPanelId = null;
 
 
-
-
 function updatePanelHandles() {
     if (!win || win.isDestroyed()) return;
 
@@ -345,23 +343,43 @@ function updatePanelHandles() {
         }
     });
 
+    // === CORRECTIF ABSOLU ===
+    // On compte le nombre exact de vues web de navigation attachées à la fenêtre principale.
+    // On exclut les liserés bleus ("InternalBorder"), les splitters et les autres poignées.
+    const allViews = win.getBrowserViews();
+    const realWebViews = allViews.filter(v => {
+        if (!v.webContents || v.webContents.isDestroyed()) return false;
+        const ua = v.webContents.getUserAgent();
+        const url = v.webContents.getURL();
+        // On élimine les vues internes du navigateur (liserés, data:text/html des boutons/splitters)
+        return ua !== "InternalBorder" && !url.startsWith("data:text/html");
+    });
+
+    const isLastRemaining = (realWebViews.length === 1);
+
     // 2. Mettre à jour ou créer la poignée pour chaque panneau
     panelsList.forEach((panel) => {
 
-        // Si un panneau est maximisé, on cache les poignées des AUTRES panneaux
         if (maximizedPanelId && panel.id !== maximizedPanelId) {
             if (handleViews[panel.id]) {
-                try {
-                    handleViews[panel.id].setBounds({ x: -1000, y: -1000, width: 0, height: 0 });
-                } catch(e) {}
+                try { handleViews[panel.id].setBounds({ x: -1000, y: -1000, width: 0, height: 0 }); } catch(e) {}
             }
             return; 
         }
 
         if (!panel.bounds) return;
 
-        // === AJOUT/CORRECTION : Définition propre et globale de la variable isMaximized ===
         const isMaximized = (maximizedPanelId === panel.id);
+        const expectedWidth = isLastRemaining ? 24 : (isMaximized ? 60 : 80);
+
+        // Si la taille attendue change, destruction immédiate pour forcer Chromium à recharger le DOM HTML
+        if (handleViews[panel.id]) {
+            const currentBounds = handleViews[panel.id].getBounds();
+            if (currentBounds.width !== expectedWidth) {
+                try { win.removeBrowserView(handleViews[panel.id]); } catch(e) {}
+                delete handleViews[panel.id];
+            }
+        }
 
         if (!handleViews[panel.id]) {
             const hView = new BrowserView();
@@ -369,7 +387,7 @@ function updatePanelHandles() {
             
             hView.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(`
                 <html><head><style>
-                html, body { margin: 0; padding: 0; overflow: hidden !important; width: 100%; height: 100%; }
+                html, body { margin: 0; padding: 0; overflow: hidden !important; width: 100%; height: 100%; background: transparent; }
                 #container {
                     display: flex; width: 100%; height: 100%;
                     background: #2d2d30; border: 1px solid #3c3c3c; border-radius: 4px;
@@ -388,15 +406,18 @@ function updatePanelHandles() {
                 #fullscreen-btn:hover { background: #1e3a8a; color: #3b82f6; }
                 #close-btn:hover { background: #991b1b; color: #fca5a5; }
                 
-                /* Masquage dynamique du bouton de déplacement */
                 .hide-drag { display: none !important; }
                 .flex-3-btns .action { flex: 1 1 33.33% !important; }
+                
+                /* Mode épuré panneau unique : suppression radicale des boutons superflus */
+                .flex-1-btn #drag-btn, .flex-1-btn #zoom-btn, .flex-1-btn #fullscreen-btn { display: none !important; }
+                .flex-1-btn #close-btn { display: flex !important; flex: 1 1 100% !important; border: none !important; border-radius: 4px; }
                 </style></head><body>
-                <div id="container" class="${isMaximized ? 'flex-3-btns' : ''}">
-                    <div id="drag-btn" class="btn ${isMaximized ? 'hide-drag' : ''}" title="Glisser pour déplacer">⠿</div>
-                    <div id="zoom-btn" class="btn action" title="${isMaximized ? 'Restaurer la taille d\'origine' : 'Agrandir le panneau'}">${isMaximized ? '🗗' : '🗖'}</div>
-                    <div id="fullscreen-btn" class="btn action" title="Détacher dans une nouvelle fenêtre">↗</div>
-                    <div id="close-btn" class="btn action" title="Fermer ce panneau">✕</div>
+                <div id="container" class="${isLastRemaining ? 'flex-1-btn' : (isMaximized ? 'flex-3-btns' : '')}">
+                    <div id="drag-btn" class="btn" title="Glisser pour déplacer">⠿</div>
+                    <div id="zoom-btn" class="btn action" title="Agrandir">🗖</div>
+                    <div id="fullscreen-btn" class="btn action" title="Détacher">↗</div>
+                    <div id="close-btn" class="btn action" title="Fermer">✕</div>
                 </div>
                 <script>
                     let dragging = false;
@@ -409,60 +430,48 @@ function updatePanelHandles() {
                         });
                     }
                     document.addEventListener("mouseup", () => {
-                        if (dragging) {
-                            dragging = false;
-                            document.title = "drag-end";
-                        }
+                        if (dragging) { dragging = false; document.title = "drag-end"; }
                     });
-                    document.getElementById("zoom-btn").addEventListener("click", () => {
-                        document.title = "action-toggle-zoom";
-                    });
-                    document.getElementById("fullscreen-btn").addEventListener("click", () => {
-                        document.title = "action-fullscreen";
-                    });
-                    document.getElementById("close-btn").addEventListener("click", () => {
-                        document.title = "action-close";
-                    });
+                    document.getElementById("zoom-btn").addEventListener("click", () => { document.title = "action-toggle-zoom"; });
+                    document.getElementById("fullscreen-btn").addEventListener("click", () => { document.title = "action-fullscreen"; });
+                    document.getElementById("close-btn").addEventListener("click", () => { document.title = "action-close"; });
                 </script></body></html>
             `));
 
-            // Gestion des actions de la poignée
             hView.webContents.on("page-title-updated", (event, title) => {
                 event.preventDefault();
-                
                 if (title === "drag-start") {
                     activePanel = panel.id;
                     win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
                     updateActiveBorder(panel.bounds);
                     handleDraggedPanelId = panel.id;
                 }
-                
                 if (title === "action-toggle-zoom") {
-                    if (maximizedPanelId === panel.id) {
-                        maximizedPanelId = null;
-                    } else {
-                        maximizedPanelId = panel.id;
-                    }
+                    maximizedPanelId = maximizedPanelId === panel.id ? null : panel.id;
                     forceRebuildSplitters = true;
                     resizeViews();
                     win.webContents.send("zoom-changed", maximizedPanelId);
-                    
                     try { win.removeBrowserView(hView); } catch(e){}
                     delete handleViews[panel.id];
                     updatePanelHandles();
                     return;
                 }
-
                 if (title === "action-fullscreen") {
                     if (maximizedPanelId === panel.id) maximizedPanelId = null;
                     detachPanelToFullscreen(panel.id);
                 }
 
                 if (title === "action-close") {
-                    ipcMain.emit("close-panel", null, panel.id);
+                    if (isLastRemaining) {
+                        // S'il ne reste qu'un panneau, cliquer sur la croix ferme proprement l'application
+                        app.quit(); 
+                    } else {
+                        // S'il y a plusieurs panneaux, on ferme la tuile normalement
+                        ipcMain.emit("close-panel", null, panel.id);
+                    }
                     return;
                 }
-                
+
                 if (title === "drag-end" && handleDraggedPanelId) {
                     const { screen } = require('electron');
                     const mousePoint = screen.getCursorScreenPoint();
@@ -473,14 +482,12 @@ function updatePanelHandles() {
                     let targetPanel = null;
                     for (const p of list) {
                         if (p.bounds && p.id !== handleDraggedPanelId) {
-                            if (localX >= p.bounds.x && localX <= (p.bounds.x + p.bounds.width) &&
-                                localY >= p.bounds.y && localY <= (p.bounds.y + p.bounds.height)) {
-                                targetPanel = p;
-                                break;
+                            if (localX >= p.bounds.x && localX <= (p.bounds.x + p.bounds.width) && localY >= p.bounds.y && localY <= (p.bounds.y + p.bounds.height)) {
+                                targetPanel = p; break;
                             }
                         }
                     }
-                    if (targetPanel) { swapPanelsInTree(handleDraggedPanelId, targetPanel.id); }
+                    if (targetPanel) swapPanelsInTree(handleDraggedPanelId, targetPanel.id);
                     handleDraggedPanelId = null;
                 }
             });
@@ -488,24 +495,20 @@ function updatePanelHandles() {
             handleViews[panel.id] = hView;
         }
 
-        // Configuration de la boîte avec largeur adaptative sécurisée
         const handleBounds = {
             x: panel.bounds.x + 6,
             y: panel.bounds.y + 6,
-            width: isMaximized ? 60 : 80, 
+            width: expectedWidth, 
             height: 24
         };
 
         const currentHandle = handleViews[panel.id];
         if (currentHandle) {
             currentHandle.setBounds(handleBounds);
-            try {
-                win.setTopBrowserView(currentHandle);
-            } catch(e) {}
+            try { win.setTopBrowserView(currentHandle); } catch(e) {}
         }
     });
 }
-
 
 
 
@@ -1054,7 +1057,7 @@ app.on('drag-end', () => {
     });
 
 
-
+/*
 ipcMain.on("close-panel", (event, panelId) => {
     const node = findPanelNode(rootNode, panelId);
     if (!node) return;
@@ -1086,6 +1089,54 @@ ipcMain.on("close-panel", (event, panelId) => {
     resizeViews();
     win.webContents.send("panels-updated", collectPanels(rootNode));
 });
+*/
+
+ipcMain.on("close-panel", (event, panelId) => {
+    // === VÉRIFICATION DU NOMBRE DE PANNEAUX RESTANTS ===
+    const allViews = win.getBrowserViews();
+    const realWebViews = allViews.filter(v => {
+        if (!v.webContents || v.webContents.isDestroyed()) return false;
+        const ua = v.webContents.getUserAgent();
+        const url = v.webContents.getURL();
+        return ua !== "InternalBorder" && !url.startsWith("data:text/html");
+    });
+
+    // Si l'utilisateur clique sur la croix alors qu'il n'y a plus qu'un panneau ouvert
+    if (realWebViews.length <= 1) {
+        app.quit(); // Déclenche la boîte de dialogue de confirmation de fermeture globale
+        return;
+    }
+
+    // --- COMPORTEMENT STANDARD DE FERMETURE DE TUILE EN MOSAÏQUE ---
+    const node = findPanelNode(rootNode, panelId);
+    if (!node) return;
+    const parent = findParentNode(rootNode, panelId);
+    if (!parent) return;
+
+    if (maximizedPanelId === panelId) maximizedPanelId = null; 
+    
+    saveState();
+    const sibling = (parent.first === node) ? parent.second : parent.first;
+
+    if (parent === rootNode) {
+        rootNode = sibling;
+    } else {
+        replaceNode(rootNode, parent, sibling);
+    }
+
+    lastClosedPanel = { id: node.id, url: node.url, title: node.title || getDisplayText(node.url) };
+    win.webContents.send("undo-available", true);        
+    win.removeBrowserView(node.view);
+
+    const newActivePanel = findFirstPanel(sibling);
+    activePanel = newActivePanel.id;
+
+    win.webContents.send("active-panel-changed", { id: newActivePanel.id, bounds: newActivePanel.bounds });        
+    forceRebuildSplitters = true;
+    resizeViews();
+    win.webContents.send("panels-updated", collectPanels(rootNode));
+});
+
 
 ipcMain.on("undo", (event) => {
     // 1. S'il n'y a pas d'historique ou si aucun panneau n'a été fermé, on annule
