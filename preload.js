@@ -72,10 +72,16 @@ contextBridge.exposeInMainWorld(
             ipcRenderer.send("cancel-download", panelId);
         },
 
+        // À insérer juste avant la fin de contextBridge.exposeInMainWorld('api', { ... })
+        onToggleBookmarksBar: (callback) => ipcRenderer.on("toggle-bookmarks-bar", (event, visible) => callback(visible)),
+
         // À ajouter dans contextBridge.exposeInMainWorld('api', { ... })
         getFavoris: () => ipcRenderer.invoke('get-favoris'),
         toggleFavori: (data) => ipcRenderer.invoke('toggle-favori', data),
+        // À ajouter juste en dessous de toggleFavori ou getFavoris dans preload.js :
+        toggleBookmarksBarFromUI: () => ipcRenderer.send("toggle-bookmarks-bar-request"),
         onFavorisUpdated: (callback) => ipcRenderer.on('favoris-updated', (event, favoris) => callback(favoris)),
+        
 
         // À ajouter dans l'objet 'api' de preload.js :
         onFocusUrlBar: (callback) => ipcRenderer.on("focus-url-bar", (event, panelId) => callback(panelId)),

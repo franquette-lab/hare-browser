@@ -45,8 +45,11 @@ let activeDownloads = {};
 // Stocke l'ID du panneau actuellement zoomé/maximisé au premier plan (null si aucun)
 let maximizedPanelId = null; 
 
-//const TOOLBAR_HEIGHT = 77;
-  const TOOLBAR_HEIGHT = 105; // Ajusté pour accueillir la barre des favoris
+// En haut de main.js, à la place de const TOOLBAR_HEIGHT = 105;
+let isBookmarksBarVisible = true; // La barre est affichée par défaut
+let TOOLBAR_HEIGHT = 105;         // Hauteur avec la barre de favoris (38 + 36 + 28 + corrections)
+const TOOLBAR_MIN_HEIGHT = 77;   // Hauteur sans la barre (38 + 36 + corrections)
+
 
   let history = [];
 let lastClosedPanel = null;
@@ -1016,6 +1019,22 @@ ipcMain.on("cancel-download", (event, panelId) => {
     }
 });
 
+
+// Écouteur pour intercepter le clic sur la croix (X) de index.html
+ipcMain.on("toggle-bookmarks-bar-request", () => {
+    isBookmarksBarVisible = false;
+    
+    // On force la hauteur minimale (77px) pour faire remonter les fenêtres
+    TOOLBAR_HEIGHT = TOOLBAR_MIN_HEIGHT; 
+    
+    // On prévient l'index.html de masquer la barre en CSS
+    win.webContents.send("toggle-bookmarks-bar", false);
+    
+    // On force Electron à étirer les fenêtres vers le haut instantanément
+    forceRebuildSplitters = true;
+    resizeViews();
+});
+
 function swapPanelsInTree(idA, idB) {
     saveState();
     
@@ -1645,6 +1664,29 @@ function createWindow() {
                 },
 
 
+                // === AJOUT : RACCOURCI CTRL+SHIFT+B POUR MASQUER/AFFICHER LA BARRE DE FAVORIS ===
+                {
+                    label: 'Masquer/Afficher la barre de favoris',
+                    accelerator: 'CmdOrCtrl+Shift+B',
+                    click: () => {
+                        if (!win || win.isDestroyed()) return;
+
+                        // 1. On inverse l'état de visibilité
+                        isBookmarksBarVisible = !isBookmarksBarVisible;
+                        
+                        // 2. On ajuste dynamiquement la hauteur de la zone d'outils
+                        TOOLBAR_HEIGHT = isBookmarksBarVisible ? 105 : TOOLBAR_MIN_HEIGHT;
+
+                        // 3. On informe l'IHM (index.html) pour masquer la barre physiquement en CSS
+                        win.webContents.send("toggle-bookmarks-bar", isBookmarksBarVisible);
+
+                        // 4. On force le redimensionnement immédiat des tuiles web au pixel près
+                        forceRebuildSplitters = true;
+                        resizeViews();
+                    }
+                },
+
+
 
 
                 // === AJOUT : RACCOURCIS D'ACTUALISATION (F5 & CTRL+R) ===
@@ -2100,6 +2142,16 @@ function moveActivePanelKeyboard(direction) {
         swapPanelsInTree(activePanel, targetPanel.id);
     }
 }
+
+
+ipcMain.on("toggle-bookmarks-bar-request", () => {
+    isBookmarksBarVisible = false;
+    TOOLBAR_HEIGHT = TOOLBAR_MIN_HEIGHT;
+    win.webContents.send("toggle-bookmarks-bar", false);
+    forceRebuildSplitters = true;
+    resizeViews();
+});
+
 
 ipcMain.on("set-active-panel", (event, panelId) => {
     const panel = findPanelNode(rootNode, panelId);

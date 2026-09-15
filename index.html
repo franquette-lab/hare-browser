@@ -124,7 +124,7 @@ html, body {
     flex: 1 1 0% !important;
 }
 
-/* Style de la barre horizontale des favoris */
+/* Style de la barre principale ajusté pour aligner le bouton à droite */
 #bookmarks-bar {
     height: 28px;
     width: 100%;
@@ -132,10 +132,41 @@ html, body {
     border-bottom: 1px solid #3c3c3c;
     box-sizing: border-box;
     display: flex;
-    gap: 6px;
-    padding: 0 8px;
     align-items: center;
-    overflow-x: auto; /* Permet de défiler horizontalement si vous avez beaucoup de favoris */
+    justify-content: space-between; /* Pousse la liste à gauche et la croix à droite */
+    padding: 0 8px;
+    overflow: hidden;
+}
+
+/* Zone contenant uniquement la liste des badges */
+#bookmarks-list {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    overflow-x: auto;
+    flex: 1;
+    height: 100%;
+}
+#bookmarks-list::-webkit-scrollbar {
+    display: none; /* Masque la scrollbar */
+}
+
+/* Style du petit bouton X de fermeture tout à droite */
+#close-bookmarks-bar {
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+    user-select: none;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background 0.2s, color 0.2s;
+    margin-left: 8px;
+    flex-shrink: 0; /* Empêche la croix d'être écrasée */
+}
+#close-bookmarks-bar:hover {
+    background: #991b1b; /* Devient rouge au survol */
+    color: #fca5a5;
 }
 
 /* Masquer la barre de défilement pour garder l'interface propre */
@@ -166,6 +197,11 @@ html, body {
     border-color: #555555;
 }
 
+/* Cache la barre des favoris si la classe de masquage est active */
+body.bookmarks-hidden #bookmarks-bar {
+    display: none !important;
+}
+
 
 </style>
 
@@ -186,8 +222,16 @@ html, body {
 <div id="active-panel-frame"></div>
 
 
-<!-- === AJOUT : CONTENEUR DE LA BARRE DES FAVORIS === -->
-<div id="bookmarks-bar" style="position: fixed; top: 74px; left: 0; right: 0; z-index: 50;"></div>
+<!-- === REMPLACER LE CONTENEUR DE LA BARRE DES FAVORIS PAR CELUI-CI === -->
+<div id="bookmarks-bar" style="position: fixed; top: 74px; left: 0; right: 0; z-index: 50;">
+    <!-- Zone interne pour la liste des badges (défilante) -->
+    <div id="bookmarks-list"></div>
+    
+    <!-- Bouton de fermeture fixe tout à droite -->
+    <div id="close-bookmarks-bar" title="Masquer la barre des favoris (Ctrl+Shift+B)">✕</div>
+</div>
+
+
 
 <div id="active-panel-frame"></div>
 
@@ -428,6 +472,30 @@ window.api.onPanelsUpdated((panels, maximizedPanelId) => {
 window.api.onUndoAvailable((available) => document.getElementById("undo").disabled = !available);
 
 
+// Activer l'action de fermeture sur le bouton X physique
+document.getElementById("close-bookmarks-bar")?.addEventListener("click", () => {
+    // Option A : Si vous préférez envoyer l'ordre à Electron pour qu'il synchronise tout :
+    window.api.toggleBookmarksBarFromUI?.(); 
+    
+    /* Option B (Plus simple et immédiate si vous n'avez pas encore créé l'IPC retour) :
+       On applique directement la classe et on prévient Electron de resizer */
+    document.body.classList.add("bookmarks-hidden");
+    // Si vous voulez que les tuiles remontent directement en attendant de lier l'IPC :
+    // window.api.forceResizeAfterClose();
+});
+
+
+
+// === GESTION DU MASQUAGE DE LA BARRE DES FAVORIS ===
+window.api.onToggleBookmarksBar?.((isVisible) => {
+    if (visible) {
+        document.body.classList.remove("bookmarks-hidden");
+    } else {
+        document.body.classList.add("bookmarks-hidden");
+    }
+});
+
+
 // === FONCTIONS GLOBALES POUR LA SYNCHRONISATION DES FAVORIS ===
 
 // 1. Déclaration de la fonction de vérification
@@ -595,43 +663,37 @@ window.api.onDownloadDone((data) => {
 
 
 // === FONCTION POUR DESSINER LA BARRE DES FAVORIS ===
+// === FONCTION DE RECONSTRUCTION DE LA BARRE CORRIGÉE ===
 async function rebuildBookmarksBar() {
-    const bar = document.getElementById("bookmarks-bar");
-    if (!bar) return;
+    // MODIFICATION : On cible la liste interne et non la barre complète
+    const listContainer = document.getElementById("bookmarks-list");
+    if (!listContainer) return;
 
-    // On récupère la liste des favoris depuis le fichier JSON
     const favoris = await window.api.getFavoris?.() || [];
-    
-    // On vide la barre avant de la reconstruire
-    bar.innerHTML = "";
+    listContainer.innerHTML = "";
 
     if (favoris.length === 0) {
-        // Optionnel : afficher un petit texte discret s'il n'y a aucun favori
         const emptyText = document.createElement("span");
         emptyText.style.color = "#6b7280";
         emptyText.style.fontSize = "11px";
         emptyText.innerText = "Aucun favori enregistré. Cliquez sur ☆ pour en ajouter.";
-        bar.appendChild(emptyText);
+        listContainer.appendChild(emptyText);
         return;
     }
 
-    // On crée un bouton pour chaque favori historique
     favoris.forEach(fav => {
         const btn = document.createElement("div");
         btn.className = "bookmark-item";
-        
-        // Nettoyer le titre pour l'affichage (ex: retirer le superflu)
         btn.innerText = "🔖 " + fav.title.replace("🔒 ", "");
         btn.title = fav.url;
 
-        // Clic sur le favori : charge l'URL dans la tuile active (liseré bleu)
         btn.addEventListener("click", () => {
             if (activePanel) {
                 window.api.navigate(activePanel, fav.url);
             }
         });
 
-        bar.appendChild(btn);
+        listContainer.appendChild(btn);
     });
 }
 
