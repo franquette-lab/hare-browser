@@ -98,7 +98,14 @@ html, body {
 }
 
 #toolbar-buttons button:focus { outline: none; box-shadow: none; }
-#toolbar-buttons button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Rend les boutons transparents et incliquables lorsqu'ils sont désactivés */
+#toolbar-buttons button:disabled {
+    opacity: 0.3 !important;
+    cursor: not-allowed !important;
+    background: #2d2d30 !important; /* Maintient le fond sombre */
+    color: #6b7280 !important;      /* Écrit en gris sombre */
+}
 
 
 #url-bar input:focus {
@@ -549,7 +556,6 @@ window.api.onActivePanelChanged((panel) => {
     if (!panel) return;
     activePanel = panel.id;
     refreshTabBorders();
-
     const frame = document.getElementById("active-panel-frame");
     if (frame && panel.bounds) {
         frame.style.display = "block";
@@ -558,9 +564,9 @@ window.api.onActivePanelChanged((panel) => {
         frame.style.width = panel.bounds.width + "px";
         frame.style.height = panel.bounds.height + "px";
     }
-
     const state = navigationStates[panel.id] || { canGoBack: false, canGoForward: false };
     updateToolbarButtons(state.canGoBack, state.canGoForward);
+    updateCloseButtonState();
 });
 
 window.api.onNavigationState((state) => {
@@ -595,6 +601,24 @@ window.api.onZoomChanged((maximizedPanelId) => {
         container.classList.remove("maximized-mode");
     }
 });
+
+
+function updateCloseButtonState() {
+    const closeBtn = document.getElementById("close-panel");
+    if (!closeBtn) return;
+
+    // Si activePanel est null ou indéfini, on désactive le bouton X
+    if (!activePanel) {
+        closeBtn.disabled = true;
+        closeBtn.style.cursor = "not-allowed";
+        closeBtn.title = "Aucun panneau sélectionné";
+    } else {
+        closeBtn.disabled = false;
+        closeBtn.style.cursor = "pointer";
+        closeBtn.title = "Fermer le panneau actif";
+    }
+}
+
 
 function updateToolbarButtons(canGoBack, canGoForward) {
     const backBtn = document.getElementById("back-button");
@@ -707,6 +731,14 @@ window.api.onFavorisUpdated?.((favoris) => {
     rebuildBookmarksBar(); // <-- AJOUTÉ ICI
 });
 
+
+
+
+
+
+
+
+
 // Appeler la fonction une première fois au démarrage (dans l'écouteur onPanelsUpdated par exemple)
 window.api.onPanelsUpdated((panels, maximizedPanelId) => {
     currentPanels = panels;
@@ -724,6 +756,7 @@ window.api.onPanelsUpdated((panels, maximizedPanelId) => {
 
     checkFavorisState();
     rebuildBookmarksBar(); // <-- AJOUTÉ ICI pour l'initialisation au démarrage
+    updateCloseButtonState();
 
     setTimeout(() => {
         if (document.activeElement instanceof HTMLInputElement) {
@@ -736,6 +769,10 @@ window.api.onPanelsUpdated((panels, maximizedPanelId) => {
 window.api.onTitleChanged?.((newTitle) => {
     document.title = newTitle;
 });
+
+
+// À mettre tout en bas de votre script
+updateCloseButtonState();
 
 
 </script>
