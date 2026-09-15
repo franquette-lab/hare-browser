@@ -472,16 +472,18 @@ window.api.onPanelsUpdated((panels, maximizedPanelId) => {
 window.api.onUndoAvailable((available) => document.getElementById("undo").disabled = !available);
 
 
-// Activer l'action de fermeture sur le bouton X physique
+// Au clic sur la croix, on appelle la fonction du processus principal
 document.getElementById("close-bookmarks-bar")?.addEventListener("click", () => {
-    // Option A : Si vous préférez envoyer l'ordre à Electron pour qu'il synchronise tout :
-    window.api.toggleBookmarksBarFromUI?.(); 
-    
-    /* Option B (Plus simple et immédiate si vous n'avez pas encore créé l'IPC retour) :
-       On applique directement la classe et on prévient Electron de resizer */
-    document.body.classList.add("bookmarks-hidden");
-    // Si vous voulez que les tuiles remontent directement en attendant de lier l'IPC :
-    // window.api.forceResizeAfterClose();
+    window.api.toggleBookmarksBarFromUI(); 
+});
+
+// Cet écouteur va recevoir la confirmation d'Electron et masquer la barre en CSS
+window.api.onToggleBookmarksBar?.((isVisible) => {
+    if (isVisible) {
+        document.body.classList.remove("bookmarks-hidden");
+    } else {
+        document.body.classList.add("bookmarks-hidden");
+    }
 });
 
 
@@ -728,6 +730,11 @@ window.api.onPanelsUpdated((panels, maximizedPanelId) => {
             document.activeElement.blur();
         }
     }, 0);
+});
+
+// Écoute le signal du processus principal pour changer le titre de la fenêtre
+window.api.onTitleChanged?.((newTitle) => {
+    document.title = newTitle;
 });
 
 

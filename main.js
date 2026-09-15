@@ -12,6 +12,8 @@ const {
     shell           // <-- AJOUTEZ shell ICI pour gérer les fichiers et dossiers
 } = require('electron');
 
+// En haut de main.js avec vos autres variables globales
+const APP_TITLE = "Hare Browser"; 
 
 const fs = require("fs");
 const path = require("path");
@@ -1400,12 +1402,13 @@ function createDefaultLayout() {
 
 }
 
-function createWindow() {
 
+function createWindow() {
     win = new BrowserWindow({
         width: 1600, height: 900,
         minWidth: 1000, minHeight: 700,
         backgroundColor: "#111827",
+        title: APP_TITLE, // === UTILISE LA VARIABLE ICI ===
         webPreferences: {
             preload: path.join(__dirname, "preload.js"),
             contextIsolation: true,
@@ -1651,18 +1654,16 @@ function createWindow() {
                             type: 'question',
                             buttons: ['Oui, quitter', 'Annuler'],
                             defaultId: 1,
-                            cancelId: 1, // === ASSURE QUE ÉCHAP ANNULE AUSSI ICI ===
+                            cancelId: 1,
                             title: 'Confirmation',
-                            message: 'Êtes-vous sûr de vouloir fermer Tile Browser ?',
+                            message: `Êtes-vous sûr de vouloir fermer ${APP_TITLE} ?`, // === DYNAMIQUE ICI ===
                             detail: 'Tous vos panneaux et onglets ouverts seront perdus.'
                         });
-
                         if (response === 0) {
                             app.exit(0); 
                         }
                     }
                 },
-
 
                 // === AJOUT : RACCOURCI CTRL+SHIFT+B POUR MASQUER/AFFICHER LA BARRE DE FAVORIS ===
                 {
@@ -1725,18 +1726,19 @@ function createWindow() {
     const menu = Menu.buildFromTemplate(template);
     win.setMenu(menu); // Le menu est configuré avec les raccourcis actifs
     
-    
-    
     win.loadFile('index.html');
 
     forceRebuildSplitters = true;
     resizeViews();
 
-    
-
     win.webContents.on('did-finish-load', () => {
         win.webContents.send("panels-updated", collectPanels(rootNode));
+        
+        // === AJOUT : Envoyer la variable de titre à index.html ===
+        win.webContents.send("app-title-changed", APP_TITLE);
+        win.setTitle(APP_TITLE); // Force l'application initiale
     });
+
     // Remplacer l'ancien bloc win.on("resize") par celui-ci unique dans createWindow()
     win.removeAllListeners("resize");
     let resizeDebounceTimer = null;
@@ -2019,7 +2021,17 @@ function resizeViews() {
         splitterView.webContents.on("page-title-updated", (event, title) => {
             event.preventDefault();
             if (title === "reset-splitter") { splitter.node.ratio = 0.5; resizeViews(); return; }
-            if (title === "drag-end") { win.setTitle("Tile Browser"); dragInProgress = false; return; }
+
+//          if (title === "drag-end") { win.setTitle("Tile Browser"); dragInProgress = false; return; }
+            if (title === "drag-end") { 
+                win.setTitle(APP_TITLE); // === REMPLACEZ "Tile Browser" PAR APP_TITLE ICI ===
+                dragInProgress = false; 
+                return; 
+            }
+
+
+
+
             if (title.startsWith("drag-start:")) {
                 dragInProgress = true;
                 const parts = title.slice(11).split(":");

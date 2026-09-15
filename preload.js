@@ -89,7 +89,12 @@ contextBridge.exposeInMainWorld(
         // À insérer à l'intérieur de l'objet exposé sous 'api' dans preload.js :
         onNavigationStateChanged: (callback) => {
             ipcRenderer.on("navigation-state-changed", (event, data) => callback(data));
-        }
+        },
+
+        // À insérer juste avant la fin de contextBridge.exposeInMainWorld('api', { ... })
+        onTitleChanged: (callback) => ipcRenderer.on("app-title-changed", (event, title) => callback(title))
+
+
     }
 );
 
