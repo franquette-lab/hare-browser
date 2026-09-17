@@ -7,28 +7,30 @@
 </head>
 
 <style>
+
 html, body {
     margin: 0;
     padding: 0;
     width: 100vw;
     height: 100vh;
     overflow: hidden;
-    background: #252526; /* Fond sombre identique aux barres */
+    background: #f3f4f6; /* MODIFICATION : Gris clair par défaut au démarrage */
     display: flex;
-    flex-direction: column; /* Aligne la barre de boutons puis la barre d'URL */
+    flex-direction: column;
 }
 
 
+
+/* DANS INDEX.HTML -> Modifiez le style existant de #active-panel-frame : */
 #active-panel-frame {
     position: absolute;
     border: 2px solid #3b82f6;
     box-sizing: border-box;
-    pointer-events: none; /* TRÈS IMPORTANT : permet de cliquer à travers */
-    z-index: 9999;
+    pointer-events: none; /* TRÈS IMPORTANT : permet de cliquer et voir à travers */
+    z-index: 1;           /* MODIFICATION : On baisse l'index pour laisser passer les BrowserViews d'Electron */
     display: none;
 }
 
-/* ====== DANS INDEX.HTML -> CHERCHEZ #toolbar-buttons ====== */
 /* ====== BARRE DE BOUTONS IMMERSIVE AVEC ZONE DE DRAG ACCESSIBLE ====== */
 #toolbar-buttons {
     height: 38px;
@@ -36,18 +38,59 @@ html, body {
     display: flex;
     align-items: center;
     gap: 4px;
-    background: #252526;
-    border-bottom: 1px solid #3c3c3c;
+    background: #f3f4f6; /* MODIFICATION : Fond clair */
+    border-bottom: 1px solid #e5e7eb; /* MODIFICATION : Bordure claire */
     padding: 4px 8px;
     box-sizing: border-box;
     z-index: 99999 !important;
-    
-    /* Permet de cliquer/glisser sur la barre pour déplacer la fenêtre */
     -webkit-app-region: drag; 
-    
-    /* Laisse un espace vide de 140px à droite réservé aux boutons système Windows */
     padding-right: 140px; 
 }
+
+
+bookmarks-bar {
+    height: 28px;
+    width: 100%;
+    background: #f3f4f6; /* MODIFICATION : Fond clair */
+    border-bottom: 1px solid #e5e7eb; /* MODIFICATION : Bordure claire */
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between; 
+    padding: 0 8px;
+    overflow: hidden;
+}
+
+/* ====== FIX : LA BARRE D'ADRESSE TECHNIQUE PAR DÉFAUT (MODE CLAIR) ====== */
+#address-bar {
+    background: #ffffff !important;   /* Fond blanc/clair */
+    color: #1f2937 !important;        /* Texte gris foncé */
+    border-bottom: 1px solid #e5e7eb !important;
+}
+
+/* Force l'input texte à l'intérieur à s'éclaircir aussi */
+#address-bar input, 
+#address-input {
+    background: #f3f4f6 !important;
+    color: #1f2937 !important;
+    border: 1px solid #d1d5db !important;
+}
+
+/* ====== BASCULE EN MODE SOMBRE SUR CETTE BARRE ====== */
+body.dark-ui #address-bar {
+    background: #2d2d30 !important;   /* Retour au look sombre d'origine */
+    color: #d4d4d4 !important;
+    border-bottom: 1px solid #3c3c3c !important;
+}
+
+body.dark-ui #address-bar input,
+body.dark-ui #address-input {
+    background: #1e1e1e !important;
+    color: #d4d4d4 !important;
+    border: 1px solid #3c3c3c !important;
+}
+
+
 
 /* Force tous les composants internes de la barre à redevenir cliquables normalement */
 #toolbar-buttons button, 
@@ -59,15 +102,15 @@ html, body {
 #url-bar {
     height: 36px;
     width: 100%;
-    background: #252526;
-    border-bottom: 1px solid #3c3c3c;
+    background: #f3f4f6 !important; /* Force le fond clair dès le départ */
+    border-bottom: 1px solid #e5e7eb !important;
     box-sizing: border-box;
     display: flex;
     gap: 8px;
     padding: 0 8px;
     align-items: center;
-    position: fixed; /* Assurez-vous qu'il y a position: fixed */
-    top: 38px;       /* CORRECTION : Remplacer 35px par 38px pour libérer la barre du haut */
+    position: fixed;
+    top: 38px;       
     z-index: 50;
 }
 
@@ -196,17 +239,19 @@ html, body {
 }
 
 /* Style de la barre principale ajusté pour aligner le bouton à droite */
+/* ====== FIX ABSOLU : LA BARRE DE FAVORIS EN MODE CLAIR PAR DÉFAUT ====== */
 #bookmarks-bar {
     height: 28px;
     width: 100%;
-    background: #252526;
-    border-bottom: 1px solid #3c3c3c;
+    background: #f3f4f6 !important;       /* Force le fond gris clair */
+    border-bottom: 1px solid #e5e7eb !important; /* Bordure claire */
     box-sizing: border-box;
     display: flex;
     align-items: center;
-    justify-content: space-between; /* Pousse la liste à gauche et la croix à droite */
+    justify-content: flex-start; 
     padding: 0 8px;
     overflow: hidden;
+    gap: 6px;
 }
 
 /* Zone contenant uniquement la liste des badges */
@@ -273,6 +318,97 @@ body.bookmarks-hidden #bookmarks-bar {
     display: none !important;
 }
 
+
+/* Look des boutons par défaut (Mode Clair) */
+#toolbar-buttons button {
+    background: #ffffff !important;
+    color: #1f2937 !important;
+    border: 1px solid #d1d5db !important;
+}
+
+/* Look des conteneurs d'URL par défaut (Mode Clair) */
+#url-bar > div {
+    background: #ffffff !important;
+    border: 1px solid #d1d5db !important;
+}
+#url-bar input {
+    color: #1f2937 !important;
+}
+
+/* Badges de favoris par défaut (Mode Clair) */
+.bookmark-item {
+    background: #ffffff !important;
+    color: #1f2937 !important;
+    border: 1px solid #d1d5db !important;
+}
+
+/* ======================================================= */
+/* BASCOULE EN MODE SOMBRE : PRÉFIXE .dark-ui              */
+/* ======================================================= */
+body.dark-ui {
+    background: #252526 !important;
+}
+
+
+body.dark-ui #url-bar {
+    background: #252526 !important;
+    border-bottom: 1px solid #3c3c3c !important;
+}
+
+body.dark-ui #toolbar-buttons,
+body.dark-ui #bookmarks-bar {
+    background: #252526 !important;
+    border-bottom: 1px solid #3c3c3c !important;
+}
+body.dark-ui #toolbar-buttons button {
+    background: #2d2d30 !important;
+    color: #d4d4d4 !important;
+    border: 1px solid #3c3c3c !important;
+}
+body.dark-ui #url-bar > div {
+    background: #2d2d30 !important;
+    border: 1px solid #3c3c3c !important;
+}
+body.dark-ui #url-bar input {
+    color: #d4d4d4 !important;
+}
+body.dark-ui .bookmark-item {
+    background: #2d2d30 !important;
+    color: #cfcfcf !important;
+    border: 1px solid #3c3c3c !important;
+}
+
+
+/* Les badges de favoris par défaut (Mode Clair) */
+.bookmark-item, 
+#bookmarks-bar button,
+#bookmarks-bar div {
+    background: #ffffff !important;   /* Fond blanc pour le badge */
+    color: #1f2937 !important;        /* Texte gris très sombre */
+    border: 1px solid #d1d5db !important; /* Contour gris clair */
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.bookmark-item:hover {
+    background: #e5e7eb !important;   /* Effet de survol clair */
+}
+
+/* ====== BASCULE EN MODE SOMBRE (UNIQUEMENT VIA .dark-ui) ====== */
+body.dark-ui #bookmarks-bar {
+    background: #252526 !important;   /* Retour au fond sombre d'origine */
+    border-bottom: 1px solid #3c3c3c !important;
+}
+
+body.dark-ui .bookmark-item,
+body.dark-ui #bookmarks-bar button,
+body.dark-ui #bookmarks-bar div {
+    background: #2d2d30 !important;   /* Badges sombres */
+    color: #cfcfcf !important;        /* Texte clair */
+    border: 1px solid #3c3c3c !important;
+}
 
 </style>
 
@@ -342,28 +478,33 @@ let currentMaximizedId = null; // Mémoire globale du mode zoom
 let darkModeEnabled = false;
 const darkModeBtn = document.getElementById("dark-mode-button");
 
+
+// === CORRECTIF LOGIQUE CLIC BOUTON SOMBRE ===
 if (darkModeBtn) {
     darkModeBtn.addEventListener("click", () => {
+        // 1. On inverse l'état actuel
         darkModeEnabled = !darkModeEnabled;
         
-        // On envoie l'état à Electron
+        // 2. On synchronise immédiatement Electron avec la bonne valeur
         window.api.toggleDarkMode(darkModeEnabled);
         
-        // On met à jour l'icône et le style du bouton
+        // 3. Mise à jour visuelle des barres de l'application
         if (darkModeEnabled) {
+            document.body.classList.add("dark-ui"); // On active le look sombre
             darkModeBtn.innerText = "☀️";
             darkModeBtn.title = "Désactiver le mode sombre";
-            darkModeBtn.style.background = "#eab308"; // Jaune soleil
+            darkModeBtn.style.background = "#eab308";
             darkModeBtn.style.color = "#000000";
         } else {
+            document.body.classList.remove("dark-ui"); // On retire le look sombre (retour au clair)
             darkModeBtn.innerText = "🌙";
             darkModeBtn.title = "Activer le mode sombre";
-            darkModeBtn.style.background = "#2d2d30"; // Gris d'origine
-            darkModeBtn.style.color = "#cfcfcf";
+            darkModeBtn.style.background = "#ffffff";
+            darkModeBtn.style.color = "#1f2937";
+            darkModeBtn.style.borderColor = "#d1d5db";
         }
     });
 }
-
 
 
 function refreshTabBorders() {
@@ -425,11 +566,19 @@ function rebuildUrlBar(panels) {
         tabWrapper.setAttribute("draggable", "true");
         tabWrapper.style.cursor = "grab";
 
+
+        // ====== CHERCHEZ CE BLOC DANS LA FONCTION rebuildUrlBar ======
         if (activePanel && panel.id === activePanel) {
             tabWrapper.style.borderColor = "#3b82f6";
-            tabWrapper.style.background = "#203a5d";
+            // MODIFICATION ICI : On utilise des classes ou des variables CSS plutôt qu'un fond sombre forcé
+            tabWrapper.style.background = darkModeEnabled ? "#203a5d" : "#bfdbfe"; // Bleu foncé si sombre, bleu clair si clair
             tabWrapper.classList.add("panel-is-maximized"); 
+        } else {
+            // Onglets inactifs : s'adaptent au mode choisi
+            tabWrapper.style.background = darkModeEnabled ? "#2d2d30" : "#ffffff";
+            tabWrapper.style.borderColor = darkModeEnabled ? "#3c3c3c" : "#d1d5db";
         }
+
 
         // --- GESTION DU DRAG & DROP ---
         tabWrapper.addEventListener("dragstart", (e) => {
@@ -918,6 +1067,7 @@ function toggleHistorySidebar() {
         renderHistory();
     }
 }
+
 async function renderHistory(historyList) {
     if (!window.api.getHistory) {
         console.error("L'API getHistory n'est pas définie dans preload.js");
@@ -1023,6 +1173,36 @@ document.getElementById("history-button").addEventListener("click", (e) => {
     e.stopPropagation();
     toggleHistorySidebar();
 });
+
+
+async function initThemeFromSystem() {
+    if (window.api && window.api.getInitialTheme) {
+        const isSystemDark = await window.api.getInitialTheme();
+        
+        if (isSystemDark) {
+            darkModeEnabled = true;
+            document.body.classList.add("dark-ui"); // On applique les couleurs sombres
+            if (darkModeBtn) {
+                darkModeBtn.innerText = "☀️";
+                darkModeBtn.title = "Désactiver le mode sombre";
+                darkModeBtn.style.background = "#eab308";
+                darkModeBtn.style.color = "#000000";
+            }
+        } else {
+            darkModeEnabled = false;
+            document.body.classList.remove("dark-ui"); // On reste sur le thème clair par défaut
+            if (darkModeBtn) {
+                darkModeBtn.innerText = "🌙";
+                darkModeBtn.title = "Activer le mode sombre";
+                darkModeBtn.style.background = "#ffffff";
+                darkModeBtn.style.color = "#1f2937";
+                darkModeBtn.style.borderColor = "#d1d5db";
+            }
+        }
+    }
+}
+initThemeFromSystem();
+
 
 
 // Écoute le signal du processus principal pour changer le titre de la fenêtre
