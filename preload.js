@@ -82,6 +82,8 @@ contextBridge.exposeInMainWorld(
             ipcRenderer.send("cancel-download", panelId);
         },
 
+        closePanel: (panelId) => ipcRenderer.send("close-panel", panelId),
+
         // À insérer juste avant la fin de contextBridge.exposeInMainWorld('api', { ... })
         onToggleBookmarksBar: (callback) => ipcRenderer.on("toggle-bookmarks-bar", (event, visible) => callback(visible)),
 

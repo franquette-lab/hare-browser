@@ -567,17 +567,6 @@ window.api.onToggleBookmarksBar?.((isVisible) => {
 });
 
 
-
-// === GESTION DU MASQUAGE DE LA BARRE DES FAVORIS ===
-window.api.onToggleBookmarksBar?.((isVisible) => {
-    if (visible) {
-        document.body.classList.remove("bookmarks-hidden");
-    } else {
-        document.body.classList.add("bookmarks-hidden");
-    }
-});
-
-
 // === FONCTIONS GLOBALES POUR LA SYNCHRONISATION DES FAVORIS ===
 
 // 1. Déclaration de la fonction de vérification
