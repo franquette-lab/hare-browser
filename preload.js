@@ -18,9 +18,19 @@ contextBridge.exposeInMainWorld(
 
         refresh: (panelId) => ipcRenderer.invoke("refresh", panelId),
         splitPanel: (panelId, direction) => ipcRenderer.send('split-panel', panelId, direction),
-        closePanel: (panelId) => ipcRenderer.send('close-panel', panelId),
-        undo: () => ipcRenderer.send("undo"),
-        
+
+        // ====== DANS PRELOAD.JS (Vers la ligne 513) ======
+        // ====== DANS PRELOAD.JS -> DANS L'OBJET 'api' ======
+        undo: () => ipcRenderer.send("undo"), // Ligne existante
+
+        // AJOUTEZ CETTE LIGNE :
+        openHistoryWindow: () => ipcRenderer.send("open-history-window"),
+
+        // === AJOUTEZ CES 3 LIGNES ESSENTIELLES ICI ===
+        getHistory: () => ipcRenderer.invoke('get-history'),
+        clearHistory: () => ipcRenderer.invoke('clear-history'),
+        onHistoryUpdated: (callback) => ipcRenderer.on('history-updated', (event, data) => callback(data)),
+       
         // À ajouter dans l'objet 'api' de preload.js :
         onZoomChanged: (callback) => {
             ipcRenderer.on("zoom-changed", (event, maximizedPanelId) => callback(maximizedPanelId));
@@ -92,8 +102,7 @@ contextBridge.exposeInMainWorld(
         },
 
         // À insérer juste avant la fin de contextBridge.exposeInMainWorld('api', { ... })
-        onTitleChanged: (callback) => ipcRenderer.on("app-title-changed", (event, title) => callback(title))
-
+        onTitleChanged: (callback) => ipcRenderer.on("app-title-changed", (event, title) => callback(title)),
 
     }
 );

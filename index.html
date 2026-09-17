@@ -28,6 +28,7 @@ html, body {
     display: none;
 }
 
+/* ====== DANS INDEX.HTML -> CHERCHEZ #toolbar-buttons ====== */
 #toolbar-buttons {
     height: 38px;
     width: 100%;
@@ -38,8 +39,10 @@ html, body {
     border-bottom: 1px solid #3c3c3c;
     padding: 4px 8px;
     box-sizing: border-box;
+    z-index: 99999 !important; /* Augmenté pour passer au-dessus de tout */
 }
 
+/* ====== DANS INDEX.HTML -> CHERCHEZ #url-bar (Vers la ligne 36) ====== */
 #url-bar {
     height: 36px;
     width: 100%;
@@ -50,8 +53,11 @@ html, body {
     gap: 8px;
     padding: 0 8px;
     align-items: center;
-    top: 35px;
+    position: fixed; /* Assurez-vous qu'il y a position: fixed */
+    top: 38px;       /* CORRECTION : Remplacer 35px par 38px pour libérer la barre du haut */
+    z-index: 50;
 }
+
 
 /* S'assurer que le conteneur de l'onglet aligne l'input et la croix horizontalement */
 #url-bar > div {
@@ -61,6 +67,51 @@ html, body {
     align-items: center;
     justify-content: space-between;
 }
+
+
+/* Style du panneau d'historique latéral */
+#history-sidebar {
+    position: fixed;
+    top: 105px; /* Aligné sous votre barre de favoris */
+    right: -320px; /* Caché par défaut à droite */
+    width: 300px;
+    bottom: 0;
+    background: #1e1e1e;
+    border-left: 1px solid #3c3c3c;
+    box-shadow: -4px 0 10px rgba(0,0,0,0.5);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    transition: right 0.3s ease;
+    padding: 12px;
+    box-sizing: border-box;
+}
+
+#history-sidebar.open {
+    right: 0; /* S'ouvre en glissant */
+}
+
+#history-list-container {
+    flex: 1;
+    overflow-y: auto;
+    margin-top: 10px;
+}
+
+.history-item {
+    padding: 6px 8px;
+    border-bottom: 1px solid #2d2d30;
+    cursor: pointer;
+    font-size: 11px;
+    color: #cfcfcf;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.history-item:hover {
+    background: #2d2d30;
+    color: #ffffff;
+}
+
 
 /* Jauge ultra-visible avec dégradé vif et lueur */
 .download-progress-bar {
@@ -215,19 +266,31 @@ body.bookmarks-hidden #bookmarks-bar {
 <body class="m-0 flex items-center justify-center bg-gray-100 dark:bg-zinc-900 min-h-screen">
 
 
+<!-- ====== DANS INDEX.HTML -> BARRE D'OUTILS SÉCURISÉE AVEC ICÔNES COMPATIBLES ====== -->
 <div id="toolbar-buttons" class="fixed top-0 left-0 right-0 z-50">
-    <button id="back-button" title="Revenir" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c;">←</button>
-    <button id="forward-button" title="Avancer" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c;">→</button>
-    <button id="refresh-button" title="Actualiser" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c;">↻</button>
-    <button id="split-vertical" title="Scinder à droite" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c;">◫</button>
-    <button id="split-horizontal" title="Scinder vers le bas" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c;">◩</button>
-    <button id="undo" title="Rouvrir le dernier panneau fermé" disabled style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c;">↶</button>
-    <button id="close-panel" title="Fermer le panneau actif" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c;">✕</button>
+    <button id="back-button" title="Revenir" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#9664;</button>
+    <button id="forward-button" title="Avancer" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#9654;</button>
+    <button id="refresh-button" title="Actualiser" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:14px; cursor:pointer;">&#8635;</button>
+    
+    <!-- L'attribut onclick appelle directement notre nouveau pont preload de manière brute -->
+    <button id="history-button" title="Historique (Ctrl+H)" onclick="window.api.openHistoryWindow()" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer; position:relative; z-index:999999 !important;">H</button>
+
+    <!-- Scindage vertical : Deux barres verticales simples -->
+    <button id="split-vertical" title="Scinder à droite (Ctrl+T)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; font-weight:bold; cursor:pointer;">|</button>
+    
+    <!-- Scindage horizontal : Une barre horizontale simple -->
+    <button id="split-horizontal" title="Scinder vers le bas (Ctrl+H)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; font-weight:bold; cursor:pointer;">&mdash;</button>
+    
+    <!-- Bouton Undo d'annulation -->
+    <button id="undo" title="Rouvrir le dernier panneau fermé (Ctrl+Z)" disabled style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#10554;</button>
+    
+    <button id="close-panel" title="Fermer le panneau actif (Ctrl+W)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; cursor:pointer;">X</button>
 </div>
+
+
 
 <div id="url-bar" style="position: fixed; top: 38px; left: 0; right: 0; z-index: 50;"></div>
 <div id="active-panel-frame"></div>
-
 
 <!-- === REMPLACER LE CONTENEUR DE LA BARRE DES FAVORIS PAR CELUI-CI === -->
 <div id="bookmarks-bar" style="position: fixed; top: 74px; left: 0; right: 0; z-index: 50;">
@@ -238,15 +301,25 @@ body.bookmarks-hidden #bookmarks-bar {
     <div id="close-bookmarks-bar" title="Masquer la barre des favoris (Ctrl+Shift+B)">✕</div>
 </div>
 
-
-
 <div id="active-panel-frame"></div>
+
+
+<!-- Panneau latéral d'historique -->
+<div id="history-sidebar">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3c3c3c; padding-bottom: 8px;">
+        <span style="color: #ffffff; font-weight: bold; font-size: 13px;">Historique</span>
+        <button id="clear-history-btn" style="background: #991b1b; color: #fca5a5; border: none; font-size: 10px; padding: 2px 6px; border-radius: 4px; cursor: pointer;">Effacer tout</button>
+    </div>
+    <div id="history-list-container"></div>
+</div>
+
 
 <script>
 
 let activePanel = null;
 let currentPanels = []; // Stockage global pour maintenir la liste des panneaux
 let currentMaximizedId = null; // Mémoire globale du mode zoom
+
 
 function refreshTabBorders() {
     const container = document.getElementById("url-bar");
@@ -603,6 +676,8 @@ window.api.onZoomChanged((maximizedPanelId) => {
 });
 
 
+
+
 function updateCloseButtonState() {
     const closeBtn = document.getElementById("close-panel");
     if (!closeBtn) return;
@@ -758,12 +833,134 @@ window.api.onPanelsUpdated((panels, maximizedPanelId) => {
     rebuildBookmarksBar(); // <-- AJOUTÉ ICI pour l'initialisation au démarrage
     updateCloseButtonState();
 
+
+    
+    // ====== À METTRE TOUT EN BAS DE VOTRE SCRIPT DANS INDEX.HTML ======
+    // (Juste au-dessus de la ligne updateCloseButtonState();)
+
+    // 1. On nettoie tout écouteur précédent pour éviter les doublons
+    const historyBtn = document.getElementById("history-button");
+    if (historyBtn) {
+        // On recrée le bouton à la volée pour détruire les anciens écouteurs fantômes
+        const newHistoryBtn = historyBtn.cloneNode(true);
+        historyBtn.parentNode.replaceChild(newHistoryBtn, historyBtn);
+
+        // On lui attribue son action de clic officielle et sécurisée
+        newHistoryBtn.addEventListener("click", (e) => {
+            console.log("--> Clic sur le bouton d'historique détecté !");
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Appelle directement la fonction de bascule du volet
+            toggleHistorySidebar();
+        });
+    }
+
+
+
     setTimeout(() => {
         if (document.activeElement instanceof HTMLInputElement) {
             document.activeElement.blur();
         }
     }, 0);
 });
+
+
+// ====== LOGIQUE DE L'HISTORIQUE DANS INDEX.HTML ======
+
+// ===================================================
+// LOGIQUE DE L'HISTORIQUE CORRIGÉE ET RÉORDONNÉE
+// ===================================================
+
+const historySidebar = document.getElementById("history-sidebar");
+const historyContainer = document.getElementById("history-list-container");
+
+// 1. Fonction pour ouvrir/fermer le volet
+function toggleHistorySidebar() {
+    if (!historySidebar) return;
+    historySidebar.classList.toggle("open");
+
+    if (historySidebar.classList.contains("open")) {
+        renderHistory();
+    }
+}
+
+// 2. Fonction pour reconstruire visuellement la liste
+async function renderHistory(historyList) {
+    // Sécurité si preload n'est pas encore prêt
+    if (!window.api.getHistory) {
+        console.error("L'API getHistory n'est pas définie dans preload.js");
+        return;
+    }
+
+    if (!historyList) {
+        historyList = await window.api.getHistory() || [];
+    }
+    
+    historyContainer.innerHTML = "";
+    
+    if (historyList.length === 0) {
+        historyContainer.innerHTML = '<span style="color: #6b7280; font-size: 11px; padding: 8px; display: block;">Aucun historique disponible.</span>';
+        return;
+    }
+    
+    historyList.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "history-item";
+        div.innerText = item.title || item.url;
+        div.title = `${item.title}\n${item.url}`;
+        
+        div.addEventListener("click", () => {
+            if (activePanel) {
+                window.api.navigate(activePanel, item.url);
+                toggleHistorySidebar(); // Ferme le volet après le clic
+            }
+        });
+        historyContainer.appendChild(div);
+    });
+}
+
+// 3. Écouteur pour le bouton de la barre d'outils
+document.getElementById("history-button").addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleHistorySidebar();
+});
+
+// 4. Écouteur pour le bouton de nettoyage
+document.getElementById("clear-history-btn").addEventListener("click", async () => {
+    if (confirm("Voulez-vous vraiment effacer tout votre historique ?")) {
+        if (window.api.clearHistory) {
+            await window.api.clearHistory();
+        }
+    }
+});
+
+// 5. Écoute les mises à jour en arrière-plan (La variable historySidebar est maintenant bien déclarée avant !)
+window.api.onHistoryUpdated?.((updatedHistory) => {
+    if (historySidebar && historySidebar.classList.contains("open")) {
+        renderHistory(updatedHistory);
+    }
+});
+
+// 6. Gestion du raccourci clavier Ctrl+H depuis l'IHM
+window.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        toggleHistorySidebar();
+    }
+});
+
+
+
+// ====== DANS INDEX.HTML -> DANS LE <script> EN BAS ======
+
+// Ajoutez cette ligne avec vos autres écouteurs de boutons de la barre d'outils
+document.getElementById("history-button").addEventListener("click", (e) => {
+    console.log("Bouton historique cliqué");
+    e.stopPropagation();
+    toggleHistorySidebar();
+});
+
 
 // Écoute le signal du processus principal pour changer le titre de la fenêtre
 window.api.onTitleChanged?.((newTitle) => {

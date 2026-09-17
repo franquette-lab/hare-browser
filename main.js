@@ -20,6 +20,9 @@ const path = require("path");
 
 const splitters = [];
 
+// ====== EN HAUT DE MAIN.JS WITH OTHER IMPORTS ======
+const historyPath = path.join(app.getPath('userData'), 'navigation_history.json');
+
 // Chemin vers le fichier de stockage des favoris
 const favorisPath = path.join(app.getPath('userData'), 'favoris.json');
 
@@ -60,6 +63,53 @@ const SPLITTER_SIZE = 10;
 let leftView, centerView, rightView;
 
 const https = require("https");
+
+
+
+// Fonction pour lire l'historique sur le disque
+function getNavigationHistory() {
+    console.log("getNavigationHistory appelée");
+    try {
+        if (!fs.existsSync(historyPath)) {
+            fs.writeFileSync(historyPath, JSON.stringify([]));
+            return [];
+        }
+        const data = fs.readFileSync(historyPath, 'utf-8');
+        return JSON.parse(data);
+    } catch (e) {
+        console.error("Erreur lecture historique :", e);
+        return [];
+    }
+}
+
+// Fonction pour ajouter une entrée dans l'historique
+function addToHistory(url, title) {
+
+    console.log("addToHistory appelée");
+
+    if (!url || url.startsWith('data:') || url.startsWith('about:')) return;
+    
+    let historyList = getNavigationHistory();
+    
+    // Évite les doublons consécutifs exacts
+    if (historyList.length > 0 && historyList[0].url === url) return;
+
+    historyList.unshift({
+        url,
+        title: title || url,
+        date: new Date().toISOString()
+    });
+
+    // Limite l'historique aux 1000 dernières entrées
+    if (historyList.length > 1000) historyList.pop();
+
+    fs.writeFileSync(historyPath, JSON.stringify(historyList, null, 2));
+    
+    // Optionnel : notifier l'IHM en temps réel si elle est ouverte
+    if (win && !win.isDestroyed()) {
+        win.webContents.send('history-updated', historyList);
+    }
+}
 
 // Fonction pour lire les favoris sur le disque
 function getFavoris() {
@@ -812,8 +862,12 @@ function setupNavigationTracking(panel) {
     panel.view.webContents.on("did-navigate", (event, url, httpResponseCode, httpStatusText) => {
         // Si le code de réponse du serveur indique une erreur (ex: 404 Page introuvable, 503 Service indisponible)
         if (httpResponseCode >= 400) {
+
             console.log(`Erreur HTTP détectée [${httpResponseCode}]: ${httpStatusText}`);
-            
+
+//          const title = panel.view.webContents.getTitle();
+//          addToHistory(url, title);
+            addToHistory(url, panel.view.webContents.getTitle());
             const httpErrorHtml = `
                 <!DOCTYPE html>
                 <html>
@@ -828,6 +882,10 @@ function setupNavigationTracking(panel) {
                 </html>
             `;
             panel.view.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(httpErrorHtml));
+        } else {
+            // === AJOUTEZ CES DEUX LIGNES POUR LES SITES NORMAUX ===
+            const title = panel.view.webContents.getTitle();
+            addToHistory(url, title);
         }
     });
 
@@ -1312,6 +1370,89 @@ ipcMain.on("undo", (event) => {
 });
 
 
+
+
+// ====== À METTRE DANS MAIN.JS (AVEC LES AUTRES ÉCOUTEURS IPCMAIN) ======
+
+let historyWindow = null; // Mémorise la fenêtre pour éviter de l'ouvrir en double
+
+ipcMain.on("open-history-window", () => {
+    // Si la fenêtre est déjà ouverte, on la remet au premier plan
+    if (historyWindow && !historyWindow.isDestroyed()) {
+        historyWindow.focus();
+        return;
+    }
+
+    // Création de la fenêtre d'historique indépendante
+    historyWindow = new BrowserWindow({
+        width: 400,
+        height: 600,
+        title: "Historique de navigation",
+        backgroundColor: "#1e1e1e",
+        autoHideMenuBar: true, // Masque la barre de menu supérieure
+        alwaysOnTop: true,     // Reste au-dessus du navigateur pour être pratique
+        webPreferences: {
+            nodeIntegration: true, // Permet de lire les fichiers facilement
+            contextIsolation: false // Simplifie l'accès aux données pour cette fenêtre dédiée
+        }
+    });
+
+    // On récupère la liste actuelle de l'historique
+    const historyList = getNavigationHistory();
+
+    // Génération d'une page HTML épurée et stylisée à la volée
+    const itemsHtml = historyList.map(item => `
+        <div class="history-item" onclick="require('electron').ipcRenderer.send('history-click', '${item.url}')">
+            <div class="title">${item.title || item.url}</div>
+            <div class="url">${item.url}</div>
+        </div>
+    `).join("");
+
+    const pageHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body { font-family: 'Segoe UI', sans-serif; background: #1e1e1e; color: #cfcfcf; margin: 0; padding: 12px; }
+                h2 { color: white; margin-top: 0; border-bottom: 1px solid #3c3c3c; padding-bottom: 8px; font-size: 16px; }
+                .history-item { padding: 8px; border-bottom: 1px solid #2d2d30; cursor: pointer; transition: background 0.2s; }
+                .history-item:hover { background: #2d2d30; color: white; }
+                .title { font-size: 13px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                .url { font-size: 11px; color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+                #empty { color: #6b7280; font-size: 12px; text-align: center; margin-top: 40px; }
+            </style>
+        </head>
+        <body>
+            <h2>🕒 Historique de navigation</h2>
+            ${historyList.length === 0 ? '<div id="empty">Aucun historique disponible.</div>' : itemsHtml}
+        </body>
+        </html>
+    `;
+
+    historyWindow.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(pageHtml));
+
+    historyWindow.on("closed", () => {
+        historyWindow = null;
+    });
+});
+
+// Écouteur pour charger le site quand on clique sur un lien de l'historique
+ipcMain.on("history-click", (event, url) => {
+    if (activePanel) {
+        const panel = findPanelNode(rootNode, activePanel);
+        if (panel && panel.view) {
+            panel.view.webContents.loadURL(url);
+            // Optionnel : fermer la fenêtre d'historique après le clic
+            if (historyWindow && !historyWindow.isDestroyed()) {
+                historyWindow.close();
+            }
+        }
+    }
+});
+
+
+
 /*
 ipcMain.on("split-panel", (event, panelId, direction) => {
     const node = findPanelNode(rootNode, panelId);
@@ -1710,6 +1851,17 @@ function createWindow() {
                 },
 
 
+                // À mettre dans votre tableau 'template' des menus dans main.js
+                {
+                    label: 'Afficher l\'historique',
+                    accelerator: 'CmdOrCtrl+H',
+                    click: () => {
+                        // Envoie une demande à index.html pour exécuter toggleHistorySidebar()
+                        win.webContents.send('focus-url-bar', activePanel); // astuce pour redonner le focus à l'IHM
+                        win.webContents.executeJavaScript("toggleHistorySidebar()");
+                    }
+                },
+
 
 
                 // === AJOUT : RACCOURCIS D'ACTUALISATION (F5 & CTRL+R) ===
@@ -1754,13 +1906,17 @@ function createWindow() {
     resizeViews();
 
     win.webContents.on('did-finish-load', () => {
-        win.webContents.send("panels-updated", collectPanels(rootNode));
-        
-        // === AJOUT : Envoyer la variable de titre à index.html ===
-        win.webContents.send("app-title-changed", APP_TITLE);
-        win.setTitle(APP_TITLE); // Force l'application initiale
-    });
 
+        const url = win.webContents.getURL();
+        const title = win.webContents.getTitle();
+        addToHistory(url, title);
+
+        win.webContents.send("panels-updated", collectPanels(rootNode));
+
+        win.webContents.send("app-title-changed", APP_TITLE);
+        win.setTitle(APP_TITLE);
+    });
+    
     // Remplacer l'ancien bloc win.on("resize") par celui-ci unique dans createWindow()
     win.removeAllListeners("resize");
     let resizeDebounceTimer = null;
@@ -2209,6 +2365,18 @@ ipcMain.on("set-active-panel-from-handle", (event, panelId) => {
 // Écouteurs IPC pour que l'interface graphique puisse interagir avec les favoris
 ipcMain.handle('get-favoris', () => {
     return getFavoris();
+});
+
+// ====== AVEC LES AUTRES IPCMAIN (EX: SOUS LES ÉCOUTEURS DE FAVORIS) ======
+ipcMain.handle('get-history', () => {
+    return getNavigationHistory();
+});
+
+
+ipcMain.handle('clear-history', () => {
+    fs.writeFileSync(historyPath, JSON.stringify([]));
+    if (win && !win.isDestroyed()) win.webContents.send('history-updated', []);
+    return true;
 });
 
 ipcMain.handle('toggle-favori', (event, { url, title }) => {
