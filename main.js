@@ -399,44 +399,63 @@ function updatePanelHandles() {
             }
         }
 
+
+
+        // Trouvez cette ligne ou équivalent dans la boucle panelsList.forEach((panel) => { ... })
         if (!handleViews[panel.id]) {
             const hView = new BrowserView();
             win.addBrowserView(hView);
             
+            // CORRECTION VISUELLE : On force la détection dynamique du mode maximisé/zoomé ici
+            const isMaximized = (maximizedPanelId === panel.id);
+            const containerClass = isLastRemaining ? 'flex-1-btn' : (isMaximized ? 'flex-3-btns' : '');
+
+
+
+            // ====== DANS MAIN.JS -> FONCTION updatePanelHandles() ======
             hView.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(`
-                <html><head><style>
-                html, body { margin: 0; padding: 0; overflow: hidden !important; width: 100%; height: 100%; background: transparent; }
-                #container {
-                    display: flex; width: 100%; height: 100%;
-                    background: #2d2d30; border: 1px solid #3c3c3c; border-radius: 4px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.3); box-sizing: border-box; overflow: hidden;
-                }
-                .btn {
-                    flex: 1; height: 100%; color: #cfcfcf;
-                    display: flex; align-items: center; justify-content: center;
-                    font-family: sans-serif; font-size: 12px; user-select: none;
-                }
-                #drag-btn { cursor: grab; font-size: 14px; border-right: 1px solid #3c3c3c; }
-                #drag-btn:hover { background: #3f3f46; color: #ffffff; }
-                .action { cursor: pointer; }
-                #zoom-btn:hover { background: #15803d; color: #4ade80; }
-                #fullscreen-btn { border-left: 1px solid #3c3c3c; border-right: 1px solid #3c3c3c; }
-                #fullscreen-btn:hover { background: #1e3a8a; color: #3b82f6; }
-                #close-btn:hover { background: #991b1b; color: #fca5a5; }
+                <html>
+                <head>
+                    <!-- CORRECTION 1 : Déclaration explicite de l'encodage -->
+                    <meta charset="utf-8">
+                    <style>
+                    html, body { margin: 0; padding: 0; overflow: hidden !important; width: 100%; height: 100%; background: transparent; }
+                    #container {
+                        display: flex; width: 100%; height: 100%;
+                        background: #2d2d30; border: 1px solid #3c3c3c; border-radius: 4px;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.3); box-sizing: border-box; overflow: hidden;
+                    }
+                    .btn {
+                        flex: 1; height: 100%; color: #cfcfcf;
+                        display: flex; align-items: center; justify-content: center;
+                        font-family: sans-serif; font-size: 11px; user-select: none;
+                    }
+                    #drag-btn { cursor: grab; font-size: 13px; border-right: 1px solid #3c3c3c; }
+                    #drag-btn:hover { background: #3f3f46; color: #ffffff; }
+                    .action { cursor: pointer; }
+                    #zoom-btn:hover { background: #15803d; color: #4ade80; }
+                    #fullscreen-btn { border-left: 1px solid #3c3c3c; border-right: 1px solid #3c3c3c; }
+                    #fullscreen-btn:hover { background: #1e3a8a; color: #3b82f6; }
+                    #close-btn:hover { background: #991b1b; color: #fca5a5; }
+                    
+                    .flex-3-btns #drag-btn { display: none !important; }
+                    .flex-3-btns #zoom-btn { background: #15803d; color: #4ade80; }
+                    .flex-3-btns .action { flex: 1 1 33.33% !important; }
+                    
+                    .flex-1-btn #drag-btn, .flex-1-btn #zoom-btn, .flex-1-btn #fullscreen-btn { display: none !important; }
+                    .flex-1-btn #close-btn { display: flex !important; flex: 1 1 100% !important; border: none !important; border-radius: 4px; }
+                    </style>
+                </head>
+                <body>
                 
-                .hide-drag { display: none !important; }
-                .flex-3-btns .action { flex: 1 1 33.33% !important; }
-                
-                /* Mode épuré panneau unique : suppression radicale des boutons superflus */
-                .flex-1-btn #drag-btn, .flex-1-btn #zoom-btn, .flex-1-btn #fullscreen-btn { display: none !important; }
-                .flex-1-btn #close-btn { display: flex !important; flex: 1 1 100% !important; border: none !important; border-radius: 4px; }
-                </style></head><body>
-                <div id="container" class="${isLastRemaining ? 'flex-1-btn' : (isMaximized ? 'flex-3-btns' : '')}">
-                    <div id="drag-btn" class="btn" title="Glisser pour déplacer">⠿</div>
-                    <div id="zoom-btn" class="btn action" title="Agrandir">🗖</div>
-                    <div id="fullscreen-btn" class="btn action" title="Détacher">↗</div>
-                    <div id="close-btn" class="btn action" title="Fermer">✕</div>
+                <div id="container" class="${containerClass}">
+                    <!-- CORRECTION 2 : Utilisation d'entités HTML sécurisées pour éliminer les points d'interrogation -->
+                    <div id="drag-btn" class="btn" title="Glisser pour déplacer">&#9776;</div>
+                    <div id="zoom-btn" class="btn action" title="${isMaximized ? 'Restaurer la taille' : 'Agrandir'}">${isMaximized ? '&#128471;' : '&#128470;'}</div>
+                    <div id="fullscreen-btn" class="btn action" title="Détacher">&#8599;</div>
+                    <div id="close-btn" class="btn action" title="Fermer">&#10006;</div>
                 </div>
+                
                 <script>
                     let dragging = false;
                     const dragBtn = document.getElementById("drag-btn");
@@ -453,8 +472,11 @@ function updatePanelHandles() {
                     document.getElementById("zoom-btn").addEventListener("click", () => { document.title = "action-toggle-zoom"; });
                     document.getElementById("fullscreen-btn").addEventListener("click", () => { document.title = "action-fullscreen"; });
                     document.getElementById("close-btn").addEventListener("click", () => { document.title = "action-close"; });
-                </script></body></html>
+                </script>
+                </body>
+                </html>
             `));
+
 
             hView.webContents.on("page-title-updated", (event, title) => {
                 event.preventDefault();
