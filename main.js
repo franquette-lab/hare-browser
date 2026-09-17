@@ -1374,67 +1374,124 @@ ipcMain.on("undo", (event) => {
 
 // ====== À METTRE DANS MAIN.JS (AVEC LES AUTRES ÉCOUTEURS IPCMAIN) ======
 
-let historyWindow = null; // Mémorise la fenêtre pour éviter de l'ouvrir en double
+// ====== LOGIQUE DE LA FENÊTRE D'HISTORIQUE CORRIGÉE ======
+let historyWindow = null; 
 
 ipcMain.on("open-history-window", () => {
-    // Si la fenêtre est déjà ouverte, on la remet au premier plan
     if (historyWindow && !historyWindow.isDestroyed()) {
         historyWindow.focus();
         return;
     }
 
-    // Création de la fenêtre d'historique indépendante
     historyWindow = new BrowserWindow({
-        width: 400,
+        width: 450,
         height: 600,
         title: "Historique de navigation",
         backgroundColor: "#1e1e1e",
-        autoHideMenuBar: true, // Masque la barre de menu supérieure
-        alwaysOnTop: true,     // Reste au-dessus du navigateur pour être pratique
+        autoHideMenuBar: true,
+        alwaysOnTop: true,
         webPreferences: {
-            nodeIntegration: true, // Permet de lire les fichiers facilement
-            contextIsolation: false // Simplifie l'accès aux données pour cette fenêtre dédiée
+            nodeIntegration: true, 
+            contextIsolation: false 
         }
     });
 
-    // On récupère la liste actuelle de l'historique
-    const historyList = getNavigationHistory();
+     // Fonction interne pour reconstruire le HTML de la fenêtre d'historique
+    function generateHistoryHtml() {
+        const historyList = getNavigationHistory();
+        
+        // 1. Génération de la liste des éléments
+        const itemsHtml = historyList.map((item, index) => `
+            <div class="history-item">
+                <div class="content" onclick="require('electron').ipcRenderer.send('history-click', '${item.url}')">
+                    <div class="title">${item.title || item.url}</div>
+                    <div class="url">${item.url}</div>
+                </div>
+                <!-- Bouton de suppression unique -->
+                <div class="delete-btn" onclick="require('electron').ipcRenderer.send('delete-single-history', ${index})">✖</div>
+            </div>
+        `).join("");
 
-    // Génération d'une page HTML épurée et stylisée à la volée
-    const itemsHtml = historyList.map(item => `
-        <div class="history-item" onclick="require('electron').ipcRenderer.send('history-click', '${item.url}')">
-            <div class="title">${item.title || item.url}</div>
-            <div class="url">${item.url}</div>
-        </div>
-    `).join("");
+        // 2. Génération dynamique du bouton "Effacer tout" ou vide
+        const clearButtonHtml = historyList.length > 0 
+            ? '<button class="clear-all-btn" onclick="require(\'electron\').ipcRenderer.send(\'clear-all-history\')">Effacer tout</button>' 
+            : '';
 
-    const pageHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <style>
-                body { font-family: 'Segoe UI', sans-serif; background: #1e1e1e; color: #cfcfcf; margin: 0; padding: 12px; }
-                h2 { color: white; margin-top: 0; border-bottom: 1px solid #3c3c3c; padding-bottom: 8px; font-size: 16px; }
-                .history-item { padding: 8px; border-bottom: 1px solid #2d2d30; cursor: pointer; transition: background 0.2s; }
-                .history-item:hover { background: #2d2d30; color: white; }
-                .title { font-size: 13px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-                .url { font-size: 11px; color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
-                #empty { color: #6b7280; font-size: 12px; text-align: center; margin-top: 40px; }
-            </style>
-        </head>
-        <body>
-            <h2>🕒 Historique de navigation</h2>
-            ${historyList.length === 0 ? '<div id="empty">Aucun historique disponible.</div>' : itemsHtml}
-        </body>
-        </html>
-    `;
+        // 3. Génération dynamique du contenu principal (liste ou message vide)
+        const contentHtml = historyList.length === 0 
+            ? '<div id="empty">Aucun historique disponible.</div>' 
+            : itemsHtml;
 
-    historyWindow.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(pageHtml));
+        return `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <style>
+                    body { font-family: 'Segoe UI', sans-serif; background: #1e1e1e; color: #cfcfcf; margin: 0; padding: 12px; }
+                    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3c3c3c; padding-bottom: 8px; margin-bottom: 12px; }
+                    h2 { color: white; margin: 0; font-size: 16px; }
+                    .clear-all-btn { background: #991b1b; color: #fca5a5; border: none; font-size: 11px; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+                    .clear-all-btn:hover { background: #b91c1c; }
+                    .history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #2d2d30; transition: background 0.2s; }
+                    .history-item:hover { background: #2d2d30; }
+                    .content { flex: 1; cursor: pointer; overflow: hidden; }
+                    .title { font-size: 13px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ffffff; }
+                    .url { font-size: 11px; color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+                    .delete-btn { color: #6b7280; cursor: pointer; padding: 4px 8px; font-size: 12px; transition: color 0.2s; }
+                    .delete-btn:hover { color: #ef4444; }
+                    #empty { color: #6b7280; font-size: 12px; text-align: center; margin-top: 40px; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h2>🕒 Historique de navigation</h2>
+                    ${clearButtonHtml}
+                </div>
+                <div id="history-container">
+                    ${contentHtml}
+                </div>
+            </body>
+            </html>
+        `;
+    }
+
+    historyWindow.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(generateHistoryHtml()));
+
+    // Écouteur pour rafraîchir la fenêtre d'historique en temps réel
+    const refreshListener = () => {
+        if (historyWindow && !historyWindow.isDestroyed()) {
+            historyWindow.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(generateHistoryHtml()));
+        }
+    };
+    ipcMain.on('history-data-changed', refreshListener);
 
     historyWindow.on("closed", () => {
+        ipcMain.removeListener('history-data-changed', refreshListener);
         historyWindow = null;
     });
+});
+
+// ====== ENREGISTREMENT DES ACTIONS DE SUPPRESSION (À METTRE À LA SUITE DANS MAIN.JS) ======
+
+// 1. Supprimer un seul élément
+ipcMain.on('delete-single-history', (event, index) => {
+    let historyList = getNavigationHistory();
+    if (index >= 0 && index < historyList.length) {
+        historyList.splice(index, 1);
+        fs.writeFileSync(historyPath, JSON.stringify(historyList, null, 2));
+        
+        // On notifie la fenêtre d'historique et la fenêtre principale pour mettre à jour l'affichage
+        ipcMain.emit('history-data-changed');
+        if (win && !win.isDestroyed()) win.webContents.send('history-updated', historyList);
+    }
+});
+
+// 2. Tout effacer d'un coup
+ipcMain.on('clear-all-history', () => {
+    fs.writeFileSync(historyPath, JSON.stringify([]));
+    ipcMain.emit('history-data-changed');
+    if (win && !win.isDestroyed()) win.webContents.send('history-updated', []);
 });
 
 // Écouteur pour charger le site quand on clique sur un lien de l'historique
@@ -2375,9 +2432,33 @@ ipcMain.handle('get-history', () => {
 
 ipcMain.handle('clear-history', () => {
     fs.writeFileSync(historyPath, JSON.stringify([]));
-    if (win && !win.isDestroyed()) win.webContents.send('history-updated', []);
+    if (win && !win.isDestroyed()) {
+        win.webContents.send('history-updated', []);
+    }
     return true;
 });
+
+// À placer avec vos autres ipcMain.handle (...)
+ipcMain.handle('delete-history-item', async (event, index) => {
+    try {
+        let historyList = getNavigationHistory();
+        if (index >= 0 && index < historyList.length) {
+            historyList.splice(index, 1); // Supprime l'élément ciblé
+            fs.writeFileSync(historyPath, JSON.stringify(historyList, null, 2));
+            
+            // Notifie la fenêtre principale
+            if (win && !win.isDestroyed()) {
+                win.webContents.send('history-updated', historyList);
+            }
+        }
+        return historyList; // Renvoie la liste mise à jour à l'IHM
+    } catch (e) {
+        console.error("Erreur lors de la suppression d'un élément d'historique :", e);
+        return getNavigationHistory();
+    }
+});
+
+
 
 ipcMain.handle('toggle-favori', (event, { url, title }) => {
     let favoris = getFavoris();

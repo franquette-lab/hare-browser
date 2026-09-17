@@ -873,10 +873,7 @@ function toggleHistorySidebar() {
         renderHistory();
     }
 }
-
-// 2. Fonction pour reconstruire visuellement la liste
 async function renderHistory(historyList) {
-    // Sécurité si preload n'est pas encore prêt
     if (!window.api.getHistory) {
         console.error("L'API getHistory n'est pas définie dans preload.js");
         return;
@@ -893,18 +890,48 @@ async function renderHistory(historyList) {
         return;
     }
     
-    historyList.forEach(item => {
+    historyList.forEach((item, index) => {
+        // Conteneur principal de la ligne
         const div = document.createElement("div");
         div.className = "history-item";
-        div.innerText = item.title || item.url;
-        div.title = `${item.title}\n${item.url}`;
+        div.style.display = "flex";
+        div.style.justify = "space-between";
+        div.style.alignItems = "center";
         
-        div.addEventListener("click", () => {
+        // Texte du lien
+        const textSpan = document.createElement("span");
+        textSpan.innerText = item.title || item.url;
+        textSpan.title = `${item.title}\n${item.url}`;
+        textSpan.style.overflow = "hidden";
+        textSpan.style.textOverflow = "ellipsis";
+        textSpan.style.flex = "1";
+        
+        textSpan.addEventListener("click", () => {
             if (activePanel) {
                 window.api.navigate(activePanel, item.url);
-                toggleHistorySidebar(); // Ferme le volet après le clic
+                toggleHistorySidebar();
             }
         });
+        
+        // Bouton de suppression unique
+        const deleteBtn = document.createElement("span");
+        deleteBtn.innerHTML = "&#10006;"; // Code pour l'icône X
+        deleteBtn.style.color = "#ef4444";
+        deleteBtn.style.cursor = "pointer";
+        deleteBtn.style.marginLeft = "8px";
+        deleteBtn.style.padding = "2px 4px";
+        deleteBtn.title = "Supprimer cet élément";
+        
+        deleteBtn.addEventListener("click", async (e) => {
+            e.stopPropagation(); // Évite de déclencher le clic de navigation
+            if (window.api.deleteHistoryItem) {
+                const updated = await window.api.deleteHistoryItem(index);
+                renderHistory(updated);
+            }
+        });
+        
+        div.appendChild(textSpan);
+        div.appendChild(deleteBtn);
         historyContainer.appendChild(div);
     });
 }
@@ -920,9 +947,11 @@ document.getElementById("clear-history-btn").addEventListener("click", async () 
     if (confirm("Voulez-vous vraiment effacer tout votre historique ?")) {
         if (window.api.clearHistory) {
             await window.api.clearHistory();
+            renderHistory([]); // Force le vidage visuel immédiat
         }
     }
 });
+
 
 // 5. Écoute les mises à jour en arrière-plan (La variable historySidebar est maintenant bien déclarée avant !)
 window.api.onHistoryUpdated?.((updatedHistory) => {

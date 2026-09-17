@@ -28,7 +28,13 @@ contextBridge.exposeInMainWorld(
 
         // === AJOUTEZ CES 3 LIGNES ESSENTIELLES ICI ===
         getHistory: () => ipcRenderer.invoke('get-history'),
-        clearHistory: () => ipcRenderer.invoke('clear-history'),
+
+        // À insérer à l'intérieur de contextBridge.exposeInMainWorld('api', { ... })
+        clearHistory: () => ipcRenderer.invoke("clear-history"),
+
+        deleteHistoryItem: (index) => ipcRenderer.invoke("delete-history-item", index),
+
+
         onHistoryUpdated: (callback) => ipcRenderer.on('history-updated', (event, data) => callback(data)),
        
         // À ajouter dans l'objet 'api' de preload.js :
