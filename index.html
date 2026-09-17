@@ -29,6 +29,7 @@ html, body {
 }
 
 /* ====== DANS INDEX.HTML -> CHERCHEZ #toolbar-buttons ====== */
+/* ====== BARRE DE BOUTONS IMMERSIVE AVEC ZONE DE DRAG ACCESSIBLE ====== */
 #toolbar-buttons {
     height: 38px;
     width: 100%;
@@ -39,7 +40,19 @@ html, body {
     border-bottom: 1px solid #3c3c3c;
     padding: 4px 8px;
     box-sizing: border-box;
-    z-index: 99999 !important; /* Augmenté pour passer au-dessus de tout */
+    z-index: 99999 !important;
+    
+    /* Permet de cliquer/glisser sur la barre pour déplacer la fenêtre */
+    -webkit-app-region: drag; 
+    
+    /* Laisse un espace vide de 140px à droite réservé aux boutons système Windows */
+    padding-right: 140px; 
+}
+
+/* Force tous les composants internes de la barre à redevenir cliquables normalement */
+#toolbar-buttons button, 
+#toolbar-buttons div {
+    -webkit-app-region: no-drag;
 }
 
 /* ====== DANS INDEX.HTML -> CHERCHEZ #url-bar (Vers la ligne 36) ====== */
@@ -270,8 +283,13 @@ body.bookmarks-hidden #bookmarks-bar {
 <div id="toolbar-buttons" class="fixed top-0 left-0 right-0 z-50">
     <button id="back-button" title="Revenir" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#9664;</button>
     <button id="forward-button" title="Avancer" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#9654;</button>
+    
     <button id="refresh-button" title="Actualiser" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:14px; cursor:pointer;">&#8635;</button>
     
+    <!-- AJOUT ICI : Le bouton Mode Sombre -->
+    <button id="dark-mode-button" title="Activer le mode sombre" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🌙</button>
+
+
     <!-- L'attribut onclick appelle directement notre nouveau pont preload de manière brute -->
     <button id="history-button" title="Historique (Ctrl+H)" onclick="window.api.openHistoryWindow()" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer; position:relative; z-index:999999 !important;">H</button>
 
@@ -319,6 +337,33 @@ body.bookmarks-hidden #bookmarks-bar {
 let activePanel = null;
 let currentPanels = []; // Stockage global pour maintenir la liste des panneaux
 let currentMaximizedId = null; // Mémoire globale du mode zoom
+
+// === LOGIQUE DE BASCULE DU MODE SOMBRE ===
+let darkModeEnabled = false;
+const darkModeBtn = document.getElementById("dark-mode-button");
+
+if (darkModeBtn) {
+    darkModeBtn.addEventListener("click", () => {
+        darkModeEnabled = !darkModeEnabled;
+        
+        // On envoie l'état à Electron
+        window.api.toggleDarkMode(darkModeEnabled);
+        
+        // On met à jour l'icône et le style du bouton
+        if (darkModeEnabled) {
+            darkModeBtn.innerText = "☀️";
+            darkModeBtn.title = "Désactiver le mode sombre";
+            darkModeBtn.style.background = "#eab308"; // Jaune soleil
+            darkModeBtn.style.color = "#000000";
+        } else {
+            darkModeBtn.innerText = "🌙";
+            darkModeBtn.title = "Activer le mode sombre";
+            darkModeBtn.style.background = "#2d2d30"; // Gris d'origine
+            darkModeBtn.style.color = "#cfcfcf";
+        }
+    });
+}
+
 
 
 function refreshTabBorders() {

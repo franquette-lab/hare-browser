@@ -43,6 +43,10 @@ contextBridge.exposeInMainWorld(
         },
 
 
+        // À insérer à l'intérieur de contextBridge.exposeInMainWorld('api', { ... })
+        toggleDarkMode: (enable) => ipcRenderer.send('toggle-dark-mode-request', enable),
+
+
         onActivePanelChanged: (callback) => {
             ipcRenderer.on("active-panel-changed", (event, panel) => callback(panel));
         },

@@ -68,7 +68,6 @@ const https = require("https");
 
 // Fonction pour lire l'historique sur le disque
 function getNavigationHistory() {
-    console.log("getNavigationHistory appelée");
     try {
         if (!fs.existsSync(historyPath)) {
             fs.writeFileSync(historyPath, JSON.stringify([]));
@@ -84,8 +83,6 @@ function getNavigationHistory() {
 
 // Fonction pour ajouter une entrée dans l'historique
 function addToHistory(url, title) {
-
-    console.log("addToHistory appelée");
 
     if (!url || url.startsWith('data:') || url.startsWith('about:')) return;
     
@@ -354,14 +351,17 @@ function updateActiveBorder(bounds) {
 function updateActiveBorder(bounds) {
     if (!bounds || !win || win.isDestroyed()) return;
 
-    const BORDER_THICKNESS = 2; // Épaisseur fine et élégante
+    const BORDER_THICKNESS = 2;
 
     const borderLayouts = [
         { x: bounds.x, y: bounds.y, width: bounds.width, height: BORDER_THICKNESS }, // TOP
+        // Calque standard au ras du bas du panneau
         { x: bounds.x, y: bounds.y + bounds.height - BORDER_THICKNESS, width: bounds.width, height: BORDER_THICKNESS }, // BOTTOM
         { x: bounds.x, y: bounds.y, width: BORDER_THICKNESS, height: bounds.height }, // LEFT
         { x: bounds.x + bounds.width - BORDER_THICKNESS, y: bounds.y, width: BORDER_THICKNESS, height: bounds.height } // RIGHT
     ];
+
+    
 
     // Création des 4 bordures si elles n'existent pas
     if (borderViews.length === 0) {
@@ -853,7 +853,11 @@ function setupNavigationTracking(panel) {
     if (!panel || !panel.view) return;
 
 
-
+    // === AJOUT : Maintient le mode sombre configuré lors de l'ouverture d'un nouveau lien ===
+    if (typeof panel.view.webContents.setForceDarkModeEnabled === 'function') {
+        panel.view.webContents.setForceDarkModeEnabled(isDarkModeForced);
+    }
+    
     // === AJOUT : GESTION DES ERREURS HTTP (404, 500, etc.) ===
     panel.view.webContents.on("did-redirect-navigation", (event, url, isInPlace, isMainFrame) => {
         // Utile si le serveur redirige vers une page d'erreur spécifique
@@ -1508,6 +1512,68 @@ ipcMain.on("history-click", (event, url) => {
     }
 });
 
+// ====== GESTION DU MODE SOMBRE À LA DEMANDE (VERSION CHROMIUM NATIVE) ======
+// ====== GESTION DU MODE SOMBRE À LA DEMANDE (SESSION IMMERSIVE) ======
+// ====== GESTION DU MODE SOMBRE À LA DEMANDE (AVEC RAFRAÎCHISSEMENT IMPOSÉ) ======
+// ====== GESTION DU MODE SOMBRE À LA DEMANDE (INJECTION AVANCÉE) ======
+let isDarkModeForced = false;
+
+ipcMain.on('toggle-dark-mode-request', (event, enable) => {
+    isDarkModeForced = enable;
+    
+    const { nativeTheme } = require('electron');
+    nativeTheme.themeSource = isDarkModeForced ? 'dark' : 'light';
+
+    const allViews = win.getBrowserViews();
+    allViews.forEach(v => {
+        if (!v.webContents || v.webContents.isDestroyed()) return;
+        const url = v.webContents.getURL();
+        if (url.startsWith('data:text/html') || v.webContents.getUserAgent() === "InternalBorder") return;
+
+        // 1. Tente d'activer le mode natif s'il est supporté
+        if (typeof v.webContents.setForceDarkModeEnabled === 'function') {
+            v.webContents.setForceDarkModeEnabled(isDarkModeForced);
+        }
+
+        // 2. On force la page à se rafraîchir pour exécuter notre script injecté ci-dessous
+        v.webContents.reloadIgnoringCache();
+    });
+});
+
+// Script d'injection magique : s'exécute AVANT que Wikipédia ne calcule ses styles
+app.on('web-contents-created', (event, webContents) => {
+    // On injecte le code dès que le DOM commence à exister
+    webContents.on('dom-ready', () => {
+        if (!isDarkModeForced || !win || win.isDestroyed()) return;
+
+        const url = webContents.getURL();
+        if (url.startsWith('data:text/html')) return;
+
+        // SCRIPT SPÉCIFIQUE WIKIPÉDIA & SITES MODERNES
+        // Il ajoute les classes "mw-theme-client-dark" et force les balises HTML globales
+        const scriptToInject = `
+            (function() {
+                // 1. Force la classe CSS native de Wikipédia pour le mode sombre
+                document.documentElement.classList.add('mw-theme-client-dark');
+                if (document.body) document.body.classList.add('mw-theme-client-dark');
+                
+                // 2. Pour les autres sites (comme Google), on applique un filtre CSS inversé 
+                // mais BEAUCOUP PLUS PROPRE qui cible uniquement les fonds de page sans détruire le reste
+                if (!window.location.hostname.includes('wikipedia.org')) {
+                    const style = document.createElement('style');
+                    style.id = 'hare-dark-fallback';
+                    style.innerHTML = \`
+                        html, body { background-color: #121212 !important; color: #e0e0e0 !important; }
+                        a { color: #8ab4f8 !important; }
+                    \`;
+                    document.head.appendChild(style);
+                }
+            })();
+        `;
+
+        webContents.executeJavaScript(scriptToInject).catch(e => console.error("Erreur injection sombre:", e));
+    });
+});
 
 
 /*
@@ -1624,17 +1690,44 @@ function createDefaultLayout() {
 
 
 function createWindow() {
+
+/*    
     win = new BrowserWindow({
         width: 1600, height: 900,
         minWidth: 1000, minHeight: 700,
-        backgroundColor: "#111827",
-        title: APP_TITLE, // === UTILISE LA VARIABLE ICI ===
+        backgroundColor: "#252526", // <-- Remplacer #111827 par #252526 (fond sombre identique aux barres)
+        title: APP_TITLE,
         webPreferences: {
             preload: path.join(__dirname, "preload.js"),
             contextIsolation: true,
             nodeIntegration: false
         }
     });
+*/
+    win = new BrowserWindow({
+        width: 1600, height: 900,
+        minWidth: 1000, minHeight: 700,
+        backgroundColor: "#252526",
+        title: APP_TITLE,
+        // === CONFIGURATION BARRE IMMERSIVE FRAMELESS ===
+        frame: false,
+        titleBarStyle: 'hidden',
+        titleBarOverlay: {
+            color: '#252526',       // Couleur de fond de la zone des boutons système (identique à votre toolbar)
+            symbolColor: '#cfcfcf', // Couleur des icônes de contrôle (Réduire/Agrandir/Fermer)
+            height: 38              // S'aligne parfaitement sur la hauteur de votre #toolbar-buttons (38px)
+        },
+        webPreferences: {
+            preload: path.join(__dirname, "preload.js"),
+            contextIsolation: true,
+            nodeIntegration: false
+        }
+    });
+
+    // Configure le thème par défaut au démarrage de l'application
+    const { nativeTheme } = require('electron');
+    nativeTheme.themeSource = 'light'; // Démarre en mode clair par défaut
+
 
     win.setMaxListeners(30);
 
@@ -2199,9 +2292,16 @@ function resizeViews() {
         forceRebuildSplitters = false;
     }
 
-    // 2. IMPORTANT : On applique le layout géométrique des panneaux sous la barre d'outils
-    layoutNode(rootNode, 0, TOOLBAR_HEIGHT, width, height - TOOLBAR_HEIGHT);
+    // === CORRECTIF : Réduit la hauteur pour empêcher le débordement en bas ===
+    const HEIGHT_PADDING = 6; 
+    // === CORRECTIF FINAL : Marge de 2px pour remonter le liseré ===
+    // === CORRECTIF FINAL : Marge de 2px pour remonter le liseré ===
+    const BOTTOM_MARGIN = 2;
+    layoutNode(rootNode, 0, TOOLBAR_HEIGHT, width, height - TOOLBAR_HEIGHT - BOTTOM_MARGIN);
 
+
+
+ 
     while (splitterViews.length > splitters.length) {
         const oldSplitter = splitterViews.pop();
         try { win.removeBrowserView(oldSplitter); } catch (e) {}
