@@ -1955,8 +1955,12 @@ function createWindow() {
     ];
 
     const menu = Menu.buildFromTemplate(template);
-    win.setMenu(menu); // Le menu est configuré avec les raccourcis actifs
+    win.setMenu(menu);
     
+    // === CORRECTIF VISUEL TOTAL ===
+    win.setAutoHideMenuBar(true);
+    win.setMenuBarVisibility(false); // Supprime définitivement la ligne vide sous Windows
+
     win.loadFile('index.html');
 
     forceRebuildSplitters = true;
