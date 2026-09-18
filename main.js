@@ -915,18 +915,14 @@ function setupNavigationTracking(panel) {
 
 
 
-    // ... vos écouteurs existants (before-input-event, did-navigate, focus, etc.) ...
-
-    // === AJOUT : GESTION DES ERREURS RÉSEAU ===
     panel.view.webContents.on("did-fail-load", (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
-        // On gère uniquement les erreurs du cadre principal, pas les pubs ou sous-éléments qui plantent
         if (!isMainFrame) return;
 
-        // On ignore les annulations volontaires (ex: quand l'utilisateur clique sur "Annuler" ou change de page vite)
-        if (errorDescription === "ERR_ABORTED") return;
+        // Ignorer TOUTES les formes d'annulations de requêtes (code -3 dans Chromium ou ERR_ABORTED)
+        if (errorDescription === "ERR_ABORTED" || errorCode === -3) return;
 
-        console.log(`Échec de chargement sur la tuile ${panel.id} [${errorCode}]: ${errorDescription} pour l'URL: ${validatedURL}`);
-
+        console.log(`Échec de chargement sur la tuile ${panel.id} [${errorCode}]: ${errorDescription}`);
+    
         // Génération d'une page d'erreur locale ultra-propre et stylisée au design de votre navigateur
         const errorHtml = `
             <!DOCTYPE html>
@@ -1512,9 +1508,6 @@ ipcMain.on("history-click", (event, url) => {
     }
 });
 
-// ====== GESTION DU MODE SOMBRE À LA DEMANDE (VERSION CHROMIUM NATIVE) ======
-// ====== GESTION DU MODE SOMBRE À LA DEMANDE (SESSION IMMERSIVE) ======
-// ====== GESTION DU MODE SOMBRE À LA DEMANDE (AVEC RAFRAÎCHISSEMENT IMPOSÉ) ======
 // ====== GESTION DU MODE SOMBRE À LA DEMANDE (INJECTION AVANCÉE) ======
 let isDarkModeForced = false;
 
@@ -1530,15 +1523,45 @@ ipcMain.on('toggle-dark-mode-request', (event, enable) => {
         const url = v.webContents.getURL();
         if (url.startsWith('data:text/html') || v.webContents.getUserAgent() === "InternalBorder") return;
 
-        // 1. Tente d'activer le mode natif s'il est supporté
+        // 1. Mode natif Chromium (sans rechargement)
         if (typeof v.webContents.setForceDarkModeEnabled === 'function') {
             v.webContents.setForceDarkModeEnabled(isDarkModeForced);
         }
 
-        // 2. On force la page à se rafraîchir pour exécuter notre script injecté ci-dessous
-        v.webContents.reloadIgnoringCache();
+        // 2. Injection à chaud immédiate si la page est déjà chargée
+        if (isDarkModeForced) {
+            const scriptToInject = `
+                (function() {
+                    document.documentElement.classList.add('mw-theme-client-dark');
+                    if (document.body) document.body.classList.add('mw-theme-client-dark');
+                    
+                    if (!window.location.hostname.includes('wikipedia.org') && !document.getElementById('hare-dark-fallback')) {
+                        const style = document.createElement('style');
+                        style.id = 'hare-dark-fallback';
+                        style.innerHTML = \`
+                            html, body { background-color: #121212 !important; color: #e0e0e0 !important; }
+                            a { color: #8ab4f8 !important; }
+                        \`;
+                        document.head.appendChild(style);
+                    }
+                })();
+            `;
+            v.webContents.executeJavaScript(scriptToInject).catch(e => console.error(e));
+        } else {
+            // Si on désactive le mode sombre, on retire nos styles injectés
+            const scriptToRemove = `
+                (function() {
+                    document.documentElement.classList.remove('mw-theme-client-dark');
+                    if (document.body) document.body.classList.remove('mw-theme-client-dark');
+                    const style = document.getElementById('hare-dark-fallback');
+                    if (style) style.remove();
+                })();
+            `;
+            v.webContents.executeJavaScript(scriptToRemove).catch(e => console.error(e));
+        }
     });
 });
+
 
 // Script d'injection magique : s'exécute AVANT que Wikipédia ne calcule ses styles
 app.on('web-contents-created', (event, webContents) => {
@@ -2213,6 +2236,7 @@ function detachPanelToFullscreen(panelId) {
 
     // 3. Maximiser immédiatement la nouvelle fenêtre
     fullscreenWin.maximize();
+
 
     // 4. Décrocher la BrowserView de la fenêtre principale et l'attacher à la nouvelle
     try {
