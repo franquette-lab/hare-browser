@@ -7,15 +7,117 @@
 </head>
 
 <style>
+
+/* Modification du fond de l'application selon le mode */
 html, body {
     margin: 0;
     padding: 0;
     width: 100vw;
     height: 100vh;
     overflow: hidden;
-    background: #252526; /* Fond sombre identique aux barres */
+    background: #f3f4f6; /* Fond clair par défaut (Gray 100) */
     display: flex;
-    flex-direction: column; /* Aligne la barre de boutons puis la barre d'URL */
+    flex-direction: column; 
+    transition: background 0.2s ease;
+}
+
+/* Quand le mode sombre est actif sur l'application */
+html.dark body {
+    background: #252526; 
+}
+
+#toolbar-buttons {
+    height: 38px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: #ffffff; /* Blanc en mode clair */
+    border-bottom: 1px solid #e5e7eb; /* Bordure grise claire */
+    padding: 4px 8px;
+    box-sizing: border-box;
+    z-index: 99999 !important;
+    -webkit-app-region: drag; 
+    padding-right: 140px; 
+    transition: background 0.2s, border-color 0.2s;
+}
+/* Force le fond sombre de la barre supérieure de boutons */
+html.dark #toolbar-buttons, 
+.dark #toolbar-buttons {
+    background: #252526 !important;
+    border-bottom: 1px solid #3c3c3c !important;
+}
+
+#url-bar {
+    height: 36px;
+    width: 100%;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    box-sizing: border-box;
+    display: flex;
+    gap: 8px;
+    padding: 0 8px;
+    align-items: center;
+    position: fixed; 
+    top: 38px;       
+    z-index: 50;
+    transition: background 0.2s, border-color 0.2s;
+}
+/* Force le fond sombre du conteneur de la barre d'adresse */
+html.dark #url-bar, 
+.dark #url-bar {
+    background: #252526 !important;
+    border-bottom: 1px solid #3c3c3c !important;
+}
+
+#bookmarks-bar {
+    height: 28px;
+    width: 100%;
+    background: #f9fafb; /* Gris très clair */
+    border-bottom: 1px solid #e5e7eb;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between; 
+    padding: 0 8px;
+    overflow: hidden;
+    transition: background 0.2s, border-color 0.2s;
+}
+/* Force le fond sombre de la barre de favoris */
+html.dark #bookmarks-bar, 
+.dark #bookmarks-bar {
+    background: #252526 !important;
+    border-bottom: 1px solid #3c3c3c !important;
+}
+/* Style des petits boutons de favoris */
+.bookmark-item {
+    background: #eaeaea;
+    border: 1px solid #d1d5db;
+    color: #374151;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: all 0.2s;
+}
+.bookmark-item:hover {
+    background: #d1d5db;
+    color: #000000;
+}
+html.dark .bookmark-item {
+    background: #2d2d30;
+    border: 1px solid #3c3c3c;
+    color: #cfcfcf;
+}
+html.dark .bookmark-item:hover {
+    background: #3f3f46;
+    color: #ffffff;
+    border-color: #555555;
 }
 
 
@@ -338,29 +440,47 @@ let activePanel = null;
 let currentPanels = []; // Stockage global pour maintenir la liste des panneaux
 let currentMaximizedId = null; // Mémoire globale du mode zoom
 
+// AJOUTEZ CETTE LIGNE ICI POUR QU'ELLE SOIT ACCESSIBLE PARTOUT :
+let applicationDarkMode = false; 
+
+
 // === LOGIQUE DE BASCULE DU MODE SOMBRE ===
 let darkModeEnabled = false;
+
+
+// === LOGIQUE DE BASCULE DU MODE SOMBRE ===
 const darkModeBtn = document.getElementById("dark-mode-button");
 
 if (darkModeBtn) {
     darkModeBtn.addEventListener("click", () => {
-        darkModeEnabled = !darkModeEnabled;
+        // Met à jour la variable globale
+        applicationDarkMode = !applicationDarkMode; 
         
-        // On envoie l'état à Electron
-        window.api.toggleDarkMode(darkModeEnabled);
+        // Envoie l'état à Electron pour les pages web (votre code)
+        window.api.toggleDarkMode(applicationDarkMode);
         
-        // On met à jour l'icône et le style du bouton
-        if (darkModeEnabled) {
+        // Met à jour la classe CSS globale sur la page index.html
+        if (applicationDarkMode) {
+            document.documentElement.classList.add('dark');
+            document.body.classList.add('dark'); // Sécurité pour Tailwind
+            
             darkModeBtn.innerText = "☀️";
             darkModeBtn.title = "Désactiver le mode sombre";
-            darkModeBtn.style.background = "#eab308"; // Jaune soleil
+            darkModeBtn.style.background = "#eab308"; 
             darkModeBtn.style.color = "#000000";
         } else {
+            document.documentElement.classList.remove('dark');
+            document.body.classList.remove('dark');
+            
             darkModeBtn.innerText = "🌙";
             darkModeBtn.title = "Activer le mode sombre";
-            darkModeBtn.style.background = "#2d2d30"; // Gris d'origine
+            darkModeBtn.style.background = "#2d2d30"; 
             darkModeBtn.style.color = "#cfcfcf";
         }
+        
+        // Force la reconstruction immédiate des deux barres avec le nouvel état
+        rebuildUrlBar(currentPanels);
+        if (typeof rebuildBookmarksBar === 'function') rebuildBookmarksBar();
     });
 }
 
@@ -370,6 +490,7 @@ function refreshTabBorders() {
     const container = document.getElementById("url-bar");
     if (!container) return;
 
+    const isDark = document.documentElement.classList.contains('dark');
     const tabs = container.children;
     for (let i = 0; i < tabs.length; i++) {
         const tabWrapper = tabs[i];
@@ -380,13 +501,15 @@ function refreshTabBorders() {
 
         if (activePanel && panelId === activePanel) {
             tabWrapper.style.borderColor = "#3b82f6";
-            tabWrapper.style.background = "#203a5d";
+            tabWrapper.style.background = isDark ? "#203a5d" : "#dbeafe";
         } else {
-            tabWrapper.style.borderColor = "#3c3c3c";
-            tabWrapper.style.background = "#2d2d30";
+            tabWrapper.style.borderColor = isDark ? "#3c3c3c" : "#d1d5db";
+            tabWrapper.style.background = isDark ? "#2d2d30" : "#f3f4f6";
         }
     }
 }
+
+
 function getDisplayUrl(url) {
     try {
         return "🔒 " + new URL(url).hostname.replace(/^www\./, "");
@@ -406,20 +529,31 @@ function attachUrlHandler(panelId) {
     });
 }
 
+
+
 function rebuildUrlBar(panels) {
     const container = document.getElementById("url-bar");
     if (!container) return;
+    
+    // CORRECTION : On utilise la variable globale infaillible
+    const isDark = applicationDarkMode; 
     
     container.innerHTML = "";
     container.style.display = "flex";
     container.style.gap = "8px";
     container.style.alignItems = "center";
 
+
+
+
     panels.forEach((panel) => {
         const tabWrapper = document.createElement("div");
         tabWrapper.className = "flex items-center gap-2 p-1 rounded";
-        tabWrapper.style.background = "#2d2d30";
-        tabWrapper.style.border = "1px solid #3c3c3c";
+        
+        // CORRECTION : Arrière-plan et bordures dynamiques pour l'onglet
+        tabWrapper.style.background = isDark ? "#2d2d30" : "#f3f4f6";
+        tabWrapper.style.border = isDark ? "1px solid #3c3c3c" : "1px solid #d1d5db";
+        
         tabWrapper.style.flex = "1";
         tabWrapper.style.minWidth = "0";
         tabWrapper.setAttribute("draggable", "true");
@@ -427,7 +561,8 @@ function rebuildUrlBar(panels) {
 
         if (activePanel && panel.id === activePanel) {
             tabWrapper.style.borderColor = "#3b82f6";
-            tabWrapper.style.background = "#203a5d";
+            // Bleu foncé en mode sombre, bleu clair en mode clair
+            tabWrapper.style.background = isDark ? "#203a5d" : "#dbeafe"; 
             tabWrapper.classList.add("panel-is-maximized"); 
         }
 
@@ -453,6 +588,7 @@ function rebuildUrlBar(panels) {
             tabWrapper.style.borderColor = (activePanel && panel.id === activePanel) ? "#3b82f6" : "#3c3c3c";
         });
 
+        // ... (Haut de la fonction rebuildUrlBar)
         tabWrapper.addEventListener("drop", (e) => {
             e.preventDefault();
             const draggedPanelId = e.dataTransfer.getData("text/plain");
@@ -462,21 +598,25 @@ function rebuildUrlBar(panels) {
             refreshTabBorders();
         });
 
-        // --- CRÉATION DE L'INPUT D'URL ---
+        // ======================================================================
+        // C'EST ICI QU'IL FAUT REMPLACER LE CODE EXISTANT (autour de la ligne 285)
+        // ======================================================================
         const input = document.createElement("input");
         input.type = "text";
         input.id = panel.id + "-url";
         input.className = "h-6 px-1 rounded";
         input.style.background = "transparent";
-        input.style.color = "#d4d4d4";
+        input.style.color = isDark ? "#d4d4d4" : "#1f2937"; // <-- Remplacé ici pour le mode clair
         input.style.border = "none";
         input.style.outline = "none";
         input.style.width = "100%";
         input.style.fontSize = "12px";
         input.dataset.url = panel.realUrl || panel.url || "";
         input.value = getDisplayUrl(input.dataset.url);
+        // ======================================================================
 
         input.addEventListener("mousedown", () => tabWrapper.setAttribute("draggable", "false"));
+
         window.addEventListener("mouseup", () => tabWrapper.setAttribute("draggable", "true"));
 
         input.addEventListener("click", (e) => {
@@ -487,6 +627,8 @@ function rebuildUrlBar(panels) {
         input.addEventListener("focus", () => {
             window.api.setActivePanel(panel.id);
             input.value = input.dataset.url;
+            // Optionnel : force le texte en clair/sombre pendant la saisie
+            input.style.color = isDark ? "#ffffff" : "#1f2937"; 
             setTimeout(() => {
                 input.setSelectionRange(0, input.value.length);
             }, 10);
@@ -494,15 +636,9 @@ function rebuildUrlBar(panels) {
 
         input.addEventListener("blur", () => {
             input.value = getDisplayUrl(input.dataset.url);
+            // CORRECTION : Rétablir la couleur du texte selon le mode
+            input.style.color = isDark ? "#d4d4d4" : "#1f2937"; 
         });
-
-
-
-
-
-
-
-
 
 
 
