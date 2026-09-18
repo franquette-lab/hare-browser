@@ -487,6 +487,17 @@ html.dark #toolbar-buttons #close-panel:hover,
     color: #ffffff !important;
 }
 
+/* Mode clair par défaut pour le conteneur HTML global */
+#toolbar-buttons {
+    background: #ffffff !important;
+}
+
+/* Mode sombre uniquement si la classe .dark est présente */
+html.dark #toolbar-buttons,
+.dark #toolbar-buttons {
+    background: #252526 !important;
+}
+
 
 </style>
 

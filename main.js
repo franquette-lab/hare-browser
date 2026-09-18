@@ -1517,38 +1517,40 @@ ipcMain.on('toggle-dark-mode-request', (event, enable) => {
     const { nativeTheme } = require('electron');
     nativeTheme.themeSource = isDarkModeForced ? 'dark' : 'light';
 
+    // --- CORRECTION DE LA COULEUR DE FOND DE LA BARRE APPLICATIVE ---
+    if (win && typeof win.setTitleBarOverlay === 'function') {
+        win.setTitleBarOverlay({
+            color: isDarkModeForced ? '#252526' : '#ffffff',       // Fond sombre ou fond blanc pur
+            symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937', // Icônes Windows claires ou sombres
+            height: 38
+        });
+    }
+
     const allViews = win.getBrowserViews();
     allViews.forEach(v => {
         if (!v.webContents || v.webContents.isDestroyed()) return;
         const url = v.webContents.getURL();
         if (url.startsWith('data:text/html') || v.webContents.getUserAgent() === "InternalBorder") return;
 
-        // 1. Mode natif Chromium (sans rechargement)
         if (typeof v.webContents.setForceDarkModeEnabled === 'function') {
             v.webContents.setForceDarkModeEnabled(isDarkModeForced);
         }
 
-        // 2. Injection à chaud immédiate si la page est déjà chargée
         if (isDarkModeForced) {
             const scriptToInject = `
                 (function() {
                     document.documentElement.classList.add('mw-theme-client-dark');
                     if (document.body) document.body.classList.add('mw-theme-client-dark');
-                    
                     if (!window.location.hostname.includes('wikipedia.org') && !document.getElementById('hare-dark-fallback')) {
                         const style = document.createElement('style');
                         style.id = 'hare-dark-fallback';
-                        style.innerHTML = \`
-                            html, body { background-color: #121212 !important; color: #e0e0e0 !important; }
-                            a { color: #8ab4f8 !important; }
-                        \`;
+                        style.innerHTML = \`html, body { background-color: #121212 !important; color: #e0e0e0 !important; } a { color: #8ab4f8 !important; }\`;
                         document.head.appendChild(style);
                     }
                 })();
             `;
             v.webContents.executeJavaScript(scriptToInject).catch(e => console.error(e));
         } else {
-            // Si on désactive le mode sombre, on retire nos styles injectés
             const scriptToRemove = `
                 (function() {
                     document.documentElement.classList.remove('mw-theme-client-dark');
@@ -1561,7 +1563,6 @@ ipcMain.on('toggle-dark-mode-request', (event, enable) => {
         }
     });
 });
-
 
 // Script d'injection magique : s'exécute AVANT que Wikipédia ne calcule ses styles
 app.on('web-contents-created', (event, webContents) => {
