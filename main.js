@@ -1,19 +1,16 @@
 // ---------------- //
 // SCRIPT : main.js //
 // ---------------- //
-// === AJOUT DE MENU ICI POUR CORRIGER L'ERREUR UNIVERSELLEMENT ===
 const {
     app,
     BrowserWindow,
     BrowserView,
     ipcMain,
-    Menu, // <-- AJOUTEZ CETTE LIGNE
     nativeImage,
     dialog,
-    globalShortcut,
-    shell
+    globalShortcut, // <-- AJOUTEZ globalShortcut ICI
+    shell           // <-- AJOUTEZ shell ICI pour gérer les fichiers et dossiers
 } = require('electron');
-
 
 // En haut de main.js avec vos autres variables globales
 const APP_TITLE = "Hare Browser"; 
@@ -414,21 +411,22 @@ function updatePanelHandles() {
         }
     });
 
-    // Compter le nombre exact de vues de navigation réelles attachées
+    // === CORRECTIF ABSOLU ===
+    // On compte le nombre exact de vues web de navigation attachées à la fenêtre principale.
+    // On exclut les liserés bleus ("InternalBorder"), les splitters et les autres poignées.
     const allViews = win.getBrowserViews();
     const realWebViews = allViews.filter(v => {
         if (!v.webContents || v.webContents.isDestroyed()) return false;
         const ua = v.webContents.getUserAgent();
         const url = v.webContents.getURL();
+        // On élimine les vues internes du navigateur (liserés, data:text/html des boutons/splitters)
         return ua !== "InternalBorder" && !url.startsWith("data:text/html");
     });
 
     const isLastRemaining = (realWebViews.length === 1);
-    const isDark = isDarkModeForced; 
 
     // 2. Mettre à jour ou créer la poignée pour chaque panneau
     panelsList.forEach((panel) => {
-        if (!panel) return; // Sécurité anti-crash
 
         if (maximizedPanelId && panel.id !== maximizedPanelId) {
             if (handleViews[panel.id]) {
@@ -437,70 +435,56 @@ function updatePanelHandles() {
             return; 
         }
 
-        // === PROTECTION CRUCIALE : Fallback géométrique si panel.bounds n'est pas encore défini ===
-        const panelBounds = panel.bounds || { x: 0, y: TOOLBAR_HEIGHT, width: 100, height: 100 };
+        if (!panel.bounds) return;
 
         const isMaximized = (maximizedPanelId === panel.id);
         const expectedWidth = isLastRemaining ? 24 : (isMaximized ? 60 : 80);
 
+        // Si la taille attendue change, destruction immédiate pour forcer Chromium à recharger le DOM HTML
         if (handleViews[panel.id]) {
             const currentBounds = handleViews[panel.id].getBounds();
-            // Vérification sécurisée des dimensions existantes
-            if (currentBounds && currentBounds.width !== expectedWidth) {
+            if (currentBounds.width !== expectedWidth) {
                 try { win.removeBrowserView(handleViews[panel.id]); } catch(e) {}
                 delete handleViews[panel.id];
             }
         }
 
+
+
+        // Trouvez cette ligne ou équivalent dans la boucle panelsList.forEach((panel) => { ... })
         if (!handleViews[panel.id]) {
             const hView = new BrowserView();
             win.addBrowserView(hView);
             
-            // Forcer les paramètres graphiques d'invisibilité natifs d'Electron
-            hView.setBackgroundColor('#00000000');
-            hView.webContents.setIgnoreMenuShortcuts(true);
-            
+            // CORRECTION VISUELLE : On force la détection dynamique du mode maximisé/zoomé ici
+            const isMaximized = (maximizedPanelId === panel.id);
             const containerClass = isLastRemaining ? 'flex-1-btn' : (isMaximized ? 'flex-3-btns' : '');
 
-            const iconDrag = "☰";
-            const iconZoom = isMaximized ? "🗗" : "🗖";
-            const iconDetach = "↗";
-            const iconClose = "✖";
 
-            // À l'intérieur de updatePanelHandles() dans main.js, modifiez l'injection HTML :
-            const isDark = isDarkModeForced; // Détecte si le mode sombre global est actif
 
+            // ====== DANS MAIN.JS -> FONCTION updatePanelHandles() ======
             hView.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(`
                 <html>
                 <head>
+                    <!-- CORRECTION 1 : Déclaration explicite de l'encodage -->
                     <meta charset="utf-8">
                     <style>
                     html, body { margin: 0; padding: 0; overflow: hidden !important; width: 100%; height: 100%; background: transparent; }
-                    
-                    /* DYNAMISATION COULEURS FOND ET BORDURES */
                     #container {
                         display: flex; width: 100%; height: 100%;
-                        background: ${isDark ? '#2d2d30' : '#ffffff'}; 
-                        border: 1px solid ${isDark ? '#3c3c3c' : '#d1d5db'}; 
-                        border-radius: 4px;
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.15); box-sizing: border-box; overflow: hidden;
+                        background: #2d2d30; border: 1px solid #3c3c3c; border-radius: 4px;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.3); box-sizing: border-box; overflow: hidden;
                     }
-                    
-                    /* DYNAMISATION TEXTE / ICÔNES */
                     .btn {
-                        flex: 1; height: 100%; 
-                        color: ${isDark ? '#cfcfcf' : '#1f2937'};
+                        flex: 1; height: 100%; color: #cfcfcf;
                         display: flex; align-items: center; justify-content: center;
                         font-family: sans-serif; font-size: 11px; user-select: none;
                     }
-                    
-                    #drag-btn { cursor: grab; font-size: 13px; border-right: 1px solid ${isDark ? '#3c3c3c' : '#e5e7eb'}; }
-                    #drag-btn:hover { background: ${isDark ? '#3f3f46' : '#f3f4f6'}; color: ${isDark ? '#ffffff' : '#000000'}; }
-                    
+                    #drag-btn { cursor: grab; font-size: 13px; border-right: 1px solid #3c3c3c; }
+                    #drag-btn:hover { background: #3f3f46; color: #ffffff; }
                     .action { cursor: pointer; }
                     #zoom-btn:hover { background: #15803d; color: #4ade80; }
-                    
-                    #fullscreen-btn { border-left: 1px solid ${isDark ? '#3c3c3c' : '#e5e7eb'}; border-right: 1px solid ${isDark ? '#3c3c3c' : '#e5e7eb'}; }
+                    #fullscreen-btn { border-left: 1px solid #3c3c3c; border-right: 1px solid #3c3c3c; }
                     #fullscreen-btn:hover { background: #1e3a8a; color: #3b82f6; }
                     #close-btn:hover { background: #991b1b; color: #fca5a5; }
                     
@@ -515,6 +499,7 @@ function updatePanelHandles() {
                 <body>
                 
                 <div id="container" class="${containerClass}">
+                    <!-- CORRECTION 2 : Utilisation d'entités HTML sécurisées pour éliminer les points d'interrogation -->
                     <div id="drag-btn" class="btn" title="Glisser pour déplacer">&#9776;</div>
                     <div id="zoom-btn" class="btn action" title="${isMaximized ? 'Restaurer la taille' : 'Agrandir'}">${isMaximized ? '&#128471;' : '&#128470;'}</div>
                     <div id="fullscreen-btn" class="btn action" title="Détacher">&#8599;</div>
@@ -548,7 +533,7 @@ function updatePanelHandles() {
                 if (title === "drag-start") {
                     activePanel = panel.id;
                     win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
-                    if (panel.bounds) updateActiveBorder(panel.bounds);
+                    updateActiveBorder(panel.bounds);
                     handleDraggedPanelId = panel.id;
                 }
                 if (title === "action-toggle-zoom") {
@@ -565,14 +550,18 @@ function updatePanelHandles() {
                     if (maximizedPanelId === panel.id) maximizedPanelId = null;
                     detachPanelToFullscreen(panel.id);
                 }
+
                 if (title === "action-close") {
                     if (isLastRemaining) {
+                        // S'il ne reste qu'un panneau, cliquer sur la croix ferme proprement l'application
                         app.quit(); 
                     } else {
+                        // S'il y a plusieurs panneaux, on ferme la tuile normalement
                         ipcMain.emit("close-panel", null, panel.id);
                     }
                     return;
                 }
+
                 if (title === "drag-end" && handleDraggedPanelId) {
                     const { screen } = require('electron');
                     const mousePoint = screen.getCursorScreenPoint();
@@ -597,21 +586,21 @@ function updatePanelHandles() {
         }
 
         const handleBounds = {
-            x: panelBounds.x + 6,
-            y: panelBounds.y + 6,
+            x: panel.bounds.x + 6,
+            y: panel.bounds.y + 6,
             width: expectedWidth, 
             height: 24
         };
 
         const currentHandle = handleViews[panel.id];
         if (currentHandle) {
-            try {
-                currentHandle.setBounds(handleBounds);
-                win.setTopBrowserView(currentHandle);
-            } catch(e) {}
+            currentHandle.setBounds(handleBounds);
+            try { win.setTopBrowserView(currentHandle); } catch(e) {}
         }
     });
 }
+
+
 
 
 function findNeighborPanel(activeBounds, direction, panelsList) {
@@ -859,102 +848,16 @@ function updateNavigationButtons() {
     });
 }
 
+
 function setupNavigationTracking(panel) {
     if (!panel || !panel.view) return;
 
-    // === INJECTION CIBLÉE DU MODE SOMBRE SUR LE PANNEAU ACTIF ===
-    panel.view.webContents.on('did-finish-load', () => {
-        if (!isDarkModeForced) return;
 
-        const url = panel.view.webContents.getURL();
-        if (url.startsWith('data:text/html')) return;
-
-        // Force la ré-injection du CSS filter après le rechargement complet de la page
-        panel.view.webContents.insertCSS(`
-            html { 
-                filter: invert(1) hue-rotate(180deg) !important; 
-                background: #121212 !important;
-            }
-            img, video, iframe, canvas, svg, [style*="background-image"], .logo, .avatar { 
-                filter: invert(1) hue-rotate(180deg) !important; 
-            }
-        `, { cssOrigin: 'user' }).then(key => {
-            panel.view.globalDarkStyleKey = key;
-        }).catch(() => {});
-    });
-
-    // === GESTION DES ERREURS HTTP (404, 500, etc.) ===
-    panel.view.webContents.on("did-navigate", (event, url, httpResponseCode, httpStatusText) => {
-        if (httpResponseCode >= 400) {
-            console.log(`Erreur HTTP détectée [${httpResponseCode}]: ${httpStatusText}`);
-            addToHistory(url, panel.view.webContents.getTitle());
-            const httpErrorHtml = `
-                <!DOCTYPE html>
-                <html>
-                <body style="background:#1e1e1e; color:#f3f4f6; font-family:sans-serif; text-align:center; padding-top:100px;">
-                    <div style="font-size:48px;">⚠️</div>
-                    <h1 style="color:#ef4444;">Erreur ${httpResponseCode}</h1>
-                    <p style="color:#9ca3af;">Le serveur a répondu : ${httpStatusText || 'Page introuvable ou indisponible'}</p>
-                    <p style="font-family:monospace; background:#2d2d30; display:inline-block; padding:4px 8px; border-radius:4px; color:#facc15;">${url}</p>
-                    <br><br>
-                    <button style="background:#2563eb; color:white; border:none; padding:10px 20px; border-radius:6px; cursor:pointer;" onclick="window.location.reload()">Actualiser</button>
-                </body>
-                </html>
-            `;
-            panel.view.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(httpErrorHtml));
-        } else {
-            const title = panel.view.webContents.getTitle();
-            addToHistory(url, title);
-        }
-    });
-
-    panel.view.webContents.on("focus", () => {
-        activePanel = panel.id;
-        if (win && !win.isDestroyed()) {
-            win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
-            win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
-        }
-        updateActiveBorder(panel.bounds);
-        win.webContents.send("navigation-state-changed", {
-            panelId: panel.id,
-            canGoBack: panel.view.webContents.navigationHistory.canGoBack(),
-            canGoForward: panel.view.webContents.navigationHistory.canGoForward()
-        });
-    });
-
-    // === GESTION DES ERREURS RÉSEAU ===
-    panel.view.webContents.on("did-fail-load", (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
-        if (!isMainFrame) return;
-        if (errorDescription === "ERR_ABORTED") return;
-
-        const errorHtml = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <style>
-                    body { font-family: 'Segoe UI', sans-serif; background-color: #1e1e1e; color: #f3f4f6; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; padding: 20px; text-align: center; }
-                    .icon { font-size: 48px; margin-bottom: 16px; }
-                    h1 { font-size: 22px; color: #f97316; }
-                    p { font-size: 14px; color: #9ca3af; }
-                    .url { font-family: monospace; background: #2d2d30; padding: 4px 8px; border-radius: 4px; color: #facc15; word-break: break-all; }
-                    .btn-retry { background-color: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
-                </style>
-            </head>
-            <body>
-                <div class="icon">🌐</div>
-                <h1>Impossible d'accéder au site</h1>
-                <p>Une erreur réseau est survenue (<span style="color:#ef4444;">${errorDescription}</span>).</p>
-                <p>Adresse ciblée : <br><span class="url">${validatedURL}</span></p>
-                <button class="btn-retry" onclick="window.location.reload()">Réessayer</button>
-            </body>
-            </html>
-        `;
-        panel.view.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(errorHtml));
-    });
-
-
-
+    // === AJOUT : Maintient le mode sombre configuré lors de l'ouverture d'un nouveau lien ===
+    if (typeof panel.view.webContents.setForceDarkModeEnabled === 'function') {
+        panel.view.webContents.setForceDarkModeEnabled(isDarkModeForced);
+    }
+    
     // === AJOUT : GESTION DES ERREURS HTTP (404, 500, etc.) ===
     panel.view.webContents.on("did-redirect-navigation", (event, url, isInPlace, isMainFrame) => {
         // Utile si le serveur redirige vers une page d'erreur spécifique
@@ -965,6 +868,9 @@ function setupNavigationTracking(panel) {
         if (httpResponseCode >= 400) {
 
             console.log(`Erreur HTTP détectée [${httpResponseCode}]: ${httpStatusText}`);
+
+//          const title = panel.view.webContents.getTitle();
+//          addToHistory(url, title);
             addToHistory(url, panel.view.webContents.getTitle());
             const httpErrorHtml = `
                 <!DOCTYPE html>
@@ -1078,6 +984,44 @@ function setupNavigationTracking(panel) {
     });
 }
 
+
+/*
+function layoutNode(node, x, y, width, height) {
+
+    if (!node || width <= 0 || height <= 0) return;
+
+    if (node.type === "panel") {
+        node.bounds = { x, y, width, height };
+        if (node.view && !node.view.webContents.isDestroyed()) {
+            // Rétablir les dimensions pleines d'origine
+            node.view.setBounds({ x, y, width, height });
+        }
+        return;
+    }
+
+    if (node.direction === "vertical") {
+        const firstWidth = Math.floor(width * node.ratio);
+        splitters.push({
+            node, direction: "vertical",
+            x: x + firstWidth, y,
+            width: SPLITTER_SIZE, height,
+            parentX: x, parentWidth: width
+        });
+        layoutNode(node.first, x, y, firstWidth, height);
+        layoutNode(node.second, x + firstWidth + SPLITTER_SIZE, y, width - firstWidth - SPLITTER_SIZE, height);
+    } else {
+        const firstHeight = Math.floor(height * node.ratio);
+        splitters.push({
+            node, direction: "horizontal",
+            x, y: y + firstHeight,
+            width, height: SPLITTER_SIZE,
+            parentY: y, parentHeight: height
+        });
+        layoutNode(node.first, x, y, width, firstHeight);
+        layoutNode(node.second, x, y + firstHeight, width, height - firstHeight);
+    }
+}
+*/
 
 function layoutNode(node, x, y, width, height) {
     if (!node || width <= 0 || height <= 0) return;
@@ -1568,13 +1512,11 @@ ipcMain.on("history-click", (event, url) => {
     }
 });
 
+// ====== GESTION DU MODE SOMBRE À LA DEMANDE (VERSION CHROMIUM NATIVE) ======
+// ====== GESTION DU MODE SOMBRE À LA DEMANDE (SESSION IMMERSIVE) ======
+// ====== GESTION DU MODE SOMBRE À LA DEMANDE (AVEC RAFRAÎCHISSEMENT IMPOSÉ) ======
 // ====== GESTION DU MODE SOMBRE À LA DEMANDE (INJECTION AVANCÉE) ======
-// ====== GESTION DU MODE SOMBRE UNIVERSEL INTERNE ======
 let isDarkModeForced = false;
-// === AJOUTEZ CETTE LIGNE JUSTE EN DESSOUS ===
-const { nativeTheme } = require('electron');
-isDarkModeForced = nativeTheme.shouldUseDarkColors; // Initialise selon le système
-
 
 ipcMain.on('toggle-dark-mode-request', (event, enable) => {
     isDarkModeForced = enable;
@@ -1582,83 +1524,93 @@ ipcMain.on('toggle-dark-mode-request', (event, enable) => {
     const { nativeTheme } = require('electron');
     nativeTheme.themeSource = isDarkModeForced ? 'dark' : 'light';
 
-    // === DEBUT DU CORRECTIF DE THÈME POUR LES POIGNÉES ===
-    // On détruit proprement toutes les poignées actuelles pour forcer leur reconstruction
-    Object.keys(handleViews).forEach(id => {
-        try {
-            win.removeBrowserView(handleViews[id]);
-        } catch(e) {}
-        delete handleViews[id];
-    });
-    // === FIN DU CORRECTIF ===
-
     const allViews = win.getBrowserViews();
     allViews.forEach(v => {
         if (!v.webContents || v.webContents.isDestroyed()) return;
         const url = v.webContents.getURL();
         if (url.startsWith('data:text/html') || v.webContents.getUserAgent() === "InternalBorder") return;
 
-        if (isDarkModeForced) {
-            if (v.globalDarkStyleKey) {
-                v.webContents.removeInsertedCSS(v.globalDarkStyleKey).catch(() => {});
-            }
-            v.webContents.insertCSS(`
-                html { filter: invert(1) hue-rotate(180deg) !important; background: #121212 !important; }
-                img, video, iframe, canvas, svg, [style*="background-image"], .logo, .avatar { filter: invert(1) hue-rotate(180deg) !important; }
-            `, { cssOrigin: 'user' }).then(key => { v.globalDarkStyleKey = key; }).catch(() => {});
-        } else {
-            if (v.globalDarkStyleKey) {
-                v.webContents.removeInsertedCSS(v.globalDarkStyleKey).catch(() => {});
-                v.globalDarkStyleKey = null;
-            }
-            v.webContents.reloadIgnoringCache();
+        // 1. Tente d'activer le mode natif s'il est supporté
+        if (typeof v.webContents.setForceDarkModeEnabled === 'function') {
+            v.webContents.setForceDarkModeEnabled(isDarkModeForced);
         }
-    });
 
-    // On reconstruit immédiatement les poignées toutes fraîches
-    updatePanelHandles();
+        // 2. On force la page à se rafraîchir pour exécuter notre script injecté ci-dessous
+        v.webContents.reloadIgnoringCache();
+    });
 });
 
-
-/*
 // Script d'injection magique : s'exécute AVANT que Wikipédia ne calcule ses styles
-// === FIX COHÉRENCE : INJECTION DU THÈME SOMBRE APRÈS CHAQUE CHARGEMENT ===
 app.on('web-contents-created', (event, webContents) => {
-    // On écoute la fin du chargement complet de la page
-    webContents.on('did-finish-load', () => {
+    // On injecte le code dès que le DOM commence à exister
+    webContents.on('dom-ready', () => {
         if (!isDarkModeForced || !win || win.isDestroyed()) return;
 
         const url = webContents.getURL();
         if (url.startsWith('data:text/html')) return;
 
-        // Script de forçage absolu pour Wikipédia et les autres sites
+        // SCRIPT SPÉCIFIQUE WIKIPÉDIA & SITES MODERNES
+        // Il ajoute les classes "mw-theme-client-dark" et force les balises HTML globales
         const scriptToInject = `
             (function() {
-                // 1. Force la classe officielle de Wikipédia
+                // 1. Force la classe CSS native de Wikipédia pour le mode sombre
                 document.documentElement.classList.add('mw-theme-client-dark');
                 if (document.body) document.body.classList.add('mw-theme-client-dark');
                 
-                // 2. Fallback pour les autres sites web (Google, etc.)
+                // 2. Pour les autres sites (comme Google), on applique un filtre CSS inversé 
+                // mais BEAUCOUP PLUS PROPRE qui cible uniquement les fonds de page sans détruire le reste
                 if (!window.location.hostname.includes('wikipedia.org')) {
-                    if (!document.getElementById('hare-dark-fallback')) {
-                        const style = document.createElement('style');
-                        style.id = 'hare-dark-fallback';
-                        style.innerHTML = \`
-                            html, body { background-color: #121212 !important; color: #e0e0e0 !important; }
-                            a { color: #8ab4f8 !important; }
-                        \`;
-                        document.head.appendChild(style);
-                    }
+                    const style = document.createElement('style');
+                    style.id = 'hare-dark-fallback';
+                    style.innerHTML = \`
+                        html, body { background-color: #121212 !important; color: #e0e0e0 !important; }
+                        a { color: #8ab4f8 !important; }
+                    \`;
+                    document.head.appendChild(style);
                 }
             })();
         `;
 
-        webContents.executeJavaScript(scriptToInject).catch(() => {});
+        webContents.executeJavaScript(scriptToInject).catch(e => console.error("Erreur injection sombre:", e));
     });
 });
+
+
+/*
+ipcMain.on("split-panel", (event, panelId, direction) => {
+    const node = findPanelNode(rootNode, panelId);
+    const parent = findParentNode(rootNode, panelId);
+
+    const newView = new BrowserView();
+    win.addBrowserView(newView);
+    const defaultUrl = "https://www.bing.com";
+    newView.webContents.loadURL(defaultUrl);
+
+    const newPanelId = "panel" + nextPanelNumber++;
+    const newPanel = new PanelNode(newPanelId, newView, defaultUrl);
+    setupNavigationTracking(newPanel);            
+
+    const newSplit = new SplitNode(direction);
+    newSplit.ratio = 0.5;
+
+    if (!parent) {
+        newSplit.first = node;
+        newSplit.second = newPanel;
+        rootNode = newSplit;
+    } else {
+        if (parent.first === node) parent.first = newSplit;
+        else parent.second = newSplit;
+        newSplit.first = node;
+        newSplit.second = newPanel;
+    }
+
+    saveState();
+    activePanel = newPanelId;
+    forceRebuildSplitters = true;
+    resizeViews();
+    win.webContents.send("panels-updated", collectPanels(rootNode));
+});
 */
-
-
 // CORRECTION : On ajoute bien "direction" dans les arguments reçus
 ipcMain.on("split-panel", (event, panelId, direction) => {
     const node = findPanelNode(rootNode, panelId);
@@ -1732,20 +1684,26 @@ function createDefaultLayout() {
         setupNavigationTracking(panel); // <-- C'est cet appel qui va injecter l'intercepteur de zoom
     });
 
-    // Tout à la fin de votre fonction createDefaultLayout() :
-    collectPanelNodes(rootNode).forEach((panel) => {
-        setupNavigationTracking(panel); 
-    });
 
-    // === AJOUTEZ CETTE LIGNE JUSTE ICI ===
-    updatePanelHandles(); 
 
 }
 
 
 function createWindow() {
-    // === AJOUT : Récupération sécurisée du module nativeTheme pour corriger l'erreur ===
-    const { nativeTheme } = require('electron');
+
+/*    
+    win = new BrowserWindow({
+        width: 1600, height: 900,
+        minWidth: 1000, minHeight: 700,
+        backgroundColor: "#252526", // <-- Remplacer #111827 par #252526 (fond sombre identique aux barres)
+        title: APP_TITLE,
+        webPreferences: {
+            preload: path.join(__dirname, "preload.js"),
+            contextIsolation: true,
+            nodeIntegration: false
+        }
+    });
+*/
     win = new BrowserWindow({
         width: 1600, height: 900,
         minWidth: 1000, minHeight: 700,
@@ -1766,13 +1724,9 @@ function createWindow() {
         }
     });
 
-    nativeTheme.themeSource = 'system'; 
-    if (typeof win.setTitleBarOverlay === 'function') {
-        win.setTitleBarOverlay({
-            color: nativeTheme.shouldUseDarkColors ? '#252526' : '#f3f4f6',
-            symbolColor: nativeTheme.shouldUseDarkColors ? '#cfcfcf' : '#1f2937'
-        });
-    }
+    // Configure le thème par défaut au démarrage de l'application
+    const { nativeTheme } = require('electron');
+    nativeTheme.themeSource = 'light'; // Démarre en mode clair par défaut
 
 
     win.setMaxListeners(30);
@@ -1786,24 +1740,11 @@ function createWindow() {
         console.log("WARNING STACK:", warning.stack);
     });
 
-    // DANS MAIN.JS -> Dans la fonction createWindow(), juste sous createDefaultLayout();
     createDefaultLayout();
 
-    // === AJOUTEZ CE BLOC DE SECURITE AU DEMARRAGE ===
-    app.on('web-contents-created', (event, webContents) => {
-        webContents.on('did-finish-load', () => {
-            // Dès qu'un volet finit de charger, on s'assure que les poignées restent au-dessus
-            if (win && !win.isDestroyed()) {
-                Object.keys(handleViews).forEach(panelId => {
-                    try { win.setTopBrowserView(handleViews[panelId]); } catch(e) {}
-                });
-            }
-        });
-    });
-
+//  win.setMenu(null);
     // Configuration des raccourcis clavier via un menu invisible
-    const { Menu } = require('electron'); // <-- SUPPRIMEZ OU COMMENTEZ CETTE LIGNE (//)
-
+    const { Menu } = require('electron');
     const template = [
         {
             label: 'Navigation',
@@ -2107,7 +2048,6 @@ function createWindow() {
     ];
 
     const menu = Menu.buildFromTemplate(template);
-
     win.setMenu(menu);
     
     // === CORRECTIF VISUEL TOTAL ===
@@ -2119,25 +2059,16 @@ function createWindow() {
     forceRebuildSplitters = true;
     resizeViews();
 
-    // DANS MAIN.JS -> Dans la fonction createWindow(), modifiez ce bloc :
-
-    // DANS MAIN.JS -> Dans la fonction createWindow(), modifiez l'écouteur did-finish-load :
     win.webContents.on('did-finish-load', () => {
+
         const url = win.webContents.getURL();
         const title = win.webContents.getTitle();
         addToHistory(url, title);
 
         win.webContents.send("panels-updated", collectPanels(rootNode));
+
         win.webContents.send("app-title-changed", APP_TITLE);
         win.setTitle(APP_TITLE);
-
-        // === FORCEZ LE PREMIER PLAN ABSOLU ICI AUSSI ===
-        setTimeout(() => {
-            if (win && !win.isDestroyed()) {
-                resizeViews();
-                updatePanelHandles();
-            }
-        }, 100); // Laisse le temps à l'IHM de finir son premier cycle de rafraîchissement
     });
     
     // Remplacer l'ancien bloc win.on("resize") par celui-ci unique dans createWindow()
@@ -2185,7 +2116,7 @@ function createWindow() {
             defaultId: 1, // Met le focus initial sur "Annuler"
             cancelId: 1,  // === ENTRAÎNE QUE L'APPUI SUR ÉCHAP RENVOIE L'INDEX 1 (ANNULER) ===
             title: 'Confirmation',
-            message: `Êtes-vous sûr de vouloir fermer ${APP_TITLE} ?`, // === DYNAMIQUE ICI ===
+            message: 'Êtes-vous sûr de vouloir fermer Tile Browser ?',
             detail: 'Tous vos panneaux et onglets ouverts seront perdus.'
         });
 
@@ -2228,27 +2159,11 @@ function createWindow() {
     win.on('blur', () => {
         globalShortcut.unregister('CommandOrControl+M');
     });
-    // DANS MAIN.JS -> Tout en bas de la fonction createWindow(), remplacez le bloc ready-to-show par celui-ci :
 
 
-    // Écouteur de sécurité pour le rendu géométrique au démarrage
-    win.once('ready-to-show', () => {
-        win.show();
-        forceRebuildSplitters = true;
-        
-        setTimeout(() => {
-            if (win && !win.isDestroyed()) {
-                Object.keys(handleViews).forEach(id => {
-                    try { win.removeBrowserView(handleViews[id]); } catch(e) {}
-                    delete handleViews[id];
-                });
-                resizeViews();
-                updatePanelHandles();
-            }
-        }, 150);
-    });
 
-} // <-- CETTE ACCOLADE FERME STRICTEMENT LA FONCTION "createWindow()"
+
+}
 
 function replaceNode(current, target, replacement) {
     if (!current) return false;
@@ -2260,7 +2175,27 @@ function replaceNode(current, target, replacement) {
     return false;
 }
 
+/*
+function brbringActiveViewToFront() {
+    if (!win || win.isDestroyed() || !activePanel) return;
+    
+    const activeNode = findPanelNode(rootNode, activePanel);
+    if (!activeNode || !activeNode.view) return;
 
+    try {
+        // 1. On s'assure que la bordure est bien présente
+        if (borderView) {
+            win.setTopBrowserView(borderView);
+        }
+        // 2. IMPORTANT : On pousse IMMÉDIATEMENT la véritable vue web au-dessus de la bordure.
+        // Comme la vue web est plus petite de 3 pixels à cause de l'épaisseur de la bordure,
+        // la bordure bleue reste visible sur les contours extérieurs mais la page capte 100% des clics.
+        win.setTopBrowserView(activeNode.view);
+    } catch (err) {
+        console.error("Erreur d'ordonnancement des vues :", err);
+    }
+}
+*/
 function detachPanelToFullscreen(panelId) {
     const node = findPanelNode(rootNode, panelId);
     if (!node || !node.view) return;
@@ -2426,11 +2361,15 @@ function resizeViews() {
             event.preventDefault();
             if (title === "reset-splitter") { splitter.node.ratio = 0.5; resizeViews(); return; }
 
+//          if (title === "drag-end") { win.setTitle("Tile Browser"); dragInProgress = false; return; }
             if (title === "drag-end") { 
                 win.setTitle(APP_TITLE); // === REMPLACEZ "Tile Browser" PAR APP_TITLE ICI ===
                 dragInProgress = false; 
                 return; 
             }
+
+
+
 
             if (title.startsWith("drag-start:")) {
                 dragInProgress = true;
@@ -2456,6 +2395,30 @@ function resizeViews() {
     });
 
     win.webContents.send("splitters-updated", splitters);
+
+
+
+
+    /*
+        // 4. Mettre à jour la position des liserés bleus (Placé tout à la fin de resizeViews)
+        if (activePanel) {
+            const activeNode = findPanelNode(rootNode, activePanel);
+            if (activeNode && activeNode.bounds) {
+                updateActiveBorder(activeNode.bounds);
+                
+                // OPTIMISATION : On remonte également la poignée du panneau actif pour qu'elle reste accessible
+                if (handleViews[activePanel]) {
+                    try { win.setTopBrowserView(handleViews[activePanel]); } catch(e) {}
+                }
+            }
+        } else {
+            borderViews.forEach(bView => {
+                if (bView && !bView.webContents.isDestroyed()) {
+                    bView.setBounds({ x: -100, y: -100, width: 0, height: 0 });
+                }
+            });
+        }
+    */
 
     // 4. Mettre à jour la position des liserés bleus (Placé tout à la fin de resizeViews)
     if (activePanel) {
@@ -2504,21 +2467,6 @@ function resizeViews() {
         });
     }
 
-    // === ASSUREZ-VOUS QUE CE BLOC EST BIEN PRÉSENT TOUT EN BAS DE RESIZEVIEWS ===
-    // Force toutes les poignées actives à remonter au premier plan absolu
-// DANS MAIN.JS -> Tout en bas de la fonction resizeViews(), remplacez par ce bloc propre :
-// DANS MAIN.JS -> Tout en bas de la fonction resizeViews(), remplacez par ce bloc propre :
-Object.keys(handleViews).forEach(panelId => {
-    const handleView = handleViews[panelId];
-    if (handleView && !handleView.webContents.isDestroyed()) {
-        try { 
-            // On vérifie que la vue a des dimensions valides avant de la pousser en haut
-            if (handleView.getBounds()) {
-                win.setTopBrowserView(handleView); 
-            }
-        } catch(e) {}
-    }
-});
 
     // === On force le rafraîchissement des poignées de déplacement ===
     updatePanelHandles();
@@ -2526,8 +2474,6 @@ Object.keys(handleViews).forEach(panelId => {
     
     // === SÉCURITÉ : On renvoie l'état du zoom ici aussi ===
     win.webContents.send("zoom-changed", maximizedPanelId); 
-
-
 }
 
 
@@ -2596,7 +2542,6 @@ ipcMain.handle('clear-history', () => {
     return true;
 });
 
-
 // À placer avec vos autres ipcMain.handle (...)
 ipcMain.handle('delete-history-item', async (event, index) => {
     try {
@@ -2641,14 +2586,6 @@ ipcMain.handle('toggle-favori', (event, { url, title }) => {
 });
 
 
-/*
-ipcMain.handle('get-initial-theme', () => {
-    const { nativeTheme } = require('electron');
-    return nativeTheme.shouldUseDarkColors;
-});
-*/
-
-
 ipcMain.handle("go-back", (event, panelId) => {
     const panel = findPanelNode(rootNode, panelId);
     if (panel && panel.view && panel.view.webContents.navigationHistory.canGoBack()) {
@@ -2670,28 +2607,8 @@ ipcMain.handle("refresh", (event, panelId) => {
     if (panel && panel.view) panel.view.webContents.reload();
 });
 
-// ====== INITIALISATION GÉNÉRALE D'ELECTRON (FIN DE FICHIER) ======
-// Tout à la fin de votre fichier main.js (juste après le ready-to-show corrigé) :
 app.on('will-quit', () => {
-    globalShortcut.unregisterAll();
-});
-
-app.whenReady().then(createWindow);
-
-
-
-ipcMain.handle('get-initial-theme', () => {
-    const { nativeTheme } = require('electron');
-    return nativeTheme.shouldUseDarkColors; // Renvoie true si Windows est en mode sombre, false si en mode clair
-});
-
-
-// Tout à la fin de votre fichier main.js, assurez-vous d'avoir exactement ceci :
-
-// Assurez-vous que cette accolade ferme bien la fonction ou le bloc précédent
-
-// ====== INITIALISATION GÉNÉRALE D'ELECTRON (TOUT EN BAS) ======
-app.on('will-quit', () => {
+    // Désactive absolument tous les raccourcis globaux propres à l'application
     globalShortcut.unregisterAll();
 });
 

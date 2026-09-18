@@ -34,9 +34,6 @@ contextBridge.exposeInMainWorld(
 
         deleteHistoryItem: (index) => ipcRenderer.invoke("delete-history-item", index),
 
-        // À insérer à l'intérieur de contextBridge.exposeInMainWorld('api', { ... })
-        getInitialTheme: () => ipcRenderer.invoke('get-initial-theme'),
-
 
         onHistoryUpdated: (callback) => ipcRenderer.on('history-updated', (event, data) => callback(data)),
        
@@ -118,10 +115,6 @@ contextBridge.exposeInMainWorld(
 
         // À insérer juste avant la fin de contextBridge.exposeInMainWorld('api', { ... })
         onTitleChanged: (callback) => ipcRenderer.on("app-title-changed", (event, title) => callback(title)),
-
-        // À insérer à l'intérieur de contextBridge.exposeInMainWorld('api', { ... })
-        getInitialTheme: () => ipcRenderer.invoke('get-initial-theme')
-        
 
     }
 );
