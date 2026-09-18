@@ -73,8 +73,8 @@ html.dark #url-bar,
 #bookmarks-bar {
     height: 28px;
     width: 100%;
-    background: #f9fafb; /* Gris très clair */
-    border-bottom: 1px solid #e5e7eb;
+    background: #f9fafb !important; /* Fond gris très clair */
+    border-bottom: 1px solid #e5e7eb !important; /* Bordure claire */
     box-sizing: border-box;
     display: flex;
     align-items: center;
@@ -82,13 +82,21 @@ html.dark #url-bar,
     padding: 0 8px;
     overflow: hidden;
     transition: background 0.2s, border-color 0.2s;
+   color: #1f2937 !important;
 }
+
 /* Force le fond sombre de la barre de favoris */
 html.dark #bookmarks-bar, 
 .dark #bookmarks-bar {
-    background: #252526 !important;
+    background: #252526 !important; /* Votre couleur sombre d'origine */
     border-bottom: 1px solid #3c3c3c !important;
 }
+
+html.dark #close-bookmarks-bar,
+.dark #close-bookmarks-bar {
+    color: #6b7280 !important;
+}
+
 /* Style des petits boutons de favoris */
 .bookmark-item {
     background: #eaeaea;
@@ -326,7 +334,7 @@ html.dark .bookmark-item:hover {
 
 /* Style du petit bouton X de fermeture tout à droite */
 #close-bookmarks-bar {
-    color: #6b7280;
+    color: #4b5563 !important;
     font-size: 11px;
     font-weight: bold;
     cursor: pointer;
@@ -337,6 +345,7 @@ html.dark .bookmark-item:hover {
     margin-left: 8px;
     flex-shrink: 0; /* Empêche la croix d'être écrasée */
 }
+
 #close-bookmarks-bar:hover {
     background: #991b1b; /* Devient rouge au survol */
     color: #fca5a5;
@@ -936,18 +945,21 @@ window.api.onDownloadDone((data) => {
 // === FONCTION POUR DESSINER LA BARRE DES FAVORIS ===
 // === FONCTION DE RECONSTRUCTION DE LA BARRE CORRIGÉE ===
 async function rebuildBookmarksBar() {
-    // MODIFICATION : On cible la liste interne et non la barre complète
     const listContainer = document.getElementById("bookmarks-list");
     if (!listContainer) return;
+
+    // Détecter si le mode sombre global est actif
+    const isDark = applicationDarkMode;
 
     const favoris = await window.api.getFavoris?.() || [];
     listContainer.innerHTML = "";
 
     if (favoris.length === 0) {
         const emptyText = document.createElement("span");
-        emptyText.style.color = "#6b7280";
+        // Couleur du texte adaptative si aucun favori
+        emptyText.style.color = isDark ? "#6b7280" : "#9ca3af";
         emptyText.style.fontSize = "11px";
-        emptyText.innerText = "Aucun favori enregistré. Cliquez sur ☆ pour en ajouter.";
+        emptyText.innerText = "Aucun favori enregistré. Cliquez sur l'étoile pour en ajouter.";
         listContainer.appendChild(emptyText);
         return;
     }
@@ -955,8 +967,29 @@ async function rebuildBookmarksBar() {
     favoris.forEach(fav => {
         const btn = document.createElement("div");
         btn.className = "bookmark-item";
-        btn.innerText = "🔖 " + fav.title.replace("🔒 ", "");
+        btn.innerText = "⭐ " + fav.title.replace("⭐ ", "");
         btn.title = fav.url;
+
+        // --- APPLICATION DYNAMIQUE DES COULEURS (CLAIR / SOMBRE) ---
+        if (isDark) {
+            btn.style.background = "#2d2d30";
+            btn.style.borderColor = "#3c3c3c";
+            btn.style.color = "#cfcfcf";
+        } else {
+            btn.style.background = "#ffffff";     // Fond blanc en mode clair
+            btn.style.borderColor = "#d1d5db";    // Bordure grise claire
+            btn.style.color = "#1f2937";          // Texte sombre en mode clair
+        }
+
+        // Gestion du survol (Hover) dynamique en JavaScript
+        btn.addEventListener("mouseenter", () => {
+            btn.style.background = isDark ? "#3f3f46" : "#f3f4f6";
+            btn.style.color = isDark ? "#ffffff" : "#000000";
+        });
+        btn.addEventListener("mouseleave", () => {
+            btn.style.background = isDark ? "#2d2d30" : "#ffffff";
+            btn.style.color = isDark ? "#cfcfcf" : "#1f2937";
+        });
 
         btn.addEventListener("click", () => {
             if (activePanel) {
