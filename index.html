@@ -99,11 +99,12 @@ html.dark #toolbar-buttons,
     border-bottom: 1px solid #3c3c3c !important;
 }
 
+/* ====== CONTENEUR GLOBAL DE LA BARRE D'URL (MODE CLAIR PAR DÉFAUT) ====== */
 #url-bar {
     height: 36px;
     width: 100%;
-    background: #ffffff;
-    border-bottom: 1px solid #e5e7eb;
+    background: #f9fafb !important; /* Gris ultra clair (Gray 50) */
+    border-bottom: 1px solid #e5e7eb !important; /* Bordure claire */
     box-sizing: border-box;
     display: flex;
     gap: 8px;
@@ -114,13 +115,13 @@ html.dark #toolbar-buttons,
     z-index: 50;
     transition: background 0.2s, border-color 0.2s;
 }
-/* Force le fond sombre du conteneur de la barre d'adresse */
-html.dark #url-bar, 
+
+/* Bascule en mode sombre automatique */
+html.dark #url-bar,
 .dark #url-bar {
-    background: #252526 !important;
+    background: #252526 !important; /* Votre couleur sombre d'origine */
     border-bottom: 1px solid #3c3c3c !important;
 }
-
 #bookmarks-bar {
     height: 28px;
     width: 100%;
@@ -585,7 +586,7 @@ if (darkModeBtn) {
         // Met à jour la classe CSS globale sur la page index.html
         if (applicationDarkMode) {
             document.documentElement.classList.add('dark');
-            document.body.classList.add('dark'); // Sécurité pour Tailwind
+            document.body.classList.add('dark');
             
             darkModeBtn.innerText = "☀️";
             darkModeBtn.title = "Désactiver le mode sombre";
@@ -593,17 +594,24 @@ if (darkModeBtn) {
             darkModeBtn.style.color = "#000000";
         } else {
             document.documentElement.classList.remove('dark');
-            document.body.classList.remove('dark');
-            
+            document.body.classList.remove('dark');            
             darkModeBtn.innerText = "🌙";
             darkModeBtn.title = "Activer le mode sombre";
             darkModeBtn.style.background = "#2d2d30"; 
             darkModeBtn.style.color = "#cfcfcf";
         }
         
-        // Force la reconstruction immédiate des deux barres avec le nouvel état
+        // === FORCE LA BARRE D'URL PARENTE À SE RECOLORER IMMÉDIATEMENT ===
+        const urlBarContainer = document.getElementById("url-bar");
+        if (urlBarContainer) {
+            urlBarContainer.style.background = applicationDarkMode ? "#252526" : "#f9fafb";
+            urlBarContainer.style.borderColor = applicationDarkMode ? "#3c3c3c" : "#e5e7eb";
+        }
+
+        // Reconstruction des onglets internes (votre code existant)
         rebuildUrlBar(currentPanels);
         if (typeof rebuildBookmarksBar === 'function') rebuildBookmarksBar();
+
     });
 }
 
