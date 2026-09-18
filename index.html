@@ -41,6 +41,57 @@ html.dark body {
     padding-right: 140px; 
     transition: background 0.2s, border-color 0.2s;
 }
+
+
+/* ====== STYLE DES BOUTONS DE NAVIGATION (MODE CLAIR PAR DÉFAUT) ====== */
+#toolbar-buttons button {
+    background: #f3f4f6 !important; /* Fond gris clair (Gray 100) */
+    color: #1f2937 !important;      /* Icône/Texte anthracite (Gray 800) */
+    border: 1px solid #d1d5db !important; /* Bordure grise claire */
+    border-radius: 4px;
+    font-weight: bold;
+    transition: all 0.2s ease;
+}
+
+/* Effet au survol en mode clair */
+#toolbar-buttons button:hover {
+    background: #e5e7eb !important; /* Gris un peu plus foncé au survol */
+    color: #000000 !important;
+}
+
+/* État désactivé (disabled) en mode clair */
+#toolbar-buttons button:disabled {
+    background: #f9fafb !important;
+    color: #9ca3af !important;     /* Icône grisée */
+    border-color: #e5e7eb !important;
+    opacity: 0.6 !important;
+    cursor: not-allowed !important;
+}
+
+/* ====== RESTAURATION EN MODE SOMBRE AUTO (CLASSE .DARK ACCROCHÉE) ====== */
+html.dark #toolbar-buttons button,
+.dark #toolbar-buttons button {
+    background: #2d2d30 !important; /* Fond sombre d'origine */
+    color: #cfcfcf !important;      /* Texte clair */
+    border: 1px solid #3c3c3c !important;
+}
+
+/* Effet au survol en mode sombre */
+html.dark #toolbar-buttons button:hover,
+.dark #toolbar-buttons button:hover {
+    background: #3f3f46 !important;
+    color: #ffffff !important;
+}
+
+/* État désactivé (disabled) en mode sombre */
+html.dark #toolbar-buttons button:disabled,
+.dark #toolbar-buttons button:disabled {
+    background: #2d2d30 !important;
+    color: #6b7280 !important;      /* Gris très sombre */
+    opacity: 1 !important;
+}
+
+
 /* Force le fond sombre de la barre supérieure de boutons */
 html.dark #toolbar-buttons, 
 .dark #toolbar-buttons {
@@ -382,6 +433,58 @@ html.dark .bookmark-item:hover {
 /* Cache la barre des favoris si la classe de masquage est active */
 body.bookmarks-hidden #bookmarks-bar {
     display: none !important;
+}
+
+
+
+/* ====== FIX CIBLÉ POUR LES BOUTONS UNDO ET CLOSE (MODE CLAIR) ====== */
+#toolbar-buttons #undo,
+#toolbar-buttons #close-panel {
+    background: #f3f4f6 !important;
+    color: #1f2937 !important;
+    border: 1px solid #d1d5db !important;
+    opacity: 1 !important; /* Force la visibilité par rapport au script */
+}
+
+/* Gestion de l'état désactivé du bouton Undo en mode clair */
+#toolbar-buttons #undo:disabled {
+    background: #f9fafb !important;
+    color: #9ca3af !important;
+    border-color: #e5e7eb !important;
+    opacity: 0.5 !important; /* Opacité réduite propre au mode clair */
+    cursor: not-allowed !important;
+}
+
+#toolbar-buttons #undo:hover:not(:disabled),
+#toolbar-buttons #close-panel:hover {
+    background: #e5e7eb !important;
+    color: #000000 !important;
+}
+
+/* ====== SÉCURISATION DU MODE SOMBRE POUR CES DEUX BOUTONS ====== */
+html.dark #toolbar-buttons #undo,
+html.dark #toolbar-buttons #close-panel,
+.dark #toolbar-buttons #undo,
+.dark #toolbar-buttons #close-panel {
+    background: #2d2d30 !important;
+    color: #cfcfcf !important;
+    border: 1px solid #3c3c3c !important;
+    opacity: 1 !important;
+}
+
+html.dark #toolbar-buttons #undo:disabled,
+.dark #toolbar-buttons #undo:disabled {
+    background: #2d2d30 !important;
+    color: #6b7280 !important;
+    opacity: 0.4 !important; /* Rétablit l'opacité sombre d'origine */
+}
+
+html.dark #toolbar-buttons #undo:hover:not(:disabled),
+html.dark #toolbar-buttons #close-panel:hover,
+.dark #toolbar-buttons #undo:hover:not(:disabled),
+.dark #toolbar-buttons #close-panel:hover {
+    background: #3f3f46 !important;
+    color: #ffffff !important;
 }
 
 
