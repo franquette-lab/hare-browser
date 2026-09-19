@@ -217,6 +217,7 @@ function extractResults(data) {
     return results;
 }
 
+
 async function buildSearchPage(query) {
 
     const data = await searchDuckDuckGo(query);
@@ -381,7 +382,6 @@ function updatePanelHandles() {
             delete handleViews[panel.id];
         }
 
-        // Trouvez cette ligne ou équivalent dans la boucle panelsList.forEach((panel) => { ... })
         if (!handleViews[panel.id]) {
             const hView = new BrowserView();
             win.addBrowserView(hView);
@@ -1322,7 +1322,7 @@ ipcMain.on("history-click", (event, url) => {
 });
 
 // ====== GESTION DU MODE SOMBRE À LA DEMANDE (INJECTION AVANCÉE) ======
-// let isDarkModeForced = false;
+isDarkModeForced = nativeTheme.shouldUseDarkColors;
 
 
 ipcMain.on('toggle-dark-mode-request', (event, enable) => {
@@ -1349,11 +1349,25 @@ ipcMain.on('toggle-dark-mode-request', (event, enable) => {
 
     // --- CORRECTION DE LA COULEUR DE FOND DE LA BARRE APPLICATIVE ---
     if (win && typeof win.setTitleBarOverlay === 'function') {
+
+/*
         win.setTitleBarOverlay({
             color: isDarkModeForced ? '#252526' : '#ffffff',       // Fond sombre ou fond blanc pur
             symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937', // Icônes Windows claires ou sombres
             height: 38
         });
+*/
+
+        const isDark = nativeTheme.shouldUseDarkColors;
+
+        win.setTitleBarOverlay({
+            color: isDark ? '#252526' : '#ffffff',
+            symbolColor: isDark ? '#cfcfcf' : '#1f2937',
+            height: 38
+        });
+
+
+
     }
 
     const allViews = win.getBrowserViews();
@@ -1503,13 +1517,101 @@ function createDefaultLayout() {
     });
 }
 
+
+
+
+
+function createWindow() {
+
+    win = new BrowserWindow({
+        width: 1400,
+        height: 900,
+        webPreferences: {
+            preload: path.join(__dirname, "preload.js")
+        }
+    });
+
+
+
+
+
+
+
+nativeTheme.on("updated", () => {
+
+    if (!win || win.isDestroyed()) {
+        return;
+    }
+
+    const isDark = nativeTheme.shouldUseDarkColors;
+
+    win.webContents.send(
+        "system-theme-changed",
+        isDark
+    );
+});
+
+
+
+
+
+
+
+
+
+
+
+    // Détection des changements de thème système
+    nativeTheme.on("updated", () => {
+
+        const isDark = nativeTheme.shouldUseDarkColors;
+
+        win.webContents.send(
+            "system-theme-changed",
+            isDark
+        );
+
+        if (typeof win.setTitleBarOverlay === "function") {
+
+  /*
+            win.setTitleBarOverlay({
+                color: isDark ? "#252526" : "#ffffff",
+                symbolColor: isDark ? "#cfcfcf" : "#1f2937",
+                height: 38
+*/
+            win.setTitleBarOverlay({
+                color: isDarkModeForced ? '#252526' : '#ffffff',
+                symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937',
+                height: 38
+                
+            });
+        }
+    });
+
+    win.loadFile("index.html");
+}
+
+
+
+
+
+
+
+
+
+
+
+
 function createWindow() {
 
 // ====== DANS MAIN.JS -> AU MOMENT DE LA CRÉATION DE LA FENÊTRE ======
 
     // 1. Définir l'état de départ (si votre navigateur démarre par exemple par défaut en mode sombre)
     // Ajustez à 'false' si votre application démarre par défaut en mode clair
-    isDarkModeForced = false;
+
+console.log("function createWindow() : nativeTheme =", nativeTheme);
+
+    isDarkModeForced = nativeTheme.shouldUseDarkColors;
 
     win = new BrowserWindow({
         width: 1200,
@@ -1530,14 +1632,15 @@ function createWindow() {
         }
     });
 
+/*    
     win.setTitleBarOverlay({
         color: '#ffffff',
         symbolColor: '#1f2937',
         height: 38
     });
-    
-    // 2. FORCE LA SYNCHRONISATION DIRECTE DU THÈME NATIF AVEC CHROMIUM DÈS LE DÉPART
-    const { nativeTheme } = require('electron');
+*/    
+
+
     nativeTheme.themeSource = isDarkModeForced ? 'dark' : 'light';
 
     win.setMaxListeners(30);
@@ -1551,7 +1654,8 @@ function createWindow() {
         console.log("WARNING STACK:", warning.stack);
     });
 
-    nativeTheme.themeSource = 'light';
+    nativeTheme.themeSource = "system";
+
     createDefaultLayout();
 
     collectPanelNodes(rootNode).forEach(panel => {
@@ -1562,6 +1666,7 @@ function createWindow() {
             panel.view.webContents.setForceDarkModeEnabled(false);
         }
     });
+    
 
     // Configuration des raccourcis clavier via un menu invisible
     const { Menu } = require('electron');
@@ -2278,6 +2383,10 @@ ipcMain.handle('get-favoris', () => {
     return getFavoris();
 });
 
+ipcMain.handle("get-system-theme", () => {
+    return nativeTheme.shouldUseDarkColors;
+});
+
 // ====== AVEC LES AUTRES IPCMAIN (EX: SOUS LES ÉCOUTEURS DE FAVORIS) ======
 ipcMain.handle('get-history', () => {
     return getNavigationHistory();
@@ -2358,4 +2467,7 @@ app.on('will-quit', () => {
     globalShortcut.unregisterAll();
 });
 
+
+
+    
 app.whenReady().then(createWindow);

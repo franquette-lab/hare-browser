@@ -790,7 +790,8 @@ window.api.onDownloadDone((data) => {
 
 
 
-// === FONCTION POUR DESSINER LA BARRE DES FAVORIS ===
+
+
 // === FONCTION DE RECONSTRUCTION DE LA BARRE CORRIGÉE ===
 async function rebuildBookmarksBar() {
     const listContainer = document.getElementById("bookmarks-list");
@@ -880,8 +881,41 @@ window.api.onPanelsUpdated((panels, maximizedPanelId) => {
         }
     }
 
+    /*
+window.api.onSystemThemeChanged((isDark) => {
+    applicationDarkMode = isDark;
+    document.documentElement.classList.toggle("dark", isDark);
+    document.body.classList.toggle("dark", isDark);
+
+    const darkModeBtn = document.getElementById("dark-mode-button");
+
+    if (darkModeBtn) {
+        darkModeBtn.innerText = isDark ? "☀️" : "🌙";
+    }
+
+    rebuildUrlBar(currentPanels);
+    rebuildBookmarksBar();
+});
+*/
+
+
+window.api.onSystemThemeChanged((isDark) => {
+
+    console.log(
+        "Theme changé =",
+        isDark
+    );
+
+    applicationDarkMode = isDark;
+
+    applyTheme();
+
+});
+
+
     checkFavorisState();
     rebuildBookmarksBar(); // <-- AJOUTÉ ICI pour l'initialisation au démarrage
+
     updateCloseButtonState();
 
 
@@ -1048,23 +1082,55 @@ window.api.onTitleChanged?.((newTitle) => {
 });
 
 
-// À mettre tout en bas de votre script
+
+window.api.onSystemThemeChanged((isDark) => {
+
+    applicationDarkMode = isDark;
+
+    document.documentElement.classList.toggle("dark", isDark);
+    document.body.classList.toggle("dark", isDark);
+
+    const darkModeBtn = document.getElementById("dark-mode-button");
+
+    if (darkModeBtn) {
+        darkModeBtn.innerText = isDark ? "☀️" : "🌙";
+    }
+
+    rebuildUrlBar(currentPanels);
+    rebuildBookmarksBar();
+});
+
 updateCloseButtonState();
 
-
 function applyTheme() {
-    document.documentElement.classList.toggle('dark', applicationDarkMode);
 
-    const darkModeBtn = document.getElementById('dark-mode-button');
+    document.documentElement.classList.toggle(
+        "dark",
+        applicationDarkMode
+    );
 
-    if (applicationDarkMode) {
-        darkModeBtn.innerText = '☀️';
-    } else {
-        darkModeBtn.innerText = '🌙';
+    document.body.classList.toggle(
+        "dark",
+        applicationDarkMode
+    );
+
+    const darkModeBtn =
+        document.getElementById("dark-mode-button");
+
+    if (darkModeBtn) {
+        darkModeBtn.innerText =
+            applicationDarkMode ? "☀️" : "🌙";
     }
 }
 
-applyTheme();
+document.addEventListener("DOMContentLoaded", async () => {
+
+    applicationDarkMode =
+        await window.api.getSystemTheme();
+
+    applyTheme();
+
+});
 
 </script>
 
