@@ -8,509 +8,221 @@
 
 <style>
 
-/* Modification du fond de l'application selon le mode */
-html, body {
+:root {
+    /* Fonds */
+    --bg-main: #f3f4f6;
+    --bg-toolbar: #ffffff;
+    --bg-secondary: #f9fafb;
+
+    /* Boutons */
+    --button-bg: #f3f4f6;
+    --button-hover: #e5e7eb;
+    --button-border: #d1d5db;
+
+    /* Texte */
+    --text-primary: #1f2937;
+    --text-secondary: #374151;
+
+    /* Bordures */
+    --border-color: #e5e7eb;
+
+    /* Splitters */
+    --splitter-bg: #d1d5db;
+    --splitter-hover: #9ca3af;
+}
+
+html.dark {
+    /* Fonds */
+    --bg-main: #252526;
+    --bg-toolbar: #252526;
+    --bg-secondary: #252526;
+
+    /* Boutons */
+    --button-bg: #2d2d30;
+    --button-hover: #3f3f46;
+    --button-border: #3c3c3c;
+
+    /* Texte */
+    --text-primary: #cfcfcf;
+    --text-secondary: #cfcfcf;
+
+    /* Bordures */
+    --border-color: #3c3c3c;
+
+    /* Splitters */
+    --splitter-bg: #4b5563;
+    --splitter-hover: #6b7280;
+}
+
+/* =====================================================
+   APPLICATION
+===================================================== */
+
+html,
+body {
     margin: 0;
     padding: 0;
     width: 100vw;
     height: 100vh;
     overflow: hidden;
-    background: #f3f4f6; /* Fond clair par défaut (Gray 100) */
+
+    background: var(--bg-main);
+
     display: flex;
-    flex-direction: column; 
-    transition: background 0.2s ease;
+    flex-direction: column;
+
+    transition: background .2s ease;
 }
 
-/* Quand le mode sombre est actif sur l'application */
-html.dark body {
-    background: #252526; 
-}
+/* =====================================================
+   BARRE D'OUTILS
+===================================================== */
 
 #toolbar-buttons {
     height: 38px;
-    width: 100%;
+
     display: flex;
     align-items: center;
     gap: 4px;
-    background: #ffffff !important; 
-    
-    /* CORRECTION : Bordure grise très claire en mode clair */
-    border-bottom: 1px solid #e5e7eb !important; 
-    
+
+    background: var(--bg-toolbar);
+    border-bottom: 1px solid var(--border-color);
+
     padding: 4px 8px;
+    padding-right: 140px;
+
     box-sizing: border-box;
-    z-index: 99999 !important;
-    -webkit-app-region: drag; 
-    padding-right: 140px; 
-    transition: background 0.2s, border-color 0.2s;
+
+    z-index: 99999;
+
+    -webkit-app-region: drag;
 }
 
-
-/* ====== STYLE DES BOUTONS DE NAVIGATION (MODE CLAIR PAR DÉFAUT) ====== */
-#toolbar-buttons button {
-    background: #f3f4f6 !important; /* Fond gris clair (Gray 100) */
-    color: #1f2937 !important;      /* Icône/Texte anthracite (Gray 800) */
-    border: 1px solid #d1d5db !important; /* Bordure grise claire */
-    border-radius: 4px;
-    font-weight: bold;
-    transition: all 0.2s ease;
-}
-
-/* Effet au survol en mode clair */
-#toolbar-buttons button:hover {
-    background: #e5e7eb !important; /* Gris un peu plus foncé au survol */
-    color: #000000 !important;
-}
-
-/* État désactivé (disabled) en mode clair */
-#toolbar-buttons button:disabled {
-    background: #f9fafb !important;
-    color: #9ca3af !important;     /* Icône grisée */
-    border-color: #e5e7eb !important;
-    opacity: 0.6 !important;
-    cursor: not-allowed !important;
-}
-
-/* ====== RESTAURATION EN MODE SOMBRE AUTO (CLASSE .DARK ACCROCHÉE) ====== */
-html.dark #toolbar-buttons,
-.dark #toolbar-buttons {
-    background: #252526 !important;
-    
-    /* CORRECTION : Rétablit la bordure sombre en mode nuit */
-    border-bottom: 1px solid #3c3c3c !important; 
-}
-
-html.dark #toolbar-buttons button,
-.dark #toolbar-buttons button {
-    background: #2d2d30 !important;
-    color: #cfcfcf !important;
-    border: 1px solid #3c3c3c !important;
-}
-
-/* Effet au survol en mode sombre */
-html.dark #toolbar-buttons button:hover,
-.dark #toolbar-buttons button:hover {
-    background: #3f3f46 !important;
-    color: #ffffff !important;
-}
-
-/* État désactivé (disabled) en mode sombre */
-html.dark #toolbar-buttons button:disabled,
-.dark #toolbar-buttons button:disabled {
-    background: #2d2d30 !important;
-    color: #6b7280 !important;      /* Gris très sombre */
-    opacity: 1 !important;
-}
-
-
-/* Force le fond sombre de la barre supérieure de boutons */
-html.dark #toolbar-buttons, 
-.dark #toolbar-buttons {
-    background: #252526 !important;
-    border-bottom: 1px solid #3c3c3c !important;
-}
-
-/* ====== CONTENEUR GLOBAL DE LA BARRE D'URL (MODE CLAIR PAR DÉFAUT) ====== */
-#url-bar {
-    height: 36px;
-    width: 100%;
-    background: #f9fafb !important; 
-    
-    /* Sécurité : pas de bordure en haut, uniquement en bas */
-    border-top: none !important; 
-    border-bottom: 1px solid #e5e7eb !important; 
-    
-    box-sizing: border-box;
-    display: flex;
-    gap: 8px;
-    padding: 0 8px;
-    align-items: center;
-    position: fixed; 
-    top: 38px;       
-    z-index: 50;
-}
-/* Bascule en mode sombre automatique */
-html.dark #url-bar,
-.dark #url-bar {
-    background: #252526 !important;
-    border-bottom: 1px solid #3c3c3c !important;
-}
-
-#bookmarks-bar {
-    height: 28px;
-    width: 100%;
-    background: #f9fafb !important; /* Fond gris très clair */
-    border-bottom: 1px solid #e5e7eb !important; /* Bordure claire */
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: space-between; 
-    padding: 0 8px;
-    overflow: hidden;
-    transition: background 0.2s, border-color 0.2s;
-   color: #1f2937 !important;
-}
-
-/* Force le fond sombre de la barre de favoris */
-html.dark #bookmarks-bar, 
-.dark #bookmarks-bar {
-    background: #252526 !important; /* Votre couleur sombre d'origine */
-    border-bottom: 1px solid #3c3c3c !important;
-}
-
-html.dark #close-bookmarks-bar,
-.dark #close-bookmarks-bar {
-    color: #6b7280 !important;
-}
-
-/* Style des petits boutons de favoris */
-.bookmark-item {
-    background: #eaeaea;
-    border: 1px solid #d1d5db;
-    color: #374151;
-    font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 4px;
-    cursor: pointer;
-    user-select: none;
-    white-space: nowrap;
-    max-width: 150px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    transition: all 0.2s;
-}
-.bookmark-item:hover {
-    background: #d1d5db;
-    color: #000000;
-}
-html.dark .bookmark-item {
-    background: #2d2d30;
-    border: 1px solid #3c3c3c;
-    color: #cfcfcf;
-}
-html.dark .bookmark-item:hover {
-    background: #3f3f46;
-    color: #ffffff;
-    border-color: #555555;
-}
-
-
-#active-panel-frame {
-    position: absolute;
-    border: 2px solid #3b82f6;
-    box-sizing: border-box;
-    pointer-events: none; /* TRÈS IMPORTANT : permet de cliquer à travers */
-    z-index: 9999;
-    display: none;
-}
-
-/* ====== DANS INDEX.HTML -> CHERCHEZ #toolbar-buttons ====== */
-/* ====== BARRE DE BOUTONS IMMERSIVE AVEC ZONE DE DRAG ACCESSIBLE ====== */
-#toolbar-buttons {
-    height: 38px;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    background: #252526;
-    border-bottom: 1px solid #3c3c3c;
-    padding: 4px 8px;
-    box-sizing: border-box;
-    z-index: 99999 !important;
-    
-    /* Permet de cliquer/glisser sur la barre pour déplacer la fenêtre */
-    -webkit-app-region: drag; 
-    
-    /* Laisse un espace vide de 140px à droite réservé aux boutons système Windows */
-    padding-right: 140px; 
-}
-
-/* Force tous les composants internes de la barre à redevenir cliquables normalement */
-#toolbar-buttons button, 
+#toolbar-buttons button,
 #toolbar-buttons div {
     -webkit-app-region: no-drag;
 }
 
-/* ====== DANS INDEX.HTML -> CHERCHEZ #url-bar (Vers la ligne 36) ====== */
-#url-bar {
-    height: 36px;
-    width: 100%;
-    background: #252526;
-    border-bottom: 1px solid #3c3c3c;
-    box-sizing: border-box;
-    display: flex;
-    gap: 8px;
-    padding: 0 8px;
-    align-items: center;
-    position: fixed; /* Assurez-vous qu'il y a position: fixed */
-    top: 38px;       /* CORRECTION : Remplacer 35px par 38px pour libérer la barre du haut */
-    z-index: 50;
+/* =====================================================
+   BOUTONS
+===================================================== */
+
+#toolbar-buttons button {
+    width: 28px;
+    height: 24px;
+
+    background: var(--button-bg) !important;
+    color: var(--text-primary) !important;
+
+    border: 1px solid var(--button-border) !important;
+    border-radius: 4px;
+
+    cursor: pointer;
+    font-weight: bold;
+
+    transition: all .2s ease;
 }
 
+#toolbar-buttons button:hover:not(:disabled) {
+    background: var(--button-hover) !important;
+}
 
-/* S'assurer que le conteneur de l'onglet aligne l'input et la croix horizontalement */
-#url-bar > div {
-    position: relative;
-    overflow: hidden;
+#toolbar-buttons button:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+#toolbar-buttons button:disabled {
+    opacity: .4;
+
+    background: var(--button-bg) !important;
+    color: #6b7280 !important;
+
+    cursor: not-allowed;
+}
+
+/* =====================================================
+   BARRE D'URL
+===================================================== */
+
+#url-bar {
+    height: 36px;
+
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 0 8px;
+
+    position: fixed;
+    top: 38px;
+
+    width: 100%;
+
+    box-sizing: border-box;
+}
+
+/* =====================================================
+   FAVORIS
+===================================================== */
+
+#bookmarks-bar {
+    height: 28px;
+
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+
     display: flex;
     align-items: center;
     justify-content: space-between;
-}
 
-
-/* Style du panneau d'historique latéral */
-#history-sidebar {
-    position: fixed;
-    top: 105px; /* Aligné sous votre barre de favoris */
-    right: -320px; /* Caché par défaut à droite */
-    width: 300px;
-    bottom: 0;
-    background: #1e1e1e;
-    border-left: 1px solid #3c3c3c;
-    box-shadow: -4px 0 10px rgba(0,0,0,0.5);
-    z-index: 9999;
-    display: flex;
-    flex-direction: column;
-    transition: right 0.3s ease;
-    padding: 12px;
-    box-sizing: border-box;
-}
-
-#history-sidebar.open {
-    right: 0; /* S'ouvre en glissant */
-}
-
-#history-list-container {
-    flex: 1;
-    overflow-y: auto;
-    margin-top: 10px;
-}
-
-.history-item {
-    padding: 6px 8px;
-    border-bottom: 1px solid #2d2d30;
-    cursor: pointer;
-    font-size: 11px;
-    color: #cfcfcf;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.history-item:hover {
-    background: #2d2d30;
-    color: #ffffff;
-}
-
-
-/* Jauge ultra-visible avec dégradé vif et lueur */
-.download-progress-bar {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    height: 4px;
-    background: linear-gradient(90deg, #f97316, #22c55e); 
-    box-shadow: 0 -1px 6px rgba(34, 197, 94, 0.6);
-    width: 0%;
-    transition: width 0.1s ease-out;
-    z-index: 10;
-}
-
-/* Bouton d'annulation affiché proprement à droite */
-.download-cancel-btn {
-    display: none; 
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    background: #ef4444;
-    color: white;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: bold;
-    cursor: pointer;
-    user-select: none;
-    margin-right: 4px;
-    flex-shrink: 0; /* Empêche le bouton d'être écrasé */
-    z-index: 20;
-}
-.download-cancel-btn:hover {
-    background: #b91c1c;
-}
-
-#toolbar-buttons button:focus { outline: none; box-shadow: none; }
-
-/* Rend les boutons transparents et incliquables lorsqu'ils sont désactivés */
-#toolbar-buttons button:disabled {
-    opacity: 0.3 !important;
-    cursor: not-allowed !important;
-    background: #2d2d30 !important; /* Maintient le fond sombre */
-    color: #6b7280 !important;      /* Écrit en gris sombre */
-}
-
-
-#url-bar input:focus {
-    background: transparent;
-    color: #d4d4d4;
-}
-    
-#url-bar input:focus,
-#url-bar input:focus-visible {
-    outline: none !important;
-    box-shadow: none !important;
-    border: none !important;
-}
-
-/* Cache tous les onglets inactifs quand la barre est en mode maximisé */
-#url-bar.maximized-mode > div {
-    display: none !important;
-}
-
-/* Force l'affichage uniquement de l'onglet actif */
-#url-bar.maximized-mode > div.panel-is-maximized {
-    display: flex !important;
-    flex: 1 1 0% !important;
-}
-
-/* Style de la barre principale ajusté pour aligner le bouton à droite */
-#bookmarks-bar {
-    height: 28px;
-    width: 100%;
-    background: #252526;
-    border-bottom: 1px solid #3c3c3c;
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: space-between; /* Pousse la liste à gauche et la croix à droite */
     padding: 0 8px;
-    overflow: hidden;
+
+    box-sizing: border-box;
 }
 
-/* Zone contenant uniquement la liste des badges */
-#bookmarks-list {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    overflow-x: auto;
-    flex: 1;
-    height: 100%;
-}
-#bookmarks-list::-webkit-scrollbar {
-    display: none; /* Masque la scrollbar */
-}
-
-/* Style du petit bouton X de fermeture tout à droite */
-#close-bookmarks-bar {
-    color: #4b5563 !important;
-    font-size: 11px;
-    font-weight: bold;
-    cursor: pointer;
-    user-select: none;
-    padding: 2px 6px;
-    border-radius: 4px;
-    transition: background 0.2s, color 0.2s;
-    margin-left: 8px;
-    flex-shrink: 0; /* Empêche la croix d'être écrasée */
-}
-
-#close-bookmarks-bar:hover {
-    background: #991b1b; /* Devient rouge au survol */
-    color: #fca5a5;
-}
-
-/* Masquer la barre de défilement pour garder l'interface propre */
-#bookmarks-bar::-webkit-scrollbar {
-    display: none;
-}
-
-/* Style des petits boutons de favoris */
 .bookmark-item {
-    background: #2d2d30;
-    border: 1px solid #3c3c3c;
-    color: #cfcfcf;
-    font-size: 11px;
-    padding: 2px 8px;
+    background: var(--button-bg);
+    color: var(--text-secondary);
+
+    border: 1px solid var(--button-border);
+
     border-radius: 4px;
+
+    padding: 2px 8px;
+
+    font-size: 11px;
+
     cursor: pointer;
-    user-select: none;
-    white-space: nowrap;
-    max-width: 150px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    transition: background 0.2s, color 0.2s;
+
+    transition: all .2s ease;
 }
 
 .bookmark-item:hover {
-    background: #3f3f46;
-    color: #ffffff;
-    border-color: #555555;
+    background: var(--button-hover);
 }
 
-/* Cache la barre des favoris si la classe de masquage est active */
-body.bookmarks-hidden #bookmarks-bar {
-    display: none !important;
+#close-bookmarks-bar {
+    color: #6b7280;
+
+    font-size: 11px;
+    font-weight: bold;
+
+    padding: 2px 6px;
+
+    border-radius: 4px;
+
+    cursor: pointer;
+
+    transition: all .2s ease;
 }
 
-
-
-/* ====== FIX CIBLÉ POUR LES BOUTONS UNDO ET CLOSE (MODE CLAIR) ====== */
-#toolbar-buttons #undo,
-#toolbar-buttons #close-panel {
-    background: #f3f4f6 !important;
-    color: #1f2937 !important;
-    border: 1px solid #d1d5db !important;
-    opacity: 1 !important; /* Force la visibilité par rapport au script */
-}
-
-/* Gestion de l'état désactivé du bouton Undo en mode clair */
-#toolbar-buttons #undo:disabled {
-    background: #f9fafb !important;
-    color: #9ca3af !important;
-    border-color: #e5e7eb !important;
-    opacity: 0.5 !important; /* Opacité réduite propre au mode clair */
-    cursor: not-allowed !important;
-}
-
-#toolbar-buttons #undo:hover:not(:disabled),
-#toolbar-buttons #close-panel:hover {
-    background: #e5e7eb !important;
-    color: #000000 !important;
-}
-
-/* ====== SÉCURISATION DU MODE SOMBRE POUR CES DEUX BOUTONS ====== */
-html.dark #toolbar-buttons #undo,
-html.dark #toolbar-buttons #close-panel,
-.dark #toolbar-buttons #undo,
-.dark #toolbar-buttons #close-panel {
-    background: #2d2d30 !important;
-    color: #cfcfcf !important;
-    border: 1px solid #3c3c3c !important;
-    opacity: 1 !important;
-}
-
-html.dark #toolbar-buttons #undo:disabled,
-.dark #toolbar-buttons #undo:disabled {
-    background: #2d2d30 !important;
-    color: #6b7280 !important;
-    opacity: 0.4 !important; /* Rétablit l'opacité sombre d'origine */
-}
-
-html.dark #toolbar-buttons #undo:hover:not(:disabled),
-html.dark #toolbar-buttons #close-panel:hover,
-.dark #toolbar-buttons #undo:hover:not(:disabled),
-.dark #toolbar-buttons #close-panel:hover {
-    background: #3f3f46 !important;
-    color: #ffffff !important;
-}
-
-/* Mode clair par défaut pour le conteneur HTML global */
-#toolbar-buttons {
-    background: #ffffff !important;
-}
-
-/* Mode sombre uniquement si la classe .dark est présente */
-html.dark #toolbar-buttons,
-.dark #toolbar-buttons {
-    background: #252526 !important;
+#close-bookmarks-bar:hover {
+    background: #991b1b;
+    color: #fca5a5;
 }
 
 
@@ -604,15 +316,15 @@ if (darkModeBtn) {
             
             darkModeBtn.innerText = "☀️";
             darkModeBtn.title = "Désactiver le mode sombre";
-            darkModeBtn.style.background = "#eab308"; 
-            darkModeBtn.style.color = "#000000";
+//          darkModeBtn.style.background = "#eab308"; 
+//          darkModeBtn.style.color = "#000000";
         } else {
             document.documentElement.classList.remove('dark');
             document.body.classList.remove('dark');            
             darkModeBtn.innerText = "🌙";
             darkModeBtn.title = "Activer le mode sombre";
-            darkModeBtn.style.background = "#2d2d30"; 
-            darkModeBtn.style.color = "#cfcfcf";
+//          darkModeBtn.style.background = "#2d2d30"; 
+//          darkModeBtn.style.color = "#cfcfcf";
         }
         
         // === FORCE LA BARRE D'URL PARENTE À SE RECOLORER IMMÉDIATEMENT ===
@@ -1339,6 +1051,20 @@ window.api.onTitleChanged?.((newTitle) => {
 // À mettre tout en bas de votre script
 updateCloseButtonState();
 
+
+function applyTheme() {
+    document.documentElement.classList.toggle('dark', applicationDarkMode);
+
+    const darkModeBtn = document.getElementById('dark-mode-button');
+
+    if (applicationDarkMode) {
+        darkModeBtn.innerText = '☀️';
+    } else {
+        darkModeBtn.innerText = '🌙';
+    }
+}
+
+applyTheme();
 
 </script>
 

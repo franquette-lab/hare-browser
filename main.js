@@ -7,10 +7,12 @@ const {
     BrowserView,
     ipcMain,
     nativeImage,
+    nativeTheme,
     dialog,
     globalShortcut, // <-- AJOUTEZ globalShortcut ICI
     shell           // <-- AJOUTEZ shell ICI pour gérer les fichiers et dossiers
 } = require('electron');
+
 
 // En haut de main.js avec vos autres variables globales
 const APP_TITLE = "Hare Browser"; 
@@ -61,6 +63,13 @@ const SPLITTER_SIZE = 10;
 let leftView, centerView, rightView;
 
 const https = require("https");
+
+
+function updateSplitterTheme() {
+    splitterViews.forEach((splitterView) => {
+        splitterView.webContents.reload();
+    });
+}
 
 // Fonction pour lire l'historique sur le disque
 function getNavigationHistory() {
@@ -1315,11 +1324,28 @@ ipcMain.on("history-click", (event, url) => {
 // ====== GESTION DU MODE SOMBRE À LA DEMANDE (INJECTION AVANCÉE) ======
 // let isDarkModeForced = false;
 
+
 ipcMain.on('toggle-dark-mode-request', (event, enable) => {
+
     isDarkModeForced = enable;
-    
-    const { nativeTheme } = require('electron');
-    nativeTheme.themeSource = isDarkModeForced ? 'dark' : 'light';
+
+    nativeTheme.themeSource = enable ? 'dark' : 'light';
+
+//  updateSplitterTheme();
+
+
+
+
+    splitterViews.forEach(view => {
+        try {
+            win.removeBrowserView(view);
+            view.webContents.close();
+        } catch {}
+    });
+
+    splitterViews = [];
+
+    resizeViews();   
 
     // --- CORRECTION DE LA COULEUR DE FOND DE LA BARRE APPLICATIVE ---
     if (win && typeof win.setTitleBarOverlay === 'function') {
@@ -2066,6 +2092,10 @@ function resizeViews() {
         try { win.removeBrowserView(oldSplitter); } catch (e) {}
     }
 
+    const splitterBg = isDarkModeForced ? "#374151" : "#d1d5db";
+    const splitterHover = isDarkModeForced ? "#808080" : "#9ca3af";
+    const splitterDots = isDarkModeForced ? "#cfcfcf" : "#6b7280";
+
     // 3. Positionnement des splitters
     splitters.forEach((splitter, index) => {
         if (splitterViews[index]) {
@@ -2085,10 +2115,10 @@ function resizeViews() {
         splitterView.webContents.loadURL("data:text/html," + encodeURIComponent(`
             <html><head><style>
             html, body { margin: 0; padding: 0; overflow: hidden !important; }
-            body { box-sizing: border-box; background: #374151; display: flex; align-items: center; justify-content: center; cursor: ${cursor}; }
+            body { box-sizing: border-box; background: ${splitterBg}; display: flex; align-items: center; justify-content: center; cursor: ${cursor}; }
             #handle { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: ${handleDirection}; gap: 2px; }  
-            body:hover { background: #808080; }
-            .dot { display: block; width: 3px; height: 3px; background: #cfcfcf; border-radius: 50%; }
+            body:hover { background: ${splitterHover}; }
+            .dot { display: block; width: 3px; height: 3px; background: ${splitterDots}; border-radius: 50%; }
             </style></head><body>
             <div id="handle"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
             <script>
