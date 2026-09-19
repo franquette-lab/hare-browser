@@ -8,7 +8,8 @@ contextBridge.exposeInMainWorld(
     'api',
     {
         getSystemTheme: () => ipcRenderer.invoke("get-system-theme"),
-        sendDragStart: (panelId) => ipcRenderer.send("panel-drag-start", panelId),
+getThemePreference: () => ipcRenderer.invoke("get-theme-preference"),
+saveThemePreference: (isDark) => ipcRenderer.invoke("save-theme-preference", isDark),        sendDragStart: (panelId) => ipcRenderer.send("panel-drag-start", panelId),
         sendDragEnd: () => ipcRenderer.send("panel-drag-end"),
         setActivePanel: (panelId) => ipcRenderer.send("set-active-panel", panelId),
         navigate: (panelId, url) => ipcRenderer.send('navigate', panelId, url),
@@ -47,10 +48,6 @@ contextBridge.exposeInMainWorld(
         // À insérer à l'intérieur de contextBridge.exposeInMainWorld('api', { ... })
         toggleDarkMode: (enable) => ipcRenderer.send('toggle-dark-mode-request', enable),
 
-        onSystemThemeChanged: (callback) => {
-            ipcRenderer.on("system-theme-changed",
-                (event, isDark) => callback(isDark));
-        },
 
         onActivePanelChanged: (callback) => {
             ipcRenderer.on("active-panel-changed", (event, panel) => callback(panel));

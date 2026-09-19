@@ -305,6 +305,8 @@ if (darkModeBtn) {
     darkModeBtn.addEventListener("click", () => {
         // Met à jour la variable globale
         applicationDarkMode = !applicationDarkMode; 
+
+        window.api.saveThemePreference(applicationDarkMode);
         
         // Envoie l'état à Electron pour les pages web (votre code)
         window.api.toggleDarkMode(applicationDarkMode);
@@ -898,7 +900,7 @@ window.api.onSystemThemeChanged((isDark) => {
 });
 */
 
-
+/*
 window.api.onSystemThemeChanged((isDark) => {
 
     console.log(
@@ -912,6 +914,7 @@ window.api.onSystemThemeChanged((isDark) => {
 
 });
 
+*/
 
     checkFavorisState();
     rebuildBookmarksBar(); // <-- AJOUTÉ ICI pour l'initialisation au démarrage
@@ -1081,7 +1084,24 @@ window.api.onTitleChanged?.((newTitle) => {
     document.title = newTitle;
 });
 
+/*
+window.api.onSystemThemeChanged((isDark) => {
 
+    applicationDarkMode = isDark;
+
+    document.documentElement.classList.toggle("dark", isDark);
+    document.body.classList.toggle("dark", isDark);
+
+    const darkModeBtn = document.getElementById("dark-mode-button");
+
+    if (darkModeBtn) {
+        darkModeBtn.innerText = isDark ? "☀️" : "🌙";
+    }
+
+    rebuildUrlBar(currentPanels);
+    rebuildBookmarksBar();
+});
+*/
 
 window.api.onSystemThemeChanged((isDark) => {
 
@@ -1124,12 +1144,10 @@ function applyTheme() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-
     applicationDarkMode =
-        await window.api.getSystemTheme();
+        await window.api.getThemePreference();
 
     applyTheme();
-
 });
 
 </script>

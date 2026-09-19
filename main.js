@@ -28,6 +28,8 @@ const historyPath = path.join(app.getPath('userData'), 'navigation_history.json'
 // Chemin vers le fichier de stockage des favoris
 const favorisPath = path.join(app.getPath('userData'), 'favoris.json');
 
+    const themePath = path.join(app.getPath('userData'), 'theme.json');
+
 // Stockage des 4 bordures bleues
 let borderViews = []; 
 
@@ -62,13 +64,45 @@ const SPLITTER_SIZE = 10;
 
 let leftView, centerView, rightView;
 
+let isDarkModeForced = false;
+
+
 const https = require("https");
 
+
+function applyThemeToView(view) {
+
+    if (!view || !view.webContents) {
+        return;
+    }
+
+    view.webContents.send(
+        "theme-changed",
+        isDarkModeForced
+    );
+}
 
 function updateSplitterTheme() {
     splitterViews.forEach((splitterView) => {
         splitterView.webContents.reload();
     });
+}
+
+function getThemePreference() {
+    try {
+        if (!fs.existsSync(themePath)) {
+            fs.writeFileSync(
+                themePath,
+                JSON.stringify({ darkMode: false }, null, 2)
+            );
+        }
+
+        return JSON.parse(
+            fs.readFileSync(themePath, "utf8")
+        ).darkMode;
+    } catch {
+        return false;
+    }
 }
 
 // Fonction pour lire l'historique sur le disque
@@ -1518,108 +1552,34 @@ function createDefaultLayout() {
 }
 
 
-
-
-
 function createWindow() {
 
+    isDarkModeForced = getThemePreference();
+
     win = new BrowserWindow({
-        width: 1400,
-        height: 900,
+        width: 1200,
+        height: 800,
+        frame: false,
+        titleBarStyle: "hidden",
+        titleBarOverlay: {
+            color: isDarkModeForced ? "#252526" : "#ffffff",
+            symbolColor: isDarkModeForced ? "#cfcfcf" : "#1f2937",
+            height: 38
+        },
         webPreferences: {
-            preload: path.join(__dirname, "preload.js")
-        }
-    });
-
-
-
-
-
-
-
-nativeTheme.on("updated", () => {
-
-    if (!win || win.isDestroyed()) {
-        return;
-    }
-
-    const isDark = nativeTheme.shouldUseDarkColors;
-
-    win.webContents.send(
-        "system-theme-changed",
-        isDark
-    );
-});
-
-
-
-
-
-
-
-
-
-
-
-    // Détection des changements de thème système
-    nativeTheme.on("updated", () => {
-
-        const isDark = nativeTheme.shouldUseDarkColors;
-
-        win.webContents.send(
-            "system-theme-changed",
-            isDark
-        );
-
-        if (typeof win.setTitleBarOverlay === "function") {
-
-  /*
-            win.setTitleBarOverlay({
-                color: isDark ? "#252526" : "#ffffff",
-                symbolColor: isDark ? "#cfcfcf" : "#1f2937",
-                height: 38
-*/
-            win.setTitleBarOverlay({
-                color: isDarkModeForced ? '#252526' : '#ffffff',
-                symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937',
-                height: 38
-                
-            });
+            preload: path.join(__dirname, "preload.js"),
+            contextIsolation: true,
+            nodeIntegration: false
         }
     });
 
     win.loadFile("index.html");
 }
-
-
-
-
-
-
-
-
-
-
-
-
-function createWindow() {
-
-// ====== DANS MAIN.JS -> AU MOMENT DE LA CRÉATION DE LA FENÊTRE ======
-
-    // 1. Définir l'état de départ (si votre navigateur démarre par exemple par défaut en mode sombre)
-    // Ajustez à 'false' si votre application démarre par défaut en mode clair
-
-console.log("function createWindow() : nativeTheme =", nativeTheme);
-
-    isDarkModeForced = nativeTheme.shouldUseDarkColors;
-
     win = new BrowserWindow({
         width: 1200,
         height: 800,
-        frame: false, // Fenêtre sans bordures natives
+        frame: false,
         titleBarStyle: 'hidden',
-        
-        // Configuration initiale du bandeau Windows
         titleBarOverlay: {
             color: isDarkModeForced ? '#252526' : '#ffffff',
             symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937',
@@ -1633,29 +1593,25 @@ console.log("function createWindow() : nativeTheme =", nativeTheme);
     });
 
 /*    
-    win.setTitleBarOverlay({
-        color: '#ffffff',
-        symbolColor: '#1f2937',
-        height: 38
-    });
-*/    
+win.setTitleBarOverlay({
+    color: '#ffffff',
+    symbolColor: '#1f2937',
+    height: 38
+});
+*/
 
+win.setMaxListeners(30);
 
-    nativeTheme.themeSource = isDarkModeForced ? 'dark' : 'light';
+// === APPLIQUER LE GESTIONNAIRE DE TÉLÉCHARGEMENT ===
+registerDownloadHandler(win.webContents.session);
 
-    win.setMaxListeners(30);
-    
-    // === APPLIQUER LE GESTIONNAIRE DE TÉLÉCHARGEMENT ===
-    registerDownloadHandler(win.webContents.session);
+process.on("warning", (warning) => {
+    console.log("WARNING NAME:", warning.name);
+    console.log("WARNING MESSAGE:", warning.message);
+    console.log("WARNING STACK:", warning.stack);
+});
 
-    process.on("warning", (warning) => {
-        console.log("WARNING NAME:", warning.name);
-        console.log("WARNING MESSAGE:", warning.message);
-        console.log("WARNING STACK:", warning.stack);
-    });
-
-    nativeTheme.themeSource = "system";
-
+win.loadFile("index.html");
     createDefaultLayout();
 
     collectPanelNodes(rootNode).forEach(panel => {
@@ -1982,12 +1938,17 @@ console.log("function createWindow() : nativeTheme =", nativeTheme);
 
         const url = win.webContents.getURL();
         const title = win.webContents.getTitle();
+
         addToHistory(url, title);
 
         win.webContents.send("panels-updated", collectPanels(rootNode));
 
         win.webContents.send("app-title-changed", APP_TITLE);
+
         win.setTitle(APP_TITLE);
+
+        applyThemeToView(win);
+
     });
     
     // Remplacer l'ancien bloc win.on("resize") par celui-ci unique dans createWindow()
@@ -2383,8 +2344,21 @@ ipcMain.handle('get-favoris', () => {
     return getFavoris();
 });
 
-ipcMain.handle("get-system-theme", () => {
-    return nativeTheme.shouldUseDarkColors;
+ipcMain.handle("get-theme-preference", () => {
+    return getThemePreference();
+});
+
+ipcMain.handle("save-theme-preference", (event, isDark) => {
+
+    isDarkModeForced = isDark;
+
+    fs.writeFileSync(
+        themePath,
+        JSON.stringify({ darkMode: isDark }, null, 2)
+    );
+
+    return true;
+});
 });
 
 // ====== AVEC LES AUTRES IPCMAIN (EX: SOUS LES ÉCOUTEURS DE FAVORIS) ======
