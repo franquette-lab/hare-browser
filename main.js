@@ -430,7 +430,7 @@ function updatePanelHandles() {
 
         if (maximizedPanelId && panel.id !== maximizedPanelId) {
             if (handleViews[panel.id]) {
-                try { handleViews[panel.id].setBounds({ x: -1000, y: -1000, width: 0, height: 0 }); } catch(e) {}
+                try { win.removeBrowserView(handleViews[panel.id]); } catch(e) {}
             }
             return; 
         }
@@ -440,14 +440,18 @@ function updatePanelHandles() {
         const isMaximized = (maximizedPanelId === panel.id);
         const expectedWidth = isLastRemaining ? 24 : (isMaximized ? 60 : 80);
 
-        // Si la taille attendue change, destruction immédiate pour forcer Chromium à recharger le DOM HTML
+
         if (handleViews[panel.id]) {
-            const currentBounds = handleViews[panel.id].getBounds();
-            if (currentBounds.width !== expectedWidth) {
-                try { win.removeBrowserView(handleViews[panel.id]); } catch(e) {}
-                delete handleViews[panel.id];
-            }
+            try { 
+                win.removeBrowserView(handleViews[panel.id]); 
+                // Optionnel mais recommandé : détruire proprement les webContents associés
+                if (!handleViews[panel.id].webContents.isDestroyed()) {
+                    handleViews[panel.id].webContents.destroy();
+                }
+            } catch(e) {}
+            delete handleViews[panel.id];
         }
+
 
 
 
@@ -466,30 +470,43 @@ function updatePanelHandles() {
             hView.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(`
                 <html>
                 <head>
-                    <!-- CORRECTION 1 : Déclaration explicite de l'encodage -->
                     <meta charset="utf-8">
                     <style>
                     html, body { margin: 0; padding: 0; overflow: hidden !important; width: 100%; height: 100%; background: transparent; }
+                    
+                    /* --- DESIGN CLAIR PAR DÉFAUT --- */
                     #container {
                         display: flex; width: 100%; height: 100%;
-                        background: #2d2d30; border: 1px solid #3c3c3c; border-radius: 4px;
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.3); box-sizing: border-box; overflow: hidden;
+                        background: #ffffff; border: 1px solid #d1d5db; border-radius: 4px;
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.1); box-sizing: border-box; overflow: hidden;
                     }
                     .btn {
-                        flex: 1; height: 100%; color: #cfcfcf;
+                        flex: 1; height: 100%; color: #1f2937; /* Texte sombre */
                         display: flex; align-items: center; justify-content: center;
                         font-family: sans-serif; font-size: 11px; user-select: none;
                     }
-                    #drag-btn { cursor: grab; font-size: 13px; border-right: 1px solid #3c3c3c; }
-                    #drag-btn:hover { background: #3f3f46; color: #ffffff; }
+                    #drag-btn { cursor: grab; font-size: 13px; border-right: 1px solid #d1d5db; }
+                    #drag-btn:hover { background: #f3f4f6; color: #000000; }
                     .action { cursor: pointer; }
-                    #zoom-btn:hover { background: #15803d; color: #4ade80; }
-                    #fullscreen-btn { border-left: 1px solid #3c3c3c; border-right: 1px solid #3c3c3c; }
-                    #fullscreen-btn:hover { background: #1e3a8a; color: #3b82f6; }
-                    #close-btn:hover { background: #991b1b; color: #fca5a5; }
+                    #zoom-btn:hover { background: #dcfce7; color: #15803d; } /* Vert clair */
+                    #fullscreen-btn { border-left: 1px solid #d1d5db; border-right: 1px solid #d1d5db; }
+                    #fullscreen-btn:hover { background: #dbeafe; color: #1d4ed8; } /* Bleu clair */
+                    #close-btn:hover { background: #fee2e2; color: #b91c1c; } /* Rouge clair */
                     
+                    /* --- AJOUT : POLITIQUES DU MODE SOMBRE (INJECTÉES SELON L'ÉTAT) --- */
+                    ${isDarkModeForced ? `
+                        #container { background: #2d2d30; border: 1px solid #3c3c3c; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+                        .btn { color: #cfcfcf; }
+                        #drag-btn { border-right: 1px solid #3c3c3c; }
+                        #drag-btn:hover { background: #3f3f46; color: #ffffff; }
+                        #zoom-btn:hover { background: #15803d; color: #4ade80; }
+                        #fullscreen-btn { border-left: 1px solid #3c3c3c; border-right: 1px solid #3c3c3c; }
+                        #fullscreen-btn:hover { background: #1e3a8a; color: #3b82f6; }
+                        #close-btn:hover { background: #991b1b; color: #fca5a5; }
+                    ` : ''}
+
                     .flex-3-btns #drag-btn { display: none !important; }
-                    .flex-3-btns #zoom-btn { background: #15803d; color: #4ade80; }
+                    .flex-3-btns #zoom-btn { background: ${isDarkModeForced ? '#15803d' : '#dcfce7'}; color: ${isDarkModeForced ? '#4ade80' : '#15803d'}; }
                     .flex-3-btns .action { flex: 1 1 33.33% !important; }
                     
                     .flex-1-btn #drag-btn, .flex-1-btn #zoom-btn, .flex-1-btn #fullscreen-btn { display: none !important; }
@@ -499,7 +516,6 @@ function updatePanelHandles() {
                 <body>
                 
                 <div id="container" class="${containerClass}">
-                    <!-- CORRECTION 2 : Utilisation d'entités HTML sécurisées pour éliminer les points d'interrogation -->
                     <div id="drag-btn" class="btn" title="Glisser pour déplacer">&#9776;</div>
                     <div id="zoom-btn" class="btn action" title="${isMaximized ? 'Restaurer la taille' : 'Agrandir'}">${isMaximized ? '&#128471;' : '&#128470;'}</div>
                     <div id="fullscreen-btn" class="btn action" title="Détacher">&#8599;</div>
@@ -526,7 +542,6 @@ function updatePanelHandles() {
                 </body>
                 </html>
             `));
-
 
             hView.webContents.on("page-title-updated", (event, title) => {
                 event.preventDefault();
@@ -1562,6 +1577,7 @@ ipcMain.on('toggle-dark-mode-request', (event, enable) => {
             v.webContents.executeJavaScript(scriptToRemove).catch(e => console.error(e));
         }
     });
+    updatePanelHandles(); 
 });
 
 // Script d'injection magique : s'exécute AVANT que Wikipédia ne calcule ses styles

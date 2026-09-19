@@ -32,8 +32,11 @@ html.dark body {
     display: flex;
     align-items: center;
     gap: 4px;
-    background: #ffffff; /* Blanc en mode clair */
-    border-bottom: 1px solid #e5e7eb; /* Bordure grise claire */
+    background: #ffffff !important; 
+    
+    /* CORRECTION : Bordure grise très claire en mode clair */
+    border-bottom: 1px solid #e5e7eb !important; 
+    
     padding: 4px 8px;
     box-sizing: border-box;
     z-index: 99999 !important;
@@ -69,11 +72,12 @@ html.dark body {
 }
 
 /* ====== RESTAURATION EN MODE SOMBRE AUTO (CLASSE .DARK ACCROCHÉE) ====== */
-html.dark #toolbar-buttons button,
-.dark #toolbar-buttons button {
-    background: #2d2d30 !important; /* Fond sombre d'origine */
-    color: #cfcfcf !important;      /* Texte clair */
-    border: 1px solid #3c3c3c !important;
+html.dark #toolbar-buttons,
+.dark #toolbar-buttons {
+    background: #252526 !important;
+    
+    /* CORRECTION : Rétablit la bordure sombre en mode nuit */
+    border-bottom: 1px solid #3c3c3c !important; 
 }
 
 /* Effet au survol en mode sombre */
@@ -103,8 +107,12 @@ html.dark #toolbar-buttons,
 #url-bar {
     height: 36px;
     width: 100%;
-    background: #f9fafb !important; /* Gris ultra clair (Gray 50) */
-    border-bottom: 1px solid #e5e7eb !important; /* Bordure claire */
+    background: #f9fafb !important; 
+    
+    /* Sécurité : pas de bordure en haut, uniquement en bas */
+    border-top: none !important; 
+    border-bottom: 1px solid #e5e7eb !important; 
+    
     box-sizing: border-box;
     display: flex;
     gap: 8px;
@@ -113,15 +121,14 @@ html.dark #toolbar-buttons,
     position: fixed; 
     top: 38px;       
     z-index: 50;
-    transition: background 0.2s, border-color 0.2s;
 }
-
 /* Bascule en mode sombre automatique */
 html.dark #url-bar,
 .dark #url-bar {
-    background: #252526 !important; /* Votre couleur sombre d'origine */
+    background: #252526 !important;
     border-bottom: 1px solid #3c3c3c !important;
 }
+
 #bookmarks-bar {
     height: 28px;
     width: 100%;
