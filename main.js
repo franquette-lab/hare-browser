@@ -32,7 +32,6 @@ let borderViews = [];
 // === AJOUTEZ CETTE LIGNE JUSTE EN DESSOUS ===
 let handleViews = {}; 
 
-
 let win;
 let rootNode = null;
 let activePanel = null;
@@ -55,16 +54,13 @@ let isBookmarksBarVisible = true; // La barre est affichée par défaut
 let TOOLBAR_HEIGHT = 105;         // Hauteur avec la barre de favoris (38 + 36 + 28 + corrections)
 const TOOLBAR_MIN_HEIGHT = 77;   // Hauteur sans la barre (38 + 36 + corrections)
 
-
-  let history = [];
+let history = [];
 let lastClosedPanel = null;
 const SPLITTER_SIZE = 10;
 
 let leftView, centerView, rightView;
 
 const https = require("https");
-
-
 
 // Fonction pour lire l'historique sur le disque
 function getNavigationHistory() {
@@ -212,8 +208,6 @@ function extractResults(data) {
     return results;
 }
 
-
-
 async function buildSearchPage(query) {
 
     const data = await searchDuckDuckGo(query);
@@ -235,36 +229,7 @@ console.log("Résultats trouvés :", results.length);
 
 console.log(results[0]);
 
-/*
-if (results.length === 0) {
-
-    return `
-    <!DOCTYPE html>
-    <html>
-    <body style="
-        background:#202124;
-        color:white;
-        font-family:Segoe UI;
-        padding:20px;
-    ">
-        <h1>Recherche : ${query}</h1>
-
-        <p>Aucune réponse instantanée trouvée.</p>
-
-        <p>
-            Ouvrir les résultats DuckDuckGo :
-        </p>
-
-        ${`https://duckduckgo.com/?q=${encodeURIComponent(query)}`}
-            Rechercher "${query}"
-        </a>
-    </body>
-    </html>
-    `;
-}
-*/
-
-    return `
+return `
         <!DOCTYPE html>
         <html>
         <head>
@@ -305,48 +270,6 @@ body {
         </html>
     `;
 }
-
-
-
-
-/*
-function updateActiveBorder(bounds) {
-    if (!bounds) return;
-
-    const BORDER_THICKNESS = 3; // Épaisseur du liseré bleu
-
-    // Définition des coordonnées des 4 bordures autour du panneau
-    const borderLayouts = [
-        { x: bounds.x, y: bounds.y, width: bounds.width, height: BORDER_THICKNESS }, // TOP
-        { x: bounds.x, y: bounds.y + bounds.height - BORDER_THICKNESS, width: bounds.width, height: BORDER_THICKNESS }, // BOTTOM
-        { x: bounds.x, y: bounds.y, width: BORDER_THICKNESS, height: bounds.height }, // LEFT
-        { x: bounds.x + bounds.width - BORDER_THICKNESS, y: bounds.y, width: BORDER_THICKNESS, height: bounds.height } // RIGHT
-    ];
-
-    // Création des 4 vues si elles n'existent pas encore
-    if (borderViews.length === 0) {
-        for (let i = 0; i < 4; i++) {
-            const bView = new BrowserView();
-            win.addBrowserView(bView);
-            bView.webContents.loadURL("data:text/html," + encodeURIComponent(`
-                <html><body style="margin:0; padding:0; background:#3b82f6; overflow:hidden;"></body></html>
-            `));
-            borderViews.push(bView);
-        }
-    }
-
-    // Application des positions et mise au premier plan de chaque liseré
-    borderLayouts.forEach((layout, index) => {
-        const bView = borderViews[index];
-        if (bView && !bView.webContents.isDestroyed()) {
-            bView.setBounds(layout);
-            try {
-                win.setTopBrowserView(bView);
-            } catch (e) {}
-        }
-    });
-}
-*/
 
 function updateActiveBorder(bounds) {
     if (!bounds || !win || win.isDestroyed()) return;
@@ -392,10 +315,7 @@ function updateActiveBorder(bounds) {
     });
 }
 
-
-
 let handleDraggedPanelId = null;
-
 
 function updatePanelHandles() {
     if (!win || win.isDestroyed()) return;
@@ -452,9 +372,6 @@ function updatePanelHandles() {
             delete handleViews[panel.id];
         }
 
-
-
-
         // Trouvez cette ligne ou équivalent dans la boucle panelsList.forEach((panel) => { ... })
         if (!handleViews[panel.id]) {
             const hView = new BrowserView();
@@ -463,8 +380,6 @@ function updatePanelHandles() {
             // CORRECTION VISUELLE : On force la détection dynamique du mode maximisé/zoomé ici
             const isMaximized = (maximizedPanelId === panel.id);
             const containerClass = isLastRemaining ? 'flex-1-btn' : (isMaximized ? 'flex-3-btns' : '');
-
-
 
             // ====== DANS MAIN.JS -> FONCTION updatePanelHandles() ======
             hView.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(`
@@ -615,9 +530,6 @@ function updatePanelHandles() {
     });
 }
 
-
-
-
 function findNeighborPanel(activeBounds, direction, panelsList) {
     if (!activeBounds) return null;
     
@@ -659,8 +571,6 @@ function findNeighborPanel(activeBounds, direction, panelsList) {
     return bestTarget;
 }
 
-
-
 function getDisplayText(urlString) {
     try {
         const url = new URL(urlString);
@@ -669,7 +579,6 @@ function getDisplayText(urlString) {
         return urlString;
     }
 }
-
 
 function rebuildTreeFromSnapshot(snapshotNode, restoredView) {
     if (!snapshotNode) return null;
@@ -692,8 +601,6 @@ function rebuildTreeFromSnapshot(snapshotNode, restoredView) {
     splitNode.second = rebuildTreeFromSnapshot(snapshotNode.second, restoredView);
     return splitNode;
 }
-
-
 
 function createSnapshot(node) {
     if (node.type === "panel") {
@@ -757,7 +664,6 @@ function buildNavigationTarget(input) {
         return "https://" + input;
     }
 
-//  return `https://searxng-hww1.onrender.com/search?q=${encodeURIComponent(input)}`;
     return `http://129.151.254.175:8080/search?q=${encodeURIComponent(input)}`;
 }
 
@@ -846,7 +752,6 @@ function updatePanelUrl(panel, url) {
         panel.title = panel.view.webContents.getTitle();
     }
 
-//  win.webContents.send("panels-updated", collectPanels(rootNode));
     win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
 
 }
@@ -862,7 +767,6 @@ function updateNavigationButtons() {
         canGoForward: panel.view.webContents.navigationHistory.canGoForward()
     });
 }
-
 
 function setupNavigationTracking(panel) {
     if (!panel || !panel.view) return;
@@ -884,8 +788,6 @@ function setupNavigationTracking(panel) {
 
             console.log(`Erreur HTTP détectée [${httpResponseCode}]: ${httpStatusText}`);
 
-//          const title = panel.view.webContents.getTitle();
-//          addToHistory(url, title);
             addToHistory(url, panel.view.webContents.getTitle());
             const httpErrorHtml = `
                 <!DOCTYPE html>
@@ -927,7 +829,6 @@ function setupNavigationTracking(panel) {
             canGoForward: panel.view.webContents.navigationHistory.canGoForward()
         });
     });
-
 
 
     panel.view.webContents.on("did-fail-load", (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
@@ -995,45 +896,6 @@ function setupNavigationTracking(panel) {
     });
 }
 
-
-/*
-function layoutNode(node, x, y, width, height) {
-
-    if (!node || width <= 0 || height <= 0) return;
-
-    if (node.type === "panel") {
-        node.bounds = { x, y, width, height };
-        if (node.view && !node.view.webContents.isDestroyed()) {
-            // Rétablir les dimensions pleines d'origine
-            node.view.setBounds({ x, y, width, height });
-        }
-        return;
-    }
-
-    if (node.direction === "vertical") {
-        const firstWidth = Math.floor(width * node.ratio);
-        splitters.push({
-            node, direction: "vertical",
-            x: x + firstWidth, y,
-            width: SPLITTER_SIZE, height,
-            parentX: x, parentWidth: width
-        });
-        layoutNode(node.first, x, y, firstWidth, height);
-        layoutNode(node.second, x + firstWidth + SPLITTER_SIZE, y, width - firstWidth - SPLITTER_SIZE, height);
-    } else {
-        const firstHeight = Math.floor(height * node.ratio);
-        splitters.push({
-            node, direction: "horizontal",
-            x, y: y + firstHeight,
-            width, height: SPLITTER_SIZE,
-            parentY: y, parentHeight: height
-        });
-        layoutNode(node.first, x, y, width, firstHeight);
-        layoutNode(node.second, x, y + firstHeight, width, height - firstHeight);
-    }
-}
-*/
-
 function layoutNode(node, x, y, width, height) {
     if (!node || width <= 0 || height <= 0) return;
 
@@ -1092,7 +954,6 @@ function layoutNode(node, x, y, width, height) {
         layoutNode(node.second, x, y + firstHeight, width, height - firstHeight);
     }
 }
-
 
 ipcMain.on("navigate", (event, panelId, input) => {
 
@@ -1168,7 +1029,6 @@ function swapPanelsInTree(idA, idB) {
     win.webContents.send("active-panel-changed", { id: nodeA.id, bounds: nodeA.bounds });
 }
 
-
 let panelBeingDragged = null;
 
 ipcMain.on("panel-drag-start", (event, panelId) => {
@@ -1191,37 +1051,7 @@ ipcMain.on("panel-drag-start", (event, panelId) => {
     });
 });
 
-/*
-app.on('drag-end', () => {
-    if (!panelBeingDragged) return;
 
-    const { screen } = require('electron');
-    const mousePoint = screen.getCursorScreenPoint();
-    const winContentBounds = win.getContentBounds();
-    const localX = mousePoint.x - winContentBounds.x;
-    const localY = mousePoint.y - winContentBounds.y;
-
-    const panelsList = collectPanelNodes(rootNode);
-    let targetPanel = null;
-
-    for (const p of panelsList) {
-        if (p.bounds && p.id !== panelBeingDragged) {
-            if (localX >= p.bounds.x && localX <= (p.bounds.x + p.bounds.width) &&
-                localY >= p.bounds.y && localY <= (p.bounds.y + p.bounds.height)) {
-                targetPanel = p;
-                break;
-            }
-        }
-    }
-
-    if (targetPanel) {
-        // Exécute le swap mis à jour
-        swapPanelsInTree(panelBeingDragged, targetPanel.id);
-    }
-    
-    panelBeingDragged = null;
-});
-*/
 app.on('drag-end', () => {
     if (!panelBeingDragged) return;
 
@@ -1252,48 +1082,12 @@ app.on('drag-end', () => {
     panelBeingDragged = null;
 });
 
-
-    // === À PLACER DANS MAIN.JS AVEC LES AUTRES IPCMAIN ===
+// === À PLACER DANS MAIN.JS AVEC LES AUTRES IPCMAIN ===
     ipcMain.on("move-panel", (event, draggedPanelId, targetPanelId) => {
         if (draggedPanelId && targetPanelId && draggedPanelId !== targetPanelId) {
             swapPanelsInTree(draggedPanelId, targetPanelId);
         }
     });
-
-
-/*
-ipcMain.on("close-panel", (event, panelId) => {
-    const node = findPanelNode(rootNode, panelId);
-    if (!node) return;
-    const parent = findParentNode(rootNode, panelId);
-    if (!parent) return;
-
-    if (maximizedPanelId === panelId) maximizedPanelId = null; // Annule le zoom si détruit
-    // (le reste de votre fonction close-panel reste identique...)
-
-    
-    saveState();
-    const sibling = (parent.first === node) ? parent.second : parent.first;
-
-    if (parent === rootNode) {
-        rootNode = sibling;
-    } else {
-        replaceNode(rootNode, parent, sibling);
-    }
-
-    lastClosedPanel = { id: node.id, url: node.url, title: node.title || getDisplayText(node.url) };
-    win.webContents.send("undo-available", true);        
-    win.removeBrowserView(node.view);
-
-    const newActivePanel = findFirstPanel(sibling);
-    activePanel = newActivePanel.id;
-
-    win.webContents.send("active-panel-changed", { id: newActivePanel.id, bounds: newActivePanel.bounds });        
-    forceRebuildSplitters = true;
-    resizeViews();
-    win.webContents.send("panels-updated", collectPanels(rootNode));
-});
-*/
 
 ipcMain.on("close-panel", (event, panelId) => {
     // === VÉRIFICATION DU NOMBRE DE PANNEAUX RESTANTS ===
@@ -1383,11 +1177,6 @@ ipcMain.on("undo", (event) => {
         updateActiveBorder(restoredNode.bounds);
     }
 });
-
-
-
-
-// ====== À METTRE DANS MAIN.JS (AVEC LES AUTRES ÉCOUTEURS IPCMAIN) ======
 
 // ====== LOGIQUE DE LA FENÊTRE D'HISTORIQUE CORRIGÉE ======
 let historyWindow = null; 
@@ -1524,7 +1313,7 @@ ipcMain.on("history-click", (event, url) => {
 });
 
 // ====== GESTION DU MODE SOMBRE À LA DEMANDE (INJECTION AVANCÉE) ======
-let isDarkModeForced = false;
+// let isDarkModeForced = false;
 
 ipcMain.on('toggle-dark-mode-request', (event, enable) => {
     isDarkModeForced = enable;
@@ -1615,42 +1404,6 @@ app.on('web-contents-created', (event, webContents) => {
     });
 });
 
-
-/*
-ipcMain.on("split-panel", (event, panelId, direction) => {
-    const node = findPanelNode(rootNode, panelId);
-    const parent = findParentNode(rootNode, panelId);
-
-    const newView = new BrowserView();
-    win.addBrowserView(newView);
-    const defaultUrl = "https://www.bing.com";
-    newView.webContents.loadURL(defaultUrl);
-
-    const newPanelId = "panel" + nextPanelNumber++;
-    const newPanel = new PanelNode(newPanelId, newView, defaultUrl);
-    setupNavigationTracking(newPanel);            
-
-    const newSplit = new SplitNode(direction);
-    newSplit.ratio = 0.5;
-
-    if (!parent) {
-        newSplit.first = node;
-        newSplit.second = newPanel;
-        rootNode = newSplit;
-    } else {
-        if (parent.first === node) parent.first = newSplit;
-        else parent.second = newSplit;
-        newSplit.first = node;
-        newSplit.second = newPanel;
-    }
-
-    saveState();
-    activePanel = newPanelId;
-    forceRebuildSplitters = true;
-    resizeViews();
-    win.webContents.send("panels-updated", collectPanels(rootNode));
-});
-*/
 // CORRECTION : On ajoute bien "direction" dans les arguments reçus
 ipcMain.on("split-panel", (event, panelId, direction) => {
     const node = findPanelNode(rootNode, panelId);
@@ -1696,7 +1449,6 @@ ipcMain.on("split-panel", (event, panelId, direction) => {
     updateActiveBorder(newPanel.bounds);
 });
 
-
 function createDefaultLayout() {
     leftView = new BrowserView();
     centerView = new BrowserView();
@@ -1723,54 +1475,47 @@ function createDefaultLayout() {
     collectPanelNodes(rootNode).forEach((panel) => {
         setupNavigationTracking(panel); // <-- C'est cet appel qui va injecter l'intercepteur de zoom
     });
-
-
-
 }
-
 
 function createWindow() {
 
-/*    
+// ====== DANS MAIN.JS -> AU MOMENT DE LA CRÉATION DE LA FENÊTRE ======
+
+    // 1. Définir l'état de départ (si votre navigateur démarre par exemple par défaut en mode sombre)
+    // Ajustez à 'false' si votre application démarre par défaut en mode clair
+    isDarkModeForced = false;
+
     win = new BrowserWindow({
-        width: 1600, height: 900,
-        minWidth: 1000, minHeight: 700,
-        backgroundColor: "#252526", // <-- Remplacer #111827 par #252526 (fond sombre identique aux barres)
-        title: APP_TITLE,
-        webPreferences: {
-            preload: path.join(__dirname, "preload.js"),
-            contextIsolation: true,
-            nodeIntegration: false
-        }
-    });
-*/
-    win = new BrowserWindow({
-        width: 1600, height: 900,
-        minWidth: 1000, minHeight: 700,
-        backgroundColor: "#252526",
-        title: APP_TITLE,
-        // === CONFIGURATION BARRE IMMERSIVE FRAMELESS ===
-        frame: false,
+        width: 1200,
+        height: 800,
+        frame: false, // Fenêtre sans bordures natives
         titleBarStyle: 'hidden',
+        
+        // Configuration initiale du bandeau Windows
         titleBarOverlay: {
-            color: '#252526',       // Couleur de fond de la zone des boutons système (identique à votre toolbar)
-            symbolColor: '#cfcfcf', // Couleur des icônes de contrôle (Réduire/Agrandir/Fermer)
-            height: 38              // S'aligne parfaitement sur la hauteur de votre #toolbar-buttons (38px)
+            color: isDarkModeForced ? '#252526' : '#ffffff',
+            symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937',
+            height: 38
         },
         webPreferences: {
-            preload: path.join(__dirname, "preload.js"),
+            preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
             nodeIntegration: false
         }
     });
 
-    // Configure le thème par défaut au démarrage de l'application
+    win.setTitleBarOverlay({
+        color: '#ffffff',
+        symbolColor: '#1f2937',
+        height: 38
+    });
+    
+    // 2. FORCE LA SYNCHRONISATION DIRECTE DU THÈME NATIF AVEC CHROMIUM DÈS LE DÉPART
     const { nativeTheme } = require('electron');
-    nativeTheme.themeSource = 'light'; // Démarre en mode clair par défaut
-
+    nativeTheme.themeSource = isDarkModeForced ? 'dark' : 'light';
 
     win.setMaxListeners(30);
-
+    
     // === APPLIQUER LE GESTIONNAIRE DE TÉLÉCHARGEMENT ===
     registerDownloadHandler(win.webContents.session);
 
@@ -1780,9 +1525,18 @@ function createWindow() {
         console.log("WARNING STACK:", warning.stack);
     });
 
+    nativeTheme.themeSource = 'light';
     createDefaultLayout();
 
-//  win.setMenu(null);
+    collectPanelNodes(rootNode).forEach(panel => {
+        if (
+            panel.view &&
+            typeof panel.view.webContents.setForceDarkModeEnabled === 'function'
+        ) {
+            panel.view.webContents.setForceDarkModeEnabled(false);
+        }
+    });
+
     // Configuration des raccourcis clavier via un menu invisible
     const { Menu } = require('electron');
     const template = [
@@ -1849,7 +1603,6 @@ function createWindow() {
                         }
                     }
                 },
-
 
                 // === AJOUT : TOUCHE ÉCHAP POUR QUITTER LE MODE MAXIMISÉ ===
                 {
@@ -1927,8 +1680,6 @@ function createWindow() {
                         }
                     }
                 },
-
-
 
                 // === AJOUT : NAVIGATION ENTRE LES TUILES AVEC CTRL+TAB / CTRL+SHIFT+TAB ===
                 {
@@ -2080,9 +1831,6 @@ function createWindow() {
                         }
                     }
                 }
-
-
-
             ]
         }
     ];
@@ -2199,10 +1947,6 @@ function createWindow() {
     win.on('blur', () => {
         globalShortcut.unregister('CommandOrControl+M');
     });
-
-
-
-
 }
 
 function replaceNode(current, target, replacement) {
@@ -2215,27 +1959,6 @@ function replaceNode(current, target, replacement) {
     return false;
 }
 
-/*
-function brbringActiveViewToFront() {
-    if (!win || win.isDestroyed() || !activePanel) return;
-    
-    const activeNode = findPanelNode(rootNode, activePanel);
-    if (!activeNode || !activeNode.view) return;
-
-    try {
-        // 1. On s'assure que la bordure est bien présente
-        if (borderView) {
-            win.setTopBrowserView(borderView);
-        }
-        // 2. IMPORTANT : On pousse IMMÉDIATEMENT la véritable vue web au-dessus de la bordure.
-        // Comme la vue web est plus petite de 3 pixels à cause de l'épaisseur de la bordure,
-        // la bordure bleue reste visible sur les contours extérieurs mais la page capte 100% des clics.
-        win.setTopBrowserView(activeNode.view);
-    } catch (err) {
-        console.error("Erreur d'ordonnancement des vues :", err);
-    }
-}
-*/
 function detachPanelToFullscreen(panelId) {
     const node = findPanelNode(rootNode, panelId);
     if (!node || !node.view) return;
@@ -2310,8 +2033,6 @@ function detachPanelToFullscreen(panelId) {
     }
 }
 
-
-
 function resizeViews() {
     if (win.isDestroyed()) return;
     
@@ -2339,9 +2060,6 @@ function resizeViews() {
     // === CORRECTIF FINAL : Marge de 2px pour remonter le liseré ===
     const BOTTOM_MARGIN = 2;
     layoutNode(rootNode, 0, TOOLBAR_HEIGHT, width, height - TOOLBAR_HEIGHT - BOTTOM_MARGIN);
-
-
-
  
     while (splitterViews.length > splitters.length) {
         const oldSplitter = splitterViews.pop();
@@ -2362,11 +2080,6 @@ function resizeViews() {
         const splitterView = new BrowserView();
         win.addBrowserView(splitterView);
         splitterViews.push(splitterView);
-        
-        
-        
-
-
 
         splitterView.setBounds({ x: splitter.x, y: splitter.y, width: splitter.width, height: splitter.height });
         splitterView.webContents.loadURL("data:text/html," + encodeURIComponent(`
@@ -2402,15 +2115,11 @@ function resizeViews() {
             event.preventDefault();
             if (title === "reset-splitter") { splitter.node.ratio = 0.5; resizeViews(); return; }
 
-//          if (title === "drag-end") { win.setTitle("Tile Browser"); dragInProgress = false; return; }
             if (title === "drag-end") { 
                 win.setTitle(APP_TITLE); // === REMPLACEZ "Tile Browser" PAR APP_TITLE ICI ===
                 dragInProgress = false; 
                 return; 
             }
-
-
-
 
             if (title.startsWith("drag-start:")) {
                 dragInProgress = true;
@@ -2436,30 +2145,6 @@ function resizeViews() {
     });
 
     win.webContents.send("splitters-updated", splitters);
-
-
-
-
-    /*
-        // 4. Mettre à jour la position des liserés bleus (Placé tout à la fin de resizeViews)
-        if (activePanel) {
-            const activeNode = findPanelNode(rootNode, activePanel);
-            if (activeNode && activeNode.bounds) {
-                updateActiveBorder(activeNode.bounds);
-                
-                // OPTIMISATION : On remonte également la poignée du panneau actif pour qu'elle reste accessible
-                if (handleViews[activePanel]) {
-                    try { win.setTopBrowserView(handleViews[activePanel]); } catch(e) {}
-                }
-            }
-        } else {
-            borderViews.forEach(bView => {
-                if (bView && !bView.webContents.isDestroyed()) {
-                    bView.setBounds({ x: -100, y: -100, width: 0, height: 0 });
-                }
-            });
-        }
-    */
 
     // 4. Mettre à jour la position des liserés bleus (Placé tout à la fin de resizeViews)
     if (activePanel) {
@@ -2508,7 +2193,6 @@ function resizeViews() {
         });
     }
 
-
     // === On force le rafraîchissement des poignées de déplacement ===
     updatePanelHandles();
     win.webContents.send("splitters-updated", splitters);
@@ -2516,7 +2200,6 @@ function resizeViews() {
     // === SÉCURITÉ : On renvoie l'état du zoom ici aussi ===
     win.webContents.send("zoom-changed", maximizedPanelId); 
 }
-
 
 function moveActivePanelKeyboard(direction) {
     if (!activePanel || maximizedPanelId) return; // Désactivé si un panneau est zoomé
@@ -2535,7 +2218,6 @@ function moveActivePanelKeyboard(direction) {
     }
 }
 
-
 ipcMain.on("toggle-bookmarks-bar-request", () => {
     isBookmarksBarVisible = false;
     TOOLBAR_HEIGHT = TOOLBAR_MIN_HEIGHT;
@@ -2544,7 +2226,6 @@ ipcMain.on("toggle-bookmarks-bar-request", () => {
     resizeViews();
 });
 
-
 ipcMain.on("set-active-panel", (event, panelId) => {
     const panel = findPanelNode(rootNode, panelId);
     if (!panel) return;
@@ -2552,7 +2233,6 @@ ipcMain.on("set-active-panel", (event, panelId) => {
     win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
     updateActiveBorder(panel.bounds);
 });
-
 
 // Intercepte les demandes de focus issues de la poignée injectée
 ipcMain.on("set-active-panel-from-handle", (event, panelId) => {
@@ -2563,7 +2243,6 @@ ipcMain.on("set-active-panel-from-handle", (event, panelId) => {
     updateActiveBorder(panel.bounds);
 });
 
-
 // Écouteurs IPC pour que l'interface graphique puisse interagir avec les favoris
 ipcMain.handle('get-favoris', () => {
     return getFavoris();
@@ -2573,7 +2252,6 @@ ipcMain.handle('get-favoris', () => {
 ipcMain.handle('get-history', () => {
     return getNavigationHistory();
 });
-
 
 ipcMain.handle('clear-history', () => {
     fs.writeFileSync(historyPath, JSON.stringify([]));
@@ -2603,8 +2281,6 @@ ipcMain.handle('delete-history-item', async (event, index) => {
     }
 });
 
-
-
 ipcMain.handle('toggle-favori', (event, { url, title }) => {
     let favoris = getFavoris();
     const index = favoris.findIndex(f => f.url === url);
@@ -2625,7 +2301,6 @@ ipcMain.handle('toggle-favori', (event, { url, title }) => {
     win.webContents.send('favoris-updated', favoris);
     return index < 0; // Renvoie true si ajouté, false si retiré
 });
-
 
 ipcMain.handle("go-back", (event, panelId) => {
     const panel = findPanelNode(rootNode, panelId);
