@@ -286,6 +286,7 @@ body {
 
 <script>
 
+
 let activePanel = null;
 let currentPanels = []; // Stockage global pour maintenir la liste des panneaux
 let currentMaximizedId = null; // Mémoire globale du mode zoom
@@ -298,50 +299,21 @@ let applicationDarkMode = false;
 let darkModeEnabled = false;
 
 
+
 // === LOGIQUE DE BASCULE DU MODE SOMBRE ===
 const darkModeBtn = document.getElementById("dark-mode-button");
 
 if (darkModeBtn) {
-    darkModeBtn.addEventListener("click", () => {
-        // Met à jour la variable globale
-        applicationDarkMode = !applicationDarkMode; 
+darkModeBtn.addEventListener("click", () => {
 
-        window.api.saveThemePreference(applicationDarkMode);
-        
-        // Envoie l'état à Electron pour les pages web (votre code)
-        window.api.toggleDarkMode(applicationDarkMode);
-        
-        // Met à jour la classe CSS globale sur la page index.html
-        if (applicationDarkMode) {
-            document.documentElement.classList.add('dark');
-            document.body.classList.add('dark');
-            
-            darkModeBtn.innerText = "☀️";
-            darkModeBtn.title = "Désactiver le mode sombre";
-//          darkModeBtn.style.background = "#eab308"; 
-//          darkModeBtn.style.color = "#000000";
-        } else {
-            document.documentElement.classList.remove('dark');
-            document.body.classList.remove('dark');            
-            darkModeBtn.innerText = "🌙";
-            darkModeBtn.title = "Activer le mode sombre";
-//          darkModeBtn.style.background = "#2d2d30"; 
-//          darkModeBtn.style.color = "#cfcfcf";
-        }
-        
-        // === FORCE LA BARRE D'URL PARENTE À SE RECOLORER IMMÉDIATEMENT ===
-        const urlBarContainer = document.getElementById("url-bar");
-        if (urlBarContainer) {
-            urlBarContainer.style.background = applicationDarkMode ? "#252526" : "#f9fafb";
-            urlBarContainer.style.borderColor = applicationDarkMode ? "#3c3c3c" : "#e5e7eb";
-        }
+    console.log(
+        "BUTTON CLICK",
+        applicationDarkMode
+    );
 
-        // Reconstruction des onglets internes (votre code existant)
-        rebuildUrlBar(currentPanels);
-        if (typeof rebuildBookmarksBar === 'function') rebuildBookmarksBar();
+    setDarkMode(!applicationDarkMode);
 
-    });
-}
+});}
 
 
 
@@ -564,9 +536,21 @@ document.getElementById("undo").addEventListener("click", () => window.api.undo(
 
 // --- ÉCOUTEURS DES ÉVÉNEMENTS IPC ELECTRON ---
 window.api.onPanelsUpdated((panels, maximizedPanelId) => {
+
     currentPanels = panels;
-    currentMaximizedId = maximizedPanelId; // Garde la synchro
+    currentMaximizedId = maximizedPanelId;
+
     rebuildUrlBar(panels);
+
+    if (!window.initialThemeApplied) {
+
+        window.initialThemeApplied = true;
+
+        window.api.getThemePreference()
+            .then(savedTheme => {
+                setDarkMode(savedTheme);
+            });
+    }
 
     const container = document.getElementById("url-bar");
     if (container) {
@@ -1110,7 +1094,15 @@ window.api.onSystemThemeChanged((isDark) => {
     document.documentElement.classList.toggle("dark", isDark);
     document.body.classList.toggle("dark", isDark);
 
-    const darkModeBtn = document.getElementById("dark-mode-button");
+
+    const darkModeBtn =
+    document.getElementById("dark-mode-button");
+
+console.log(
+    "darkModeBtn =",
+    darkModeBtn
+);
+
 
     if (darkModeBtn) {
         darkModeBtn.innerText = isDark ? "☀️" : "🌙";
@@ -1121,6 +1113,64 @@ window.api.onSystemThemeChanged((isDark) => {
 });
 
 updateCloseButtonState();
+
+
+function updateUrlBarTheme() {
+    const urlBarContainer =
+        document.getElementById("url-bar");
+
+    if (urlBarContainer) {
+        urlBarContainer.style.background =
+            applicationDarkMode ? "#252526" : "#f9fafb";
+
+        urlBarContainer.style.borderColor =
+            applicationDarkMode ? "#3c3c3c" : "#e5e7eb";
+    }
+}
+
+function setDarkMode(enabled) {
+
+    applicationDarkMode = enabled;
+
+    console.log(
+    "setDarkMode(",
+    enabled,
+    ")"
+);
+
+    window.api.saveThemePreference(enabled);
+    window.api.toggleDarkMode(enabled);
+
+
+    document.documentElement.classList.toggle(
+        "dark",
+        enabled
+    );
+
+    document.body.classList.toggle(
+        "dark",
+        enabled
+    );
+
+    const darkModeBtn =
+        document.getElementById("dark-mode-button");
+
+    if (darkModeBtn) {
+        darkModeBtn.innerText =
+            enabled ? "☀️" : "🌙";
+
+        darkModeBtn.title =
+            enabled
+                ? "Désactiver le mode sombre"
+                : "Activer le mode sombre";
+    }
+
+    rebuildUrlBar(currentPanels);
+
+    if (typeof rebuildBookmarksBar === "function") {
+        rebuildBookmarksBar();
+    }
+}
 
 function applyTheme() {
 
@@ -1143,12 +1193,20 @@ function applyTheme() {
     }
 }
 
+
+
+
 document.addEventListener("DOMContentLoaded", async () => {
-    applicationDarkMode =
+
+    const savedTheme =
         await window.api.getThemePreference();
 
-    applyTheme();
+    console.log("savedTheme =", savedTheme);
+
+    setDarkMode(savedTheme);
+
 });
+
 
 </script>
 

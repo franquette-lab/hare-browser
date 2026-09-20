@@ -46,7 +46,8 @@ saveThemePreference: (isDark) => ipcRenderer.invoke("save-theme-preference", isD
 
 
         // À insérer à l'intérieur de contextBridge.exposeInMainWorld('api', { ... })
-        toggleDarkMode: (enable) => ipcRenderer.send('toggle-dark-mode-request', enable),
+        toggleDarkMode: (enable) =>
+    ipcRenderer.send('toggle-dark-mode-request', enable),
 
 
         onActivePanelChanged: (callback) => {

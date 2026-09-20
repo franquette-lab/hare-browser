@@ -70,16 +70,35 @@ let isDarkModeForced = false;
 const https = require("https");
 
 
+
+
 function applyThemeToView(view) {
 
     if (!view || !view.webContents) {
         return;
     }
 
-    view.webContents.send(
-        "theme-changed",
-        isDarkModeForced
-    );
+    if (typeof view.webContents.setForceDarkModeEnabled === 'function') {
+        view.webContents.setForceDarkModeEnabled(
+            isDarkModeForced
+        );
+    }
+
+    if (isDarkModeForced) {
+
+        const scriptToInject = `
+            (function() {
+                document.documentElement.classList.add('mw-theme-client-dark');
+
+                if (document.body) {
+                    document.body.classList.add('mw-theme-client-dark');
+                }
+            })();
+        `;
+
+        view.webContents.executeJavaScript(scriptToInject)
+            .catch(console.error);
+    }
 }
 
 function updateSplitterTheme() {
@@ -1356,16 +1375,20 @@ ipcMain.on("history-click", (event, url) => {
 });
 
 // ====== GESTION DU MODE SOMBRE À LA DEMANDE (INJECTION AVANCÉE) ======
-isDarkModeForced = nativeTheme.shouldUseDarkColors;
+isDarkModeForced = getThemePreference();
+
+console.log("STARTUP PREF =", isDarkModeForced);
 
 
 ipcMain.on('toggle-dark-mode-request', (event, enable) => {
+
+
+console.log("TOGGLE =", isDarkModeForced);
 
     isDarkModeForced = enable;
 
     nativeTheme.themeSource = enable ? 'dark' : 'light';
 
-//  updateSplitterTheme();
 
 
 
@@ -1384,27 +1407,22 @@ ipcMain.on('toggle-dark-mode-request', (event, enable) => {
     // --- CORRECTION DE LA COULEUR DE FOND DE LA BARRE APPLICATIVE ---
     if (win && typeof win.setTitleBarOverlay === 'function') {
 
-/*
-        win.setTitleBarOverlay({
-            color: isDarkModeForced ? '#252526' : '#ffffff',       // Fond sombre ou fond blanc pur
-            symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937', // Icônes Windows claires ou sombres
-            height: 38
-        });
-*/
-
-        const isDark = nativeTheme.shouldUseDarkColors;
-
-        win.setTitleBarOverlay({
-            color: isDark ? '#252526' : '#ffffff',
-            symbolColor: isDark ? '#cfcfcf' : '#1f2937',
-            height: 38
-        });
-
+win.setTitleBarOverlay({
+    color: isDarkModeForced ? '#252526' : '#ffffff',
+    symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937',
+    height: 38
+});
 
 
     }
 
     const allViews = win.getBrowserViews();
+
+console.log(
+    "Views found:",
+    allViews.length
+);
+
     allViews.forEach(v => {
         if (!v.webContents || v.webContents.isDestroyed()) return;
         const url = v.webContents.getURL();
@@ -1528,6 +1546,16 @@ function createDefaultLayout() {
     centerView = new BrowserView();
     rightView = new BrowserView();
 
+[leftView, centerView, rightView].forEach(view => {
+
+    view.webContents.once("did-finish-load", () => {
+
+        applyThemeToView(view);
+
+    });
+
+});
+
     win.addBrowserView(leftView);
     win.addBrowserView(centerView);
     win.addBrowserView(rightView);
@@ -1535,6 +1563,26 @@ function createDefaultLayout() {
     leftView.webContents.loadURL("https://www.google.com");
     centerView.webContents.loadURL("https://fr.wikipedia.org");
     rightView.webContents.loadURL("https://github.com");
+
+
+[leftView, centerView, rightView].forEach(view => {
+
+    view.webContents.once('did-finish-load', () => {
+
+        console.log(
+            "Applying startup theme to",
+            view.webContents.getURL()
+        );
+
+        if (typeof view.webContents.setForceDarkModeEnabled === 'function') {
+            view.webContents.setForceDarkModeEnabled(
+                isDarkModeForced
+            );
+        }
+
+    });
+
+});
 
     rootNode = new SplitNode("vertical");
     rootNode.ratio = 0.33;
@@ -1551,30 +1599,10 @@ function createDefaultLayout() {
     });
 }
 
-
 function createWindow() {
 
     isDarkModeForced = getThemePreference();
 
-    win = new BrowserWindow({
-        width: 1200,
-        height: 800,
-        frame: false,
-        titleBarStyle: "hidden",
-        titleBarOverlay: {
-            color: isDarkModeForced ? "#252526" : "#ffffff",
-            symbolColor: isDarkModeForced ? "#cfcfcf" : "#1f2937",
-            height: 38
-        },
-        webPreferences: {
-            preload: path.join(__dirname, "preload.js"),
-            contextIsolation: true,
-            nodeIntegration: false
-        }
-    });
-
-    win.loadFile("index.html");
-}
     win = new BrowserWindow({
         width: 1200,
         height: 800,
@@ -1592,37 +1620,32 @@ function createWindow() {
         }
     });
 
-/*    
-win.setTitleBarOverlay({
-    color: '#ffffff',
-    symbolColor: '#1f2937',
-    height: 38
-});
-*/
+    win.setMaxListeners(30);
 
-win.setMaxListeners(30);
+    registerDownloadHandler(win.webContents.session);
 
-// === APPLIQUER LE GESTIONNAIRE DE TÉLÉCHARGEMENT ===
-registerDownloadHandler(win.webContents.session);
-
-process.on("warning", (warning) => {
-    console.log("WARNING NAME:", warning.name);
-    console.log("WARNING MESSAGE:", warning.message);
-    console.log("WARNING STACK:", warning.stack);
-});
-
-win.loadFile("index.html");
-    createDefaultLayout();
-
-    collectPanelNodes(rootNode).forEach(panel => {
-        if (
-            panel.view &&
-            typeof panel.view.webContents.setForceDarkModeEnabled === 'function'
-        ) {
-            panel.view.webContents.setForceDarkModeEnabled(false);
-        }
+    process.on("warning", (warning) => {
+        console.log("WARNING NAME:", warning.name);
+        console.log("WARNING MESSAGE:", warning.message);
+        console.log("WARNING STACK:", warning.stack);
     });
-    
+
+    win.loadFile("index.html");
+
+    createDefaultLayout();
+ 
+console.log("AFTER LAYOUT =", isDarkModeForced);
+
+
+
+collectPanelNodes(rootNode).forEach(panel => {
+    if (
+        panel.view &&
+        typeof panel.view.webContents.setForceDarkModeEnabled === 'function'
+    ) {
+        panel.view.webContents.setForceDarkModeEnabled(isDarkModeForced);
+    }
+});    
 
     // Configuration des raccourcis clavier via un menu invisible
     const { Menu } = require('electron');
@@ -1833,10 +1856,6 @@ win.loadFile("index.html");
                     accelerator: 'Alt+Shift+Down',
                     click: () => moveActivePanelKeyboard('Down')
                 },
-
-
-
-                // === RACCOURCI AVEC FENÊTRE DE VALIDATION (CTRL+Q) ===
                 {
                     label: 'Quitter l\'application',
                     accelerator: 'CmdOrCtrl+Q',
@@ -1947,7 +1966,13 @@ win.loadFile("index.html");
 
         win.setTitle(APP_TITLE);
 
-        applyThemeToView(win);
+        collectPanelNodes(rootNode).forEach(panel => {
+
+            if (panel.view) {
+                applyThemeToView(panel.view);
+            }
+
+        });
 
     });
     
@@ -2122,6 +2147,12 @@ function detachPanelToFullscreen(panelId) {
         forceRebuildSplitters = true;
         resizeViews();
         win.webContents.send("panels-updated", collectPanels(rootNode));
+
+console.log(
+    "panels-updated currentPanels:",
+    currentPanels
+);
+
     }
 }
 
@@ -2358,7 +2389,6 @@ ipcMain.handle("save-theme-preference", (event, isDark) => {
     );
 
     return true;
-});
 });
 
 // ====== AVEC LES AUTRES IPCMAIN (EX: SOUS LES ÉCOUTEURS DE FAVORIS) ======
