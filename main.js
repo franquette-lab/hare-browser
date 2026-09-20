@@ -869,6 +869,7 @@ function setupNavigationTracking(panel) {
             // === AJOUTEZ CES DEUX LIGNES POUR LES SITES NORMAUX ===
             const title = panel.view.webContents.getTitle();
             addToHistory(url, title);
+            updateHistoryWindowContent();   
         }
     });
 
@@ -1405,6 +1406,10 @@ console.log("TOGGLE =", isDarkModeForced);
     nativeTheme.themeSource = enable ? 'dark' : 'light';
 
 
+    // AJOUT ICI : Rafraîchir la fenêtre d'historique en temps réel si elle existe
+    if (global.historyWindow && !global.historyWindow.isDestroyed()) {
+        updateHistoryWindowContent();
+    }
 
 
 

@@ -10,21 +10,30 @@ contextBridge.exposeInMainWorld(
 
         // À insérer dans preload.js à l'intérieur de l'objet 'api'
         clearFavoris: () => ipcRenderer.invoke('clear-favoris'),
+
         getSystemTheme: () => ipcRenderer.invoke("get-system-theme"),
+
         getThemePreference: () => ipcRenderer.invoke("get-theme-preference"),
-        saveThemePreference: (isDark) => ipcRenderer.invoke("save-theme-preference", isDark),        sendDragStart: (panelId) => ipcRenderer.send("panel-drag-start", panelId),
+
+        saveThemePreference: (isDark) => ipcRenderer.invoke("save-theme-preference", isDark),
+        
+        sendDragStart: (panelId) => ipcRenderer.send("panel-drag-start", panelId),
         sendDragEnd: () => ipcRenderer.send("panel-drag-end"),
+
         setActivePanel: (panelId) => ipcRenderer.send("set-active-panel", panelId),
+
         navigate: (panelId, url) => ipcRenderer.send('navigate', panelId, url),
+
         goBack: (panelId) => ipcRenderer.invoke("go-back", panelId),
+
         goForward: (panelId) => ipcRenderer.invoke("go-forward", panelId),
 
         movePanel: (draggedPanelId, targetPanelId) => ipcRenderer.send('move-panel', draggedPanelId, targetPanelId),
 
         refresh: (panelId) => ipcRenderer.invoke("refresh", panelId),
+
         splitPanel: (panelId, direction) => ipcRenderer.send('split-panel', panelId, direction),
 
-        // ====== DANS PRELOAD.JS (Vers la ligne 513) ======
         // ====== DANS PRELOAD.JS -> DANS L'OBJET 'api' ======
         undo: () => ipcRenderer.send("undo"), // Ligne existante
 
@@ -47,11 +56,9 @@ contextBridge.exposeInMainWorld(
             ipcRenderer.on("zoom-changed", (event, maximizedPanelId) => callback(maximizedPanelId));
         },
 
-
         // À insérer à l'intérieur de contextBridge.exposeInMainWorld('api', { ... })
         toggleDarkMode: (enable) =>
-    ipcRenderer.send('toggle-dark-mode-request', enable),
-
+            ipcRenderer.send('toggle-dark-mode-request', enable),
 
         onActivePanelChanged: (callback) => {
             ipcRenderer.on("active-panel-changed", (event, panel) => callback(panel));
@@ -98,12 +105,14 @@ contextBridge.exposeInMainWorld(
 
         // À ajouter dans contextBridge.exposeInMainWorld('api', { ... })
         getFavoris: () => ipcRenderer.invoke('get-favoris'),
+
         toggleFavori: (data) => ipcRenderer.invoke('toggle-favori', data),
+        
         // À ajouter juste en dessous de toggleFavori ou getFavoris dans preload.js :
         toggleBookmarksBarFromUI: () => ipcRenderer.send("toggle-bookmarks-bar-request"),
+
         onFavorisUpdated: (callback) => ipcRenderer.on('favoris-updated', (event, favoris) => callback(favoris)),
         
-
         // À ajouter dans l'objet 'api' de preload.js :
         onFocusUrlBar: (callback) => ipcRenderer.on("focus-url-bar", (event, panelId) => callback(panelId)),
 
