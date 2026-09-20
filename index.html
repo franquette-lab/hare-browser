@@ -343,11 +343,14 @@ function refreshTabBorders() {
 
 function getDisplayUrl(url) {
     try {
-        return "🔒 " + new URL(url).hostname.replace(/^www\./, "");
+        // Renvoie uniquement le nom du site (ex: google.com), sans texte parasite devant
+        return new URL(url).hostname.replace(/^www\./, "");
     } catch {
         return url || "";
     }
 }
+
+
 
 function attachUrlHandler(panelId) {
     const input = document.getElementById(panelId + "-url");
@@ -362,11 +365,13 @@ function attachUrlHandler(panelId) {
 
 
 
+
+
+
 function rebuildUrlBar(panels) {
     const container = document.getElementById("url-bar");
     if (!container) return;
     
-    // CORRECTION : On utilise la variable globale infaillible
     const isDark = applicationDarkMode; 
     
     container.innerHTML = "";
@@ -379,140 +384,106 @@ function rebuildUrlBar(panels) {
 
     panels.forEach((panel) => {
         const tabWrapper = document.createElement("div");
-        tabWrapper.className = "flex items-center gap-2 p-1 rounded";
         
-        // CORRECTION : Arrière-plan et bordures dynamiques pour l'onglet
+        // FORCE FLEXBOX STRICT : Empêche le retour à la ligne des enfants
+        tabWrapper.style.display = "flex";
+        tabWrapper.style.flexDirection = "row";
+        tabWrapper.style.alignItems = "center";
+        tabWrapper.style.justifyContent = "space-between";
+        tabWrapper.style.flexWrap = "nowrap"; // Interdit formellement le passage à la ligne
+
         tabWrapper.style.background = isDark ? "#2d2d30" : "#f3f4f6";
         tabWrapper.style.border = isDark ? "1px solid #3c3c3c" : "1px solid #d1d5db";
+        tabWrapper.style.borderRadius = "4px";
+        tabWrapper.style.padding = "4px 8px";
         
         tabWrapper.style.flex = "1";
         tabWrapper.style.minWidth = "0";
+        tabWrapper.style.boxSizing = "border-box";
         tabWrapper.setAttribute("draggable", "true");
         tabWrapper.style.cursor = "grab";
 
         if (activePanel && panel.id === activePanel) {
             tabWrapper.style.borderColor = "#3b82f6";
-            // Bleu foncé en mode sombre, bleu clair en mode clair
             tabWrapper.style.background = isDark ? "#203a5d" : "#dbeafe"; 
             tabWrapper.classList.add("panel-is-maximized"); 
         }
 
-        // --- GESTION DU DRAG & DROP ---
+        // --- DRAG & DROP EVENT LISTENERS (Gardez vos écouteurs existants) ---
         tabWrapper.addEventListener("dragstart", (e) => {
             tabWrapper.style.opacity = "0.4";
             e.dataTransfer.setData("text/plain", panel.id);
             e.dataTransfer.effectAllowed = "move";
         });
-
         tabWrapper.addEventListener("dragend", () => {
             tabWrapper.style.opacity = "1";
             refreshTabBorders();
         });
+        tabWrapper.addEventListener("dragover", (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; tabWrapper.style.borderColor = "#3b82f6"; });
+        tabWrapper.addEventListener("dragleave", () => { tabWrapper.style.borderColor = (activePanel && panel.id === activePanel) ? "#3b82f6" : "#3c3c3c"; });
+        tabWrapper.addEventListener("drop", (e) => { e.preventDefault(); const draggedPanelId = e.dataTransfer.getData("text/plain"); if (draggedPanelId && draggedPanelId !== panel.id) { window.api.movePanel(draggedPanelId, panel.id); } refreshTabBorders(); });
 
-        tabWrapper.addEventListener("dragover", (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = "move";
-            tabWrapper.style.borderColor = "#3b82f6";
-        });
-
-        tabWrapper.addEventListener("dragleave", () => {
-            tabWrapper.style.borderColor = (activePanel && panel.id === activePanel) ? "#3b82f6" : "#3c3c3c";
-        });
-
-        // ... (Haut de la fonction rebuildUrlBar)
-        tabWrapper.addEventListener("drop", (e) => {
-            e.preventDefault();
-            const draggedPanelId = e.dataTransfer.getData("text/plain");
-            if (draggedPanelId && draggedPanelId !== panel.id) {
-                window.api.movePanel(draggedPanelId, panel.id);
-            }
-            refreshTabBorders();
-        });
-
-        // ======================================================================
-        // C'EST ICI QU'IL FAUT REMPLACER LE CODE EXISTANT (autour de la ligne 285)
-        // ======================================================================
+        // --- CHAMP DE SAISIE DE L'URL ---
         const input = document.createElement("input");
         input.type = "text";
         input.id = panel.id + "-url";
-        input.className = "h-6 px-1 rounded";
+        
+        // STYLES EN LIGNE STRICTS POUR L'INPUT
         input.style.background = "transparent";
-        input.style.color = isDark ? "#d4d4d4" : "#1f2937"; // <-- Remplacé ici pour le mode clair
+        input.style.color = isDark ? "#d4d4d4" : "#1f2937"; 
         input.style.border = "none";
         input.style.outline = "none";
-        input.style.width = "100%";
         input.style.fontSize = "12px";
+        input.style.height = "20px";
+        
+        // CSS FLEX : L'input prend la place restante MAIS laisse de la place pour l'étoile
+        input.style.flex = "1 1 auto"; 
+        input.style.width = "10px"; // Astuce CSS : force l'input à réduire sa taille de base pour ne pas pousser l'étoile
+        input.style.minWidth = "0"; 
+
         input.dataset.url = panel.realUrl || panel.url || "";
         input.value = getDisplayUrl(input.dataset.url);
-        // ======================================================================
 
         input.addEventListener("mousedown", () => tabWrapper.setAttribute("draggable", "false"));
-
         window.addEventListener("mouseup", () => tabWrapper.setAttribute("draggable", "true"));
+        input.addEventListener("click", (e) => { e.stopPropagation(); window.api.setActivePanel(panel.id); });
+        input.addEventListener("focus", () => { window.api.setActivePanel(panel.id); input.value = input.dataset.url; input.style.color = isDark ? "#ffffff" : "#1f2937"; setTimeout(() => { input.setSelectionRange(0, input.value.length); }, 10); });            
+        input.addEventListener("blur", () => { input.value = getDisplayUrl(input.dataset.url); input.style.color = isDark ? "#d4d4d4" : "#1f2937"; });
 
-        input.addEventListener("click", (e) => {
-            e.stopPropagation();
-            window.api.setActivePanel(panel.id);
-        });
-
-        input.addEventListener("focus", () => {
-            window.api.setActivePanel(panel.id);
-            input.value = input.dataset.url;
-            // Optionnel : force le texte en clair/sombre pendant la saisie
-            input.style.color = isDark ? "#ffffff" : "#1f2937"; 
-            setTimeout(() => {
-                input.setSelectionRange(0, input.value.length);
-            }, 10);
-        });            
-
-        input.addEventListener("blur", () => {
-            input.value = getDisplayUrl(input.dataset.url);
-            // CORRECTION : Rétablir la couleur du texte selon le mode
-            input.style.color = isDark ? "#d4d4d4" : "#1f2937"; 
-        });
-
-
-
-        // --- CRÉATION DE L'INPUT D'URL (votre code existant) ---
         tabWrapper.appendChild(input);
 
-        // === AJOUT : BOUTON ÉTOILE DE FAVORI ===
+        // --- BOUTON ÉTOILE DE FAVORI ---
         const starBtn = document.createElement("div");
         starBtn.className = "btn-favori";
         starBtn.id = `star-${panel.id}`;
-        starBtn.innerText = "☆"; // Étoile vide par défaut
+        starBtn.innerText = "☆"; 
         starBtn.title = "Ajouter aux favoris";
 
-        // Style de base en ligne pour s'assurer de sa visibilité immédiate
         starBtn.style.cursor = "pointer";
         starBtn.style.fontSize = "14px";
-        starBtn.style.marginRight = "6px";
         starBtn.style.userSelect = "none";
-        starBtn.style.color = "#6b7280"; // Gris par défaut
+        starBtn.style.color = "#6b7280"; 
         starBtn.style.zIndex = "20";
-
-        // Empêche le clic de perturber le drag and drop ou le focus de l'onglet
-        starBtn.addEventListener("mousedown", (e) => e.stopPropagation());
         
+        // FORCE L'ÉTOILE À RESTER FIXE À DROITE
+        starBtn.style.flex = "0 0 auto"; // Interdit à l'étoile de rétrécir ou de grandir
+        starBtn.style.marginLeft = "8px";
+        starBtn.style.display = "flex";
+        starBtn.style.alignItems = "center";
+
+        starBtn.addEventListener("mousedown", (e) => e.stopPropagation());
         starBtn.addEventListener("click", async (e) => {
             e.stopPropagation();
             const currentUrl = input.dataset.url || panel.url || "";
             const currentTitle = panel.title || input.value;
-            
-            // Appel au processus principal
             const isAdded = await window.api.toggleFavori({ url: currentUrl, title: currentTitle });
-            
-            // Mise à jour visuelle immédiate locale
-            starBtn.innerText = isAdded ? "★" : "☆";
-            starBtn.style.color = isAdded ? "#eab308" : "#6b7280"; // Jaune si actif
+            starBtn.innerText = isAdded ? "★" : "::⭐::";
+            starBtn.style.color = isAdded ? "#eab308" : "#6b7280"; 
         });
 
         tabWrapper.appendChild(starBtn);
 
-        // --- CRÉATION DU BOUTON D'ANNULATION DU TÉLÉCHARGEMENT (votre code existant) ---
-        const cancelBtn = document.createElement("div");
-
-        // --- CRÉATION DE LA BARRE DE PROGRESSION ---
+        // --- BARRE DE PROGRESSION ---
         const progBar = document.createElement("div");
         progBar.className = "download-progress-bar";
         progBar.id = `prog-${panel.id}`;
@@ -521,54 +492,60 @@ function rebuildUrlBar(panels) {
         container.appendChild(tabWrapper);
         attachUrlHandler(panel.id);
     });
+
+
+
+
+
 }
 
-// --- ÉCOUTEURS DES BOUTONS DE LA BARRE D'OUTILS ---
-document.getElementById("back-button").addEventListener("click", () => window.api.goBack(activePanel));
-document.getElementById("forward-button").addEventListener("click", () => window.api.goForward(activePanel));
-document.getElementById("refresh-button").addEventListener("click", () => window.api.refresh(activePanel));
-document.getElementById("split-vertical").addEventListener("click", () => window.api.splitPanel(activePanel, "vertical"));
-document.getElementById("split-horizontal").addEventListener("click", () => window.api.splitPanel(activePanel, "horizontal"));
-document.getElementById("close-panel").addEventListener("click", () => window.api.closePanel(activePanel));
-document.getElementById("undo").addEventListener("click", () => window.api.undo());
+
+    // --- ÉCOUTEURS DES BOUTONS DE LA BARRE D'OUTILS ---
+    document.getElementById("back-button").addEventListener("click", () => window.api.goBack(activePanel));
+    document.getElementById("forward-button").addEventListener("click", () => window.api.goForward(activePanel));
+    document.getElementById("refresh-button").addEventListener("click", () => window.api.refresh(activePanel));
+    document.getElementById("split-vertical").addEventListener("click", () => window.api.splitPanel(activePanel, "vertical"));
+    document.getElementById("split-horizontal").addEventListener("click", () => window.api.splitPanel(activePanel, "horizontal"));
+    document.getElementById("close-panel").addEventListener("click", () => window.api.closePanel(activePanel));
+    document.getElementById("undo").addEventListener("click", () => window.api.undo());
 
 
 
-// --- ÉCOUTEURS DES ÉVÉNEMENTS IPC ELECTRON ---
-window.api.onPanelsUpdated((panels, maximizedPanelId) => {
+    // --- ÉCOUTEURS DES ÉVÉNEMENTS IPC ELECTRON ---
+    window.api.onPanelsUpdated((panels, maximizedPanelId) => {
 
-    currentPanels = panels;
-    currentMaximizedId = maximizedPanelId;
+        currentPanels = panels;
+        currentMaximizedId = maximizedPanelId;
 
-    rebuildUrlBar(panels);
+        rebuildUrlBar(panels);
 
-    if (!window.initialThemeApplied) {
+        if (!window.initialThemeApplied) {
 
-        window.initialThemeApplied = true;
+            window.initialThemeApplied = true;
 
-        window.api.getThemePreference()
-            .then(savedTheme => {
-                setDarkMode(savedTheme);
-            });
-    }
-
-    const container = document.getElementById("url-bar");
-    if (container) {
-        if (maximizedPanelId) {
-            container.classList.add("maximized-mode");
-        } else {
-            container.classList.remove("maximized-mode");
+            window.api.getThemePreference()
+                .then(savedTheme => {
+                    setDarkMode(savedTheme);
+                });
         }
-    }
 
-    // === FORCE LE VÉRIFICATION DES ÉTOILES À CHAQUE CHANGEMENT DE PAGE ===
-    checkFavorisState();
-
-    setTimeout(() => {
-        if (document.activeElement instanceof HTMLInputElement) {
-            document.activeElement.blur();
+        const container = document.getElementById("url-bar");
+        if (container) {
+            if (maximizedPanelId) {
+                container.classList.add("maximized-mode");
+            } else {
+                container.classList.remove("maximized-mode");
+            }
         }
-    }, 0);
+
+        // === FORCE LE VÉRIFICATION DES ÉTOILES À CHAQUE CHANGEMENT DE PAGE ===
+        checkFavorisState();
+
+        setTimeout(() => {
+            if (document.activeElement instanceof HTMLInputElement) {
+                document.activeElement.blur();
+            }
+        }, 0);
 });
 
 
@@ -593,11 +570,10 @@ window.api.onToggleBookmarksBar?.((isVisible) => {
 
 // === FONCTIONS GLOBALES POUR LA SYNCHRONISATION DES FAVORIS ===
 
-// 1. Déclaration de la fonction de vérification
+
 async function checkFavorisState() {
     if (typeof currentPanels === 'undefined' || !currentPanels) return;
     
-    // On demande la liste des favoris à Electron
     const favoris = await window.api.getFavoris?.() || [];
     
     currentPanels.forEach(panel => {
@@ -609,11 +585,13 @@ async function checkFavorisState() {
             const isFavori = favoris.some(f => f.url === currentUrl);
             
             starBtn.innerText = isFavori ? "★" : "☆";
-            starBtn.style.color = isFavori ? "#eab308" : "#6b7280"; // Allume en jaune si favori
+            starBtn.style.color = isFavori ? "#eab308" : "#6b7280"; 
             starBtn.title = isFavori ? "Retirer des favoris" : "Ajouter aux favoris";
         }
     });
 }
+
+
 
 // 2. Écouteur pour intercepter le signal de mise à jour (ex: clic ou Ctrl+D)
 window.api.onFavorisUpdated?.((favoris) => {
