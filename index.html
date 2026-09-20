@@ -277,13 +277,12 @@ body {
     <!-- Zone interne pour la liste des badges -->
     <div id="bookmarks-list" style="flex: 1;"></div>
     
-    <!-- Zone des boutons d'action à droite -->
-    <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding-right: 4px;">
-
-        <button id="clear-bookmarks-btn" style="background: #374151; color: #9ca3af; border: 1px solid #4b5563; font-size: 10px; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: all .2s ease;">Effacer tout</button>
-
-        <div id="close-bookmarks-bar" title="Masquer la barre des favoris (Ctrl+Shift+B)">X</div>
+    <!-- Zone des boutons d'action à droite de la barre des favoris -->
+    <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0; padding-right: 4px;">
+        <button id="clear-bookmarks-btn" style="font-size: 10px; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: all .2s ease;">Effacer tout</button>
+        <div id="close-bookmarks-bar" title="Masquer la barre des favoris (Ctrl+Shift+B)">×</div>
     </div>
+
 </div>
     
 <div id="active-panel-frame"></div>
@@ -829,6 +828,26 @@ async function rebuildBookmarksBar() {
             btn.style.borderColor = "#d1d5db";
             btn.style.color = "#1f2937";
         }
+
+
+        // Effet de survol (hover) adaptatif pour la croix de fermeture des favoris
+        const closeFavBtn = document.getElementById("close-bookmarks-bar");
+        if (closeFavBtn) {
+            closeFavBtn.addEventListener("mouseenter", () => {
+                const isDark = applicationDarkMode;
+                // Devient rouge au survol, selon le thème
+                closeFavBtn.style.background = isDark ? "#991b1b" : "#fee2e2"; 
+                closeFavBtn.style.color = isDark ? "#fca5a5" : "#b91c1c";
+            });
+            
+            closeFavBtn.addEventListener("mouseleave", () => {
+                const isDark = applicationDarkMode;
+                // Reprend son état transparent et sa couleur neutre d'origine
+                closeFavBtn.style.background = "transparent";
+                closeFavBtn.style.color = isDark ? "#9ca3af" : "#4b5563";
+            });
+        }
+
 
         btn.addEventListener("mouseenter", () => {
             btn.style.background = isDark ? "#3f3f46" : "#f3f4f6";
