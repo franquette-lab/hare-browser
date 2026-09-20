@@ -273,14 +273,19 @@ body {
 <div id="active-panel-frame"></div>
 
 <!-- === REMPLACER LE CONTENEUR DE LA BARRE DES FAVORIS PAR CELUI-CI === -->
-<div id="bookmarks-bar" style="position: fixed; top: 74px; left: 0; right: 0; z-index: 50;">
-    <!-- Zone interne pour la liste des badges (défilante) -->
-    <div id="bookmarks-list"></div>
+<div id="bookmarks-bar" style="position: fixed; top: 74px; left: 0; right: 0; z-index: 50; display: flex; justify-content: space-between; align-items: center;">
+    <!-- Zone interne pour la liste des badges -->
+    <div id="bookmarks-list" style="flex: 1;"></div>
     
-    <!-- Bouton de fermeture fixe tout à droite -->
-    <div id="close-bookmarks-bar" title="Masquer la barre des favoris (Ctrl+Shift+B)">✕</div>
-</div>
+    <!-- Zone des boutons d'action à droite -->
+    <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding-right: 4px;">
 
+        <button id="clear-bookmarks-btn" style="background: #374151; color: #9ca3af; border: 1px solid #4b5563; font-size: 10px; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: all .2s ease;">Effacer tout</button>
+
+        <div id="close-bookmarks-bar" title="Masquer la barre des favoris (Ctrl+Shift+B)">X</div>
+    </div>
+</div>
+    
 <div id="active-panel-frame"></div>
 
 
@@ -773,20 +778,35 @@ window.api.onDownloadDone((data) => {
 
 
 
-// === FONCTION DE RECONSTRUCTION DE LA BARRE CORRIGÉE ===
+
 async function rebuildBookmarksBar() {
     const listContainer = document.getElementById("bookmarks-list");
+    const clearBtn = document.getElementById("clear-bookmarks-btn");
     if (!listContainer) return;
 
-    // Détecter si le mode sombre global est actif
-    const isDark = applicationDarkMode;
+    const isDark = applicationDarkMode; // Détecte le mode actif
 
     const favoris = await window.api.getFavoris?.() || [];
     listContainer.innerHTML = "";
 
+    // Gestion de la visibilité du bouton
+    if (clearBtn) {
+        clearBtn.style.display = favoris.length === 0 ? "none" : "block";
+        
+        // --- COULEURS DYNAMIQUES DU BOUTON (CLAIR / SOMBRE) ---
+        if (isDark) {
+            clearBtn.style.background = "#374151";     // Gris foncé
+            clearBtn.style.borderColor = "#4b5563";    // Bordure grise
+            clearBtn.style.color = "#9ca3af";          // Texte gris clair
+        } else {
+            clearBtn.style.background = "#ffffff";     // Fond blanc
+            clearBtn.style.borderColor = "#d1d5db";    // Bordure grise claire
+            clearBtn.style.color = "#4b5563";          // Texte gris sombre
+        }
+    }
+
     if (favoris.length === 0) {
         const emptyText = document.createElement("span");
-        // Couleur du texte adaptative si aucun favori
         emptyText.style.color = isDark ? "#6b7280" : "#9ca3af";
         emptyText.style.fontSize = "11px";
         emptyText.innerText = "Aucun favori enregistré. Cliquez sur l'étoile pour en ajouter.";
@@ -797,21 +817,19 @@ async function rebuildBookmarksBar() {
     favoris.forEach(fav => {
         const btn = document.createElement("div");
         btn.className = "bookmark-item";
-        btn.innerText = "⭐ " + fav.title.replace("⭐ ", "");
+        btn.innerText = "★ " + fav.title.replace("★ ", "").replace("☆ ", "");
         btn.title = fav.url;
 
-        // --- APPLICATION DYNAMIQUE DES COULEURS (CLAIR / SOMBRE) ---
         if (isDark) {
             btn.style.background = "#2d2d30";
             btn.style.borderColor = "#3c3c3c";
             btn.style.color = "#cfcfcf";
         } else {
-            btn.style.background = "#ffffff";     // Fond blanc en mode clair
-            btn.style.borderColor = "#d1d5db";    // Bordure grise claire
-            btn.style.color = "#1f2937";          // Texte sombre en mode clair
+            btn.style.background = "#ffffff";
+            btn.style.borderColor = "#d1d5db";
+            btn.style.color = "#1f2937";
         }
 
-        // Gestion du survol (Hover) dynamique en JavaScript
         btn.addEventListener("mouseenter", () => {
             btn.style.background = isDark ? "#3f3f46" : "#f3f4f6";
             btn.style.color = isDark ? "#ffffff" : "#000000";
@@ -830,6 +848,10 @@ async function rebuildBookmarksBar() {
         listContainer.appendChild(btn);
     });
 }
+
+
+
+
 
 // === METTRE À JOUR LES ÉCOUTEURS EXISTANTS POUR INCLURE LA BARRE ===
 
@@ -1047,6 +1069,44 @@ window.addEventListener("keydown", (e) => {
 });
 
 
+// Effet de survol (hover) discret pour le bouton Effacer les favoris
+// Effet de survol (hover) adaptatif pour le bouton Effacer les favoris
+const clearFavBtn = document.getElementById("clear-bookmarks-btn");
+if (clearFavBtn) {
+    clearFavBtn.addEventListener("mouseenter", () => {
+        const isDark = applicationDarkMode;
+        // Au survol, le bouton devient rouge (adapté au mode clair ou sombre)
+        clearFavBtn.style.background = isDark ? "#991b1b" : "#fee2e2"; 
+        clearFavBtn.style.color = isDark ? "#fca5a5" : "#b91c1c";
+        clearFavBtn.style.borderColor = isDark ? "#b91c1c" : "#fca5a5";
+    });
+    
+    clearFavBtn.addEventListener("mouseleave", () => {
+        const isDark = applicationDarkMode;
+        // Au départ de la souris, on rétablit la couleur neutre d'origine du mode en cours
+        if (isDark) {
+            clearFavBtn.style.background = "#374151";
+            clearFavBtn.style.borderColor = "#4b5563";
+            clearFavBtn.style.color = "#9ca3af";
+        } else {
+            clearFavBtn.style.background = "#ffffff";
+            clearFavBtn.style.borderColor = "#d1d5db";
+            clearFavBtn.style.color = "#4b5563";
+        }
+    });
+}
+
+
+// À mettre au bas du script dans index.html avec vos autres écouteurs
+document.getElementById("clear-bookmarks-btn")?.addEventListener("click", async () => {
+    if (confirm("Voulez-vous vraiment effacer tous vos favoris ?")) {
+        if (window.api.clearFavoris) {
+            await window.api.clearFavoris();
+            // Le rafraîchissement visuel se fera tout seul grâce à l'écouteur onFavorisUpdated déjà en place
+        }
+    }
+});
+
 
 // ====== DANS INDEX.HTML -> DANS LE <script> EN BAS ======
 
@@ -1063,24 +1123,6 @@ window.api.onTitleChanged?.((newTitle) => {
     document.title = newTitle;
 });
 
-/*
-window.api.onSystemThemeChanged((isDark) => {
-
-    applicationDarkMode = isDark;
-
-    document.documentElement.classList.toggle("dark", isDark);
-    document.body.classList.toggle("dark", isDark);
-
-    const darkModeBtn = document.getElementById("dark-mode-button");
-
-    if (darkModeBtn) {
-        darkModeBtn.innerText = isDark ? "☀️" : "🌙";
-    }
-
-    rebuildUrlBar(currentPanels);
-    rebuildBookmarksBar();
-});
-*/
 
 window.api.onSystemThemeChanged((isDark) => {
 

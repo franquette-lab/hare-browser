@@ -7,9 +7,12 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld(
     'api',
     {
+
+        // À insérer dans preload.js à l'intérieur de l'objet 'api'
+        clearFavoris: () => ipcRenderer.invoke('clear-favoris'),
         getSystemTheme: () => ipcRenderer.invoke("get-system-theme"),
-getThemePreference: () => ipcRenderer.invoke("get-theme-preference"),
-saveThemePreference: (isDark) => ipcRenderer.invoke("save-theme-preference", isDark),        sendDragStart: (panelId) => ipcRenderer.send("panel-drag-start", panelId),
+        getThemePreference: () => ipcRenderer.invoke("get-theme-preference"),
+        saveThemePreference: (isDark) => ipcRenderer.invoke("save-theme-preference", isDark),        sendDragStart: (panelId) => ipcRenderer.send("panel-drag-start", panelId),
         sendDragEnd: () => ipcRenderer.send("panel-drag-end"),
         setActivePanel: (panelId) => ipcRenderer.send("set-active-panel", panelId),
         navigate: (panelId, url) => ipcRenderer.send('navigate', panelId, url),

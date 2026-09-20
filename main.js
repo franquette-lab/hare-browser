@@ -2375,6 +2375,24 @@ ipcMain.handle('get-favoris', () => {
     return getFavoris();
 });
 
+// À ajouter dans main.js avec vos autres ipcMain.handle
+ipcMain.handle('clear-favoris', () => {
+    try {
+        // Écrit un tableau vide dans le fichier des favoris
+        fs.writeFileSync(favorisPath, JSON.stringify([]));
+        
+        // Notifie l'IHM (index.html) pour forcer la mise à jour visuelle immédiate
+        if (win && !win.isDestroyed()) {
+            win.webContents.send('favoris-updated', []);
+        }
+        return true;
+    } catch (e) {
+        console.error("Erreur lors de la suppression des favoris :", e);
+        return false;
+    }
+});
+
+
 ipcMain.handle("get-theme-preference", () => {
     return getThemePreference();
 });
@@ -2474,6 +2492,6 @@ app.on('will-quit', () => {
 
 
 // Ligne temporaire pour vider le fichier des favoris sur le disque
-// fs.writeFileSync(path.join(app.getPath('userData'), 'favoris.json'), JSON.stringify([]));
+//  fs.writeFileSync(path.join(app.getPath('userData'), 'favoris.json'), JSON.stringify([]));
 
 app.whenReady().then(createWindow);
