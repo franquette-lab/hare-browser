@@ -226,6 +226,16 @@ body {
 }
 
 
+/* À insérer dans votre bloc <style> ou à modifier si existant */
+#bookmarks-list {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important; /* Permet de passer à la ligne suivante si la barre est pleine */
+    gap: 6px !important;       /* Espace horizontal entre chaque favori */
+    align-items: center;
+}
+
+
 </style>
 
 <body class="m-0 flex items-center justify-center bg-gray-100 dark:bg-zinc-900 min-h-screen">
@@ -571,9 +581,11 @@ window.api.onToggleBookmarksBar?.((isVisible) => {
 // === FONCTIONS GLOBALES POUR LA SYNCHRONISATION DES FAVORIS ===
 
 
+
 async function checkFavorisState() {
     if (typeof currentPanels === 'undefined' || !currentPanels) return;
     
+    // Récupération de la liste des favoris enregistrés sur le disque
     const favoris = await window.api.getFavoris?.() || [];
     
     currentPanels.forEach(panel => {
@@ -581,15 +593,20 @@ async function checkFavorisState() {
         const starBtn = document.getElementById(`star-${panel.id}`);
         
         if (input && starBtn) {
-            const currentUrl = input.dataset.url || panel.url || "";
-            const isFavori = favoris.some(f => f.url === currentUrl);
+            // Sécurité : Récupère l'URL brute associée au panneau
+            const currentUrl = input.dataset.url || panel.realUrl || panel.url || "";
             
+            // Comparaison propre des chaînes d'URLs
+            const isFavori = favoris.some(f => f.url.trim() === currentUrl.trim());
+            
+            // Rendu visuel textuel sans caractères cassés
             starBtn.innerText = isFavori ? "★" : "☆";
             starBtn.style.color = isFavori ? "#eab308" : "#6b7280"; 
             starBtn.title = isFavori ? "Retirer des favoris" : "Ajouter aux favoris";
         }
     });
 }
+
 
 
 

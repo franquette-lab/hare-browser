@@ -2473,5 +2473,7 @@ app.on('will-quit', () => {
 
 
 
-    
+// Ligne temporaire pour vider le fichier des favoris sur le disque
+// fs.writeFileSync(path.join(app.getPath('userData'), 'favoris.json'), JSON.stringify([]));
+
 app.whenReady().then(createWindow);
