@@ -1,8 +1,38 @@
 <html>
+<!-- ====== history.html ====== -->
 <head>
     <meta charset="utf-8">
     <style>
+
+/* =====================================================
+   PERSONNALISATION DYNAMIQUE DE LA SCROLLBAR
+===================================================== */
+
+/* 1. Largeur de la barre verticale */
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+/* 2. Fond de la barre (Track) - Géré dynamiquement par des variables CSS */
+::-webkit-scrollbar-track {
+    background: var(--scrollbar-track, #f3f4f6);
+}
+
+/* 3. Curseur mobile (Thumb) */
+::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb, #d1d5db);
+    border-radius: 4px;
+    border: 2px solid var(--scrollbar-track, #f3f4f6); /* Crée une jolie marge interne */
+}
+
+/* 4. Effet au survol du curseur */
+::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover, #9ca3af);
+}
+
+
         body { 
+            color-scheme: light dark;
             font-family: 'Segoe UI', system-ui, sans-serif; 
             margin: 0; padding: 12px; user-select: none;
         }
@@ -26,27 +56,46 @@
 
 
 <!-- ====== DANS HISTORY.HTML ====== -->
-<script>
-    // On utilise l'API sécurisée exposée par le script preload-history.js
-    window.historyApi.onRenderHistory((data) => {
-        const container = document.getElementById('history-container');
-        const clearContainer = document.getElementById('clear-container');
-        const isDark = data.isDarkMode;
-        
-        // Application globale des thèmes
-        document.body.style.background = isDark ? "#1e1e1e" : "#f9fafb";
-        document.body.style.color = isDark ? "#cfcfcf" : "#1f2937";
-        document.getElementById('history-title').style.color = isDark ? "#ffffff" : "#000000";
-        document.querySelector('.header').style.borderColor = isDark ? "#3c3c3c" : "#e5e7eb";
 
-        clearContainer.innerHTML = '';
-        container.innerHTML = '';
+
+<!-- ====== DANS HISTORY.HTML ====== -->
+<script>
+
+
+
+// On utilise l'API sécurisée exposée par le script preload-history.js
+window.historyApi.onRenderHistory((data) => {
+    const container = document.getElementById('history-container');
+    const clearContainer = document.getElementById('clear-container');
+    const isDark = data.isDarkMode;
+    
+    // Application globale des thèmes
+    document.body.style.background = isDark ? "#1e1e1e" : "#f9fafb";
+    document.body.style.color = isDark ? "#cfcfcf" : "#1f2937";
+    document.getElementById('history-title').style.color = isDark ? "#ffffff" : "#000000";
+    document.querySelector('.header').style.borderColor = isDark ? "#3c3c3c" : "#e5e7eb";
+
+    // INJECTION DES COULEURS DE LA BARRE DE DÉFILEMENT SELON LE MODE
+    if (isDark) {
+        document.documentElement.style.setProperty('--scrollbar-track', '#1e1e1e');
+        document.documentElement.style.setProperty('--scrollbar-thumb', '#374151');
+        document.documentElement.style.setProperty('--scrollbar-thumb-hover', '#4b5563');
+    } else {
+        document.documentElement.style.setProperty('--scrollbar-track', '#f9fafb'); // Fond blanc/gris très clair
+        document.documentElement.style.setProperty('--scrollbar-thumb', '#cbd5e1'); // Curseur gris clair
+        document.documentElement.style.setProperty('--scrollbar-thumb-hover', '#94a3b8'); // Curseur au survol
+    }
+
+    clearContainer.innerHTML = '';
+    container.innerHTML = '';
 
         // Gestion du bouton Effacer tout
         if (data.historyList.length > 0) {
             const clearBtn = document.createElement('button');
             clearBtn.className = 'clear-all-btn';
             clearBtn.innerText = 'Effacer tout';
+            
+            // Couleurs adaptatives pour le bouton selon le mode
             clearBtn.style.background = isDark ? "#374151" : "#ffffff";
             clearBtn.style.color = isDark ? "#9ca3af" : "#4b5563";
             clearBtn.style.border = `1px solid ${isDark ? "#4b5563" : "#d1d5db"}`;
@@ -72,7 +121,7 @@
 
                 div.innerHTML = `
                     <div class="content">
-                        <div class="title" style="color: ${isDark ? '#ffffff' : '#000000'}">${item.title || item.url}</div>
+                        <div class="title" style="color: ${isDark ? '#ffffff' : '#1f2937'}">${item.title || item.url}</div>
                         <div class="url" style="color: #6b7280">${item.url}</div>
                     </div>
                     <div class="delete-btn" style="color: ${isDark ? '#6b7280' : '#9ca3af'}">×</div>
@@ -97,6 +146,10 @@
             container.innerHTML = '<div id="empty">Aucun historique disponible.</div>';
         }
     });
+
+
+
+    
 </script>
 
 
