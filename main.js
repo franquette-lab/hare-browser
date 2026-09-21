@@ -432,11 +432,28 @@ function updatePanelHandles() {
     // 2. Mettre à jour ou créer la poignée pour chaque panneau
     panelsList.forEach((panel) => {
 
+
+        
         if (maximizedPanelId && panel.id !== maximizedPanelId) {
+
             if (handleViews[panel.id]) {
-                try { win.removeBrowserView(handleViews[panel.id]); } catch(e) {}
+
+                try {
+                    win.removeBrowserView(handleViews[panel.id]);
+
+                    if (
+                        handleViews[panel.id].webContents &&
+                        !handleViews[panel.id].webContents.isDestroyed()
+                    ) {
+                        handleViews[panel.id].webContents.destroy();
+                    }
+
+                } catch(e) {}
+
+                delete handleViews[panel.id];
             }
-            return; 
+
+            return;
         }
 
         if (!panel.bounds) return;
@@ -554,9 +571,9 @@ function updatePanelHandles() {
                     forceRebuildSplitters = true;
                     resizeViews();
                     win.webContents.send("zoom-changed", maximizedPanelId);
-                    try { win.removeBrowserView(hView); } catch(e){}
-                    delete handleViews[panel.id];
-                    updatePanelHandles();
+//                  try { win.removeBrowserView(hView); } catch(e){}
+//                  delete handleViews[panel.id];
+//                  updatePanelHandles();
                     return;
                 }
                 if (title === "action-fullscreen") {
@@ -1021,10 +1038,19 @@ function setupNavigationTracking(panel) {
     });
 }
 
+
+
+
+
+
+
+
+
+
 function layoutNode(node, x, y, width, height) {
     if (!node || width <= 0 || height <= 0) return;
 
-    // SI UN PANNEAU EST MAXIMISÉ : On surcharge le comportement standard
+    // SI UN PANNEAU EST MAXIMISÉ : On nettoie et on surcharge le comportement
     if (maximizedPanelId) {
         if (node.type === "panel") {
             if (node.id === maximizedPanelId) {
@@ -1034,15 +1060,22 @@ function layoutNode(node, x, y, width, height) {
                     node.view.setBounds({ x, y, width, height });
                 }
             } else {
-                // Les autres panneaux sont cachés en dehors de la fenêtre visible
+                // CORRECTIF : On écrase totalement les anciennes coordonnées 
+                // pour forcer Chromium à effacer le panneau de l'affichage
                 node.bounds = null;
                 if (node.view && !node.view.webContents.isDestroyed()) {
                     node.view.setBounds({ x: -2000, y: -2000, width: 0, height: 0 });
                 }
+                
+                // CORRECTIF : On détruit immédiatement la poignée flottante associée
+                if (handleViews[node.id]) {
+                    try { win.removeBrowserView(handleViews[node.id]); } catch(e) {}
+                    delete handleViews[node.id];
+                }
             }
             return;
         }
-        // Si c'est un nœud de type split, on propage de manière invisible
+        // Si c'est un nœud de type split, on propage le nettoyage aux enfants
         layoutNode(node.first, x, y, width, height);
         layoutNode(node.second, x, y, width, height);
         return;
@@ -1150,7 +1183,14 @@ function swapPanelsInTree(idA, idB) {
     resizeViews();
 
     // 5. Notification complète et immédiate à l'interface HTML
-    win.webContents.send("panels-updated", collectPanels(rootNode));
+//  win.webContents.send("panels-updated", collectPanels(rootNode));
+
+    win.webContents.send(
+        "panels-updated",
+        collectPanels(rootNode),
+        maximizedPanelId
+    );
+
     win.webContents.send("active-panel-changed", { id: nodeA.id, bounds: nodeA.bounds });
 }
 
@@ -1216,7 +1256,14 @@ app.on('drag-end', () => {
 
 ipcMain.on("close-panel", (event, panelId) => {
     // === VÉRIFICATION DU NOMBRE DE PANNEAUX RESTANTS ===
+
     const allViews = win.getBrowserViews();
+
+    console.log(
+        "BrowserViews =",
+        allViews.length
+    );
+
     const realWebViews = allViews.filter(v => {
         if (!v.webContents || v.webContents.isDestroyed()) return false;
         const ua = v.webContents.getUserAgent();
@@ -1257,7 +1304,15 @@ ipcMain.on("close-panel", (event, panelId) => {
     win.webContents.send("active-panel-changed", { id: newActivePanel.id, bounds: newActivePanel.bounds });        
     forceRebuildSplitters = true;
     resizeViews();
-    win.webContents.send("panels-updated", collectPanels(rootNode));
+
+//  win.webContents.send("panels-updated", collectPanels(rootNode));
+    win.webContents.send(
+        "panels-updated",
+        collectPanels(rootNode),
+        maximizedPanelId
+    );
+
+
 });
 
 
@@ -1296,7 +1351,13 @@ ipcMain.on("undo", (event) => {
     resizeViews();
 
     // 9. Mise à jour complète de la barre d'onglets HTML et du rectangle de focus
-    win.webContents.send("panels-updated", collectPanels(rootNode));
+//  win.webContents.send("panels-updated", collectPanels(rootNode));
+    win.webContents.send(
+        "panels-updated",
+        collectPanels(rootNode),
+        maximizedPanelId
+    );
+
     if (restoredNode && restoredNode.bounds) {
         win.webContents.send("active-panel-changed", { id: restoredNode.id, bounds: restoredNode.bounds });
         updateActiveBorder(restoredNode.bounds);
@@ -1620,7 +1681,12 @@ ipcMain.on("split-panel", (event, panelId, direction) => {
     resizeViews();
     
     // 1. On notifie index.html du changement de liste des panneaux pour dessiner le nouvel onglet
-    win.webContents.send("panels-updated", collectPanels(rootNode));
+//  win.webContents.send("panels-updated", collectPanels(rootNode));
+    win.webContents.send(
+        "panels-updated",
+        collectPanels(rootNode),
+        maximizedPanelId
+    );
     
     // 2. On force IMMÉDIATEMENT l'interface à activer le focus visuel sur ce nouvel onglet
     win.webContents.send("active-panel-changed", { id: newPanel.id, bounds: newPanel.bounds });
@@ -1707,6 +1773,9 @@ function createWindow() {
             nodeIntegration: false
         }
     });
+
+    // Ouvre automatiquement les DevTools au démarrage de l'application
+    win.webContents.openDevTools();
 
     win.setMaxListeners(30);
 
@@ -2048,7 +2117,12 @@ collectPanelNodes(rootNode).forEach(panel => {
 
         addToHistory(url, title);
 
-        win.webContents.send("panels-updated", collectPanels(rootNode));
+//      win.webContents.send("panels-updated", collectPanels(rootNode));
+        win.webContents.send(
+            "panels-updated",
+            collectPanels(rootNode),
+            maximizedPanelId
+        );
 
         win.webContents.send("app-title-changed", APP_TITLE);
 
@@ -2244,7 +2318,15 @@ function detachPanelToFullscreen(panelId) {
         win.webContents.send("active-panel-changed", { id: newActivePanel.id, bounds: newActivePanel.bounds });        
         forceRebuildSplitters = true;
         resizeViews();
-        win.webContents.send("panels-updated", collectPanels(rootNode));
+
+//      win.webContents.send("panels-updated", collectPanels(rootNode));
+        win.webContents.send(
+            "panels-updated",
+            collectPanels(rootNode),
+            maximizedPanelId
+        );
+
+
 
 console.log(
     "panels-updated currentPanels:",

@@ -124,6 +124,12 @@ contextBridge.exposeInMainWorld(
         // À insérer juste avant la fin de contextBridge.exposeInMainWorld('api', { ... })
         onTitleChanged: (callback) => ipcRenderer.on("app-title-changed", (event, title) => callback(title)),
 
+        onSystemThemeChanged: (callback) => {
+    ipcRenderer.on("system-theme-changed", (_, isDark) => {
+        callback(isDark);
+    });
+}
+
     }
 );
 

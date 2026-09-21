@@ -483,6 +483,7 @@ function rebuildUrlBar(panels) {
         
 });
     
+
     
         input.addEventListener("blur", () => { input.value = getDisplayUrl(input.dataset.url); input.style.color = isDark ? "#d4d4d4" : "#1f2937"; });
 
@@ -547,13 +548,16 @@ function rebuildUrlBar(panels) {
 
 
 
-    // --- ÉCOUTEURS DES ÉVÉNEMENTS IPC ELECTRON ---
+
+
     window.api.onPanelsUpdated((panels, maximizedPanelId) => {
 
         currentPanels = panels;
         currentMaximizedId = maximizedPanelId;
 
         rebuildUrlBar(panels);
+
+        updateMaximizedTabDisplay(maximizedPanelId);
 
         if (!window.initialThemeApplied) {
 
@@ -693,17 +697,53 @@ window.api.onNavigationStateChanged((data) => {
     }
 });
 
-window.api.onZoomChanged((maximizedPanelId) => {
-    currentMaximizedId = maximizedPanelId; // Garde la synchro
+
+function updateMaximizedTabDisplay(maximizedPanelId) {
     const container = document.getElementById("url-bar");
+    if (!container) return;
+
+    const tabs = container.children;
+
+    for (const tab of tabs) {
+
+        const input = tab.querySelector("input");
+        if (!input) continue;
+
+        const panelId = input.id.replace("-url", "");
+
+        if (maximizedPanelId) {
+
+            if (panelId === maximizedPanelId) {
+                tab.style.display = "flex";
+                tab.style.flex = "1";
+            } else {
+                tab.style.display = "none";
+            }
+
+        } else {
+
+            tab.style.display = "flex";
+            tab.style.flex = "1";
+        }
+    }
+}
+
+
+console.log("updateMaximizedTabDisplay =", typeof updateMaximizedTabDisplay);
+
+
+window.api.onZoomChanged((maximizedPanelId) => {
+
+    currentMaximizedId = maximizedPanelId;
+
+    updateMaximizedTabDisplay(maximizedPanelId);
+
+    const container = document.getElementById("url-bar");
+
     if (!container) return;
 
     if (maximizedPanelId) {
         container.classList.add("maximized-mode");
-        const activeInput = document.getElementById(maximizedPanelId + "-url");
-        if (activeInput && activeInput.parentElement) {
-            activeInput.parentElement.classList.add("panel-is-maximized");
-        }
     } else {
         container.classList.remove("maximized-mode");
     }
@@ -711,13 +751,13 @@ window.api.onZoomChanged((maximizedPanelId) => {
 
 
 
-
 function updateCloseButtonState() {
     const closeBtn = document.getElementById("close-panel");
     if (!closeBtn) return;
 
-    // Si activePanel est null ou indéfini, on désactive le bouton X
-    if (!activePanel) {
+    const selectedPanel = currentMaximizedId || activePanel;
+
+    if (!selectedPanel) {
         closeBtn.disabled = true;
         closeBtn.style.cursor = "not-allowed";
         closeBtn.title = "Aucun panneau sélectionné";
@@ -727,6 +767,7 @@ function updateCloseButtonState() {
         closeBtn.title = "Fermer le panneau actif";
     }
 }
+
 
 
 function updateToolbarButtons(canGoBack, canGoForward) {
@@ -909,7 +950,7 @@ window.api.onFavorisUpdated?.((favoris) => {
 
 
 
-
+/*
 // Appeler la fonction une première fois au démarrage (dans l'écouteur onPanelsUpdated par exemple)
 window.api.onPanelsUpdated((panels, maximizedPanelId) => {
     currentPanels = panels;
@@ -925,38 +966,6 @@ window.api.onPanelsUpdated((panels, maximizedPanelId) => {
         }
     }
 
-    /*
-window.api.onSystemThemeChanged((isDark) => {
-    applicationDarkMode = isDark;
-    document.documentElement.classList.toggle("dark", isDark);
-    document.body.classList.toggle("dark", isDark);
-
-    const darkModeBtn = document.getElementById("dark-mode-button");
-
-    if (darkModeBtn) {
-        darkModeBtn.innerText = isDark ? "☀️" : "🌙";
-    }
-
-    rebuildUrlBar(currentPanels);
-    rebuildBookmarksBar();
-});
-*/
-
-/*
-window.api.onSystemThemeChanged((isDark) => {
-
-    console.log(
-        "Theme changé =",
-        isDark
-    );
-
-    applicationDarkMode = isDark;
-
-    applyTheme();
-
-});
-
-*/
 
     checkFavorisState();
     rebuildBookmarksBar(); // <-- AJOUTÉ ICI pour l'initialisation au démarrage
@@ -994,7 +1003,7 @@ window.api.onSystemThemeChanged((isDark) => {
         }
     }, 0);
 });
-
+*/
 
 // ====== LOGIQUE DE L'HISTORIQUE DANS INDEX.HTML ======
 
