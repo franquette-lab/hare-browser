@@ -14,7 +14,7 @@ const {
 } = require('electron');
 
 // En haut de main.js avec vos autres variables globales
-const APP_TITLE = "Hare Browser"; 
+    const APP_TITLE = "Hare Browser"; 
 
 const fs = require("fs");
 
@@ -30,7 +30,7 @@ const historyPath = path.join(app.getPath('userData'), 'navigation_history.json'
 // Chemin vers le fichier de stockage des favoris
 const favorisPath = path.join(app.getPath('userData'), 'favoris.json');
 
-    const themePath = path.join(app.getPath('userData'), 'theme.json');
+const themePath = path.join(app.getPath('userData'), 'theme.json');
 
 // Stockage des 4 bordures bleues
 let borderViews = []; 
@@ -1789,6 +1789,10 @@ function createWindow() {
 
     win.loadFile("index.html");
 
+    win.webContents.on("did-finish-load", () => {
+        win.webContents.send("app-title", APP_TITLE);
+    });
+
     createDefaultLayout();
  
 console.log("AFTER LAYOUT =", isDarkModeForced);
@@ -2187,7 +2191,7 @@ collectPanelNodes(rootNode).forEach(panel => {
             defaultId: 1, 
             cancelId: 1,  
             title: 'Confirmation',
-            message: 'Êtes-vous sûr de vouloir fermer Tile Browser ?',
+            message: `Êtes-vous sûr de vouloir fermer ${APP_TITLE} ?`,
             detail: 'Tous vos panneaux et onglets ouverts seront perdus.'
         });
 
@@ -2295,7 +2299,7 @@ function detachPanelToFullscreen(panelId) {
         // Optionnel : vous pouvez détruire la vue ici si nécessaire
     });
 
-    // 6. Fermer le panneau désormais vide dans la fenêtre principale du Tile Browser
+    // 6. Fermer le panneau désormais vide dans la fenêtre principale
     // On simule l'action du bouton Fermer pour ré-agencer l'arbre proprementresizeViews(
     const parent = findParentNode(rootNode, panelId);
     if (parent) {
@@ -2423,7 +2427,7 @@ function resizeViews() {
             if (title === "reset-splitter") { splitter.node.ratio = 0.5; resizeViews(); return; }
 
             if (title === "drag-end") { 
-                win.setTitle(APP_TITLE); // === REMPLACEZ "Tile Browser" PAR APP_TITLE ICI ===
+                win.setTitle(APP_TITLE);
                 dragInProgress = false; 
                 return; 
             }

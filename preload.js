@@ -8,6 +8,12 @@ contextBridge.exposeInMainWorld(
     'api',
     {
 
+        onAppTitle: (callback) => {
+            ipcRenderer.on("app-title", (_, title) => {
+                callback(title);
+            });
+        },
+                
         // À insérer dans preload.js à l'intérieur de l'objet 'api'
         clearFavoris: () => ipcRenderer.invoke('clear-favoris'),
 
