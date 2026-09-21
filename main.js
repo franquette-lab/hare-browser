@@ -2330,13 +2330,6 @@ function detachPanelToFullscreen(panelId) {
             maximizedPanelId
         );
 
-
-
-console.log(
-    "panels-updated currentPanels:",
-    currentPanels
-);
-
     }
 }
 
