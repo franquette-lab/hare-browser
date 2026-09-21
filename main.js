@@ -13,11 +13,13 @@ const {
     shell           // <-- AJOUTEZ shell ICI pour gérer les fichiers et dossiers
 } = require('electron');
 
-
 // En haut de main.js avec vos autres variables globales
 const APP_TITLE = "Hare Browser"; 
 
 const fs = require("fs");
+
+const fsPromises = require("fs").promises;
+
 const path = require("path");
 
 const splitters = [];
@@ -124,11 +126,30 @@ function getThemePreference() {
     }
 }
 
+// ====== FONCTION DE SAUVEGARDE ASYNCHRONE ET ATOMIQUE SÉCURISÉE ======
+async function safeWriteJsonAsync(filePath, data) {
+    const tmpPath = filePath + '.tmp';
+    try {
+        const jsonString = JSON.stringify(data, null, 2);
+        // 1. Écriture asynchrone dans un fichier temporaire (ne bloque pas le navigateur)
+        await fsPromises.writeFile(tmpPath, jsonString, 'utf-8');
+        // 2. Remplacement atomique de l'ancien fichier par le nouveau
+        await fsPromises.rename(tmpPath, filePath);
+    } catch (error) {
+        console.error(`Erreur lors de la sauvegarde sécurisée de ${filePath} :`, error);
+        // Nettoyage du fichier temporaire en cas d'échec
+        try { await fsPromises.unlink(tmpPath); } catch (e) {}
+    }
+}
+
 // Fonction pour lire l'historique sur le disque
 function getNavigationHistory() {
     try {
         if (!fs.existsSync(historyPath)) {
-            fs.writeFileSync(historyPath, JSON.stringify([]));
+
+//          fs.writeFileSync(historyPath, JSON.stringify([]));
+            safeWriteJsonAsync(historyPath, historyList);
+
             return [];
         }
         const data = fs.readFileSync(historyPath, 'utf-8');
@@ -2450,13 +2471,16 @@ ipcMain.handle('get-history', () => {
     return getNavigationHistory();
 });
 
-ipcMain.handle('clear-history', () => {
-    fs.writeFileSync(historyPath, JSON.stringify([]));
+
+
+ipcMain.handle('clear-history', async () => {
+    await safeWriteJsonAsync(historyPath, []); // <-- Remplacement ici
     if (win && !win.isDestroyed()) {
         win.webContents.send('history-updated', []);
     }
     return true;
 });
+
 
 // À placer avec vos autres ipcMain.handle (...)
 ipcMain.handle('delete-history-item', async (event, index) => {
@@ -2478,26 +2502,23 @@ ipcMain.handle('delete-history-item', async (event, index) => {
     }
 });
 
-ipcMain.handle('toggle-favori', (event, { url, title }) => {
+ipcMain.handle('toggle-favori', async (event, { url, title }) => { // <-- Ajout de async
     let favoris = getFavoris();
     const index = favoris.findIndex(f => f.url === url);
 
     if (index >= 0) {
-        // Si le site est déjà en favori, on le retire
         favoris.splice(index, 1);
-        console.log(`Retiré des favoris : ${url}`);
     } else {
-        // Sinon, on l'ajoute
         favoris.push({ url, title: title || url });
-        console.log(`Ajouté aux favoris : ${url}`);
     }
 
-    fs.writeFileSync(favorisPath, JSON.stringify(favoris, null, 2));
+    // Sauvegarde sécurisée asynchrone
+    await safeWriteJsonAsync(favorisPath, favoris); 
     
-    // On renvoie la nouvelle liste et l'état mis à jour à l'IHM
     win.webContents.send('favoris-updated', favoris);
-    return index < 0; // Renvoie true si ajouté, false si retiré
+    return index < 0;
 });
+
 
 ipcMain.handle("go-back", (event, panelId) => {
     const panel = findPanelNode(rootNode, panelId);
