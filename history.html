@@ -55,18 +55,56 @@
 
 h2 { 
     margin: 0; 
-    font-size: 14px; /* TAILLE CORRIGÉE : Plus petite et proportionnelle */
+    font-size: 14px; 
     font-weight: bold; 
     display: flex;
     align-items: center;
-    gap: 6px; /* Espace équilibré entre le parchemin et le texte */
+    gap: 6px; 
 }
+
+h2 span, h2 img {
+    font-size: 14px;
+    height: 14px;
+    width: auto;
+}
+
+/* CORRECTIF : Redimensionne l'émoji parchemin intégré au titre textuel */
+#history-title {
+    display: inline-flex;
+    align-items: center;
+}
+
+/* CORRECTIF COMPACT : Réduction drastique des marges internes pour densifier la liste */
+.history-item { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    padding: 3px 6px; /* Réduit de 6px/8px à 3px/6px pour afficher + de liens */
+    transition: background 0.2s; 
+    border-radius: 4px; 
+}
+
+/* Espacements resserrés à l'intérieur de chaque ligne */
+.title { 
+    font-size: 12px; /* Légèrement réduit pour correspondre au design compact */
+    font-weight: 500; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    white-space: nowrap; 
+}
+
+.url { 
+    font-size: 10px; /* Passé de 11px à 10px pour gagner de la place */
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    white-space: nowrap; 
+    margin-top: 0px; /* Supprime le décalage inutile */
+}
+
             
         .clear-all-btn { font-size: 10px; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: all 0.2s ease; }
-        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; transition: background 0.2s; border-radius: 4px; }
         .content { flex: 1; cursor: pointer; overflow: hidden; padding-right: 8px; }
         .title { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .url { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
         .delete-btn { cursor: pointer; padding: 2px 6px; font-size: 13px; font-weight: bold; border-radius: 4px; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; }
         #empty { color: #6b7280; font-size: 12px; text-align: center; margin-top: 40px; }
     </style>
