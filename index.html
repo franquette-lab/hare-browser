@@ -355,17 +355,26 @@ function refreshTabBorders() {
     }
 }
 
-
 function getDisplayUrl(url) {
     try {
-        // Renvoie uniquement le nom du site (ex: google.com), sans texte parasite devant
-        return new URL(url).hostname.replace(/^www\./, "");
+        const parsedUrl = new URL(url);
+        
+        // === CORRECTIF : Masque l'IP du serveur de recherche privé ===
+        if (parsedUrl.hostname === "129.151.254.175") {
+            // Option A : Affiche simplement "Recherche"
+            // return "Recherche";
+            
+            // Option B (alternative) : Si vous voulez afficher "Recherche : le mot clé"
+               const queryParams = new URLSearchParams(parsedUrl.search);
+               return "Recherche : " + (queryParams.get('q') || "");
+        }
+        
+        // Comportement normal pour les autres sites (ex: google.com, github.com)
+        return parsedUrl.hostname.replace(/^www\./, "");
     } catch {
         return url || "";
     }
 }
-
-
 
 function attachUrlHandler(panelId) {
     const input = document.getElementById(panelId + "-url");
@@ -378,11 +387,6 @@ function attachUrlHandler(panelId) {
     });
 }
 
-
-
-
-
-
 function rebuildUrlBar(panels) {
     const container = document.getElementById("url-bar");
     if (!container) return;
@@ -393,9 +397,6 @@ function rebuildUrlBar(panels) {
     container.style.display = "flex";
     container.style.gap = "8px";
     container.style.alignItems = "center";
-
-
-
 
     panels.forEach((panel) => {
         const tabWrapper = document.createElement("div");
@@ -462,7 +463,27 @@ function rebuildUrlBar(panels) {
         input.addEventListener("mousedown", () => tabWrapper.setAttribute("draggable", "false"));
         window.addEventListener("mouseup", () => tabWrapper.setAttribute("draggable", "true"));
         input.addEventListener("click", (e) => { e.stopPropagation(); window.api.setActivePanel(panel.id); });
-        input.addEventListener("focus", () => { window.api.setActivePanel(panel.id); input.value = input.dataset.url; input.style.color = isDark ? "#ffffff" : "#1f2937"; setTimeout(() => { input.setSelectionRange(0, input.value.length); }, 10); });            
+
+    //  input.addEventListener("focus", () => { window.api.setActivePanel(panel.id); input.value = input.dataset.url; input.style.color = isDark ? "#ffffff" : "#1f2937"; setTimeout(() => { input.setSelectionRange(0, input.value.length); }, 10); });            
+
+        input.addEventListener("focus", () => { 
+        window.api.setActivePanel(panel.id); 
+        
+        // Si c'est notre moteur de recherche, on vide le champ ou on met une chaîne vide
+        if (input.dataset.url.includes("129.151.254.175")) {
+            const parsed = new URL(input.dataset.url);
+            const searchWord = new URLSearchParams(parsed.search).get('q') || "";
+            input.value = searchWord; // Affiche directement le mot recherché au lieu de l'IP !
+        } else {
+            input.value = input.dataset.url; 
+        }
+        
+        input.style.color = isDark ? "#ffffff" : "#1f2937"; 
+        setTimeout(() => { input.setSelectionRange(0, input.value.length); }, 10);
+        
+});
+    
+    
         input.addEventListener("blur", () => { input.value = getDisplayUrl(input.dataset.url); input.style.color = isDark ? "#d4d4d4" : "#1f2937"; });
 
         tabWrapper.appendChild(input);
