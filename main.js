@@ -865,6 +865,7 @@ function setupNavigationTracking(panel) {
         // Utile si le serveur redirige vers une page d'erreur spécifique
     });
 
+/*
     panel.view.webContents.on("did-navigate", (event, url, httpResponseCode, httpStatusText) => {
         // Si le code de réponse du serveur indique une erreur (ex: 404 Page introuvable, 503 Service indisponible)
         if (httpResponseCode >= 400) {
@@ -893,6 +894,46 @@ function setupNavigationTracking(panel) {
             updateHistoryWindowContent();   
         }
     });
+*/
+
+    panel.view.webContents.on("did-navigate", (event, url, httpResponseCode, httpStatusText) => {
+        // Si le code de réponse du serveur indique une erreur (ex: 404 Page introuvable, 503 Service indisponible)
+        if (httpResponseCode >= 400) {
+
+            console.log(`Erreur HTTP détectée [${httpResponseCode}]: ${httpStatusText}`);
+
+            addToHistory(url, panel.view.webContents.getTitle());
+            const httpErrorHtml = `
+                <!DOCTYPE html>
+                <html>
+                <body style="background:#1e1e1e; color:#f3f4f6; font-family:sans-serif; text-align:center; padding-top:100px;">
+                    <div style="font-size:48px;">⚠️</div>
+                    <h1 style="color:#ef4444;">Erreur ${httpResponseCode}</h1>
+                    <p style="color:#9ca3af;">Le serveur a répondu : ${httpStatusText || 'Page introuvable ou indisponible'}</p>
+                    <p style="font-family:monospace; background:#2d2d30; display:inline-block; padding:4px 8px; border-radius:4px; color:#facc15;">${url}</p>
+                    <br><br>
+                    <button style="background:#2563eb; color:white; border:none; padding:10px 20px; border-radius:6px; cursor:pointer;" onclick="window.location.reload()">Actualiser</button>
+                </body>
+                </html>
+            `;
+            panel.view.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(httpErrorHtml));
+        } else {
+            // === AJOUTEZ CES DEUX LIGNES POUR LES SITES NORMAUX ===
+            const title = panel.view.webContents.getTitle();
+            addToHistory(url, title);
+            updateHistoryWindowContent();   
+
+            // === FUSION CORRECTIF : Met à jour la barre d'URL avec le vrai site chargé ===
+            updatePanelUrl(panel, url);
+        }
+    });
+
+        // Sécurité pour capter les changements de titres tardifs et les redirections invisibles
+    panel.view.webContents.on("page-title-updated", (event, title) => {
+        const currentUrl = panel.view.webContents.getURL();
+        updatePanelUrl(panel, currentUrl);
+    });
+
 
     panel.view.webContents.on("focus", () => {
         activePanel = panel.id;
