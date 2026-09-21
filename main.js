@@ -1261,6 +1261,10 @@ function updateHistoryWindowContent() {
 
 
 // Écouteur pour ouvrir la fenêtre
+
+
+// ====== DANS MAIN.JS -> open-history-window ======
+
 ipcMain.on("open-history-window", () => {
     if (global.historyWindow && !global.historyWindow.isDestroyed()) {
         global.historyWindow.focus();
@@ -1275,15 +1279,14 @@ ipcMain.on("open-history-window", () => {
         autoHideMenuBar: true,
         alwaysOnTop: true,
         webPreferences: {
-            nodeIntegration: true, 
-            contextIsolation: false 
+            preload: path.join(__dirname, 'preload-history.js'), // <-- Charge le nouveau preload
+            nodeIntegration: false,                              // <-- SÉCURITÉ : Désactivé
+            contextIsolation: true                               // <-- SÉCURITÉ : Activé
         }
     });
 
-    // Chargement sécurisé du fichier HTML physique
     global.historyWindow.loadFile(path.join(__dirname, 'history.html'));
 
-    // Dès que la page a fini de charger, on lui envoie les données
     global.historyWindow.webContents.on('did-finish-load', () => {
         updateHistoryWindowContent();
     });
@@ -1292,6 +1295,9 @@ ipcMain.on("open-history-window", () => {
         global.historyWindow = null;
     });
 });
+
+
+
 
 // 2. Écouteur de rafraîchissement au changement de données
 // Écouteur de rafraîchissement au changement de données
@@ -2030,6 +2036,10 @@ collectPanelNodes(rootNode).forEach(panel => {
         resizeViews();
     });
 
+
+
+// ====== DANS MAIN.JS -> DANS LA FONCTION createWindow() ======
+
     // Intercepte le clic sur la croix de fermeture de la fenêtre
     win.on('close', (e) => {
         // Empêche la fermeture immédiate
@@ -2038,8 +2048,8 @@ collectPanelNodes(rootNode).forEach(panel => {
         const response = dialog.showMessageBoxSync(win, {
             type: 'question',
             buttons: ['Oui, quitter', 'Annuler'],
-            defaultId: 1, // Met le focus initial sur "Annuler"
-            cancelId: 1,  // === ENTRAÎNE QUE L'APPUI SUR ÉCHAP RENVOIE L'INDEX 1 (ANNULER) ===
+            defaultId: 1, 
+            cancelId: 1,  
             title: 'Confirmation',
             message: 'Êtes-vous sûr de vouloir fermer Tile Browser ?',
             detail: 'Tous vos panneaux et onglets ouverts seront perdus.'
@@ -2049,9 +2059,15 @@ collectPanelNodes(rootNode).forEach(panel => {
         if (response === 0) {
             win.destroy(); 
         }
-        // Si response === 1 (Annuler ou Échap), on ne fait rien, l'application reste ouverte !
     });
 
+    // AJOUT ICI : Fermer automatiquement l'historique quand la fenêtre principale est détruite
+    win.on('closed', () => {
+        if (global.historyWindow && !global.historyWindow.isDestroyed()) {
+            global.historyWindow.close();
+        }
+    });
+    
 
         // === ENREGISTREMENT DU RACCOURCI FORCE CTRL+M ===
     // 'CommandOrControl+M' est intercepté lorsque la fenêtre a le focus

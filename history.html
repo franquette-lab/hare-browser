@@ -24,15 +24,16 @@
     </div>
     <div id="history-container"></div>
 
-    <script>
-    const { ipcRenderer } = require('electron');
 
-    ipcRenderer.on('render-history', (event, data) => {
+<!-- ====== DANS HISTORY.HTML ====== -->
+<script>
+    // On utilise l'API sécurisée exposée par le script preload-history.js
+    window.historyApi.onRenderHistory((data) => {
         const container = document.getElementById('history-container');
         const clearContainer = document.getElementById('clear-container');
         const isDark = data.isDarkMode;
         
-        // 1. Application globale des thèmes (S'exécute à chaque bascule)
+        // Application globale des thèmes
         document.body.style.background = isDark ? "#1e1e1e" : "#f9fafb";
         document.body.style.color = isDark ? "#cfcfcf" : "#1f2937";
         document.getElementById('history-title').style.color = isDark ? "#ffffff" : "#000000";
@@ -50,7 +51,7 @@
             clearBtn.style.color = isDark ? "#9ca3af" : "#4b5563";
             clearBtn.style.border = `1px solid ${isDark ? "#4b5563" : "#d1d5db"}`;
             
-            clearBtn.onclick = () => ipcRenderer.send('clear-all-history');
+            clearBtn.onclick = () => window.historyApi.clearAllHistory();
             clearBtn.onmouseenter = () => {
                 clearBtn.style.background = isDark ? "#991b1b" : "#fee2e2";
                 clearBtn.style.color = isDark ? "#fca5a5" : "#b91c1c";
@@ -77,10 +78,10 @@
                     <div class="delete-btn" style="color: ${isDark ? '#6b7280' : '#9ca3af'}">×</div>
                 `;
 
-                div.querySelector('.content').onclick = () => ipcRenderer.send('history-click', item.url);
+                div.querySelector('.content').onclick = () => window.historyApi.historyClick(item.url);
                 
                 const delBtn = div.querySelector('.delete-btn');
-                delBtn.onclick = () => ipcRenderer.send('delete-single-history', index);
+                delBtn.onclick = () => window.historyApi.deleteSingleHistory(index);
                 delBtn.onmouseenter = () => {
                     delBtn.style.background = isDark ? "#991b1b" : "#fee2e2";
                     delBtn.style.color = isDark ? "#fca5a5" : "#b91c1c";
@@ -96,8 +97,9 @@
             container.innerHTML = '<div id="empty">Aucun historique disponible.</div>';
         }
     });
+</script>
 
 
-    </script>
+
 </body>
 </html>
