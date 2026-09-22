@@ -1188,11 +1188,6 @@ ipcMain.on("close-panel", (event, panelId) => {
 
     const allViews = win.getBrowserViews();
 
-    console.log(
-        "BrowserViews =",
-        allViews.length
-    );
-
     const realWebViews = allViews.filter(v => {
         if (!v.webContents || v.webContents.isDestroyed()) return false;
         const ua = v.webContents.getUserAgent();
@@ -1416,17 +1411,18 @@ ipcMain.on("history-click", (event, url) => {
 // ====== GESTION DU MODE SOMBRE À LA DEMANDE (INJECTION AVANCÉE) ======
 isDarkModeForced = getThemePreference();
 
+
+
+// Dans main.js -> ipcMain.on('toggle-dark-mode-request', ...)
 ipcMain.on('toggle-dark-mode-request', (event, enable) => {
-
     isDarkModeForced = enable;
-
     nativeTheme.themeSource = enable ? 'dark' : 'light';
 
-    // AJOUT ICI : Rafraîchir la fenêtre d'historique en temps réel si elle existe
-    if (global.historyWindow && !global.historyWindow.isDestroyed()) {
-        updateHistoryWindowContent();
+    // AJOUT ICI : Met à jour la couleur de fond de la fenêtre à la volée
+    if (win && !win.isDestroyed()) {
+        win.setBackgroundColor(enable ? '#252526' : '#f3f4f6');
     }
-
+    
     splitterViews.forEach(view => {
         try {
             win.removeBrowserView(view);
@@ -1448,11 +1444,6 @@ ipcMain.on('toggle-dark-mode-request', (event, enable) => {
     }
 
     const allViews = win.getBrowserViews();
-
-console.log(
-    "Views found:",
-    allViews.length
-);
 
     allViews.forEach(v => {
 
@@ -1543,14 +1534,139 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
             partition: isPrivate ? `incognito_${newPanelId}` : 'default'
         }
     };
-
-    const newView = new BrowserView(viewOptions);
-    win.addBrowserView(newView);
     
+    const newView = new BrowserView(viewOptions);
+
+    win.addBrowserView(newView);
+
+    // 1. Définition du code HTML / CSS de la page d'accueil privée
+    const incognitoHomeHtml = `
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+            <meta charset="utf-8">
+            <title>Navigation Privée</title>
+            <style>
+                body {
+                    font-family: 'Segoe UI', system-ui, sans-serif;
+                    background-color: #120b18; /* Fond violet très sombre */
+                    color: #e2e8f0;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    min-height: 100vh;
+                    margin: 0;
+                    padding: 20px;
+                    box-sizing: border-box;
+                }
+                .container {
+                    max-width: 550px;
+                    text-align: center;
+                    background: #1e1229; /* Carte un peu plus claire */
+                    padding: 40px;
+                    border-radius: 12px;
+                    border: 1px solid #4c1d95;
+                    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+                }
+                .icon {
+                    font-size: 54px;
+                    margin-bottom: 10px;
+                }
+                h1 {
+                    font-size: 24px;
+                    margin-bottom: 15px;
+                    color: #c084fc; /* Violet néon */
+                    font-weight: 600;
+                }
+                p {
+                    font-size: 14px;
+                    color: #94a3b8;
+                    line-height: 1.6;
+                    margin-bottom: 30px;
+                }
+                .lists-container {
+                    display: flex;
+                    gap: 20px;
+                    text-align: left;
+                    margin-bottom: 30px;
+                }
+                .list-box {
+                    flex: 1;
+                    background: #150b1d;
+                    padding: 15px;
+                    border-radius: 8px;
+                    border: 1px solid #2e1065;
+                }
+                .list-box h3 {
+                    margin-top: 0;
+                    font-size: 13px;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                }
+                .list-box.secure h3 { color: #4ade80; } /* Vert */
+                .list-box.warn h3 { color: #facc15; }   /* Jaune */
+                ul {
+                    margin: 0;
+                    padding-left: 18px;
+                    font-size: 12px;
+                    color: #cbd5e1;
+                }
+                li { margin-bottom: 8px; line-height: 1.4; }
+                .btn-search {
+                    background-color: #6b21a8;
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    font-size: 13px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: 500;
+                    transition: background 0.2s;
+                }
+                .btn-search:hover { background-color: #7e22ce; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="icon">👥</div>
+                <h1>Vous êtes en navigation privée</h1>
+                <p>Désormais, les pages que vous consultez dans cette tuile ne seront pas mémorisées dans l'historique et vos cookies seront détruits à la fermeture du panneau.</p>
+                
+                <div class="lists-container">
+                    <div class="list-box secure">
+                        <h3>🛡️ Ce qui est masqué</h3>
+                        <ul>
+                            <li>Historique de navigation locale</li>
+                            <li>Cookies et données de navigation</li>
+                            <li>Saisies dans les formulaires</li>
+                        </ul>
+                    </div>
+                    <div class="list-box warn">
+                        <h3>⚠️ Visible malgré tout</h3>
+                        <ul>
+                            <li>Les sites web visités eux-mêmes</li>
+                            <li>Votre administrateur réseau (école/travail)</li>
+                            <li>Votre fournisseur d'accès internet</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Redirection vers votre IP locale au clic -->
+                <button class="btn-search" onclick="window.location.href='http://129.151.254.175:8080'">
+                    Ouvrir le moteur de recherche privé
+                </button>
+            </div>
+        </body>
+        </html>
+    `;
+
+    // 2. Attribution de l'URL par défaut lors du split de panneau
     const defaultUrl = isPrivate 
-        ? "http://129.151.254.175:8080"  // Votre moteur privé pour les tuiles incognito
-        : "https://bing.com";             // Moteur classique pour le mode public
-        
+        ? "data:text/html;charset=utf-8," + encodeURIComponent(incognitoHomeHtml) // Charge la page HTML ci-dessus
+        : "https://bing.com"; // Mode public classique
+
     newView.webContents.loadURL(defaultUrl);
 
     // Passer le paramètre isPrivate au constructeur
@@ -1558,6 +1674,7 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
     setupNavigationTracking(newPanel);            
 
     const newSplit = new SplitNode(direction);
+
     newSplit.ratio = 0.5;
 
     if (!parent) {
@@ -1611,11 +1728,6 @@ function createDefaultLayout() {
 
         view.webContents.once('did-finish-load', () => {
 
-            console.log(
-                "Applying startup theme to",
-                view.webContents.getURL()
-            );
-
             if (typeof view.webContents.setForceDarkModeEnabled === 'function') {
                 view.webContents.setForceDarkModeEnabled(
                     isDarkModeForced
@@ -1650,6 +1762,10 @@ function createWindow() {
         height: 800,
         frame: false,
         titleBarStyle: 'hidden',
+        
+        // MODIFICATION ICI : Fond dynamique au démarrage pour éviter la ligne noire
+        backgroundColor: isDarkModeForced ? '#252526' : '#f3f4f6', 
+
         titleBarOverlay: {
             color: isDarkModeForced ? '#252526' : '#ffffff',
             symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937',
@@ -1684,19 +1800,15 @@ function createWindow() {
     });
 
     createDefaultLayout();
- 
-console.log("AFTER LAYOUT =", isDarkModeForced);
 
-
-
-collectPanelNodes(rootNode).forEach(panel => {
-    if (
-        panel.view &&
-        typeof panel.view.webContents.setForceDarkModeEnabled === 'function'
-    ) {
-        panel.view.webContents.setForceDarkModeEnabled(isDarkModeForced);
-    }
-});    
+    collectPanelNodes(rootNode).forEach(panel => {
+        if (
+            panel.view &&
+            typeof panel.view.webContents.setForceDarkModeEnabled === 'function'
+        ) {
+            panel.view.webContents.setForceDarkModeEnabled(isDarkModeForced);
+        }
+    });    
 
     // Configuration des raccourcis clavier via un menu invisible
     const { Menu } = require('electron');
@@ -1704,6 +1816,9 @@ collectPanelNodes(rootNode).forEach(panel => {
         {
             label: 'Navigation',
             submenu: [
+
+
+/*
                 {
                     label: 'Scinder verticalement',
                     accelerator: 'CmdOrCtrl+T',
@@ -1723,6 +1838,48 @@ collectPanelNodes(rootNode).forEach(panel => {
                         }
                     }
                 },
+*/
+                {
+                    label: 'Scinder verticalement',
+                    accelerator: 'CmdOrCtrl+T',
+                    click: () => {
+                        let targetPanelId = activePanel;
+                        
+                        // Sécurité : Fallback sur le premier panneau de l'arbre
+                        if (!targetPanelId && rootNode) {
+                            const firstPanelNode = findFirstPanel(rootNode);
+                            if (firstPanelNode) {
+                                targetPanelId = firstPanelNode.id;
+                            }
+                        }
+
+                        if (targetPanelId) {
+                            ipcMain.emit('split-panel', null, targetPanelId, 'vertical');
+                        }
+                    }
+                },
+                {
+                    label: 'Scinder horizontalement',
+                    accelerator: 'CmdOrCtrl+H', // Attention si doublon avec l'historique, ajustez selon votre configuration
+                    click: () => {
+                        let targetPanelId = activePanel;
+                        
+                        // Sécurité : Fallback sur le premier panneau de l'arbre
+                        if (!targetPanelId && rootNode) {
+                            const firstPanelNode = findFirstPanel(rootNode);
+                            if (firstPanelNode) {
+                                targetPanelId = firstPanelNode.id;
+                            }
+                        }
+
+                        if (targetPanelId) {
+                            ipcMain.emit('split-panel', null, targetPanelId, 'horizontal');
+                        }
+                    }
+                },
+
+
+
                 {
                     label: 'Fermer la tuile active',
                     accelerator: 'CmdOrCtrl+W',

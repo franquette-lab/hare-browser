@@ -165,21 +165,30 @@ body {
     box-sizing: border-box;
 }
 
-/* Style pour la pastille incognito dans la barre d'adresse */
+/* Style mis à jour pour la pastille incognito dans la barre d'adresse */
 .incognito-badge {
-    background: #4c1d95; /* Violet foncé */
-    color: #c084fc;      /* Violet clair néon */
+    /* Couleurs par défaut pour le MODE CLAIR (Fond plus doux et lisible) */
+    background: #f3e8ff; 
+    color: #6b21a8;      
+    border: 1px solid #d8b4fe;
+
     font-size: 10px;
     font-weight: bold;
     padding: 2px 6px;
     border-radius: 3px;
     margin-right: 6px;
-    border: 1px solid #6b21a8;
     user-select: none;
-    flex-shrink: 0;      /* Empêche le badge de se déformer */
+    flex-shrink: 0;      
     display: flex;
     align-items: center;
     gap: 3px;
+}
+
+/* Surcharge automatique si le MODE SOMBRE est actif */
+html.dark .incognito-badge {
+    background: #4c1d95; 
+    color: #c084fc;      
+    border: 1px solid #6b21a8;
 }
 
 /* =====================================================
@@ -584,8 +593,36 @@ function rebuildUrlBar(panels) {
     document.getElementById("back-button").addEventListener("click", () => window.api.goBack(activePanel));
     document.getElementById("forward-button").addEventListener("click", () => window.api.goForward(activePanel));
     document.getElementById("refresh-button").addEventListener("click", () => window.api.refresh(activePanel));
-    document.getElementById("split-vertical").addEventListener("click", () => window.api.splitPanel(activePanel, "vertical"));
-    document.getElementById("split-horizontal").addEventListener("click", () => window.api.splitPanel(activePanel, "horizontal"));
+
+ // document.getElementById("split-vertical").addEventListener("click", () => window.api.splitPanel(activePanel, "vertical"));
+// Dans index.html -> Écouteurs des boutons de scindage classique
+    document.getElementById("split-vertical").addEventListener("click", () => {
+        let targetPanelId = activePanel;
+
+        // Sécurité : Si aucun panneau n'est actif, on prend le premier disponible
+        if (!targetPanelId && currentPanels && currentPanels.length > 0) {
+            targetPanelId = currentPanels[0].id;
+        }
+
+        if (targetPanelId) {
+            window.api.splitPanel(targetPanelId, "vertical");
+        }
+    });
+
+ // document.getElementById("split-horizontal").addEventListener("click", () => window.api.splitPanel(activePanel, "horizontal"));
+    document.getElementById("split-horizontal").addEventListener("click", () => {
+        let targetPanelId = activePanel;
+
+        // Sécurité : Si aucun panneau n'est actif, on prend le premier disponible
+        if (!targetPanelId && currentPanels && currentPanels.length > 0) {
+            targetPanelId = currentPanels[0].id;
+        }
+
+        if (targetPanelId) {
+            window.api.splitPanel(targetPanelId, "horizontal");
+        }
+    });
+    
     document.getElementById("close-panel").addEventListener("click", () => window.api.closePanel(activePanel));
     document.getElementById("undo").addEventListener("click", () => window.api.undo());
 
