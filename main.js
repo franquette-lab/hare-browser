@@ -1605,6 +1605,7 @@ app.on('web-contents-created', (event, webContents) => {
     });
 });
 
+
 ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
     const node = findPanelNode(rootNode, panelId);
     const parent = findParentNode(rootNode, panelId);
@@ -1863,8 +1864,6 @@ collectPanelNodes(rootNode).forEach(panel => {
                     }
                 },
 
-
-
                 // (Vos raccourcis précédents : Scinder, Fermer, Annuler...)
                 {
                     label: 'Annuler la fermeture',
@@ -1873,6 +1872,7 @@ collectPanelNodes(rootNode).forEach(panel => {
                         ipcMain.emit('undo', null);
                     }
                 },
+
                 // === RÉINSTALLATION : RACCOURCIS D'HISTORIQUE DE NAVIGATION ===
                 {
                     label: 'Page précédente',
@@ -2019,7 +2019,6 @@ collectPanelNodes(rootNode).forEach(panel => {
                     }
                 },
 
-
                 // À mettre dans votre tableau 'template' des menus dans main.js
                 {
                     label: 'Afficher l\'historique',
@@ -2031,7 +2030,16 @@ collectPanelNodes(rootNode).forEach(panel => {
                     }
                 },
 
-
+                {
+                    label: 'Nouvelle tuile privée',
+                    accelerator: 'CmdOrCtrl+Shift+N',
+                    click: () => {
+                        if (activePanel) {
+                            // Déclenche l'action de scindage vertical en passant 'true' pour le mode privé
+                            ipcMain.emit('split-panel', null, activePanel, 'vertical', true);
+                        }
+                    }
+                },
 
                 // === AJOUT : RACCOURCIS D'ACTUALISATION (F5 & CTRL+R) ===
                 {
