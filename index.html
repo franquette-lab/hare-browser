@@ -1222,9 +1222,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 document.getElementById("split-private-vertical").addEventListener("click", () => {
-    if (activePanel) {
-        // Appelle splitPanel avec le troisième paramètre (isPrivate) à 'true'
-        window.api.splitPanel(activePanel, "vertical", true);
+    let targetPanelId = activePanel;
+
+    // Si l'IHM n'a pas de panneau actif en mémoire, on prend le premier disponible dans la liste globale
+    if (!targetPanelId && typeof currentPanels !== 'undefined' && currentPanels.length > 0) {
+        targetPanelId = currentPanels[0].id;
+    }
+
+    if (targetPanelId) {
+        window.api.splitPanel(targetPanelId, "vertical", true);
     }
 });
 

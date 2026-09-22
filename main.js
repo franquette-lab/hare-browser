@@ -14,17 +14,12 @@ const {
 } = require('electron');
 
 // En haut de main.js avec vos autres variables globales
-    const APP_TITLE = "Hare Browser"; 
-
+const APP_TITLE = "Hare Browser"; 
 const fs = require("fs");
-
 const fsPromises = require("fs").promises;
-
 const path = require("path");
-
 const splitters = [];
 
-// ====== EN HAUT DE MAIN.JS WITH OTHER IMPORTS ======
 const historyPath = path.join(app.getPath('userData'), 'navigation_history.json');
 
 // Chemin vers le fichier de stockage des favoris
@@ -62,17 +57,13 @@ const TOOLBAR_MIN_HEIGHT = 77;   // Hauteur sans la barre (38 + 36 + corrections
 
 let history = [];
 let lastClosedPanel = null;
+
 const SPLITTER_SIZE = 10;
 
 let leftView, centerView, rightView;
-
 let isDarkModeForced = false;
 
-
 const https = require("https");
-
-
-
 
 function applyThemeToView(view) {
 
@@ -146,10 +137,7 @@ async function safeWriteJsonAsync(filePath, data) {
 function getNavigationHistory() {
     try {
         if (!fs.existsSync(historyPath)) {
-
-//          fs.writeFileSync(historyPath, JSON.stringify([]));
             safeWriteJsonAsync(historyPath, historyList);
-
             return [];
         }
         const data = fs.readFileSync(historyPath, 'utf-8');
@@ -291,67 +279,61 @@ function extractResults(data) {
     return results;
 }
 
-
 async function buildSearchPage(query) {
 
     const data = await searchDuckDuckGo(query);
-
     const results = extractResults(data);
 
-const htmlResults = results.map(r => `
-<div class="result">
-    ${r.url}
-        ${r.title}
-    </a>
-    <div class="url">
-        ${r.url}
-    </div>
-</div>
-`).join("");
+    const htmlResults = results.map(r => `
+        <div class="result">
+            ${r.url}
+                ${r.title}
+            </a>
+            <div class="url">
+                ${r.url}
+            </div>
+        </div>
+        `).join("");
 
-console.log("Résultats trouvés :", results.length);
+        return `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <title>${query}</title>
+                </head>
+                <style>
+        body {
+            font-family: Segoe UI, sans-serif;
+            background: #202124;
+            color: white;
+        }
 
-console.log(results[0]);
+        .result {
+            margin-bottom: 16px;
+        }
 
-return `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <title>${query}</title>
-        </head>
-        <style>
-body {
-    font-family: Segoe UI, sans-serif;
-    background: #202124;
-    color: white;
-}
+        .result a {
+            color: #8ab4f8;
+            font-size: 18px;
+            text-decoration: none;
+        }
 
-.result {
-    margin-bottom: 16px;
-}
+        .result a:hover {
+            text-decoration: underline;
+        }
 
-.result a {
-    color: #8ab4f8;
-    font-size: 18px;
-    text-decoration: none;
-}
+        .url {
+            color: #7cb342;
+            font-size: 12px;
+        }
+        </style>
 
-.result a:hover {
-    text-decoration: underline;
-}
-
-.url {
-    color: #7cb342;
-    font-size: 12px;
-}
-</style>
-
-        <body>
-            <h1>Recherche : ${query}</h1>
-            ${htmlResults}
-        </body>
-        </html>
+                <body>
+                    <h1>Recherche : ${query}</h1>
+                    ${htmlResults}
+                </body>
+                </html>
     `;
 }
 
@@ -571,9 +553,6 @@ function updatePanelHandles() {
                     forceRebuildSplitters = true;
                     resizeViews();
                     win.webContents.send("zoom-changed", maximizedPanelId);
-//                  try { win.removeBrowserView(hView); } catch(e){}
-//                  delete handleViews[panel.id];
-//                  updatePanelHandles();
                     return;
                 }
                 if (title === "action-fullscreen") {
@@ -841,7 +820,6 @@ function collectPanels(node, panels = []) {
     return panels;
 }
 
-
 function collectPanelNodes(node, panels = []) {
     if (!node) return panels;
     if (node.type === "panel") {
@@ -997,15 +975,6 @@ function setupNavigationTracking(panel) {
         panel.view.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(errorHtml));
     });
 }
-
-
-
-
-
-
-
-
-
 
 function layoutNode(node, x, y, width, height) {
     if (!node || width <= 0 || height <= 0) return;
@@ -1265,7 +1234,6 @@ ipcMain.on("close-panel", (event, panelId) => {
     forceRebuildSplitters = true;
     resizeViews();
 
-//  win.webContents.send("panels-updated", collectPanels(rootNode));
     win.webContents.send(
         "panels-updated",
         collectPanels(rootNode),
@@ -1274,7 +1242,6 @@ ipcMain.on("close-panel", (event, panelId) => {
 
 
 });
-
 
 ipcMain.on("undo", (event) => {
     // 1. S'il n'y a pas d'historique ou si aucun panneau n'a été fermé, on annule
@@ -1342,12 +1309,7 @@ function updateHistoryWindowContent() {
     }
 }
 
-
 // Écouteur pour ouvrir la fenêtre
-
-
-// ====== DANS MAIN.JS -> open-history-window ======
-
 ipcMain.on("open-history-window", () => {
     if (global.historyWindow && !global.historyWindow.isDestroyed()) {
         global.historyWindow.focus();
@@ -1379,22 +1341,11 @@ ipcMain.on("open-history-window", () => {
     });
 });
 
-
-
-
 // 2. Écouteur de rafraîchissement au changement de données
 // Écouteur de rafraîchissement au changement de données
 ipcMain.on('history-data-changed', () => {
     updateHistoryWindowContent();
 });
-
-
-
-
-
-
-
-
 
 // D. Suppression d'une seule entrée d'historique
 ipcMain.on('delete-single-history', (event, index) => {
@@ -1427,23 +1378,6 @@ ipcMain.on("history-click", (event, url) => {
         }
     }
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ====== ENREGISTREMENT DES ACTIONS DE SUPPRESSION (À METTRE À LA SUITE DANS MAIN.JS) ======
 
 // 1. Supprimer un seul élément
 ipcMain.on('delete-single-history', (event, index) => {
@@ -1482,25 +1416,16 @@ ipcMain.on("history-click", (event, url) => {
 // ====== GESTION DU MODE SOMBRE À LA DEMANDE (INJECTION AVANCÉE) ======
 isDarkModeForced = getThemePreference();
 
-console.log("STARTUP PREF =", isDarkModeForced);
-
-
 ipcMain.on('toggle-dark-mode-request', (event, enable) => {
-
-
-console.log("TOGGLE =", isDarkModeForced);
 
     isDarkModeForced = enable;
 
     nativeTheme.themeSource = enable ? 'dark' : 'light';
 
-
     // AJOUT ICI : Rafraîchir la fenêtre d'historique en temps réel si elle existe
     if (global.historyWindow && !global.historyWindow.isDestroyed()) {
         updateHistoryWindowContent();
     }
-
-
 
     splitterViews.forEach(view => {
         try {
@@ -1515,14 +1440,11 @@ console.log("TOGGLE =", isDarkModeForced);
 
     // --- CORRECTION DE LA COULEUR DE FOND DE LA BARRE APPLICATIVE ---
     if (win && typeof win.setTitleBarOverlay === 'function') {
-
-win.setTitleBarOverlay({
-    color: isDarkModeForced ? '#252526' : '#ffffff',
-    symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937',
-    height: 38
-});
-
-
+        win.setTitleBarOverlay({
+            color: isDarkModeForced ? '#252526' : '#ffffff',
+            symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937',
+            height: 38
+        });
     }
 
     const allViews = win.getBrowserViews();
@@ -1533,6 +1455,7 @@ console.log(
 );
 
     allViews.forEach(v => {
+
         if (!v.webContents || v.webContents.isDestroyed()) return;
         const url = v.webContents.getURL();
         if (url.startsWith('data:text/html') || v.webContents.getUserAgent() === "InternalBorder") return;
@@ -1572,6 +1495,7 @@ console.log(
 
 // Script d'injection magique : s'exécute AVANT que Wikipédia ne calcule ses styles
 app.on('web-contents-created', (event, webContents) => {
+
     // On injecte le code dès que le DOM commence à exister
     webContents.on('dom-ready', () => {
         if (!isDarkModeForced || !win || win.isDestroyed()) return;
@@ -1605,10 +1529,9 @@ app.on('web-contents-created', (event, webContents) => {
     });
 });
 
-
-
 // Dans main.js -> Recherchez ipcMain.on("split-panel", ...)
 ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
+
     const node = findPanelNode(rootNode, panelId);
 
     const parent = findParentNode(rootNode, panelId);    
@@ -1660,21 +1583,21 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
     updateActiveBorder(newPanel.bounds);
 });
 
-
 function createDefaultLayout() {
+
     leftView = new BrowserView();
     centerView = new BrowserView();
     rightView = new BrowserView();
 
-[leftView, centerView, rightView].forEach(view => {
+    [leftView, centerView, rightView].forEach(view => {
 
-    view.webContents.once("did-finish-load", () => {
+        view.webContents.once("did-finish-load", () => {
 
-        applyThemeToView(view);
+            applyThemeToView(view);
+
+        });
 
     });
-
-});
 
     win.addBrowserView(leftView);
     win.addBrowserView(centerView);
@@ -1684,25 +1607,24 @@ function createDefaultLayout() {
     centerView.webContents.loadURL("https://fr.wikipedia.org");
     rightView.webContents.loadURL("https://github.com");
 
+    [leftView, centerView, rightView].forEach(view => {
 
-[leftView, centerView, rightView].forEach(view => {
+        view.webContents.once('did-finish-load', () => {
 
-    view.webContents.once('did-finish-load', () => {
-
-        console.log(
-            "Applying startup theme to",
-            view.webContents.getURL()
-        );
-
-        if (typeof view.webContents.setForceDarkModeEnabled === 'function') {
-            view.webContents.setForceDarkModeEnabled(
-                isDarkModeForced
+            console.log(
+                "Applying startup theme to",
+                view.webContents.getURL()
             );
-        }
+
+            if (typeof view.webContents.setForceDarkModeEnabled === 'function') {
+                view.webContents.setForceDarkModeEnabled(
+                    isDarkModeForced
+                );
+            }
+
+        });
 
     });
-
-});
 
     rootNode = new SplitNode("vertical");
     rootNode.ratio = 0.33;
@@ -2040,9 +1962,19 @@ collectPanelNodes(rootNode).forEach(panel => {
                     label: 'Nouvelle tuile privée',
                     accelerator: 'CmdOrCtrl+Shift+N',
                     click: () => {
-                        if (activePanel) {
-                            // Déclenche l'action de scindage vertical en passant 'true' pour le mode privé
-                            ipcMain.emit('split-panel', null, activePanel, 'vertical', true);
+                        // Si aucun panneau n'est actif, on cherche le premier panneau ouvert à l'écran
+                        let targetPanelId = activePanel;
+                        
+                        if (!targetPanelId && rootNode) {
+                            const firstPanelNode = findFirstPanel(rootNode);
+                            if (firstPanelNode) {
+                                targetPanelId = firstPanelNode.id;
+                            }
+                        }
+
+                        // Si on a trouvé un panneau (actif ou repli de secours), on exécute le split
+                        if (targetPanelId) {
+                            ipcMain.emit('split-panel', null, targetPanelId, 'vertical', true);
                         }
                     }
                 },
