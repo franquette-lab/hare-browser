@@ -1606,16 +1606,17 @@ app.on('web-contents-created', (event, webContents) => {
 });
 
 
+
+// Dans main.js -> Recherchez ipcMain.on("split-panel", ...)
 ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
     const node = findPanelNode(rootNode, panelId);
-    const parent = findParentNode(rootNode, panelId);
 
+    const parent = findParentNode(rootNode, panelId);    
+    
     const newPanelId = "panel" + nextPanelNumber++;
     
-    // Configurer les options de la vue (Session classique vs Session Incognito en mémoire)
     const viewOptions = {
         webPreferences: {
-            // Pas de préfixe "persist:" = Session en mémoire volatile !
             partition: isPrivate ? `incognito_${newPanelId}` : 'default'
         }
     };
@@ -1623,7 +1624,10 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
     const newView = new BrowserView(viewOptions);
     win.addBrowserView(newView);
     
-    const defaultUrl = "https://bing.com";
+    const defaultUrl = isPrivate 
+        ? "http://129.151.254.175:8080"  // Votre moteur privé pour les tuiles incognito
+        : "https://bing.com";             // Moteur classique pour le mode public
+        
     newView.webContents.loadURL(defaultUrl);
 
     // Passer le paramètre isPrivate au constructeur
@@ -1645,7 +1649,9 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
     }
 
     saveState();
+    
     activePanel = newPanelId;
+    
     forceRebuildSplitters = true;
     resizeViews();
     
