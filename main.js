@@ -722,14 +722,15 @@ function saveState() {
 }
 
 class PanelNode {
-    constructor(id, view, url = "") {
+    constructor(id, view, url = "", isPrivate = false) {
         this.type = "panel";
         this.id = id;
         this.view = view;
         this.url = url;
+        this.isPrivate = isPrivate; // Stocke l'état privé du panneau
     }
     toJSON() {
-        return { type: this.type, id: this.id, url: this.url };
+        return { type: this.type, id: this.id, url: this.url, isPrivate: this.isPrivate };
     }
 }
 
@@ -827,13 +828,19 @@ function findFirstPanel(node) {
 function collectPanels(node, panels = []) {
     if (!node) return panels;
     if (node.type === "panel") {
-        panels.push({ id: node.id, url: node.title || getDisplayText(node.url), realUrl: node.url });        
+        panels.push({ 
+            id: node.id, 
+            url: node.title || getDisplayText(node.url), 
+            realUrl: node.url,
+            isPrivate: node.isPrivate // <-- Ajouté ici
+        });        
         return panels;
     }
     collectPanels(node.first, panels);
     collectPanels(node.second, panels);
     return panels;
 }
+
 
 function collectPanelNodes(node, panels = []) {
     if (!node) return panels;
@@ -871,79 +878,32 @@ function updateNavigationButtons() {
 function setupNavigationTracking(panel) {
     if (!panel || !panel.view) return;
 
-
-    // === AJOUT : Maintient le mode sombre configuré lors de l'ouverture d'un nouveau lien ===
     if (typeof panel.view.webContents.setForceDarkModeEnabled === 'function') {
         panel.view.webContents.setForceDarkModeEnabled(isDarkModeForced);
     }
     
+    panel.view.webContents.on("did-navigate", (event, url, httpResponseCode, httpStatusText) => {
+        if (httpResponseCode >= 400) {
+            // ... Votre logique de gestion des erreurs HTML ...
+        } else {
+            const title = panel.view.webContents.getTitle();
+            
+            // MODIFICATION ICI : On n'enregistre PAS si le panneau est en navigation privée
+            if (!panel.isPrivate) {
+                addToHistory(url, title);
+                updateHistoryWindowContent();   
+            }
+
+            updatePanelUrl(panel, url);
+        }
+    });
+
+
     // === AJOUT : GESTION DES ERREURS HTTP (404, 500, etc.) ===
     panel.view.webContents.on("did-redirect-navigation", (event, url, isInPlace, isMainFrame) => {
         // Utile si le serveur redirige vers une page d'erreur spécifique
     });
 
-/*
-    panel.view.webContents.on("did-navigate", (event, url, httpResponseCode, httpStatusText) => {
-        // Si le code de réponse du serveur indique une erreur (ex: 404 Page introuvable, 503 Service indisponible)
-        if (httpResponseCode >= 400) {
-
-            console.log(`Erreur HTTP détectée [${httpResponseCode}]: ${httpStatusText}`);
-
-            addToHistory(url, panel.view.webContents.getTitle());
-            const httpErrorHtml = `
-                <!DOCTYPE html>
-                <html>
-                <body style="background:#1e1e1e; color:#f3f4f6; font-family:sans-serif; text-align:center; padding-top:100px;">
-                    <div style="font-size:48px;">⚠️</div>
-                    <h1 style="color:#ef4444;">Erreur ${httpResponseCode}</h1>
-                    <p style="color:#9ca3af;">Le serveur a répondu : ${httpStatusText || 'Page introuvable ou indisponible'}</p>
-                    <p style="font-family:monospace; background:#2d2d30; display:inline-block; padding:4px 8px; border-radius:4px; color:#facc15;">${url}</p>
-                    <br><br>
-                    <button style="background:#2563eb; color:white; border:none; padding:10px 20px; border-radius:6px; cursor:pointer;" onclick="window.location.reload()">Actualiser</button>
-                </body>
-                </html>
-            `;
-            panel.view.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(httpErrorHtml));
-        } else {
-            // === AJOUTEZ CES DEUX LIGNES POUR LES SITES NORMAUX ===
-            const title = panel.view.webContents.getTitle();
-            addToHistory(url, title);
-            updateHistoryWindowContent();   
-        }
-    });
-*/
-
-    panel.view.webContents.on("did-navigate", (event, url, httpResponseCode, httpStatusText) => {
-        // Si le code de réponse du serveur indique une erreur (ex: 404 Page introuvable, 503 Service indisponible)
-        if (httpResponseCode >= 400) {
-
-            console.log(`Erreur HTTP détectée [${httpResponseCode}]: ${httpStatusText}`);
-
-            addToHistory(url, panel.view.webContents.getTitle());
-            const httpErrorHtml = `
-                <!DOCTYPE html>
-                <html>
-                <body style="background:#1e1e1e; color:#f3f4f6; font-family:sans-serif; text-align:center; padding-top:100px;">
-                    <div style="font-size:48px;">⚠️</div>
-                    <h1 style="color:#ef4444;">Erreur ${httpResponseCode}</h1>
-                    <p style="color:#9ca3af;">Le serveur a répondu : ${httpStatusText || 'Page introuvable ou indisponible'}</p>
-                    <p style="font-family:monospace; background:#2d2d30; display:inline-block; padding:4px 8px; border-radius:4px; color:#facc15;">${url}</p>
-                    <br><br>
-                    <button style="background:#2563eb; color:white; border:none; padding:10px 20px; border-radius:6px; cursor:pointer;" onclick="window.location.reload()">Actualiser</button>
-                </body>
-                </html>
-            `;
-            panel.view.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(httpErrorHtml));
-        } else {
-            // === AJOUTEZ CES DEUX LIGNES POUR LES SITES NORMAUX ===
-            const title = panel.view.webContents.getTitle();
-            addToHistory(url, title);
-            updateHistoryWindowContent();   
-
-            // === FUSION CORRECTIF : Met à jour la barre d'URL avec le vrai site chargé ===
-            updatePanelUrl(panel, url);
-        }
-    });
 
         // Sécurité pour capter les changements de titres tardifs et les redirections invisibles
     panel.view.webContents.on("page-title-updated", (event, title) => {
@@ -1645,18 +1605,28 @@ app.on('web-contents-created', (event, webContents) => {
     });
 });
 
-// CORRECTION : On ajoute bien "direction" dans les arguments reçus
-ipcMain.on("split-panel", (event, panelId, direction) => {
+ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
     const node = findPanelNode(rootNode, panelId);
     const parent = findParentNode(rootNode, panelId);
 
-    const newView = new BrowserView();
+    const newPanelId = "panel" + nextPanelNumber++;
+    
+    // Configurer les options de la vue (Session classique vs Session Incognito en mémoire)
+    const viewOptions = {
+        webPreferences: {
+            // Pas de préfixe "persist:" = Session en mémoire volatile !
+            partition: isPrivate ? `incognito_${newPanelId}` : 'default'
+        }
+    };
+
+    const newView = new BrowserView(viewOptions);
     win.addBrowserView(newView);
+    
     const defaultUrl = "https://bing.com";
     newView.webContents.loadURL(defaultUrl);
 
-    const newPanelId = "panel" + nextPanelNumber++;
-    const newPanel = new PanelNode(newPanelId, newView, defaultUrl);
+    // Passer le paramètre isPrivate au constructeur
+    const newPanel = new PanelNode(newPanelId, newView, defaultUrl, isPrivate);
     setupNavigationTracking(newPanel);            
 
     const newSplit = new SplitNode(direction);
@@ -1674,26 +1644,15 @@ ipcMain.on("split-panel", (event, panelId, direction) => {
     }
 
     saveState();
-    
     activePanel = newPanelId;
-    
     forceRebuildSplitters = true;
     resizeViews();
     
-    // 1. On notifie index.html du changement de liste des panneaux pour dessiner le nouvel onglet
-//  win.webContents.send("panels-updated", collectPanels(rootNode));
-    win.webContents.send(
-        "panels-updated",
-        collectPanels(rootNode),
-        maximizedPanelId
-    );
-    
-    // 2. On force IMMÉDIATEMENT l'interface à activer le focus visuel sur ce nouvel onglet
+    win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
     win.webContents.send("active-panel-changed", { id: newPanel.id, bounds: newPanel.bounds });
-    
-    // 3. On dessine la bordure bleue autour du nouveau panneau
     updateActiveBorder(newPanel.bounds);
 });
+
 
 function createDefaultLayout() {
     leftView = new BrowserView();
@@ -1779,7 +1738,9 @@ function createWindow() {
 
     win.setMaxListeners(30);
 
+// Remplacez registerDownloadHandler(win.webContents.session); par :
     registerDownloadHandler(win.webContents.session);
+    
 
     process.on("warning", (warning) => {
         console.log("WARNING NAME:", warning.name);

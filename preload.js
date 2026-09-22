@@ -38,7 +38,9 @@ contextBridge.exposeInMainWorld(
 
         refresh: (panelId) => ipcRenderer.invoke("refresh", panelId),
 
-        splitPanel: (panelId, direction) => ipcRenderer.send('split-panel', panelId, direction),
+        // Dans preload.js
+        splitPanel: (panelId, direction, isPrivate) => ipcRenderer.send('split-panel', panelId, direction, isPrivate),
+        
 
         // ====== DANS PRELOAD.JS -> DANS L'OBJET 'api' ======
         undo: () => ipcRenderer.send("undo"), // Ligne existante

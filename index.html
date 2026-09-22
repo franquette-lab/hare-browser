@@ -165,6 +165,24 @@ body {
     box-sizing: border-box;
 }
 
+/* Style pour la pastille incognito dans la barre d'adresse */
+.incognito-badge {
+    background: #4c1d95; /* Violet foncé */
+    color: #c084fc;      /* Violet clair néon */
+    font-size: 10px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-right: 6px;
+    border: 1px solid #6b21a8;
+    user-select: none;
+    flex-shrink: 0;      /* Empêche le badge de se déformer */
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+
 /* =====================================================
    FAVORIS
 ===================================================== */
@@ -251,16 +269,18 @@ body {
     <!-- AJOUT ICI : Le bouton Mode Sombre -->
     <button id="dark-mode-button" title="Activer le mode sombre" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🌙</button>
 
+    <!-- Remplacement dans la barre d'outils de index.html -->
+    <button id="split-private-vertical" title="Ouvrir une tuile privée à droite" style="width:28px; height:24px; background:#2d2d30; color:#c084fc; border:1px solid #3c3c3c; font-size:13px; cursor:pointer;">👥</button>
 
     <!-- L'attribut onclick appelle directement notre nouveau pont preload de manière brute -->
-    <button id="history-button" title="Historique (Ctrl+H)" onclick="window.api.openHistoryWindow()" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer; position:relative; z-index:999999 !important;">H</button>
+    <button id="history-button" title="Historique (Ctrl+H)" onclick="window.api.openHistoryWindow()" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer; position:relative; z-index:999999 !important;">🕒</button>
 
     <!-- Scindage vertical : Deux barres verticales simples -->
     <button id="split-vertical" title="Scinder à droite (Ctrl+T)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; font-weight:bold; cursor:pointer;">|</button>
     
     <!-- Scindage horizontal : Une barre horizontale simple -->
-    <button id="split-horizontal" title="Scinder vers le bas (Ctrl+H)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; font-weight:bold; cursor:pointer;">&mdash;</button>
-    
+    <button id="split-horizontal" title="Scinder vers le bas (Ctrl+H)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; font-weight:bold; cursor:pointer;">&mdash;</button>   
+
     <!-- Bouton Undo d'annulation -->
     <button id="undo" title="Rouvrir le dernier panneau fermé (Ctrl+Z)" disabled style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#10554;</button>
     
@@ -386,20 +406,48 @@ function attachUrlHandler(panelId) {
     });
 }
 
+
 function rebuildUrlBar(panels) {
     const container = document.getElementById("url-bar");
     if (!container) return;
     
     const isDark = applicationDarkMode; 
-    
     container.innerHTML = "";
+
     container.style.display = "flex";
     container.style.gap = "8px";
     container.style.alignItems = "center";
 
-    panels.forEach((panel) => {
-        const tabWrapper = document.createElement("div");
-        
+
+
+
+
+// Dans index.html -> fonction rebuildUrlBar
+panels.forEach((panel) => {
+    const tabWrapper = document.createElement("div");
+    // ... vos styles de structure (display: flex, etc.) ...
+
+    // 1. DÉFINITION DE LA COULEUR PAR DÉFAUT (SI L'ONGLET N'EST PAS ACTIF)
+    if (panel.isPrivate) {
+        tabWrapper.style.background = "#1e112c";     // Violet très sombre de fond
+        tabWrapper.style.borderColor = "#4a2874";    // Bordure violette sombre
+    } else {
+        tabWrapper.style.background = isDark ? "#2d2d30" : "#f3f4f6";
+        tabWrapper.style.border = isDark ? "1px solid #3c3c3c" : "1px solid #d1d5db";
+    }
+
+    // 2. SURCHARGE SI L'ONGLET EST LE PANNEAU ACTIF (SÉLECTIONNÉ)
+    if (activePanel && panel.id === activePanel) {
+        if (panel.isPrivate) {
+            tabWrapper.style.borderColor = "#c084fc"; // Bordure violette néon active
+            tabWrapper.style.background = "#3b1767";  // Fond violet plus clair
+        } else {
+            tabWrapper.style.borderColor = "#3b82f6"; // Bleu classique
+            tabWrapper.style.background = isDark ? "#203a5d" : "#dbeafe"; 
+        }
+        tabWrapper.classList.add("panel-is-maximized"); 
+    }
+
         // FORCE FLEXBOX STRICT : Empêche le retour à la ligne des enfants
         tabWrapper.style.display = "flex";
         tabWrapper.style.flexDirection = "row";
@@ -438,6 +486,18 @@ function rebuildUrlBar(panels) {
         tabWrapper.addEventListener("dragleave", () => { tabWrapper.style.borderColor = (activePanel && panel.id === activePanel) ? "#3b82f6" : "#3c3c3c"; });
         tabWrapper.addEventListener("drop", (e) => { e.preventDefault(); const draggedPanelId = e.dataTransfer.getData("text/plain"); if (draggedPanelId && draggedPanelId !== panel.id) { window.api.movePanel(draggedPanelId, panel.id); } refreshTabBorders(); });
 
+
+
+
+
+
+
+
+
+
+
+
+
         // --- CHAMP DE SAISIE DE L'URL ---
         const input = document.createElement("input");
         input.type = "text";
@@ -451,9 +511,8 @@ function rebuildUrlBar(panels) {
         input.style.fontSize = "12px";
         input.style.height = "20px";
         
-        // CSS FLEX : L'input prend la place restante MAIS laisse de la place pour l'étoile
         input.style.flex = "1 1 auto"; 
-        input.style.width = "10px"; // Astuce CSS : force l'input à réduire sa taille de base pour ne pas pousser l'étoile
+        input.style.width = "10px"; 
         input.style.minWidth = "0"; 
 
         input.dataset.url = panel.realUrl || panel.url || "";
@@ -463,36 +522,45 @@ function rebuildUrlBar(panels) {
         window.addEventListener("mouseup", () => tabWrapper.setAttribute("draggable", "true"));
         input.addEventListener("click", (e) => { e.stopPropagation(); window.api.setActivePanel(panel.id); });
 
-    //  input.addEventListener("focus", () => { window.api.setActivePanel(panel.id); input.value = input.dataset.url; input.style.color = isDark ? "#ffffff" : "#1f2937"; setTimeout(() => { input.setSelectionRange(0, input.value.length); }, 10); });            
-
         input.addEventListener("focus", () => { 
-        window.api.setActivePanel(panel.id); 
+            window.api.setActivePanel(panel.id); 
+            if (input.dataset.url.includes("129.151.254.175")) {
+                const parsed = new URL(input.dataset.url);
+                const searchWord = new URLSearchParams(parsed.search).get('q') || "";
+                input.value = searchWord; 
+            } else {
+                input.value = input.dataset.url; 
+            }
+            input.style.color = isDark ? "#ffffff" : "#1f2937"; 
+            setTimeout(() => { input.setSelectionRange(0, input.value.length); }, 10);
+        });
         
-        // Si c'est notre moteur de recherche, on vide le champ ou on met une chaîne vide
-        if (input.dataset.url.includes("129.151.254.175")) {
-            const parsed = new URL(input.dataset.url);
-            const searchWord = new URLSearchParams(parsed.search).get('q') || "";
-            input.value = searchWord; // Affiche directement le mot recherché au lieu de l'IP !
-        } else {
-            input.value = input.dataset.url; 
-        }
-        
-        input.style.color = isDark ? "#ffffff" : "#1f2937"; 
-        setTimeout(() => { input.setSelectionRange(0, input.value.length); }, 10);
-        
-});
-    
-
-    
         input.addEventListener("blur", () => { input.value = getDisplayUrl(input.dataset.url); input.style.color = isDark ? "#d4d4d4" : "#1f2937"; });
 
+
+
+
+
+        // ==========================================
+        // AJOUT : INJECTION DE LA PASTILLE VISUELLE
+        // ==========================================
+        if (panel.isPrivate) {
+            const incognitoBadge = document.createElement("span");
+            incognitoBadge.className = "incognito-badge";
+            incognitoBadge.innerHTML = "👥";
+            
+            // On insère d'abord le badge dans le conteneur de l'onglet
+            tabWrapper.appendChild(incognitoBadge);
+        }
+
+        // Ensuite, on insère le champ URL comme d'habitude
         tabWrapper.appendChild(input);
 
         // --- BOUTON ÉTOILE DE FAVORI ---
         const starBtn = document.createElement("div");
         starBtn.className = "btn-favori";
         starBtn.id = `star-${panel.id}`;
-        starBtn.innerText = "☆"; 
+        starBtn.innerText = "★"; 
         starBtn.title = "Ajouter aux favoris";
 
         starBtn.style.cursor = "pointer";
@@ -502,31 +570,50 @@ function rebuildUrlBar(panels) {
         starBtn.style.zIndex = "20";
         
         // FORCE L'ÉTOILE À RESTER FIXE À DROITE
-        starBtn.style.flex = "0 0 auto"; // Interdit à l'étoile de rétrécir ou de grandir
+        starBtn.style.flex = "0 0 auto"; 
         starBtn.style.marginLeft = "8px";
         starBtn.style.display = "flex";
         starBtn.style.alignItems = "center";
 
-        starBtn.addEventListener("mousedown", (e) => e.stopPropagation());
-        starBtn.addEventListener("click", async (e) => {
-            e.stopPropagation();
-            const currentUrl = input.dataset.url || panel.url || "";
-            const currentTitle = panel.title || input.value;
-            const isAdded = await window.api.toggleFavori({ url: currentUrl, title: currentTitle });
-            starBtn.innerText = isAdded ? "★" : "::⭐::";
-            starBtn.style.color = isAdded ? "#eab308" : "#6b7280"; 
-        });
+        // SÉCURITÉ INCOGNITO : Si l'onglet est privé, on cache complètement l'étoile
+        if (panel.isPrivate) {
+            starBtn.style.display = "none"; // L'étoile disparait visuellement
+            starBtn.style.cursor = "not-allowed";
+            starBtn.title = "Les favoris sont désactivés en navigation privée";
+            
+            // Sécurité absolue : un clic résiduel ne fera rien
+            starBtn.addEventListener("mousedown", (e) => e.stopPropagation());
+            starBtn.addEventListener("click", (e) => {
+                e.stopPropagation(); 
+            });
+        } else {
+            // Comportement normal UNIQUE pour les onglets publics
+            starBtn.addEventListener("mousedown", (e) => e.stopPropagation());
+            starBtn.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                const currentUrl = input.dataset.url || panel.url || "";
+                const currentTitle = panel.title || input.value;
+                const isAdded = await window.api.toggleFavori({ url: currentUrl, title: currentTitle });
+                starBtn.innerText = isAdded ? "★" : "★"; // Ajustez selon votre symbole souhaité
+                starBtn.style.color = isAdded ? "#eab308" : "#6b7280"; 
+            });
+        }
 
         tabWrapper.appendChild(starBtn);
+
 
         // --- BARRE DE PROGRESSION ---
         const progBar = document.createElement("div");
         progBar.className = "download-progress-bar";
         progBar.id = `prog-${panel.id}`;
+
         tabWrapper.appendChild(progBar);
 
         container.appendChild(tabWrapper);
         attachUrlHandler(panel.id);
+
+
+
     });
 
 
@@ -1291,6 +1378,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     setDarkMode(savedTheme);
 
+});
+
+
+document.getElementById("split-private-vertical").addEventListener("click", () => {
+    if (activePanel) {
+        // Appelle splitPanel avec le troisième paramètre (isPrivate) à 'true'
+        window.api.splitPanel(activePanel, "vertical", true);
+    }
 });
 
 
