@@ -52,8 +52,9 @@ let maximizedPanelId = null;
 
 // En haut de main.js, à la place de const TOOLBAR_HEIGHT = 105;
 let isBookmarksBarVisible = true; // La barre est affichée par défaut
-let TOOLBAR_HEIGHT = 105;         // Hauteur avec la barre de favoris (38 + 36 + 28 + corrections)
-const TOOLBAR_MIN_HEIGHT = 77;   // Hauteur sans la barre (38 + 36 + corrections)
+
+let TOOLBAR_HEIGHT = 77;
+const TOOLBAR_MIN_HEIGHT = 77;
 
 let history = [];
 let lastClosedPanel = null;

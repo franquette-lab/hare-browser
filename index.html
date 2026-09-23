@@ -196,36 +196,65 @@ html.dark .incognito-badge {
 ===================================================== */
 
 #bookmarks-bar {
-    height: 28px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-color);
+    margin-left: auto;
+
+    height: 100%;
+    padding: 0;
+
+    background: transparent;
+    border: none;
+
+    flex-shrink: 0;
+}
+
+#bookmarks-list {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+    max-width: 500px;
+}
+
+#clear-bookmarks-btn {
+    width: 20px;
+    height: 20px;
+    padding: 0;
 
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
 
-    padding: 0 8px;
-
-    box-sizing: border-box;
+    font-size: 11px;
 }
 
+.bookmarks-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+
 .bookmark-item {
-    background: var(--button-bg);
-    color: var(--text-secondary);
-
-    border: 1px solid var(--button-border);
-
-    border-radius: 4px;
+    display: flex;
+    align-items: center;
 
     padding: 2px 8px;
 
+    max-width: 140px;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
     font-size: 11px;
-
+    border-radius: 4px;
     cursor: pointer;
-
-    transition: all .2s ease;
 }
+
 
 .bookmark-item:hover {
     background: var(--button-hover);
@@ -291,23 +320,25 @@ html.dark .incognito-badge {
     <button id="undo" title="Rouvrir le dernier panneau fermé (Ctrl+Z)" disabled style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#10554;</button>
     
     <button id="close-panel" title="Fermer le panneau actif (Ctrl+W)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; cursor:pointer;">X</button>
+
+    <div id="bookmarks-bar">
+        <div id="bookmarks-list"></div>
+        <div class="bookmarks-actions">
+            <button id="clear-bookmarks-btn">
+                🗑️
+            </button>
+            <div id="close-bookmarks-bar">
+            ×
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <div id="url-bar" style="position: fixed; top: 38px; left: 0; right: 0; z-index: 50;"></div>
 <div id="active-panel-frame"></div>
 
 <!-- === REMPLACER LE CONTENEUR DE LA BARRE DES FAVORIS PAR CELUI-CI === -->
-<div id="bookmarks-bar" style="position: fixed; top: 74px; left: 0; right: 0; z-index: 50; display: flex; justify-content: space-between; align-items: center;">
-    <!-- Zone interne pour la liste des badges -->
-    <div id="bookmarks-list" style="flex: 1;"></div>
-    
-    <!-- Zone des boutons d'action à droite de la barre des favoris -->
-    <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0; padding-right: 4px;">
-        <button id="clear-bookmarks-btn" style="font-size: 10px; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: all .2s ease;">Effacer tout</button>
-        <div id="close-bookmarks-bar" title="Masquer la barre des favoris (Ctrl+Shift+B)">×</div>
-    </div>
-
-</div>
     
 <div id="active-panel-frame"></div>
 
@@ -315,7 +346,11 @@ html.dark .incognito-badge {
 <div id="history-sidebar">
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3c3c3c; padding-bottom: 8px;">
         <span style="color: #ffffff; font-weight: bold; font-size: 13px;">Historique</span>
-        <button id="clear-history-btn" style="background: #991b1b; color: #fca5a5; border: none; font-size: 10px; padding: 2px 6px; border-radius: 4px; cursor: pointer;">Effacer tout</button>
+
+<button id="clear-bookmarks-btn" title="Effacer les favoris">
+    🗑
+</button>
+
     </div>
     <div id="history-list-container"></div>
 </div>
@@ -1076,14 +1111,18 @@ document.getElementById("history-button").addEventListener("click", (e) => {
 });
 
 // 4. Écouteur pour le bouton de nettoyage
-document.getElementById("clear-history-btn").addEventListener("click", async () => {
-    if (confirm("Voulez-vous vraiment effacer tout votre historique ?")) {
-        if (window.api.clearHistory) {
-            await window.api.clearHistory();
-            renderHistory([]); // Force le vidage visuel immédiat
+const clearHistoryBtn = document.getElementById("clear-history-btn");
+
+if (clearHistoryBtn) {
+    clearHistoryBtn.addEventListener("click", async () => {
+        if (confirm("Voulez-vous vraiment effacer tout votre historique ?")) {
+            if (window.api.clearHistory) {
+                await window.api.clearHistory();
+                renderHistory([]);
+            }
         }
-    }
-});
+    });
+}
 
 // 5. Écoute les mises à jour en arrière-plan (La variable historySidebar est maintenant bien déclarée avant !)
 window.api.onHistoryUpdated?.((updatedHistory) => {
