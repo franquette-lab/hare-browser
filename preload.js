@@ -13,9 +13,15 @@ contextBridge.exposeInMainWorld(
                 callback(title);
             });
         },
+
+        printPanel: (panelId) => ipcRenderer.send("print-panel", panelId),        
                 
         // À insérer dans preload.js à l'intérieur de l'objet 'api'
         clearFavoris: () => ipcRenderer.invoke('clear-favoris'),
+
+        // À insérer à l'intérieur de l'objet exposé sous 'api' dans contextBridge.exposeInMainWorld
+        printPanel: (panelId) => ipcRenderer.send("print-panel", panelId),
+
 
         getSystemTheme: () => ipcRenderer.invoke("get-system-theme"),
 
@@ -38,8 +44,7 @@ contextBridge.exposeInMainWorld(
 
         refresh: (panelId) => ipcRenderer.invoke("refresh", panelId),
 
-        // Dans preload.js
-        splitPanel: (panelId, direction, isPrivate) => ipcRenderer.send('split-panel', panelId, direction, isPrivate),
+        splitPanel: (panelId, direction, isPrivate, initialUrl) => ipcRenderer.send('split-panel', panelId, direction, isPrivate, initialUrl),
         
 
         // ====== DANS PRELOAD.JS -> DANS L'OBJET 'api' ======

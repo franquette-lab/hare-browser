@@ -1857,29 +1857,6 @@ function createWindow() {
         {
             label: 'Navigation',
             submenu: [
-
-
-/*
-                {
-                    label: 'Scinder verticalement',
-                    accelerator: 'CmdOrCtrl+T',
-                    click: () => {
-                        if (activePanel) {
-                            // On simule exactement l'action de l'IpcMain split-panel
-                            ipcMain.emit('split-panel', null, activePanel, 'vertical');
-                        }
-                    }
-                },
-                {
-                    label: 'Scinder horizontalement',
-                    accelerator: 'CmdOrCtrl+H',
-                    click: () => {
-                        if (activePanel) {
-                            ipcMain.emit('split-panel', null, activePanel, 'horizontal');
-                        }
-                    }
-                },
-*/
                 {
                     label: 'Scinder verticalement',
                     accelerator: 'CmdOrCtrl+T',
@@ -1918,9 +1895,6 @@ function createWindow() {
                         }
                     }
                 },
-
-
-
                 {
                     label: 'Fermer la tuile active',
                     accelerator: 'CmdOrCtrl+W',
@@ -2173,6 +2147,17 @@ function createWindow() {
                         // Si on a trouvé un panneau (actif ou repli de secours), on exécute le split
                         if (targetPanelId) {
                             ipcMain.emit('split-panel', null, targetPanelId, 'vertical', true);
+                        }
+                    }
+                },
+
+
+                {
+                    label: 'Imprimer la tuile active',
+                    accelerator: 'CmdOrCtrl+P',
+                    click: () => {
+                        if (activePanel) {
+                            ipcMain.emit('print-panel', null, activePanel);
                         }
                     }
                 },
@@ -2638,6 +2623,20 @@ ipcMain.on("toggle-bookmarks-bar-request", () => {
     forceRebuildSplitters = true;
     resizeViews();
 });
+
+// À insérer avec vos autres écouteurs "ipcMain.on"
+ipcMain.on("print-panel", (event, panelId) => {
+    const panel = findPanelNode(rootNode, panelId);
+    if (panel && panel.view && !panel.view.webContents.isDestroyed()) {
+        // Lance la boîte de dialogue d'impression du système
+        panel.view.webContents.print({
+            silent: false,           // Affiche la boîte de dialogue système
+            printBackground: true,  // Imprime les images et couleurs de fond
+            deviceName: ''          // Imprimante par défaut
+        });
+    }
+});
+
 
 ipcMain.on("set-active-panel", (event, panelId) => {
     const panel = findPanelNode(rootNode, panelId);

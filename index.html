@@ -313,6 +313,9 @@ html.dark #url-bar {
     <!-- L'attribut onclick appelle directement notre nouveau pont preload de manière brute -->
     <button id="history-button" title="Historique (Ctrl+H)" onclick="window.api.openHistoryWindow()" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer; position:relative; z-index:999999 !important;">🕒</button>
 
+    <!-- À placer dans votre div #toolbar-buttons (par exemple juste avant le bouton de fermeture "close-panel") -->
+    <button id="print-button" title="Imprimer le panneau actif" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🖨️</button>
+
     <!-- Scindage vertical : Deux barres verticales simples -->
     <button id="split-vertical" title="Scinder à droite (Ctrl+T)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; font-weight:bold; cursor:pointer;">|</button>
     
@@ -1328,6 +1331,24 @@ document.getElementById("split-private-vertical").addEventListener("click", () =
         window.api.splitPanel(targetPanelId, "vertical", true);
     }
 });
+
+document.getElementById("print-button").addEventListener("click", () => {
+    let targetPanelId = activePanel;
+
+    // Sécurité : si aucun panneau n'est actif, on prend le premier disponible
+    if (!targetPanelId && typeof currentPanels !== 'undefined' && currentPanels.length > 0) {
+        targetPanelId = currentPanels[0].id; // Correction ici : [0].id
+    }
+
+    if (targetPanelId) {
+        if (typeof window.api.printPanel === "function") {
+            window.api.printPanel(targetPanelId);
+        } else {
+            console.error("L'API printPanel n'est toujours pas disponible. Vérifiez preload.js et redémarrez npm start.");
+        }
+    }
+});
+
 
 </script>
 
