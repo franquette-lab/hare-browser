@@ -80,21 +80,18 @@ body {
 
 #toolbar-buttons {
     height: 38px;
-
     display: flex;
     align-items: center;
     gap: 4px;
-
     background: var(--bg-toolbar);
-    border-bottom: 1px solid var(--border-color);
+    
+    /* Supprimez ou commentez cette ligne : */
+    /* border-bottom: 1px solid var(--border-color); */
 
     padding: 4px 8px;
     padding-right: 140px;
-
     box-sizing: border-box;
-
     z-index: 99999;
-
     -webkit-app-region: drag;
 }
 
@@ -147,23 +144,24 @@ body {
 
 #url-bar {
     height: 36px;
-
     background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-color);
+    
+    /* Conservez la bordure du bas si vous le souhaitez */
+    border-bottom: 1px solid var(--border-color); 
+    
+    /* AJOUTEZ CETTE LIGNE : Elle va recréer la ligne manquante sur 100% de la largeur */
+    border-top: 1px solid var(--border-color);
 
     display: flex;
     align-items: center;
     gap: 8px;
-
     padding: 0 8px;
-
     position: fixed;
     top: 38px;
-
     width: 100%;
-
     box-sizing: border-box;
 }
+
 
 /* Style mis à jour pour la pastille incognito dans la barre d'adresse */
 .incognito-badge {
@@ -1208,19 +1206,18 @@ window.api.onSystemThemeChanged((isDark) => {
 
 updateCloseButtonState();
 
-
 function updateUrlBarTheme() {
-    const urlBarContainer =
-        document.getElementById("url-bar");
-
+    const urlBarContainer = document.getElementById("url-bar");
     if (urlBarContainer) {
-        urlBarContainer.style.background =
-            applicationDarkMode ? "#252526" : "#f9fafb";
-
-        urlBarContainer.style.borderColor =
-            applicationDarkMode ? "#3c3c3c" : "#e5e7eb";
+        urlBarContainer.style.background = applicationDarkMode ? "#252526" : "#f9fafb";
+        
+        // Applique la couleur de bordure sombre ou claire sur les deux côtés simultanément
+        const borderColor = applicationDarkMode ? "#3c3c3c" : "#e5e7eb";
+        urlBarContainer.style.borderBottomColor = borderColor;
+        urlBarContainer.style.borderTopColor = borderColor;
     }
 }
+
 
 function setDarkMode(enabled) {
 
