@@ -136,59 +136,88 @@ async function safeWriteJsonAsync(filePath, data) {
     }
 }
 
-// Fonction pour lire l'historique sur le disque
+
+// ======================================================================
+// FONCTIONS HISTORIQUE SÉCURISÉES (Anti-crash et Anti-corruption)
+// ======================================================================
+
+// Fonction pour lire l'historique sur le disque en toute sécurité
 function getNavigationHistory() {
     try {
         if (!fs.existsSync(historyPath)) {
-            safeWriteJsonAsync(historyPath, historyList);
+            // Utilisation d'un tableau vide de secours si le fichier n'existe pas
+            fs.writeFileSync(historyPath, JSON.stringify([], null, 2), 'utf-8');
             return [];
         }
         const data = fs.readFileSync(historyPath, 'utf-8');
+        
+        // Sécurité si le fichier existe mais est totalement vide (0 Ko)
+        if (!data.trim()) {
+            fs.writeFileSync(historyPath, JSON.stringify([], null, 2), 'utf-8');
+            return [];
+        }
+        
         return JSON.parse(data);
     } catch (e) {
-        console.error("Erreur lecture historique :", e);
+        console.error("Erreur lecture historique (Fichier corrompu ou vide), réinitialisation :", e);
+        // En cas de fichier JSON malformé, on réinitialise pour éviter le crash permanent
+        try { fs.writeFileSync(historyPath, JSON.stringify([], null, 2), 'utf-8'); } catch(err) {}
         return [];
     }
 }
 
-// Fonction pour ajouter une entrée dans l'historique
-function addToHistory(url, title) {
-
+// Fonction pour ajouter une entrée dans l'historique de manière asynchrone et atomique
+async function addToHistory(url, title) {
     if (!url || url.startsWith('data:') || url.startsWith('about:')) return;
     
-    let historyList = getNavigationHistory();
-    
-    // Évite les doublons consécutifs exacts
-    if (historyList.length > 0 && historyList[0].url === url) return;
+    try {
+        let historyList = getNavigationHistory();
+        
+        // Évite les doublons consécutifs exacts
+        if (historyList.length > 0 && historyList[0].url === url) return;
 
-    historyList.unshift({
-        url,
-        title: title || url,
-        date: new Date().toISOString()
-    });
+        historyList.unshift({
+            url,
+            title: title || url,
+            date: new Date().toISOString()
+        });
 
-    // Limite l'historique aux 1000 dernières entrées
-    if (historyList.length > 1000) historyList.pop();
+        // Limite l'historique aux 1000 dernières entrées
+        if (historyList.length > 1000) historyList.pop();
 
-    fs.writeFileSync(historyPath, JSON.stringify(historyList, null, 2));
-    
-    // Optionnel : notifier l'IHM en temps réel si elle est ouverte
-    if (win && !win.isDestroyed()) {
-        win.webContents.send('history-updated', historyList);
+        // Écriture atomique sécurisée à la place du writeFileSync bloquant
+        await safeWriteJsonAsync(historyPath, historyList);
+        
+        // Notifier l'IHM en temps réel si elle est ouverte
+        if (win && !win.isDestroyed()) {
+            win.webContents.send('history-updated', historyList);
+        }
+    } catch (error) {
+        console.error("Erreur lors de l'ajout à l'historique :", error);
     }
 }
 
-// Fonction pour lire les favoris sur le disque
+// Fonction pour lire les favoris sur le disque en toute sécurité
 function getFavoris() {
     try {
         if (!fs.existsSync(favorisPath)) {
-            fs.writeFileSync(favorisPath, JSON.stringify([]));
+            // Création d'un tableau de favoris vide par défaut
+            fs.writeFileSync(favorisPath, JSON.stringify([], null, 2), 'utf-8');
             return [];
         }
         const data = fs.readFileSync(favorisPath, 'utf-8');
+        
+        // Sécurité si le fichier existe mais est totalement vide (0 Ko)
+        if (!data.trim()) {
+            fs.writeFileSync(favorisPath, JSON.stringify([], null, 2), 'utf-8');
+            return [];
+        }
+        
         return JSON.parse(data);
     } catch (e) {
-        console.error("Erreur lors de la lecture des favoris :", e);
+        console.error("Erreur lors de la lecture des favoris (Fichier corrompu ou vide), réinitialisation :", e);
+        // Réparation automatique en cas de fichier JSON corrompu
+        try { fs.writeFileSync(favorisPath, JSON.stringify([], null, 2), 'utf-8'); } catch(err) {}
         return [];
     }
 }
@@ -2679,21 +2708,29 @@ ipcMain.handle('delete-history-item', async (event, index) => {
     }
 });
 
-ipcMain.handle('toggle-favori', async (event, { url, title }) => { // <-- Ajout de async
-    let favoris = getFavoris();
-    const index = favoris.findIndex(f => f.url === url);
+// Remplacement du gestionnaire d'ajout/suppression des favoris
+ipcMain.handle('toggle-favori', async (event, { url, title }) => {
+    try {
+        let favoris = getFavoris();
+        const index = favoris.findIndex(f => f.url === url);
 
-    if (index >= 0) {
-        favoris.splice(index, 1);
-    } else {
-        favoris.push({ url, title: title || url });
+        if (index >= 0) {
+            favoris.splice(index, 1);
+        } else {
+            favoris.push({ url, title: title || url });
+        }
+
+        // Sauvegarde sécurisée, asynchrone et atomique (.tmp -> renommé)
+        await safeWriteJsonAsync(favorisPath, favoris); 
+        
+        if (win && !win.isDestroyed()) {
+            win.webContents.send('favoris-updated', favoris);
+        }
+        return index < 0; // Renvoie vrai si ajouté, faux si retiré
+    } catch (error) {
+        console.error("Erreur lors du toggle-favori :", error);
+        return false;
     }
-
-    // Sauvegarde sécurisée asynchrone
-    await safeWriteJsonAsync(favorisPath, favoris); 
-    
-    win.webContents.send('favoris-updated', favoris);
-    return index < 0;
 });
 
 
