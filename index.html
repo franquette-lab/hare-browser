@@ -590,10 +590,18 @@ function rebuildUrlBar(panels) {
                 starBtn.style.cursor = "not-allowed";
                 starBtn.title = "Les favoris sont désactivés en navigation privée";
                 
-                // Sécurité absolue : un clic résiduel ne fera rien
+                // Comportement normal UNIQUE pour les onglets publics
                 starBtn.addEventListener("mousedown", (e) => e.stopPropagation());
-                starBtn.addEventListener("click", (e) => {
-                    e.stopPropagation(); 
+                starBtn.addEventListener("click", async (e) => {
+                    e.stopPropagation();
+                    
+                    let targetPanelId = activePanel || panel.id; // Utilise le panneau de l'onglet si aucun n'est globalement actif
+                    
+                    const currentUrl = input.dataset.url || panel.url || "";
+                    const currentTitle = panel.title || input.value;
+                    const isAdded = await window.api.toggleFavori({ url: currentUrl, title: currentTitle });
+                    starBtn.innerText = isAdded ? "★" : "☆"; 
+                    starBtn.style.color = isAdded ? "#eab308" : "#6b7280"; 
                 });
             } else {
                 // Comportement normal UNIQUE pour les onglets publics
@@ -1006,12 +1014,20 @@ async function rebuildBookmarksBar() {
             btn.style.color = isDark ? "#cfcfcf" : "#1f2937";
         });
 
-        btn.addEventListener("click", () => {
-            if (activePanel) {
-                window.api.navigate(activePanel, fav.url);
-            }
-        });
+btn.addEventListener("click", () => {
+    let targetPanelId = activePanel;
 
+    // SÉCURITÉ : Si aucun panneau n'est actif, on prend le premier disponible
+    if (!targetPanelId && typeof currentPanels !== 'undefined' && currentPanels.length > 0) {
+        targetPanelId = currentPanels[0].id;
+    }
+
+    if (targetPanelId) {
+        window.api.navigate(targetPanelId, fav.url);
+    } else {
+        console.warn("Impossible d'ouvrir le favori : aucun panneau trouvé dans l'application.");
+    }
+});
         listContainer.appendChild(btn);
     });
 }

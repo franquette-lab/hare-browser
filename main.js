@@ -1772,6 +1772,7 @@ function createWindow() {
             symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937',
             height: 38
         },
+        
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
