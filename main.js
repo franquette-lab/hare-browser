@@ -2677,6 +2677,120 @@ ipcMain.handle('clear-favoris', () => {
     }
 });
 
+// À ajouter avec vos autres gestionnaires ipcMain (ex: sous ipcMain.handle('get-favoris', ...))
+
+// 1. SAUVEGARDER LA CONFIGURATION DANS UN FICHIER
+ipcMain.handle('save-config-to-file', async () => {
+    if (!rootNode) return false;
+
+    // Capture la structure actuelle de l'arbre (identique à votre système undo)
+    const snapshot = createSnapshot(rootNode);
+
+    const { filePath } = await dialog.showSaveDialog(win, {
+        title: "Sauvegarder la configuration des panneaux",
+        defaultPath: path.join(app.getPath('documents'), 'hare-browser-layout.json'),
+        filters: [
+            { name: 'Fichiers Configuration (*.json)', extensions: ['json'] }
+        ]
+    });
+
+    if (filePath) {
+        try {
+            await fsPromises.writeFile(filePath, JSON.stringify(snapshot, null, 2), 'utf-8');
+            return true;
+        } catch (error) {
+            console.error("Erreur lors de l'export de la configuration :", error);
+            return false;
+        }
+    }
+    return false;
+});
+
+// 2. CHARGER LA CONFIGURATION DEPUIS UN FICHIER
+ipcMain.handle('load-config-from-file', async () => {
+    const { filePaths } = await dialog.showOpenDialog(win, {
+        title: "Charger une configuration de panneaux",
+        defaultPath: app.getPath('documents'),
+        properties: ['openFile'],
+        filters: [
+            { name: 'Fichiers Configuration (*.json)', extensions: ['json'] }
+        ]
+    });
+
+    if (filePaths && filePaths.length > 0) {
+        try {
+            const data = await fsPromises.readFile(filePaths[0], 'utf-8');
+            const snapshot = JSON.parse(data);
+
+            // Validation minimale de la structure du fichier pour éviter les crashs
+            if (!snapshot || (!snapshot.type)) return false;
+
+            saveState(); // Permet d'annuler (Ctrl+Z) si le chargement ne plaît pas
+
+            // Suppression propre des anciennes vues ouvertes à l'écran
+            const oldPanels = collectPanelNodes(rootNode);
+            oldPanels.forEach(p => {
+                if (p.view) {
+                    try { win.removeBrowserView(p.view); p.view.webContents.destroy(); } catch(e) {}
+                }
+            });
+
+            // Fonction récursive pour reconstruire à la fois les objets PanelNode/SplitNode 
+            // ET instancier leurs nouvelles BrowserViews associées
+            function rebuildTreeFromImport(node) {
+                if (!node) return null;
+
+                if (node.type === "panel") {
+                    const viewOptions = {
+                        webPreferences: {
+                            partition: node.isPrivate ? `incognito_panel_${Math.random()}` : undefined,
+                            contextIsolation: true,
+                            nodeIntegration: false
+                        }
+                    };
+                    const newView = new BrowserView(viewOptions);
+                    win.addBrowserView(newView);
+                    newView.webContents.loadURL(node.realUrl || node.url || "https://bing.com");
+
+                    const newNode = new PanelNode(node.id, newView, node.url, !!node.isPrivate);
+                    setupNavigationTracking(newNode);
+                    return newNode;
+                }
+
+                const splitNode = new SplitNode(node.direction);
+                splitNode.ratio = node.ratio || 0.5;
+                splitNode.first = rebuildTreeFromImport(node.first);
+                splitNode.second = rebuildTreeFromImport(node.second);
+                return splitNode;
+            }
+
+            // Application du nouvel arbre importé
+            rootNode = rebuildTreeFromImport(snapshot);
+            maximizedPanelId = null; // Sort du mode zoom si actif
+
+            // Définition automatique du focus sur la toute première tuile trouvée
+            const firstPanel = findFirstPanel(rootNode);
+            if (firstPanel) activePanel = firstPanel.id;
+
+            // Recalcul géométrique complet et notification immédiate à l'IHM
+            forceRebuildSplitters = true;
+            resizeViews();
+
+            win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
+            if (firstPanel && firstPanel.bounds) {
+                win.webContents.send("active-panel-changed", { id: firstPanel.id, bounds: firstPanel.bounds });
+            }
+
+            return true;
+        } catch (error) {
+            console.error("Erreur lors de l'import de la configuration :", error);
+            dialog.showErrorBox("Erreur de chargement", "Le fichier sélectionné est corrompu ou malformé.");
+            return false;
+        }
+    }
+    return false;
+});
+
 
 ipcMain.handle("get-theme-preference", () => {
     return getThemePreference();

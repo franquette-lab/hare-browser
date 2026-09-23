@@ -313,6 +313,10 @@ html.dark #url-bar {
     <!-- L'attribut onclick appelle directement notre nouveau pont preload de manière brute -->
     <button id="history-button" title="Historique (Ctrl+H)" onclick="window.api.openHistoryWindow()" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer; position:relative; z-index:999999 !important;">🕒</button>
 
+    <!-- À insérer dans votre bloc #toolbar-buttons (par exemple à côté de votre bouton d'impression ou d'historique) -->
+    <button id="save-config-btn" title="Sauver la configuration (panneaux)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">💾</button>
+    <button id="load-config-btn" title="Charger une configuration (panneaux)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">📂</button>
+
     <!-- À placer dans votre div #toolbar-buttons (par exemple juste avant le bouton de fermeture "close-panel") -->
     <button id="print-button" title="Imprimer le panneau actif" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🖨️</button>
 
@@ -643,7 +647,20 @@ function rebuildUrlBar(panels) {
     document.getElementById("forward-button").addEventListener("click", () => window.api.goForward(activePanel));
     document.getElementById("refresh-button").addEventListener("click", () => window.api.refresh(activePanel));
 
- // document.getElementById("split-vertical").addEventListener("click", () => window.api.splitPanel(activePanel, "vertical"));
+    document.getElementById("save-config-btn")?.addEventListener("click", async () => {
+        const success = await window.api.saveConfigToFile();
+        if (success) {
+            console.log("Configuration des panneaux exportée avec succès !");
+        }
+    });
+
+    document.getElementById("load-config-btn")?.addEventListener("click", async () => {
+        const success = await window.api.loadConfigFromFile();
+        if (success) {
+            console.log("Nouvelle configuration des panneaux chargée avec succès !");
+        }
+    });
+
 // Dans index.html -> Écouteurs des boutons de scindage classique
     document.getElementById("split-vertical").addEventListener("click", () => {
         let targetPanelId = activePanel;

@@ -111,6 +111,11 @@ contextBridge.exposeInMainWorld(
             ipcRenderer.send("cancel-download", panelId);
         },
 
+
+        saveConfigToFile: () => ipcRenderer.invoke('save-config-to-file'),
+        loadConfigFromFile: () => ipcRenderer.invoke('load-config-from-file'),
+
+
         closePanel: (panelId) => ipcRenderer.send("close-panel", panelId),
 
         // À insérer juste avant la fin de contextBridge.exposeInMainWorld('api', { ... })
