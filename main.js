@@ -1577,6 +1577,7 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
     win.addBrowserView(newView);
 
     // 1. Définition du code HTML / CSS de la page d'accueil privée
+    // 1. Définition du code HTML / CSS de la page d'accueil privée mis à jour
     const incognitoHomeHtml = `
         <!DOCTYPE html>
         <html lang="fr">
@@ -1667,17 +1668,18 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
         </head>
         <body>
             <div class="container">
-                <div class="icon">👥</div>
+                <div class="icon">🕵️</div>
                 <h1>Vous êtes en navigation privée</h1>
                 <p>Désormais, les pages que vous consultez dans cette tuile ne seront pas mémorisées dans l'historique et vos cookies seront détruits à la fermeture du panneau.</p>
                 
                 <div class="lists-container">
                     <div class="list-box secure">
-                        <h3>🛡️ Ce qui est masqué</h3>
+                        <h3>🔒 Ce qui est masqué</h3>
                         <ul>
                             <li>Historique de navigation locale</li>
-                            <li>Cookies et données de navigation</li>
+                            <li>Cookies et données de session</li>
                             <li>Saisies dans les formulaires</li>
+                            <li><b>Mémoire cache détruite à la fermeture</b></li>
                         </ul>
                     </div>
                     <div class="list-box warn">
