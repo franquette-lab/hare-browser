@@ -53,8 +53,10 @@ let maximizedPanelId = null;
 // En haut de main.js, à la place de const TOOLBAR_HEIGHT = 105;
 let isBookmarksBarVisible = true; // La barre est affichée par défaut
 
-let TOOLBAR_HEIGHT = 77;
-const TOOLBAR_MIN_HEIGHT = 77;
+//let TOOLBAR_HEIGHT = 77;
+//const TOOLBAR_MIN_HEIGHT = 77;
+let TOOLBAR_HEIGHT = 67;
+const TOOLBAR_MIN_HEIGHT = 67;
 
 let history = [];
 let lastClosedPanel = null;
@@ -1767,6 +1769,7 @@ function createWindow() {
         // MODIFICATION ICI : Fond dynamique au démarrage pour éviter la ligne noire
         backgroundColor: isDarkModeForced ? '#252526' : '#f3f4f6', 
 
+
         titleBarOverlay: {
             color: isDarkModeForced ? '#252526' : '#ffffff',
             symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937',
@@ -2424,8 +2427,10 @@ function resizeViews() {
     const HEIGHT_PADDING = 6; 
     // === CORRECTIF FINAL : Marge de 2px pour remonter le liseré ===
     // === CORRECTIF FINAL : Marge de 2px pour remonter le liseré ===
+// === CORRECTIF FINAL : Marge de 2px pour remonter le liseré ===
     const BOTTOM_MARGIN = 2;
-    layoutNode(rootNode, 0, TOOLBAR_HEIGHT, width, height - TOOLBAR_HEIGHT - BOTTOM_MARGIN);
+    // Correction : On supprime BOTTOM_MARGIN pour que les tuiles collent parfaitement au bas de la fenêtre
+    layoutNode(rootNode, 0, TOOLBAR_HEIGHT, width, height - TOOLBAR_HEIGHT);
  
     while (splitterViews.length > splitters.length) {
         const oldSplitter = splitterViews.pop();
@@ -2522,10 +2527,9 @@ function resizeViews() {
         if (activeNode) {
             let targetBounds = null;
 
-            // === CORRECTION : Si l'application est en mode maximisé/zoom ===
+            // === REMPLACER PAR CE CODE CORRECTIF ===
             if (maximizedPanelId) {
                 if (activePanel === maximizedPanelId) {
-                    // On récupère la taille utile complète de la fenêtre Electron (sous la barre d'outils)
                     const bounds = win.getContentBounds();
                     targetBounds = {
                         x: 0,
@@ -2534,9 +2538,14 @@ function resizeViews() {
                         height: bounds.height - TOOLBAR_HEIGHT
                     };
                 }
-            } else if (activeNode.bounds) {
-                // Comportement mosaïque standard
-                targetBounds = activeNode.bounds;
+            } else if (activeNode && activeNode.bounds) {
+                // Mode mosaïque standard : On aligne le liseré EXACTEMENT sur les dimensions calculées pour le panneau
+                targetBounds = {
+                    x: activeNode.bounds.x,
+                    y: activeNode.bounds.y,
+                    width: activeNode.bounds.width,
+                    height: activeNode.bounds.height
+                };
             }
 
             if (targetBounds) {

@@ -143,14 +143,12 @@ body {
 ===================================================== */
 
 #url-bar {
-    height: 36px;
+    height: 28px;
     background: var(--bg-secondary);
     
-    /* Conservez la bordure du bas si vous le souhaitez */
-    border-bottom: 1px solid var(--border-color); 
-    
-    /* AJOUTEZ CETTE LIGNE : Elle va recréer la ligne manquante sur 100% de la largeur */
-    border-top: 1px solid var(--border-color);
+    /* MODIFICATION ICI : On applique un gris très doux (#e5e7eb ou #f3f4f6) */
+    border-bottom: 1px solid #e5e7eb !important;
+    border-top: 1px solid #e5e7eb !important;
 
     display: flex;
     align-items: center;
@@ -161,6 +159,7 @@ body {
     width: 100%;
     box-sizing: border-box;
 }
+
 
 
 /* Style mis à jour pour la pastille incognito dans la barre d'adresse */
@@ -188,6 +187,12 @@ html.dark .incognito-badge {
     color: #c084fc;      
     border: 1px solid #6b21a8;
 }
+
+html.dark #url-bar {
+    border-bottom: 1px solid #3c3c3c !important;
+    border-top: 1px solid #3c3c3c !important;
+}
+
 
 /* =====================================================
    FAVORIS
@@ -482,8 +487,8 @@ function rebuildUrlBar(panels) {
 
             tabWrapper.style.background = isDark ? "#2d2d30" : "#f3f4f6";
             tabWrapper.style.border = isDark ? "1px solid #3c3c3c" : "1px solid #d1d5db";
-            tabWrapper.style.borderRadius = "4px";
-            tabWrapper.style.padding = "4px 8px";
+            tabWrapper.style.borderRadius = "3px";
+            tabWrapper.style.padding = "2px 6px"; /* Diminué de 4px 8px */
             
             tabWrapper.style.flex = "1";
             tabWrapper.style.minWidth = "0";
@@ -521,8 +526,8 @@ function rebuildUrlBar(panels) {
             input.style.color = isDark ? "#d4d4d4" : "#1f2937"; 
             input.style.border = "none";
             input.style.outline = "none";
-            input.style.fontSize = "12px";
-            input.style.height = "20px";
+            input.style.fontSize = "11px"; /* Diminué de 12px */
+            input.style.height = "16px";   /* Diminué de 20px */
             
             input.style.flex = "1 1 auto"; 
             input.style.width = "10px"; 
