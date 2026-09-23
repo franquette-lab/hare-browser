@@ -798,16 +798,17 @@ window.api.onNavigationState((state) => {
 
 const navigationStates = {};
 
+
 window.api.onNavigationStateChanged((data) => {
     navigationStates[data.panelId] = {
         canGoBack: data.canGoBack,
         canGoForward: data.canGoForward
     };
+    // Si le panneau qui vient de naviguer est bien le panneau actif, on met à jour les boutons
     if (activePanel === data.panelId) {
         updateToolbarButtons(data.canGoBack, data.canGoForward);
     }
 });
-
 
 function updateMaximizedTabDisplay(maximizedPanelId) {
     const container = document.getElementById("url-bar");
