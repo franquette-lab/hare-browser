@@ -1193,15 +1193,14 @@ app.on('drag-end', () => {
 });
 
 // === À PLACER DANS MAIN.JS AVEC LES AUTRES IPCMAIN ===
-    ipcMain.on("move-panel", (event, draggedPanelId, targetPanelId) => {
-        if (draggedPanelId && targetPanelId && draggedPanelId !== targetPanelId) {
-            swapPanelsInTree(draggedPanelId, targetPanelId);
-        }
-    });
+ipcMain.on("move-panel", (event, draggedPanelId, targetPanelId) => {
+    if (draggedPanelId && targetPanelId && draggedPanelId !== targetPanelId) {
+        swapPanelsInTree(draggedPanelId, targetPanelId);
+    }
+});
 
 ipcMain.on("close-panel", (event, panelId) => {
     // === VÉRIFICATION DU NOMBRE DE PANNEAUX RESTANTS ===
-
     const allViews = win.getBrowserViews();
 
     const realWebViews = allViews.filter(v => {
@@ -1220,6 +1219,26 @@ ipcMain.on("close-panel", (event, panelId) => {
     // --- COMPORTEMENT STANDARD DE FERMETURE DE TUILE EN MOSAÏQUE ---
     const node = findPanelNode(rootNode, panelId);
     if (!node) return;
+
+    // === AJOUT PROTECTION NAVIGATION PRIVÉE : NETTOYAGE CYBER-SÉCURITÉ ===
+    if (node.isPrivate && node.view && !node.view.webContents.isDestroyed()) {
+        const privateSession = node.view.webContents.session;
+        
+        console.log(`Fermeture d'une tuile privée : Nettoyage complet de la partition : ${privateSession.getStoragePath()}`);
+        
+        // 1. Effacement complet des données de stockage (Cookies, LocalStorage, Cache, IndexedDB...)
+        privateSession.clearStorageData({
+            storages: ['cookies', 'localstorage', 'caches', 'indexeddb', 'websql', 'serviceworkers', 'cachestorage'],
+            quotas: ['temporary', 'persistent', 'syncable']
+        }).then(() => {
+            console.log(`[Partition ${panelId}] Stockages et Cookies détruits avec succès.`);
+        }).catch(err => console.error("Erreur destruction storage privé :", err));
+        
+        // 2. Vidage du cache d'historique HTTP de Chromium en mémoire
+        privateSession.clearCache().catch(err => console.error("Erreur destruction cache privé :", err));
+    }
+    // ======================================================================
+
     const parent = findParentNode(rootNode, panelId);
     if (!parent) return;
 
@@ -1250,8 +1269,6 @@ ipcMain.on("close-panel", (event, panelId) => {
         collectPanels(rootNode),
         maximizedPanelId
     );
-
-
 });
 
 ipcMain.on("undo", (event) => {
@@ -1542,17 +1559,21 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
     const node = findPanelNode(rootNode, panelId);
 
     const parent = findParentNode(rootNode, panelId);    
-    
+
+    // ====== DANS MAIN.JS -> ipcMain.on("split-panel", ...) ======
     const newPanelId = "panel" + nextPanelNumber++;
-    
+
+    // CORRECTIF : Utiliser une partition en mémoire pure sans préfixe "persist:"
+    // Le simple fait de l'appeler 'incognito_panelX' crée une session isolée et volatile.
     const viewOptions = {
         webPreferences: {
-            partition: isPrivate ? `incognito_${newPanelId}` : 'default'
+            partition: `incognito_${newPanelId}`,
+            contextIsolation: true,
+            nodeIntegration: false
         }
     };
-    
-    const newView = new BrowserView(viewOptions);
 
+    const newView = new BrowserView(viewOptions);
     win.addBrowserView(newView);
 
     // 1. Définition du code HTML / CSS de la page d'accueil privée
