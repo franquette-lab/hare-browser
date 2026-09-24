@@ -130,6 +130,9 @@ contextBridge.exposeInMainWorld(
         // À insérer juste avant la fin de contextBridge.exposeInMainWorld('api', { ... })
         onToggleBookmarksBar: (callback) => ipcRenderer.on("toggle-bookmarks-bar", (event, visible) => callback(visible)),
 
+        onSavePanelsShortcut: (callback) =>
+            ipcRenderer.on("save-panels-shortcut", callback),
+
         // À ajouter dans contextBridge.exposeInMainWorld('api', { ... })
         getFavoris: () => ipcRenderer.invoke('get-favoris'),
 
@@ -152,9 +155,9 @@ contextBridge.exposeInMainWorld(
         onTitleChanged: (callback) => ipcRenderer.on("app-title-changed", (event, title) => callback(title)),
 
         onSystemThemeChanged: (callback) => {
-    ipcRenderer.on("system-theme-changed", (_, isDark) => {
-        callback(isDark);
-    });
+        ipcRenderer.on("system-theme-changed", (_, isDark) => {
+            callback(isDark);
+        });
 }
 
     }

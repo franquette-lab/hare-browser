@@ -463,220 +463,182 @@ function attachUrlHandler(panelId) {
     });
 }
 
+
+
+
+
+
+
+
+
+
+
+
 function rebuildUrlBar(panels) {
-    const container = document.getElementById("url-bar");
-    if (!container) return;
-    
-    const isDark = applicationDarkMode; 
-    container.innerHTML = "";
+    const urlBar = document.getElementById("url-bar");
 
-    container.style.display = "flex";
-    container.style.gap = "8px";
-    container.style.alignItems = "center";
+    const isDark = applicationDarkMode;
 
-    // Dans index.html -> fonction rebuildUrlBar
-    panels.forEach((panel) => {
+    if (!urlBar || !Array.isArray(panels)) {
+        return;
+    }
+
+    urlBar.innerHTML = "";
+
+    panels.forEach((panel, index) => {
         const tabWrapper = document.createElement("div");
-        // ... vos styles de structure (display: flex, etc.) ...
+        tabWrapper.className = "url-tab";
 
-        // 1. DÉFINITION DE LA COULEUR PAR DÉFAUT (SI L'ONGLET N'EST PAS ACTIF)
+        const isActive = activePanel === panel.id;
+
+        // Style de base
+        tabWrapper.style.display = "flex";
+        tabWrapper.style.flexDirection = "row";
+        tabWrapper.style.alignItems = "center";
+        tabWrapper.style.gap = "6px";
+        tabWrapper.style.flex = "1";
+        tabWrapper.style.minWidth = "0";
+        tabWrapper.style.padding = "2px 6px";
+        tabWrapper.style.borderRadius = "6px";
+
+        // Couleurs
         if (panel.isPrivate) {
-            tabWrapper.style.background = "#1e112c";     // Violet très sombre de fond
-            tabWrapper.style.borderColor = "#4a2874";    // Bordure violette sombre
+            tabWrapper.style.background = isActive
+                ? "#2a193d"
+                : "#1e112c";
+            tabWrapper.style.border = "1px solid #4a2874";
         } else {
-            tabWrapper.style.background = isDark ? "#2d2d30" : "#f3f4f6";
-            tabWrapper.style.border = isDark ? "1px solid #3c3c3c" : "1px solid #d1d5db";
+            tabWrapper.style.background = isDark
+                ? "#2d2d30"
+                : "#f3f4f6";
+
+            tabWrapper.style.border = isDark
+                ? "1px solid #3c3c3c"
+                : "1px solid #d1d5db";
         }
 
-        // 2. SURCHARGE SI L'ONGLET EST LE PANNEAU ACTIF (SÉLECTIONNÉ)
-        if (activePanel && panel.id === activePanel) {
-            if (panel.isPrivate) {
-                tabWrapper.style.borderColor = "#c084fc"; // Bordure violette néon active
-                tabWrapper.style.background = "#3b1767";  // Fond violet plus clair
-            } else {
-                tabWrapper.style.borderColor = "#3b82f6"; // Bleu classique
-                tabWrapper.style.background = isDark ? "#203a5d" : "#dbeafe"; 
-            }
-            tabWrapper.classList.add("panel-is-maximized"); 
+        if (isActive) {
+            tabWrapper.style.boxShadow =
+                "0 0 0 2px rgba(59,130,246,0.5)";
         }
 
-            // FORCE FLEXBOX STRICT : Empêche le retour à la ligne des enfants
-            tabWrapper.style.display = "flex";
-            tabWrapper.style.flexDirection = "row";
-            tabWrapper.style.alignItems = "center";
-            tabWrapper.style.justifyContent = "space-between";
-            tabWrapper.style.flexWrap = "nowrap"; // Interdit formellement le passage à la ligne
+        // Indicateur chargement
+        const loadingIndicator = document.createElement("div");
+        loadingIndicator.className = "loading-indicator";
 
-            tabWrapper.style.background = isDark ? "#2d2d30" : "#f3f4f6";
-            tabWrapper.style.border = isDark ? "1px solid #3c3c3c" : "1px solid #d1d5db";
-            tabWrapper.style.borderRadius = "3px";
-            tabWrapper.style.padding = "2px 6px"; /* Diminué de 4px 8px */
-            
-            tabWrapper.style.flex = "1";
-            tabWrapper.style.minWidth = "0";
-            tabWrapper.style.boxSizing = "border-box";
-            tabWrapper.setAttribute("draggable", "true");
-            tabWrapper.style.cursor = "grab";
+        if (panel.isLoading) {
+            loadingIndicator.innerHTML = "⏳";
+        } else {
+            loadingIndicator.innerHTML = panel.isPrivate ? "👤" : "🌐";
+        }
 
-            if (activePanel && panel.id === activePanel) {
-                tabWrapper.style.borderColor = "#3b82f6";
-                tabWrapper.style.background = isDark ? "#203a5d" : "#dbeafe"; 
-                tabWrapper.classList.add("panel-is-maximized"); 
+        // Champ URL
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "url-input";
+        input.value = panel.url || "";
+
+        input.style.flex = "1";
+        input.style.minWidth = "0";
+        input.style.border = "none";
+        input.style.outline = "none";
+        input.style.background = "transparent";
+
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                navigateToUrl(index, input.value);
             }
+        });
 
-            // --- DRAG & DROP EVENT LISTENERS (Gardez vos écouteurs existants) ---
-            tabWrapper.addEventListener("dragstart", (e) => {
-                tabWrapper.style.opacity = "0.4";
-                e.dataTransfer.setData("text/plain", panel.id);
-                e.dataTransfer.effectAllowed = "move";
-            });
-            tabWrapper.addEventListener("dragend", () => {
-                tabWrapper.style.opacity = "1";
-                refreshTabBorders();
-            });
-            tabWrapper.addEventListener("dragover", (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; tabWrapper.style.borderColor = "#3b82f6"; });
-            tabWrapper.addEventListener("dragleave", () => { tabWrapper.style.borderColor = (activePanel && panel.id === activePanel) ? "#3b82f6" : "#3c3c3c"; });
-            tabWrapper.addEventListener("drop", (e) => { e.preventDefault(); const draggedPanelId = e.dataTransfer.getData("text/plain"); if (draggedPanelId && draggedPanelId !== panel.id) { window.api.movePanel(draggedPanelId, panel.id); } refreshTabBorders(); });
-
-            // --- CHAMP DE SAISIE DE L'URL ---
-            const input = document.createElement("input");
-            input.type = "text";
-            input.id = panel.id + "-url";
-            
-            // STYLES EN LIGNE STRICTS POUR L'INPUT
-            input.style.background = "transparent";
-            input.style.color = isDark ? "#d4d4d4" : "#1f2937"; 
-            input.style.border = "none";
-            input.style.outline = "none";
-            input.style.fontSize = "11px"; /* Diminué de 11px */
-            input.style.height = "18px";   /* Diminué de 16px */
-            
-            input.style.flex = "1 1 auto"; 
-            input.style.width = "10px"; 
-            input.style.minWidth = "0"; 
-
-            input.dataset.url = panel.realUrl || panel.url || "";
-            input.value = getDisplayUrl(input.dataset.url);
-
-            input.addEventListener("mousedown", () => tabWrapper.setAttribute("draggable", "false"));
-            window.addEventListener("mouseup", () => tabWrapper.setAttribute("draggable", "true"));
-            input.addEventListener("click", (e) => { e.stopPropagation(); window.api.setActivePanel(panel.id); });
-
-            input.addEventListener("focus", () => { 
-                window.api.setActivePanel(panel.id); 
-                if (input.dataset.url.includes("129.151.254.175")) {
-                    const parsed = new URL(input.dataset.url);
-                    const searchWord = new URLSearchParams(parsed.search).get('q') || "";
-                    input.value = searchWord; 
-                } else {
-                    input.value = input.dataset.url; 
-                }
-                input.style.color = isDark ? "#ffffff" : "#1f2937"; 
-                setTimeout(() => { input.setSelectionRange(0, input.value.length); }, 10);
-            });
-            
-            input.addEventListener("blur", () => { input.value = getDisplayUrl(input.dataset.url); input.style.color = isDark ? "#d4d4d4" : "#1f2937"; });
-
-input.addEventListener("contextmenu", (e) => {
-e.preventDefault();
-input.focus();
-window.api.showUrlContextMenu();
+input.addEventListener("focus", () => {
+    activePanel = panel.id;
 });
 
 
-            const loadingIndicator = document.createElement("span");
-            loadingIndicator.id = `loading-${panel.id}`;
-            loadingIndicator.innerHTML = "⟳";
-            loadingIndicator.className = "loading-spinner";
-            loadingIndicator.style.display = "none";
-            loadingIndicator.style.marginRight = "6px";
-            loadingIndicator.style.fontSize = "12px";
-            loadingIndicator.style.flex = "0 0 auto";
+        // Badge navigation privée
+        if (panel.isPrivate) {
+            const incognitoBadge = document.createElement("span");
+            incognitoBadge.className = "incognito-badge";
+            incognitoBadge.textContent = "👥";
+            tabWrapper.appendChild(incognitoBadge);
+        }
 
-            tabWrapper.appendChild(loadingIndicator);
+        // IMPORTANT : ajout une seule fois
+        tabWrapper.appendChild(loadingIndicator);
+        tabWrapper.appendChild(input);
 
-            // ==========================================
-            // AJOUT : INJECTION DE LA PASTILLE VISUELLE
-            // ==========================================
-            if (panel.isPrivate) {
-                const incognitoBadge = document.createElement("span");
-                incognitoBadge.className = "incognito-badge";
-                incognitoBadge.innerHTML = "👥";
-                
-                // On insère d'abord le badge dans le conteneur de l'onglet
-                tabWrapper.appendChild(incognitoBadge);
+        tabWrapper.addEventListener("click", (e) => {
+            if (e.target !== input) {
+                setActivePanel(index);
             }
+        });
 
+        urlBar.appendChild(tabWrapper);
 
-            tabWrapper.appendChild(loadingIndicator);
-            tabWrapper.appendChild(input);
+        // --- BOUTON ÉTOILE DE FAVORI ---
+        const starBtn = document.createElement("div");
+        starBtn.className = "btn-favori";
+        starBtn.id = `star-${panel.id}`;
+        starBtn.innerText = "★"; 
+        starBtn.title = "Ajouter aux favoris";
 
+        starBtn.style.cursor = "pointer";
+        starBtn.style.fontSize = "14px";
+        starBtn.style.userSelect = "none";
+        starBtn.style.color = "#6b7280"; 
+        starBtn.style.zIndex = "20";
+        
+        // FORCE L'ÉTOILE À RESTER FIXE À DROITE
+        starBtn.style.flex = "0 0 auto"; 
+        starBtn.style.marginLeft = "8px";
+        starBtn.style.display = "flex";
+        starBtn.style.alignItems = "center";
 
-            // Ensuite, on insère le champ URL comme d'habitude
-            tabWrapper.appendChild(input);
-
-            // --- BOUTON ÉTOILE DE FAVORI ---
-            const starBtn = document.createElement("div");
-            starBtn.className = "btn-favori";
-            starBtn.id = `star-${panel.id}`;
-            starBtn.innerText = "★"; 
-            starBtn.title = "Ajouter aux favoris";
-
-            starBtn.style.cursor = "pointer";
-            starBtn.style.fontSize = "14px";
-            starBtn.style.userSelect = "none";
-            starBtn.style.color = "#6b7280"; 
-            starBtn.style.zIndex = "20";
+        // SÉCURITÉ INCOGNITO : Si l'onglet est privé, on cache complètement l'étoile
+        if (panel.isPrivate) {
+            starBtn.style.display = "none"; // L'étoile disparait visuellement
+            starBtn.style.cursor = "not-allowed";
+            starBtn.title = "Les favoris sont désactivés en navigation privée";
             
-            // FORCE L'ÉTOILE À RESTER FIXE À DROITE
-            starBtn.style.flex = "0 0 auto"; 
-            starBtn.style.marginLeft = "8px";
-            starBtn.style.display = "flex";
-            starBtn.style.alignItems = "center";
-
-            // SÉCURITÉ INCOGNITO : Si l'onglet est privé, on cache complètement l'étoile
-            if (panel.isPrivate) {
-                starBtn.style.display = "none"; // L'étoile disparait visuellement
-                starBtn.style.cursor = "not-allowed";
-                starBtn.title = "Les favoris sont désactivés en navigation privée";
+            // Comportement normal UNIQUE pour les onglets publics
+            starBtn.addEventListener("mousedown", (e) => e.stopPropagation());
+            starBtn.addEventListener("click", async (e) => {
+                e.stopPropagation();
                 
-                // Comportement normal UNIQUE pour les onglets publics
-                starBtn.addEventListener("mousedown", (e) => e.stopPropagation());
-                starBtn.addEventListener("click", async (e) => {
-                    e.stopPropagation();
-                    
-                    let targetPanelId = activePanel || panel.id; // Utilise le panneau de l'onglet si aucun n'est globalement actif
-                    
-                    const currentUrl = input.dataset.url || panel.url || "";
-                    const currentTitle = panel.title || input.value;
-                    const isAdded = await window.api.toggleFavori({ url: currentUrl, title: currentTitle });
-                    starBtn.innerText = isAdded ? "★" : "☆"; 
-                    starBtn.style.color = isAdded ? "#eab308" : "#6b7280"; 
-                });
-            } else {
-                // Comportement normal UNIQUE pour les onglets publics
-                starBtn.addEventListener("mousedown", (e) => e.stopPropagation());
-                starBtn.addEventListener("click", async (e) => {
-                    e.stopPropagation();
-                    const currentUrl = input.dataset.url || panel.url || "";
-                    const currentTitle = panel.title || input.value;
-                    const isAdded = await window.api.toggleFavori({ url: currentUrl, title: currentTitle });
-                    starBtn.innerText = isAdded ? "★" : "★"; // Ajustez selon votre symbole souhaité
-                    starBtn.style.color = isAdded ? "#eab308" : "#6b7280"; 
-                });
-            }
+                let targetPanelId = activePanel || panel.id; // Utilise le panneau de l'onglet si aucun n'est globalement actif
+                
+                const currentUrl = input.dataset.url || panel.url || "";
+                const currentTitle = panel.title || input.value;
+                const isAdded = await window.api.toggleFavori({ url: currentUrl, title: currentTitle });
+                starBtn.innerText = isAdded ? "★" : "☆"; 
+                starBtn.style.color = isAdded ? "#eab308" : "#6b7280"; 
+            });
+        } else {
+            // Comportement normal UNIQUE pour les onglets publics
+            starBtn.addEventListener("mousedown", (e) => e.stopPropagation());
+            starBtn.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                const currentUrl = input.dataset.url || panel.url || "";
+                const currentTitle = panel.title || input.value;
+                const isAdded = await window.api.toggleFavori({ url: currentUrl, title: currentTitle });
+                starBtn.innerText = isAdded ? "★" : "★"; // Ajustez selon votre symbole souhaité
+                starBtn.style.color = isAdded ? "#eab308" : "#6b7280"; 
+            });
+        }
 
-            tabWrapper.appendChild(starBtn);
+        tabWrapper.appendChild(starBtn);
 
-            // --- BARRE DE PROGRESSION ---
-            const progBar = document.createElement("div");
-            progBar.className = "download-progress-bar";
-            progBar.id = `prog-${panel.id}`;
+        // --- BARRE DE PROGRESSION ---
+        const progBar = document.createElement("div");
+        progBar.className = "download-progress-bar";
+        progBar.id = `prog-${panel.id}`;
 
-            tabWrapper.appendChild(progBar);
+        tabWrapper.appendChild(progBar);
 
-            container.appendChild(tabWrapper);
-            attachUrlHandler(panel.id);
+        urlBar.appendChild(tabWrapper);
+
+
+        attachUrlHandler(panel.id);
     });
 }
 
@@ -730,14 +692,16 @@ window.api.showUrlContextMenu();
     document.getElementById("close-panel").addEventListener("click", () => window.api.closePanel(activePanel));
     document.getElementById("undo").addEventListener("click", () => window.api.undo());
 
-
+/*
 window.api.onSavePanelsShortcut(() => {
     console.log('Sauvegarde déclenchée');
 });
 
+
 window.api.onLoadPanelsShortcut(() => {
     console.log('Chargement déclenché');
 }); 
+*/
 
     window.api.onPanelsUpdated((panels, maximizedPanelId) => {
 
