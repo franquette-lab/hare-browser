@@ -100,6 +100,12 @@ body {
     -webkit-app-region: no-drag;
 }
 
+.toolbar-button:disabled {
+    opacity: 0.4;
+    cursor: default;
+    pointer-events: none;
+}
+
 /* =====================================================
    BOUTONS
 ===================================================== */
@@ -876,8 +882,21 @@ window.api.onActivePanelChanged((panel) => {
 });
 
 window.api.onNavigationState((state) => {
-    document.getElementById("back-button").disabled = !state.canGoBack;
-    document.getElementById("forward-button").disabled = !state.canGoForward;
+    const backButton = document.getElementById("back-button");
+    const forwardButton = document.getElementById("forward-button");
+    const reloadButton = document.getElementById("refresh-button");
+
+    if (backButton) {
+        backButton.disabled = !state.canGoBack;
+    }
+
+    if (forwardButton) {
+        forwardButton.disabled = !state.canGoForward;
+    }
+
+    if (reloadButton) {
+        reloadButton.disabled = !state.hasActivePanel;
+    }
 });
 
 const navigationStates = {};
@@ -1381,6 +1400,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.log("savedTheme =", savedTheme);
 
     setDarkMode(savedTheme);
+
+//  updateNavigationButtons();
 
 });
 

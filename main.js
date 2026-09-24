@@ -868,16 +868,30 @@ function updatePanelUrl(panel, url) {
 
 function updateNavigationButtons() {
 
-
-
-    if (!activePanel) return;
+    if (!activePanel) {
+        win.webContents.send("navigation-state", {
+            canGoBack: false,
+            canGoForward: false,
+            hasActivePanel: false
+        });
+        return;
+    }
 
     const panel = findPanelNode(rootNode, activePanel);
-    if (!panel || !panel.view) return;
+
+    if (!panel || !panel.view) {
+        win.webContents.send("navigation-state", {
+            canGoBack: false,
+            canGoForward: false,
+            hasActivePanel: false
+        });
+        return;
+    }
 
     win.webContents.send("navigation-state", {
         canGoBack: panel.view.webContents.navigationHistory.canGoBack(),
-        canGoForward: panel.view.webContents.navigationHistory.canGoForward()
+        canGoForward: panel.view.webContents.navigationHistory.canGoForward(),
+        hasActivePanel: true
     });
 }
 
@@ -935,6 +949,8 @@ function setupNavigationTracking(panel) {
             // ... Votre logique de gestion des erreurs HTML ...
         } else {
             const title = panel.view.webContents.getTitle();
+
+            updateNavigationButtons();
             
             // MODIFICATION ICI : On n'enregistre PAS si le panneau est en navigation privée
             if (!panel.isPrivate) {
@@ -1127,24 +1143,22 @@ function layoutNode(node, x, y, width, height) {
 
 ipcMain.on("show-url-context-menu", (event) => {
     const menu = Menu.buildFromTemplate([
-        { role: "undo" },
-        { role: "redo" },
+        { role: "undo", label: "Annuler" },
+        { role: "redo", label: "Rétablir" },
         { type: "separator" },
-
-        { role: "cut" },
-        { role: "copy" },
-        { role: "paste" },
-        { role: "delete" },
-
+        { role: "cut", label: "Couper" },
+        { role: "copy", label: "Copier" },
+        { role: "paste", label: "Coller" },
+        { role: "delete", label: "Supprimer" },
         { type: "separator" },
-
-        { role: "selectAll" }
+        { role: "selectAll", label: "Tout sélectionner" }
     ]);
 
     menu.popup({
         window: BrowserWindow.fromWebContents(event.sender)
     });
 });
+
 
 ipcMain.on("navigate", (event, panelId, input) => {
 
@@ -1632,6 +1646,9 @@ app.on('web-contents-created', (event, webContents) => {
 
     // On injecte le code dès que le DOM commence à exister
     webContents.on('dom-ready', () => {
+
+        updateNavigationButtons();
+
         if (!isDarkModeForced || !win || win.isDestroyed()) return;
 
         const url = webContents.getURL();
@@ -1900,6 +1917,8 @@ function createDefaultLayout() {
     collectPanelNodes(rootNode).forEach((panel) => {
         setupNavigationTracking(panel); // <-- C'est cet appel qui va injecter l'intercepteur de zoom
     });
+
+    updateNavigationButtons();
 }
 
 function createWindow() {
@@ -2814,6 +2833,8 @@ function resizeViews() {
     // === SÉCURITÉ : On renvoie l'état du zoom ici aussi ===
     win.webContents.send("zoom-changed", maximizedPanelId); 
 }
+
+
 
 function moveActivePanelKeyboard(direction) {
     if (!activePanel || maximizedPanelId) return; // Désactivé si un panneau est zoomé
