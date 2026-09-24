@@ -14,9 +14,15 @@ contextBridge.exposeInMainWorld(
             });
         },
 
+        showUrlContextMenu: () =>
+            ipcRenderer.send("show-url-context-menu"),
+
         onPageLoading: (callback) => {
             ipcRenderer.on("page-loading", (event, data) => callback(data));
         },
+
+        showUrlContextMenu: (url) =>
+            ipcRenderer.send('show-url-context-menu', url),
 
         printPanel: (panelId) => ipcRenderer.send("print-panel", panelId),        
                 

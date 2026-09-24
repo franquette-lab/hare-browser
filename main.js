@@ -6,6 +6,7 @@ const {
     BrowserWindow,
     BrowserView,
     ipcMain,
+    Menu,
     nativeImage,
     nativeTheme,
     dialog,
@@ -1105,6 +1106,28 @@ function layoutNode(node, x, y, width, height) {
     }
 }
 
+
+ipcMain.on("show-url-context-menu", (event) => {
+    const menu = Menu.buildFromTemplate([
+        { role: "undo" },
+        { role: "redo" },
+        { type: "separator" },
+
+        { role: "cut" },
+        { role: "copy" },
+        { role: "paste" },
+        { role: "delete" },
+
+        { type: "separator" },
+
+        { role: "selectAll" }
+    ]);
+
+    menu.popup({
+        window: BrowserWindow.fromWebContents(event.sender)
+    });
+});
+
 ipcMain.on("navigate", (event, panelId, input) => {
 
     const panel = findPanelNode(rootNode, panelId);
@@ -1899,7 +1922,6 @@ function createWindow() {
     });    
 
     // Configuration des raccourcis clavier via un menu invisible
-    const { Menu } = require('electron');
     const template = [
         {
             label: 'Navigation',

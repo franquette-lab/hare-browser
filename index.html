@@ -322,9 +322,6 @@ html.dark #url-bar {
     <!-- AJOUT ICI : Le bouton Mode Sombre -->
     <button id="dark-mode-button" title="Activer le mode sombre" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🌙</button>
 
-    <!-- Remplacement dans la barre d'outils de index.html -->
-    <button id="split-private-vertical" title="Ouvrir une tuile privée à droite" style="width:28px; height:24px; background:#2d2d30; color:#c084fc; border:1px solid #3c3c3c; font-size:13px; cursor:pointer;">👥</button>
-
     <!-- L'attribut onclick appelle directement notre nouveau pont preload de manière brute -->
     <button id="history-button" title="Historique (Ctrl+H)" onclick="window.api.openHistoryWindow()" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer; position:relative; z-index:999999 !important;">🕒</button>
 
@@ -333,7 +330,10 @@ html.dark #url-bar {
     <button id="load-config-btn" title="Charger une configuration (panneaux)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">📂</button>
 
     <!-- À placer dans votre div #toolbar-buttons (par exemple juste avant le bouton de fermeture "close-panel") -->
-    <button id="print-button" title="Imprimer le panneau actif" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🖨️</button>
+    <button id="print-button" title="Imprimer le panneau actif (Ctrl+H)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🖨️</button>
+
+    <!-- Remplacement dans la barre d'outils de index.html -->
+    <button id="split-private-vertical" title="Ouvrir une tuile privée à droite" style="width:28px; height:24px; background:#2d2d30; color:#c084fc; border:1px solid #3c3c3c; font-size:13px; cursor:pointer;">👥</button>
 
     <!-- Scindage vertical : Deux barres verticales simples -->
     <button id="split-vertical" title="Scinder à droite (Ctrl+T)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; font-weight:bold; cursor:pointer;">|</button>
@@ -548,8 +548,8 @@ function rebuildUrlBar(panels) {
             input.style.color = isDark ? "#d4d4d4" : "#1f2937"; 
             input.style.border = "none";
             input.style.outline = "none";
-            input.style.fontSize = "11px"; /* Diminué de 12px */
-            input.style.height = "16px";   /* Diminué de 20px */
+            input.style.fontSize = "11px"; /* Diminué de 11px */
+            input.style.height = "18px";   /* Diminué de 16px */
             
             input.style.flex = "1 1 auto"; 
             input.style.width = "10px"; 
@@ -576,6 +576,13 @@ function rebuildUrlBar(panels) {
             });
             
             input.addEventListener("blur", () => { input.value = getDisplayUrl(input.dataset.url); input.style.color = isDark ? "#d4d4d4" : "#1f2937"; });
+
+input.addEventListener("contextmenu", (e) => {
+e.preventDefault();
+input.focus();
+window.api.showUrlContextMenu();
+});
+
 
             const loadingIndicator = document.createElement("span");
             loadingIndicator.id = `loading-${panel.id}`;
