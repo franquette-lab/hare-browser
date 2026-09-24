@@ -14,6 +14,10 @@ contextBridge.exposeInMainWorld(
             });
         },
 
+        onPageLoading: (callback) => {
+            ipcRenderer.on("page-loading", (event, data) => callback(data));
+        },
+
         printPanel: (panelId) => ipcRenderer.send("print-panel", panelId),        
                 
         // À insérer dans preload.js à l'intérieur de l'objet 'api'
@@ -114,7 +118,6 @@ contextBridge.exposeInMainWorld(
 
         saveConfigToFile: () => ipcRenderer.invoke('save-config-to-file'),
         loadConfigFromFile: () => ipcRenderer.invoke('load-config-from-file'),
-
 
         closePanel: (panelId) => ipcRenderer.send("close-panel", panelId),
 

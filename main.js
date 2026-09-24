@@ -848,6 +848,9 @@ function updatePanelUrl(panel, url) {
 }
 
 function updateNavigationButtons() {
+
+
+
     if (!activePanel) return;
 
     const panel = findPanelNode(rootNode, activePanel);
@@ -860,7 +863,49 @@ function updateNavigationButtons() {
 }
 
 function setupNavigationTracking(panel) {
+
     if (!panel || !panel.view) return;
+
+    let initialLoadFinished = false;
+
+
+    panel.view.webContents.on("did-start-loading", () => {
+
+        // Ignore le chargement initial au démarrage
+        if (!initialLoadFinished) {
+            return;
+        }
+
+        if (win && !win.isDestroyed()) {
+            win.webContents.send("page-loading", {
+                panelId: panel.id,
+                loading: true
+            });
+        }
+    });
+
+    panel.view.webContents.on("did-stop-loading", () => {
+
+        if (!initialLoadFinished) {
+            initialLoadFinished = true;
+            return;
+        }
+
+        if (win && !win.isDestroyed()) {
+            win.webContents.send("page-loading", {
+                panelId: panel.id,
+                loading: false
+            });
+        }
+    });
+   
+
+
+
+
+
+// -----------------------------------------------------------
+
 
     if (typeof panel.view.webContents.setForceDarkModeEnabled === 'function') {
         panel.view.webContents.setForceDarkModeEnabled(isDarkModeForced);
@@ -990,6 +1035,8 @@ function setupNavigationTracking(panel) {
         // On injecte le code HTML directement dans la BrowserView défaillante
         panel.view.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(errorHtml));
     });
+
+    
 }
 
 function layoutNode(node, x, y, width, height) {

@@ -194,6 +194,21 @@ html.dark #url-bar {
 }
 
 
+
+.loading-spinner {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 /* =====================================================
    FAVORIS
 ===================================================== */
@@ -562,6 +577,17 @@ function rebuildUrlBar(panels) {
             
             input.addEventListener("blur", () => { input.value = getDisplayUrl(input.dataset.url); input.style.color = isDark ? "#d4d4d4" : "#1f2937"; });
 
+            const loadingIndicator = document.createElement("span");
+            loadingIndicator.id = `loading-${panel.id}`;
+            loadingIndicator.innerHTML = "⟳";
+            loadingIndicator.className = "loading-spinner";
+            loadingIndicator.style.display = "none";
+            loadingIndicator.style.marginRight = "6px";
+            loadingIndicator.style.fontSize = "12px";
+            loadingIndicator.style.flex = "0 0 auto";
+
+            tabWrapper.appendChild(loadingIndicator);
+
             // ==========================================
             // AJOUT : INJECTION DE LA PASTILLE VISUELLE
             // ==========================================
@@ -573,6 +599,11 @@ function rebuildUrlBar(panels) {
                 // On insère d'abord le badge dans le conteneur de l'onglet
                 tabWrapper.appendChild(incognitoBadge);
             }
+
+
+            tabWrapper.appendChild(loadingIndicator);
+            tabWrapper.appendChild(input);
+
 
             // Ensuite, on insère le champ URL comme d'habitude
             tabWrapper.appendChild(input);
@@ -1028,7 +1059,7 @@ async function rebuildBookmarksBar() {
                 closeFavBtn.style.background = "transparent";
                 closeFavBtn.style.color = isDark ? "#9ca3af" : "#4b5563";
             });
-        }
+            }
 
 
         btn.addEventListener("mouseenter", () => {
@@ -1366,6 +1397,16 @@ document.getElementById("print-button").addEventListener("click", () => {
     }
 });
 
+
+window.api.onPageLoading((data) => {
+    const indicator = document.getElementById(`loading-${data.panelId}`);
+
+    if (!indicator) return;
+
+    indicator.style.display = data.loading
+        ? "inline-flex"
+        : "none";
+});
 
 </script>
 
