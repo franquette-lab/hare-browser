@@ -1516,26 +1516,48 @@ isDarkModeForced = getThemePreference();
 
 
 
-// Dans main.js -> ipcMain.on('toggle-dark-mode-request', ...)
+
+
+
+// ====== DANS SCRIPT : main.js ======
+
 ipcMain.on('toggle-dark-mode-request', (event, enable) => {
     isDarkModeForced = enable;
     nativeTheme.themeSource = enable ? 'dark' : 'light';
 
-    // AJOUT ICI : Met à jour la couleur de fond de la fenêtre à la volée
     if (win && !win.isDestroyed()) {
         win.setBackgroundColor(enable ? '#252526' : '#f3f4f6');
+        
+        if (typeof win.setTitleBarOverlay === 'function') {
+            win.setTitleBarOverlay({
+                color: enable ? '#252526' : '#ffffff',
+                symbolColor: enable ? '#cfcfcf' : '#1f2937',
+                height: 38
+            });
+        }
+        win.webContents.send('system-theme-changed', enable);
     }
     
-    splitterViews.forEach(view => {
+    // === AJOUT PROTECTION ET NETTOYAGE DES POIGNÉES FLOTTANTES ===
+    Object.keys(handleViews).forEach(id => {
         try {
-            win.removeBrowserView(view);
-            view.webContents.close();
-        } catch {}
+            win.removeBrowserView(handleViews[id]);
+            if (!handleViews[id].webContents.isDestroyed()) {
+                handleViews[id].webContents.destroy();
+            }
+        } catch(e) {}
+        delete handleViews[id];
     });
 
+    // Nettoyage et reconstruction des splitters
+    splitterViews.forEach(view => {
+        try { win.removeBrowserView(view); view.webContents.close(); } catch {}
+    });
     splitterViews = [];
 
+    // Recalcule la géométrie et ré-instancie de nouvelles poignées avec le bon thème
     resizeViews();   
+    updatePanelHandles(); 
 
     // --- CORRECTION DE LA COULEUR DE FOND DE LA BARRE APPLICATIVE ---
     if (win && typeof win.setTitleBarOverlay === 'function') {
