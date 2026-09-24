@@ -1921,11 +1921,119 @@ function createWindow() {
         }
     });    
 
-    // Configuration des raccourcis clavier via un menu invisible
+
+
+
+    // ====== DANS SCRIPT : main.js ======
+    // À insérer à l'intérieur du tableau 'template' dans la fonction createWindow()
+
     const template = [
         {
             label: 'Navigation',
             submenu: [
+                // === VOS RACCOURCIS DE SAUVEGARDE ET CHARGEMENT À AJOUTER ===
+                {
+                    label: 'Sauvegarder la configuration des panneaux',
+                    accelerator: 'CmdOrCtrl+S',
+                    click: async () => {
+                        if (!rootNode) return;
+                        const snapshot = createSnapshot(rootNode);
+                        const { filePath } = await dialog.showSaveDialog(win, {
+                            title: "Sauvegarder la configuration des panneaux",
+                            defaultPath: path.join(app.getPath('documents'), 'hare-browser-layout.json'),
+                            filters: [{ name: 'Fichiers Configuration (*.json)', extensions: ['json'] }]
+                        });
+                        if (filePath) {
+                            try {
+                                await fsPromises.writeFile(filePath, JSON.stringify(snapshot, null, 2), 'utf-8');
+                                console.log("Configuration sauvegardée via raccourci.");
+                            } catch (error) {
+                                console.error("Erreur raccourci sauvegarde :", error);
+                            }
+                        }
+                    }
+                },
+                {
+                    label: 'Charger une configuration de panneaux',
+                    accelerator: 'CmdOrCtrl+O',
+                    click: async () => {
+                        const { filePaths } = await dialog.showOpenDialog(win, {
+                            title: "Charger une configuration de panneaux",
+                            defaultPath: app.getPath('documents'),
+                            properties: ['openFile'],
+                            filters: [{ name: 'Fichiers Configuration (*.json)', extensions: ['json'] }]
+                        });
+
+                        if (filePaths && filePaths.length > 0) {
+                            try {
+                                const data = await fsPromises.readFile(filePaths[0], 'utf-8');
+                                const snapshot = JSON.parse(data);
+
+                                if (!snapshot || !snapshot.type) return;
+
+                                saveState(); // Permet d'annuler l'import avec Ctrl+Z au besoin
+
+                                // 1. Suppression propre des anciennes vues ouvertes à l'écran
+                                const oldPanels = collectPanelNodes(rootNode);
+                                oldPanels.forEach(p => {
+                                    if (p.view) {
+                                        try { win.removeBrowserView(p.view); p.view.webContents.destroy(); } catch(e) {}
+                                    }
+                                });
+
+                                // 2. Fonction récursive de reconstruction
+                                function rebuildTreeFromImport(node) {
+                                    if (!node) return null;
+
+                                    if (node.type === "panel") {
+                                        const viewOptions = {
+                                            webPreferences: {
+                                                partition: node.isPrivate ? `incognito_panel_${Math.random()}` : undefined,
+                                                contextIsolation: true,
+                                                nodeIntegration: false
+                                            }
+                                        };
+                                        const newView = new BrowserView(viewOptions);
+                                        win.addBrowserView(newView);
+                                        newView.webContents.loadURL(node.realUrl || node.url || "https://bing.com");
+
+                                        const newNode = new PanelNode(node.id, newView, node.url, !!node.isPrivate);
+                                        setupNavigationTracking(newNode);
+                                        return newNode;
+                                    }
+
+                                    const splitNode = new SplitNode(node.direction);
+                                    splitNode.ratio = node.ratio || 0.5;
+                                    splitNode.first = rebuildTreeFromImport(node.first);
+                                    splitNode.second = rebuildTreeFromImport(node.second);
+                                    return splitNode;
+                                }
+
+                                // 3. Application du nouvel arbre importé
+                                rootNode = rebuildTreeFromImport(snapshot);
+                                maximizedPanelId = null; 
+
+                                const firstPanel = findFirstPanel(rootNode);
+                                if (firstPanel) activePanel = firstPanel.id;
+
+                                // 4. Recalcul géométrique et notifications à l'IHM
+                                forceRebuildSplitters = true;
+                                resizeViews();
+
+                                win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
+                                if (firstPanel && firstPanel.bounds) {
+                                    win.webContents.send("active-panel-changed", { id: firstPanel.id, bounds: firstPanel.bounds });
+                                }
+
+                                console.log("Configuration chargée via raccourci.");
+                            } catch (error) {
+                                console.error("Erreur raccourci chargement :", error);
+                                dialog.showErrorBox("Erreur de chargement", "Le fichier sélectionné est corrompu ou malformé.");
+                            }
+                        }
+                    }
+                },
+                
                 {
                     label: 'Scinder verticalement',
                     accelerator: 'CmdOrCtrl+T',
@@ -2219,7 +2327,6 @@ function createWindow() {
                         }
                     }
                 },
-
 
                 {
                     label: 'Imprimer la tuile active',

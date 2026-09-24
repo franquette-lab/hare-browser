@@ -314,10 +314,10 @@ html.dark #url-bar {
 
 <!-- ====== DANS INDEX.HTML -> BARRE D'OUTILS SÉCURISÉE AVEC ICÔNES COMPATIBLES ====== -->
 <div id="toolbar-buttons" class="fixed top-0 left-0 right-0 z-50">
-    <button id="back-button" title="Revenir" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#9664;</button>
-    <button id="forward-button" title="Avancer" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#9654;</button>
+    <button id="back-button" title="Revenir (Alt+Flêche gauche)" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#9664;</button>
+    <button id="forward-button" title="Avancer (Alt+Flêche droite)" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#9654;</button>
     
-    <button id="refresh-button" title="Actualiser" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:14px; cursor:pointer;">&#8635;</button>
+    <button id="refresh-button" title="Actualiser (Ctrl+R ou F5)" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:14px; cursor:pointer;">&#8635;</button>
     
     <!-- AJOUT ICI : Le bouton Mode Sombre -->
     <button id="dark-mode-button" title="Activer le mode sombre" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🌙</button>
@@ -326,14 +326,14 @@ html.dark #url-bar {
     <button id="history-button" title="Historique (Ctrl+H)" onclick="window.api.openHistoryWindow()" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer; position:relative; z-index:999999 !important;">🕒</button>
 
     <!-- À insérer dans votre bloc #toolbar-buttons (par exemple à côté de votre bouton d'impression ou d'historique) -->
-    <button id="save-config-btn" title="Sauver la configuration (panneaux)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">💾</button>
-    <button id="load-config-btn" title="Charger une configuration (panneaux)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">📂</button>
+    <button id="save-config-btn" title="Sauver la configuration des panneaux (Ctrl+S)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">💾</button>
+    <button id="load-config-btn" title="Charger une configuration des panneaux (Ctrl+O)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">📂</button>
 
     <!-- À placer dans votre div #toolbar-buttons (par exemple juste avant le bouton de fermeture "close-panel") -->
-    <button id="print-button" title="Imprimer le panneau actif (Ctrl+H)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🖨️</button>
+    <button id="print-button" title="Imprimer le panneau actif (Ctrl+P)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🖨️</button>
 
     <!-- Remplacement dans la barre d'outils de index.html -->
-    <button id="split-private-vertical" title="Ouvrir une tuile privée à droite" style="width:28px; height:24px; background:#2d2d30; color:#c084fc; border:1px solid #3c3c3c; font-size:13px; cursor:pointer;">👥</button>
+    <button id="split-private-vertical" title="Ouvrir une tuile privée à droite  (Ctrl+Shift+N)" style="width:28px; height:24px; background:#2d2d30; color:#c084fc; border:1px solid #3c3c3c; font-size:13px; cursor:pointer;">👥</button>
 
     <!-- Scindage vertical : Deux barres verticales simples -->
     <button id="split-vertical" title="Scinder à droite (Ctrl+T)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; font-weight:bold; cursor:pointer;">|</button>
@@ -729,6 +729,15 @@ window.api.showUrlContextMenu();
     
     document.getElementById("close-panel").addEventListener("click", () => window.api.closePanel(activePanel));
     document.getElementById("undo").addEventListener("click", () => window.api.undo());
+
+
+window.api.onSavePanelsShortcut(() => {
+    console.log('Sauvegarde déclenchée');
+});
+
+window.api.onLoadPanelsShortcut(() => {
+    console.log('Chargement déclenché');
+}); 
 
     window.api.onPanelsUpdated((panels, maximizedPanelId) => {
 
@@ -1217,6 +1226,23 @@ window.addEventListener("keydown", (e) => {
     }
 });
 
+document.addEventListener("keydown", (e) => {
+
+    if (e.ctrlKey && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        document.getElementById("save-config-btn")?.click();
+    }
+
+    if (e.ctrlKey && e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        document.getElementById("load-config-btn")?.click();
+    }
+});
+
+document.addEventListener("keydown", (e) => {
+    console.log("Touche :", e.key);
+});
+
 // Effet de survol (hover) adaptatif pour le bouton Effacer les favoris
 const clearFavBtn = document.getElementById("clear-bookmarks-btn");
 if (clearFavBtn) {
@@ -1373,6 +1399,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     setDarkMode(savedTheme);
 
 });
+
+
+document.addEventListener('keydown', (e) => {
+
+    if (e.ctrlKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+
+        console.log('Ctrl+S');
+
+        // même action que le bouton Sauvegarder
+    }
+
+    if (e.ctrlKey && e.key.toLowerCase() === 'o') {
+        e.preventDefault();
+
+        console.log('Ctrl+O');
+
+        // même action que le bouton Charger
+    }
+});
+
 
 document.getElementById("split-private-vertical").addEventListener("click", () => {
     let targetPanelId = activePanel;
