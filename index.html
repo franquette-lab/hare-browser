@@ -164,7 +164,7 @@ body {
 
 .url-input {
     color: #111827;
-    height: 18px !important;
+   height: 18px !important;
     font-size: 11px !important; /* Optionnel : réduit légèrement la police si le texte est coupé */
 }
 
@@ -598,6 +598,14 @@ input.addEventListener("keydown", (e) => {
 
 input.addEventListener("click", () => {
     input.select();
+});
+
+input.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+
+    if (window.api?.showUrlContextMenu) {
+        window.api.showUrlContextMenu();
+    }
 });
 
 // Badge navigation privée

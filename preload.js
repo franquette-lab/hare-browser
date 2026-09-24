@@ -21,9 +21,6 @@ contextBridge.exposeInMainWorld(
             ipcRenderer.on("page-loading", (event, data) => callback(data));
         },
 
-        showUrlContextMenu: (url) =>
-            ipcRenderer.send('show-url-context-menu', url),
-
         printPanel: (panelId) => ipcRenderer.send("print-panel", panelId),        
                 
         // À insérer dans preload.js à l'intérieur de l'objet 'api'
