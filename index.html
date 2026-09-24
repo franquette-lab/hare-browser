@@ -160,7 +160,13 @@ body {
     box-sizing: border-box;
 }
 
+.url-input {
+    color: #111827;
+}
 
+.dark .url-input {
+    color: #ffffff;
+}
 
 /* Style mis à jour pour la pastille incognito dans la barre d'adresse */
 .incognito-badge {
@@ -423,10 +429,19 @@ function refreshTabBorders() {
 
         if (activePanel && panelId === activePanel) {
             tabWrapper.style.borderColor = "#3b82f6";
+
             tabWrapper.style.background = isDark ? "#203a5d" : "#dbeafe";
+
+
         } else {
+            
             tabWrapper.style.borderColor = isDark ? "#3c3c3c" : "#d1d5db";
-            tabWrapper.style.background = isDark ? "#2d2d30" : "#f3f4f6";
+
+
+            tabWrapper.style.background = isDark
+                ? "#3a3a3f"
+                : "#f3f4f6";
+
         }
     }
 }
@@ -536,6 +551,7 @@ function rebuildUrlBar(panels) {
         const input = document.createElement("input");
         input.type = "text";
         input.className = "url-input";
+        input.id = `${panel.id}-url`;
         input.value = panel.url || "";
 
         input.style.flex = "1";
@@ -544,18 +560,27 @@ function rebuildUrlBar(panels) {
         input.style.outline = "none";
         input.style.background = "transparent";
 
-        input.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") {
-                navigateToUrl(index, input.value);
-            }
-        });
+        input.style.color = isDark ? "#ffffff" : "#111827";
+        input.style.caretColor = isDark ? "#ffffff" : "#111827";
 
-input.addEventListener("focus", () => {
-    activePanel = panel.id;
+
+input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+        window.api.navigate(panel.id, input.value);
+    }
 });
 
+input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+        window.api.navigate(panel.id, input.value);
+    }
+});
 
-        // Badge navigation privée
+input.addEventListener("click", () => {
+    input.select();
+});
+
+// Badge navigation privée
         if (panel.isPrivate) {
             const incognitoBadge = document.createElement("span");
             incognitoBadge.className = "incognito-badge";

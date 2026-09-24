@@ -814,12 +814,15 @@ function findFirstPanel(node) {
 function collectPanels(node, panels = []) {
     if (!node) return panels;
     if (node.type === "panel") {
-        panels.push({ 
-            id: node.id, 
-            url: node.title || getDisplayText(node.url), 
-            realUrl: node.url,
-            isPrivate: node.isPrivate // <-- Ajouté ici
-        });        
+
+
+panels.push({ 
+    id: node.id,
+    url: node.url,
+    realUrl: node.url,
+    title: node.title,
+    isPrivate: node.isPrivate
+});
         return panels;
     }
     collectPanels(node.first, panels);
