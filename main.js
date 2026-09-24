@@ -444,7 +444,10 @@ function updatePanelHandles() {
         return ua !== "InternalBorder" && !url.startsWith("data:text/html");
     });
 
-    const isLastRemaining = (realWebViews.length === 1);
+    // ====== MODIFICATION ICI ======
+    // Au lieu de compter les BrowserViews (qui incluent les poignées et liserés en cours de reconstruction),
+    // on utilise la liste réelle de vos panneaux (panelsList) issue de la structure de données.
+    const isLastRemaining = (panelsList.length === 1);
 
     // 2. Mettre à jour ou créer la poignée pour chaque panneau
     panelsList.forEach((panel) => {
@@ -475,17 +478,29 @@ function updatePanelHandles() {
         };
 
         // =============================================================
-        // CHANGEMENT CRUCIAL : Si la vue existe déjà, on change juste sa position !
+        // CHANGEMENT CRUCIAL AJUSTÉ : Si la vue existe déjà, on met à jour 
+        // ses dimensions MAIS on ne s'arrête pas là si la largeur a changé !
         // =============================================================
         if (handleViews[panel.id]) {
             try {
+                // On récupère les dimensions actuelles de la poignée stockée
+                const currentBounds = handleViews[panel.id].getBounds();
                 handleViews[panel.id].setBounds(handleBounds);
                 win.setTopBrowserView(handleViews[panel.id]);
+                
+                // Si la poignée est déjà là mais que sa taille a changé (ex: passage de 24px à 60px après le mode sombre),
+                // il faut détruire l'ancienne pour forcer la re-création complète du HTML ci-dessous.
+                if (currentBounds.width === handleBounds.width) {
+                    return; // Même taille, on s'arrête là sans recréer.
+                } else {
+                    win.removeBrowserView(handleViews[panel.id]);
+                    handleViews[panel.id].webContents.destroy();
+                    delete handleViews[panel.id];
+                }
             } catch(e) {}
-            return; // On s'arrête ici pour ce panneau, pas de re-création inutile.
         }
 
-        // Création initiale UNIQUE (S'exécute uniquement si handleViews[panel.id] n'existe pas)
+        // Création initiale UNIQUE (S'exécute si handleViews[panel.id] n'existe pas ou vient d'être nettoyée)
         const hView = new BrowserView();
         win.addBrowserView(hView);
         

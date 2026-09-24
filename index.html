@@ -552,7 +552,8 @@ function rebuildUrlBar(panels) {
         input.type = "text";
         input.className = "url-input";
         input.id = `${panel.id}-url`;
-        input.value = panel.url || "";
+
+        input.value = getDisplayUrl(panel.realUrl || panel.url || "");
 
         input.style.flex = "1";
         input.style.minWidth = "0";
