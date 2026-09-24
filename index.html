@@ -143,13 +143,10 @@ body {
 ===================================================== */
 
 #url-bar {
-    height: 28px;
+    height: 24px !important; /* Réduit de 28px à 24px */
     background: var(--bg-secondary);
-    
-    /* MODIFICATION ICI : On applique un gris très doux (#e5e7eb ou #f3f4f6) */
     border-bottom: 1px solid #e5e7eb !important;
     border-top: 1px solid #e5e7eb !important;
-
     display: flex;
     align-items: center;
     gap: 8px;
@@ -160,8 +157,15 @@ body {
     box-sizing: border-box;
 }
 
+.url-tab {
+    padding: 0px 6px !important; /* Supprime le padding vertical (haut/bas) pour aplatir l'onglet */
+    height: 20px !important;     /* Force une hauteur d'onglet de 20px pour rentrer dans les 24px */
+}
+
 .url-input {
     color: #111827;
+    height: 18px !important;
+    font-size: 11px !important; /* Optionnel : réduit légèrement la police si le texte est coupé */
 }
 
 .dark .url-input {
@@ -265,23 +269,38 @@ html.dark #url-bar {
 .bookmark-item {
     display: flex;
     align-items: center;
-
-    padding: 2px 8px;
-
+    gap: 6px;
+    padding: 2px 8px !important; /* Marge interne identique aux URLs */
     max-width: 140px;
-
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-
     font-size: 11px;
-    border-radius: 4px;
+    border-radius: 6px !important; /* Même arrondi que vos onglets d'URL */
     cursor: pointer;
+    transition: all .2s ease;
+    
+    /* Couleurs par défaut (Mode Clair) */
+    background: #ffffff !important;
+    border: 1px solid #d1d5db !important;
+    color: #1f2937 !important;
 }
 
 
 .bookmark-item:hover {
-    background: var(--button-hover);
+    background: var(--button-hover) !important;
+    color: #000000 !important;
+}
+
+html.dark .bookmark-item {
+    background: #2d2d30 !important;
+    border: 1px solid #3c3c3c !important;
+    color: #cfcfcf !important;
+}
+
+html.dark .bookmark-item:hover {
+    background: #3f3f46 !important;
+    color: #ffffff !important;
 }
 
 #close-bookmarks-bar {
@@ -1032,67 +1051,34 @@ async function rebuildBookmarksBar() {
         return;
     }
 
-    favoris.forEach(fav => {
-        const btn = document.createElement("div");
-        btn.className = "bookmark-item";
-        btn.innerText = "★ " + fav.title.replace("★ ", "").replace("☆ ", "");
-        btn.title = fav.url;
 
-        if (isDark) {
-            btn.style.background = "#2d2d30";
-            btn.style.borderColor = "#3c3c3c";
-            btn.style.color = "#cfcfcf";
-        } else {
-            btn.style.background = "#ffffff";
-            btn.style.borderColor = "#d1d5db";
-            btn.style.color = "#1f2937";
+
+// ====== À PURGER DANS LA FONCTION rebuildBookmarksBar() DE INDEX.HTML ======
+
+favoris.forEach(fav => {
+    const btn = document.createElement("div");
+    btn.className = "bookmark-item";
+    
+    // Remplace le "?" par une vraie icône étoile
+    btn.innerText = "⭐ " + fav.title.replace("? ", "").replace("? ", "");
+    btn.title = fav.url;
+
+    // L'écouteur de clic reste identique
+    btn.addEventListener("click", () => {
+        let targetPanelId = activePanel;
+        if (!targetPanelId && typeof currentPanels !== 'undefined' && currentPanels.length > 0) {
+            targetPanelId = currentPanels[0].id;
         }
-
-
-        // Effet de survol (hover) adaptatif pour la croix de fermeture des favoris
-        const closeFavBtn = document.getElementById("close-bookmarks-bar");
-        if (closeFavBtn) {
-            closeFavBtn.addEventListener("mouseenter", () => {
-                const isDark = applicationDarkMode;
-                // Devient rouge au survol, selon le thème
-                closeFavBtn.style.background = isDark ? "#991b1b" : "#fee2e2"; 
-                closeFavBtn.style.color = isDark ? "#fca5a5" : "#b91c1c";
-            });
-            
-            closeFavBtn.addEventListener("mouseleave", () => {
-                const isDark = applicationDarkMode;
-                // Reprend son état transparent et sa couleur neutre d'origine
-                closeFavBtn.style.background = "transparent";
-                closeFavBtn.style.color = isDark ? "#9ca3af" : "#4b5563";
-            });
-            }
-
-
-        btn.addEventListener("mouseenter", () => {
-            btn.style.background = isDark ? "#3f3f46" : "#f3f4f6";
-            btn.style.color = isDark ? "#ffffff" : "#000000";
-        });
-        btn.addEventListener("mouseleave", () => {
-            btn.style.background = isDark ? "#2d2d30" : "#ffffff";
-            btn.style.color = isDark ? "#cfcfcf" : "#1f2937";
-        });
-
-btn.addEventListener("click", () => {
-    let targetPanelId = activePanel;
-
-    // SÉCURITÉ : Si aucun panneau n'est actif, on prend le premier disponible
-    if (!targetPanelId && typeof currentPanels !== 'undefined' && currentPanels.length > 0) {
-        targetPanelId = currentPanels[0].id;
-    }
-
-    if (targetPanelId) {
-        window.api.navigate(targetPanelId, fav.url);
-    } else {
-        console.warn("Impossible d'ouvrir le favori : aucun panneau trouvé dans l'application.");
-    }
-});
-        listContainer.appendChild(btn);
+        if (targetPanelId) {
+            window.api.navigate(targetPanelId, fav.url);
+        }
     });
+
+    listContainer.appendChild(btn);
+});
+
+
+
 }
 
 // === METTRE À JOUR LES ÉCOUTEURS EXISTANTS POUR INCLURE LA BARRE ===

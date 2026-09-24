@@ -56,8 +56,8 @@ let isBookmarksBarVisible = true; // La barre est affichée par défaut
 
 //let TOOLBAR_HEIGHT = 77;
 //const TOOLBAR_MIN_HEIGHT = 77;
-let TOOLBAR_HEIGHT = 66;
-const TOOLBAR_MIN_HEIGHT = 66;
+let TOOLBAR_HEIGHT = 64;
+const TOOLBAR_MIN_HEIGHT = 64;
 
 let history = [];
 let lastClosedPanel = null;
