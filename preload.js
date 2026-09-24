@@ -21,6 +21,20 @@ contextBridge.exposeInMainWorld(
             ipcRenderer.on("page-loading", (event, data) => callback(data));
         },
 
+
+// Dans preload.js -> À l'intérieur de contextBridge.exposeInMainWorld('api', { ... })
+
+nanobrowser: {
+    getContext: () => ipcRenderer.invoke("nanobrowser-get-context"),
+    executeAction: (actionType, argument) => ipcRenderer.invoke("nanobrowser-execute-action", { actionType, argument }),
+    
+    // AJOUTEZ CETTE LIGNE :
+    askOllama: (prompt, model) => ipcRenderer.invoke("nanobrowser-ask-ollama", { prompt, model })
+},
+
+// Dans preload.js -> Dans l'objet exposé sous contextBridge
+toggleAiSidebar: (isVisible) => ipcRenderer.send("toggle-ai-sidebar-request", isVisible),
+
         printPanel: (panelId) => ipcRenderer.send("print-panel", panelId),        
                 
         // À insérer dans preload.js à l'intérieur de l'objet 'api'

@@ -372,6 +372,11 @@ html.dark .bookmark-item:hover {
     <!-- Scindage horizontal : Une barre horizontale simple -->
     <button id="split-horizontal" title="Scinder vers le bas (Ctrl+H)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; font-weight:bold; cursor:pointer;">&mdash;</button>   
 
+
+    <!-- Dans index.html -> Dans la div #toolbar-buttons -->
+    <button id="ai-sidebar-button" title="Demander à l'IA Ollama" style="width:28px; height:24px; background:#2d2d30; color:#4ade80; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer;">🤖</button>
+
+
     <!-- Bouton Undo d'annulation -->
     <button id="undo" title="Rouvrir le dernier panneau fermé (Ctrl+Z)" disabled style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#10554;</button>
     
@@ -410,6 +415,30 @@ html.dark .bookmark-item:hover {
     </div>
     <div id="history-list-container"></div>
 </div>
+
+
+<!-- Dans index.html -> Juste sous la div #history-sidebar -->
+<div id="ai-sidebar" style="position: fixed; top: 38px; right: -300px; width: 300px; bottom: 0; background: #1e1e1e; border-left: 1px solid #3c3c3c; z-index: 99999; display: flex; flex-direction: column; padding: 12px; box-sizing: border-box; transition: right 0.3s ease; color: #cfcfcf; font-family: sans-serif;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3c3c3c; padding-bottom: 8px; margin-bottom: 12px;">
+        <span style="color: #ffffff; font-weight: bold; font-size: 13px;">Assistant IA (Ollama)</span>
+        <span id="close-ai-sidebar" style="cursor: pointer; color: #ef4444; font-weight: bold;">×</span>
+    </div>
+    
+    <!-- Zone de texte où s'affichera la réponse de l'IA -->
+    <div id="ai-response-container" style="flex: 1; overflow-y: auto; font-size: 12px; line-height: 1.5; padding-right: 4px; white-space: pre-wrap; margin-bottom: 12px;">
+        Cliquez sur le bouton ci-dessous ou posez une question pour analyser la page web active...
+    </div>
+
+    <!-- Saisie utilisateur et boutons de commande -->
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+        <input type="text" id="ai-user-prompt" placeholder="Poser une question sur la page..." style="width: 100%; height: 26px; background: #2d2d30; border: 1px solid #3c3c3c; color: white; border-radius: 4px; padding: 0 6px; font-size: 12px; box-sizing: border-box;">
+        <div style="display: flex; gap: 4px;">
+            <button id="ai-submit-btn" style="flex: 1; height: 24px; background: #2563eb; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: bold;">Poser la question</button>
+            <button id="ai-summary-btn" style="height: 24px; background: #15803d; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: bold; padding: 0 8px;">Résumer la page</button>
+        </div>
+    </div>
+</div>
+
 
 <script>
 
@@ -1466,6 +1495,61 @@ window.api.onPageLoading((data) => {
         ? "inline-flex"
         : "none";
 });
+
+
+// ===================================================
+// LOGIQUE DE L'ASSISTANT IA OLLAMA
+// ===================================================
+
+const aiSidebar = document.getElementById("ai-sidebar");
+const aiResponseContainer = document.getElementById("ai-response-container");
+const aiUserPrompt = document.getElementById("ai-user-prompt");
+
+// Ouvrir / Fermer le volet IA
+// Dans index.html -> Modifier l'écouteur existant du bouton de l'IA
+document.getElementById("ai-sidebar-button").addEventListener("click", () => {
+    if (aiSidebar.style.right === "0px") {
+        aiSidebar.style.right = "-300px";
+        window.api.toggleAiSidebar(false); // Invoque le redimensionnement natif
+    } else {
+        aiSidebar.style.right = "0px";
+        document.getElementById("history-sidebar")?.classList.remove("open");
+        window.api.toggleAiSidebar(true);  // Invoque le redimensionnement natif
+    }
+});
+
+document.getElementById("close-ai-sidebar").addEventListener("click", () => {
+    aiSidebar.style.right = "-300px";
+    window.api.toggleAiSidebar(false);
+});
+
+// Gestion de la touche "Entrée" dans le champ de texte
+aiUserPrompt.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+        document.getElementById("ai-submit-btn").click();
+    }
+});
+
+// VOTRE FONCTION INTEGRÉE ET MISE À JOUR :
+async function envoyerRequeteIA(questionUser) {
+    const modeleChoisi = "llama3"; // Modifiez par "mistral" ou "qwen2.5" si besoin
+
+    // 1. Afficher un état de chargement visuel dans l'interface
+    aiResponseContainer.innerHTML = '<span style="color: #6b7280; font-style: italic;">🤖 L\'IA analyse le contenu de la tuile active... Veuillez patienter.</span>';
+    
+    try {
+        // 2. Appel de votre pont Electron sécurisé vers Ollama
+        const reponseIA = await window.api.nanobrowser.askOllama(questionUser, modeleChoisi);
+        
+        // 3. Injection de la réponse directement dans le conteneur de votre interface
+        aiResponseContainer.innerText = reponseIA;
+        
+    } catch (error) {
+        console.error("Erreur lors de l'appel IA :", error);
+        aiResponseContainer.innerHTML = `<span style="color: #ef4444;">❌ Erreur : Impossible de joindre l'agent IA. (${error.message})</span>`;
+    }
+}
+
 
 </script>
 

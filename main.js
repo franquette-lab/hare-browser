@@ -67,6 +67,9 @@ const SPLITTER_SIZE = 10;
 let leftView, centerView, rightView;
 let isDarkModeForced = false;
 
+let isAiSidebarVisible = false; // Par défaut, le volet est fermé
+
+
 const https = require("https");
 
 function applyThemeToView(view) {
@@ -932,6 +935,19 @@ function setupNavigationTracking(panel) {
         }
     });
    
+// Dans main.js -> Dans la fonction setupNavigationTracking(panel)
+// Dans main.js -> Dans votre écouteur "did-finish-load"
+panel.view.webContents.on("did-finish-load", () => {
+    const injectorPath = path.join(__dirname, 'nanobrowser', 'injector.js');
+    if (fs.existsSync(injectorPath)) {
+        const scriptCode = fs.readFileSync(injectorPath, 'utf8');
+        
+        // CORRECTION : On ajoute ; void 0; à la fin pour éviter qu'Electron essaie de cloner l'objet window
+        panel.view.webContents.executeJavaScript(scriptCode + "; void 0;")
+            .then(() => console.log(`IA prête sur la tuile ${panel.id}`))
+            .catch(err => console.error("Erreur injection IA:", err));
+    }
+});
 
 
 
@@ -1157,6 +1173,13 @@ ipcMain.on("show-url-context-menu", (event) => {
     menu.popup({
         window: BrowserWindow.fromWebContents(event.sender)
     });
+});
+
+// Dans main.js -> Écouteur pour modifier l'état et forcer le rafraîchissement géométrique
+ipcMain.on("toggle-ai-sidebar-request", (event, isVisible) => {
+    isAiSidebarVisible = isVisible;
+    forceRebuildSplitters = true;
+    resizeViews(); // Recalcule la taille de l'écran immédiatement
 });
 
 
@@ -2658,12 +2681,27 @@ function detachPanelToFullscreen(panelId) {
     }
 }
 
+
+
+
+
+
+
+
+
+
+
+
+// DANS MAIN.JS -> Dans la fonction resizeViews()
+
 function resizeViews() {
     if (win.isDestroyed()) return;
     
     // 1. Récupérer la taille réelle de la zone de contenu utile d'Electron
     const bounds = win.getContentBounds();
-    const width = bounds.width;
+    
+    // CORRECTION ICI : Changez "const" par "let" pour s'autoriser à modifier la variable
+    let width = bounds.width; 
     const height = bounds.height;
     
     splitters.length = 0;
@@ -2679,13 +2717,15 @@ function resizeViews() {
         forceRebuildSplitters = false;
     }
 
-    // === CORRECTIF : Réduit la hauteur pour empêcher le débordement en bas ===
-    const HEIGHT_PADDING = 6; 
-    // === CORRECTIF FINAL : Marge de 2px pour remonter le liseré ===
-    const BOTTOM_MARGIN = 2;
-    // Correction : On supprime BOTTOM_MARGIN pour que les tuiles collent parfaitement au bas de la fenêtre
+    // === AJOUT DYNAMIQUE DE L'IA ===
+    // Maintenant que width est un "let", cette ligne va fonctionner sans planter !
+    if (isAiSidebarVisible) {
+        width = width - 300;
+    }
+
+    // Le reste de votre fonction reste STRICTEMENT identique...
     layoutNode(rootNode, 0, TOOLBAR_HEIGHT, width, height - TOOLBAR_HEIGHT);
- 
+
     while (splitterViews.length > splitters.length) {
         const oldSplitter = splitterViews.pop();
         try { win.removeBrowserView(oldSplitter); } catch (e) {}
@@ -2943,6 +2983,9 @@ ipcMain.handle('save-config-to-file', async () => {
     return false;
 });
 
+
+
+
 // 2. CHARGER LA CONFIGURATION DEPUIS UN FICHIER
 ipcMain.handle('load-config-from-file', async () => {
     const { filePaths } = await dialog.showOpenDialog(win, {
@@ -3026,6 +3069,90 @@ ipcMain.handle('load-config-from-file', async () => {
         }
     }
     return false;
+});
+
+
+
+// Dans main.js -> Avec vos autres écouteurs ipcMain
+
+// L'interface IA demande à récupérer le texte de la page active pour son LLM
+ipcMain.handle("nanobrowser-get-context", async () => {
+    if (!activePanel) return null;
+    const panel = findPanelNode(rootNode, activePanel);
+    if (!panel || !panel.view) return null;
+    
+    try {
+        return await panel.view.webContents.executeJavaScript("window.NanobrowserExecutor.getPageContent()");
+    } catch (e) {
+        return null;
+    }
+});
+
+// Dans main.js -> Avec vos autres ipcMain / ipcMain.handle
+
+ipcMain.handle("nanobrowser-ask-ollama", async (event, { prompt, model = "llama3" }) => {
+    if (!activePanel) return "Aucune tuile active pour l'analyse.";
+    const panel = findPanelNode(rootNode, activePanel);
+    if (!panel || !panel.view) return "Tuile active introuvable.";
+
+    try {
+        // 1. Récupération sécurisée du texte de la page web active via votre injector.js
+        const pageContent = await panel.view.webContents.executeJavaScript(
+            "window.NanobrowserExecutor && window.NanobrowserExecutor.getPageContent()"
+        );
+
+        if (!pageContent || !pageContent.text) {
+            return "Impossible d'extraire le texte de la page courante.";
+        }
+
+        // 2. Construction du contexte pour le LLM
+        const systemInstruction = `Tu es un agent IA intégré au navigateur Hare Browser. 
+Voici les informations de la page web actuellement consultée par l'utilisateur :
+- Titre : ${pageContent.title}
+- URL : ${pageContent.url}
+- Contenu textuel : 
+"""
+${pageContent.text.substring(0, 8000)} ... [Tronqué si trop long]
+"""
+
+Réponds à la demande de l'utilisateur en te basant sur ce contexte si nécessaire.`;
+
+        // 3. Appel de l'API locale d'Ollama avec fetch (natif dans Node.js moderne)
+        const response = await fetch("http://localhost:11434/api/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                model: model,
+                prompt: prompt,
+                system: systemInstruction,
+                stream: false // Désactive le stream pour récupérer la réponse d'un bloc (plus simple pour débuter)
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erreur API Ollama: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        return data.response; // Renvoie la réponse textuelle de l'IA
+
+    } catch (error) {
+        console.error("Erreur lors de la communication avec Ollama :", error);
+        return `Erreur de connexion à Ollama. Vérifiez qu'Ollama est démarré localement (${error.message}).`;
+    }
+});
+
+
+// L'interface IA demande à exécuter une action (ex: cliquer sur un bouton)
+ipcMain.handle("nanobrowser-execute-action", async (event, { actionType, argument }) => {
+    if (!activePanel) return "No active panel";
+    const panel = findPanelNode(rootNode, activePanel);
+    if (!panel || !panel.view) return "Panel not found";
+    
+    if (actionType === "click") {
+        return await panel.view.webContents.executeJavaScript(`window.NanobrowserExecutor.clickElement("${argument}")`);
+    }
+    // Ajoutez ici les autres types d'actions (scroll, fill, etc.)
 });
 
 

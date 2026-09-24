@@ -1,0 +1,13 @@
+// Dans le script de votre panneau IA (ui.html)
+async function runAILoop() {
+    // 1. L'IA demande ce qu'il y a sur la page web active de l'utilisateur
+    const pageContext = await window.api.nanobrowser.getContext();
+    
+    // 2. Vous envoyez ce contexte + la requête de l'utilisateur à votre API LLM (OpenAI, Anthropic, Ollama...)
+    const aiDecision = await callLLM(pageContext, "Trouve le bouton s'inscrire et clique dessus");
+    
+    // 3. Si le LLM décide de faire une action, vous pilotez la tuile web
+    if (aiDecision.action === "click") {
+        await window.api.nanobrowser.executeAction("click", aiDecision.selector);
+    }
+}
