@@ -1541,7 +1541,7 @@ document.getElementById("ai-summary-btn").addEventListener("click", () => {
 
 // VOTRE FONCTION INTEGRÉE ET MISE À JOUR :
 async function envoyerRequeteIA(questionUser) {
-    const modeleChoisi = "llama3"; // Modifiez par "mistral" ou "qwen2.5" si besoin
+    const modeleChoisi = "qwen2.5:1.5b"; // Modifiez par "mistral" ou "qwen2.5" ou "llama3"
 
     // 1. Afficher un état de chargement visuel dans l'interface
     aiResponseContainer.innerHTML = '<span style="color: #6b7280; font-style: italic;">🤖 L\'IA analyse le contenu de la tuile active... Veuillez patienter.</span>';
