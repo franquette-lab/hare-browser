@@ -1,11 +1,12 @@
 {
   "name": "tile-browser",
   "version": "1.0.0",
-  "description": "",
+  "description": "Navigateur internet multi-tuiles avec assistant IA local connecté à Ollama.",
   "main": "main.js",
   "scripts": {
-  "start": "electron ."
-},
+    "start": "electron .",
+    "dist": "electron-builder --windows nsis:x64"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -15,9 +16,28 @@
     "react-dom": "^19.2.8",
     "react-mosaic-component": "^7.0.0",
     "typescript": "^5.9.2"
-
   },
   "devDependencies": {
-    "electron": "^44.0.0"
+    "electron": "^44.0.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.harebrowser.app",
+    "productName": "Hare Browser",
+    "win": {
+        "target": "nsis"
+    },
+    "nsis": {
+        "oneClick": false,
+        "allowToChangeInstallationDirectory": true,
+        "createDesktopShortcut": true,
+        "createStartMenuShortcut": true,
+        "shortcutName": "Hare Browser"
+    },
+    "files": [
+        "**/*",
+        "!out/**/*",
+        "!dist/**/*"
+    ]
   }
 }

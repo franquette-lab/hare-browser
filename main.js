@@ -1,6 +1,10 @@
 // ---------------- //
 // SCRIPT : main.js //
 // ---------------- //
+
+// Tout en haut de votre fichier main.js
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // Évite les blocages de certificats locaux
+
 const {
     app,
     BrowserWindow,
@@ -16,12 +20,23 @@ const {
 
 // En haut de main.js avec vos autres variables globales
 const APP_TITLE = "Hare Browser"; 
-const fs = require("fs");
+
+// Dans main.js -> Tout en haut
+const fs = require('fs');
 const fsPromises = require("fs").promises;
-const path = require("path");
+const path = require('path');
+
+const appDataPath = app.getPath('userData');
+if (!fs.existsSync(appDataPath)) {
+    fs.mkdirSync(appDataPath, { recursive: true });
+}
+
+
 const splitters = [];
 
-const historyPath = path.join(app.getPath('userData'), 'navigation_history.json');
+// Dans main.js -> Corrigez le nom de la variable pour supprimer l'erreur en boucle :
+const historyPath = path.join(__dirname, 'navigation_history.json');
+
 
 // Chemin vers le fichier de stockage des favoris
 const favorisPath = path.join(app.getPath('userData'), 'favoris.json');
@@ -3088,57 +3103,103 @@ ipcMain.handle("nanobrowser-get-context", async () => {
     }
 });
 
-// Dans main.js -> Avec vos autres ipcMain / ipcMain.handle
+// DANS MAIN.JS -> Remplacez tout le bloc "nanobrowser-ask-ollama" par celui-ci :
+
+// DANS MAIN.JS -> Remplacez le bloc "nanobrowser-ask-ollama" par cette version de diagnostic :
 
 ipcMain.handle("nanobrowser-ask-ollama", async (event, { prompt, model = "llama3" }) => {
-    if (!activePanel) return "Aucune tuile active pour l'analyse.";
+    console.log("\n[IA DIAGNOSTIC] Déclenchement de la requête...");
+    
+    if (!activePanel && rootNode) {
+        const firstPanelNode = findFirstPanel(rootNode);
+        if (firstPanelNode) activePanel = firstPanelNode.id;
+    }
+    console.log("[IA DIAGNOSTIC] Tuile active ciblée :", activePanel);
+
+    if (!activePanel) return "Aucune tuile active détectée.";
     const panel = findPanelNode(rootNode, activePanel);
-    if (!panel || !panel.view) return "Tuile active introuvable.";
+    if (!panel || !panel.view) return "Tuile introuvable.";
 
     try {
-        // 1. Récupération sécurisée du texte de la page web active via votre injector.js
+        const injectorPath = path.join(__dirname, 'nanobrowser', 'injector.js');
+        if (fs.existsSync(injectorPath)) {
+            const scriptCode = fs.readFileSync(injectorPath, 'utf8');
+            await panel.view.webContents.executeJavaScript(scriptCode + "; void 0;");
+            console.log("[IA DIAGNOSTIC] Injecteur de texte déployé avec succès.");
+        }
+
         const pageContent = await panel.view.webContents.executeJavaScript(
             "window.NanobrowserExecutor && window.NanobrowserExecutor.getPageContent()"
         );
 
         if (!pageContent || !pageContent.text) {
-            return "Impossible d'extraire le texte de la page courante.";
+            console.log("[IA DIAGNOSTIC] ❌ Échec de l'extraction du texte.");
+            return "Impossible de lire le texte de la page.";
         }
+        console.log("[IA DIAGNOSTIC] Contenu capturé avec succès (Longueur :", pageContent.text.length, "caractères).");
 
-        // 2. Construction du contexte pour le LLM
-        const systemInstruction = `Tu es un agent IA intégré au navigateur Hare Browser. 
-Voici les informations de la page web actuellement consultée par l'utilisateur :
-- Titre : ${pageContent.title}
-- URL : ${pageContent.url}
-- Contenu textuel : 
-"""
-${pageContent.text.substring(0, 8000)} ... [Tronqué si trop long]
-"""
-
-Réponds à la demande de l'utilisateur en te basant sur ce contexte si nécessaire.`;
-
-        // 3. Appel de l'API locale d'Ollama avec fetch (natif dans Node.js moderne)
-        const response = await fetch("http://localhost:11434/api/generate", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                model: model,
-                prompt: prompt,
-                system: systemInstruction,
-                stream: false // Désactive le stream pour récupérer la réponse d'un bloc (plus simple pour débuter)
-            })
+        const systemInstruction = `Tu es un assistant IA. Résume de façon concise.\nTitre : ${pageContent.title}\nContenu : ${pageContent.text.substring(0, 4000)}`;
+        const postData = JSON.stringify({
+            model: model,
+            prompt: prompt,
+            system: systemInstruction,
+            stream: false
         });
 
-        if (!response.ok) {
-            throw new Error(`Erreur API Ollama: ${response.statusText}`);
-        }
+        console.log("[IA DIAGNOSTIC] Envoi de la requête HTTP à Ollama (127.0.0.1:11434)...");
+        const http = require('http');
+        
+        return new Promise((resolve) => {
 
-        const data = await response.json();
-        return data.response; // Renvoie la réponse textuelle de l'IA
+
+// Dans main.js -> Dans la requête http.request vers Ollama :
+
+const req = http.request({
+    hostname: '127.0.0.1',
+    port: 11434,
+    path: '/api/generate',
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+    },
+    timeout: 120000 // CORRECTION : On passe à 2 minutes (120000 ms) pour laisser l'IA générer le texte
+}, (res) => {
+                
+                let body = '';
+                console.log("[IA DIAGNOSTIC] Connexion établie. Code statut Ollama :", res.statusCode);
+                res.setEncoding('utf8');
+                res.on('data', (chunk) => body += chunk);
+                res.on('end', () => {
+                    try {
+                        const parsed = JSON.parse(body);
+                        console.log("[IA DIAGNOSTIC] ✅ Réponse reçue d'Ollama avec succès !");
+                        resolve(parsed.response || "Réponse vide.");
+                    } catch (e) {
+                        console.log("[IA DIAGNOSTIC] ❌ Échec de la lecture du JSON d'Ollama.");
+                        resolve("Erreur format réponse.");
+                    }
+                });
+            });
+
+            req.on('error', (e) => {
+                console.log("[IA DIAGNOSTIC] ❌ ERREUR RÉSEAU OLLAMA :", e.message);
+                resolve(`Erreur réseau Ollama : ${e.message}`);
+            });
+
+            req.on('timeout', () => {
+                req.destroy();
+                console.log("[IA DIAGNOSTIC] ❌ ERREUR : Temps d'attente dépassé (Timeout).");
+                resolve("Ollama a mis trop de temps à répondre.");
+            });
+
+            req.write(postData);
+            req.end();
+        });
 
     } catch (error) {
-        console.error("Erreur lors de la communication avec Ollama :", error);
-        return `Erreur de connexion à Ollama. Vérifiez qu'Ollama est démarré localement (${error.message}).`;
+        console.error("[IA DIAGNOSTIC] ❌ Erreur critique :", error);
+        return `Erreur système : ${error.message}`;
     }
 });
 

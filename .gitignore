@@ -4,3 +4,7 @@ src/
 scripts.txt
 OLD/
 searxng/
+dist/
+NeverIdle/
+ORACLE/
+dist/
