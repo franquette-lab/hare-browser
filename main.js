@@ -3138,13 +3138,26 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, { prompt, model = "llama3
         }
         console.log("[IA DIAGNOSTIC] Contenu capturé avec succès (Longueur :", pageContent.text.length, "caractères).");
 
-        const systemInstruction = `Tu es un assistant IA. Résume de façon concise.\nTitre : ${pageContent.title}\nContenu : ${pageContent.text.substring(0, 4000)}`;
-        const postData = JSON.stringify({
-            model: model,
-            prompt: prompt,
-            system: systemInstruction,
-            stream: false
-        });
+// Dans main.js -> Dans ipcMain.handle("nanobrowser-ask-ollama")
+
+// Remplacer l'ancienne définition de systemInstruction par cette logique :
+let systemInstruction = "";
+
+if (prompt.includes("résumé")) {
+    // Si l'utilisateur a cliqué sur le bouton vert "Résumer la page"
+    systemInstruction = `Tu es un assistant IA. Résume la page web suivante de façon concise en 3 points clés.\nTitre : ${pageContent.title}\nContenu : ${pageContent.text.substring(0, 5000)}`;
+} else {
+    // Si l'utilisateur a posé une question personnalisée dans le champ de texte
+    systemInstruction = `Tu es un assistant IA intégré au navigateur. Réponds à la question de l'utilisateur en utilisant les informations de la page web courante si nécessaire.\nTitre de la page : ${pageContent.title}\nContenu de la page : ${pageContent.text.substring(0, 5000)}`;
+}
+
+// Le reste de votre bloc de données (postData) et de la requête HTTP demeure identique
+const postData = JSON.stringify({
+    model: model,
+    prompt: prompt,
+    system: systemInstruction,
+    stream: false
+});
 
         console.log("[IA DIAGNOSTIC] Envoi de la requête HTTP à Ollama (127.0.0.1:11434)...");
         const http = require('http');

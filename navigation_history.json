@@ -1,5 +1,25 @@
 [
   {
+    "url": "https://www.google.com/",
+    "title": "google.com",
+    "date": "2026-09-25T18:59:40.267Z"
+  },
+  {
+    "url": "https://github.com/",
+    "title": "github.com",
+    "date": "2026-09-25T18:59:40.076Z"
+  },
+  {
+    "url": "https://fr.wikipedia.org/wiki/Wikip%C3%A9dia:Accueil_principal",
+    "title": "fr.wikipedia.org/wiki/Wikipédia:Accueil_principal",
+    "date": "2026-09-25T18:59:39.996Z"
+  },
+  {
+    "url": "file:///C:/Users/Utilisateur/tile-browser/index.html",
+    "title": "index.html",
+    "date": "2026-09-25T18:59:39.556Z"
+  },
+  {
     "url": "https://fr.wikipedia.org/wiki/Le_Tr%C3%A9sor_des_pianistes",
     "title": "fr.wikipedia.org/wiki/Le_Trésor_des_pianistes",
     "date": "2026-09-25T18:47:21.273Z"

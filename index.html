@@ -1532,10 +1532,25 @@ aiUserPrompt.addEventListener("keydown", (e) => {
 
 // Dans la balise <script> de votre index.html
 
-// Écouteur pour le bouton "Résumer la page"
+// 1. Bouton VERT : Résumer la page (Envoie une consigne fixe)
 document.getElementById("ai-summary-btn").addEventListener("click", () => {
-    console.log("Clic détecté sur le bouton Résumer !"); // Ce log s'affichera dans la console DevTools (fenêtre blanche)
     envoyerRequeteIA("Fais-moi un résumé concis des 3 points clés de cet article.");
+});
+
+// 2. Bouton BLEU : Poser la question (Prend le texte écrit dans l'input par l'utilisateur)
+document.getElementById("ai-submit-btn").addEventListener("click", () => {
+    const customPrompt = document.getElementById("ai-user-prompt").value.trim();
+    if (customPrompt) {
+        envoyerRequeteIA(customPrompt); // Envoie votre question ("Qui a composé...")
+        document.getElementById("ai-user-prompt").value = ""; // Vide le champ après l'envoi
+    }
+});
+
+// 3. Optionnel : Permettre de valider en appuyant sur la touche Entrée dans l'input
+document.getElementById("ai-user-prompt").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+        document.getElementById("ai-submit-btn").click();
+    }
 });
 
 
