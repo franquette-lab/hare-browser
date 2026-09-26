@@ -501,7 +501,7 @@ html.dark .bookmark-item:hover {
     <!-- Dans index.html -> Dans la div #ai-sidebar, remplacez la ligne de l'encadré du bas par celle-ci : -->
     <div class="ai-footer-box" style="display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 8px;">
  
-        <input type="text" id="ai-user-prompt" placeholder="Poser une question..." style="width: 100%; height: 32px; background: #2d2d30; border: 1px solid #3c3c3c; color: white; border-radius: 6px; padding: 0 10px; font-size: 12px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#3c3c3c'">
+        <input type="text" id="ai-user-prompt" placeholder="Poser une question sur une page web......" style="width: 100%; height: 32px; background: #2d2d30; border: 1px solid #3c3c3c; color: white; border-radius: 6px; padding: 0 10px; font-size: 12px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#3c3c3c'">
         
         <div style="display: flex; gap: 8px;">
             <button id="ai-submit-btn" style="flex: 1; height: 30px; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; transition: background 0.2s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Poser la question</button>
@@ -1642,6 +1642,17 @@ window.api.on("ai-sidebar-geometry-update", (data) => {
         aiSidebarElement.style.top = data.topPosition + "px";
     }
 });
+
+// DANS INDEX.HTML -> À ajouter dans votre balise <script> tout en bas :
+
+// Écouter le signal de fermeture forcée de l'IA par le clavier (Touche Échap)
+window.api.on("toggle-ai-sidebar-keyboard-force", (isVisible) => {
+    const aiSidebar = document.getElementById("ai-sidebar");
+    if (aiSidebar) {
+        aiSidebar.style.right = "-300px"; // Range le volet hors de l'écran
+    }
+});
+
 
 // Synchronisation dynamique du thème Clair / Sombre
 window.api.on("system-theme-changed", (isDarkMode) => {

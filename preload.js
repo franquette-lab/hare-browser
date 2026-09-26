@@ -26,14 +26,20 @@ contextBridge.exposeInMainWorld(
 
 // Dans preload.js -> À insérer dans l'objet exposé sous 'api'
 on: (channel, func) => {
-    const validChannels = ["system-theme-changed", "ai-sidebar-geometry-update"];
+
+    const validChannels = [
+        "system-theme-changed", 
+        "ai-sidebar-geometry-update", 
+        "toggle-ai-sidebar-keyboard-force" // <-- AJOUTEZ CETTE LIGNE ICI
+    ];
+
     if (validChannels.includes(channel)) {
         // Supprime l'écouteur précédent s'il existe pour éviter les fuites de mémoire
         ipcRenderer.removeAllListeners(channel);
         ipcRenderer.on(channel, (event, ...args) => func(...args));
     }
 },
-// Conservez vos autres clés comme nanobrowser, getThemePreference, etc.
+
 
 
 nanobrowser: {

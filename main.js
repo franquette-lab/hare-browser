@@ -2058,6 +2058,48 @@ function createWindow() {
                         }
                     }
                 },
+
+// DANS MAIN.JS -> Remplacez le bloc existant de l'accélérateur 'Escape' par celui-ci :
+
+{
+    label: 'Quitter le mode agrandi / Masquer l\'IA',
+    accelerator: 'Escape',
+    click: () => {
+        let geometryChanged = false;
+
+        // 1. Si le volet de l'assistant IA est visible, on le ferme
+        if (isAiSidebarVisible) {
+            isAiSidebarVisible = false;
+            geometryChanged = true;
+            // On prévient l'IHM (index.html) de ranger le volet en arrière-plan
+            win.webContents.send("toggle-ai-sidebar-keyboard-force", false);
+        }
+
+        // 2. Si un panneau est maximisé (votre logique d'origine), on le restaure
+        if (maximizedPanelId) {
+            const panelIdToRestore = maximizedPanelId;
+            maximizedPanelId = null;
+            geometryChanged = true;
+
+            win.webContents.send("zoom-changed", maximizedPanelId);
+
+            if (handleViews[panelIdToRestore]) {
+                try { win.removeBrowserView(handleViews[panelIdToRestore]); } catch(e){}
+                delete handleViews[panelIdToRestore];
+            }
+        }
+
+        // 3. Si la géométrie globale a bougé, on force Electron à recalculer l'écran
+        if (geometryChanged) {
+            forceRebuildSplitters = true;
+            resizeViews();
+            updatePanelHandles();
+        }
+    }
+},
+
+
+
                 {
                     label: 'Charger une configuration de panneaux',
                     accelerator: 'CmdOrCtrl+O',
@@ -2580,37 +2622,54 @@ function createWindow() {
     });
     
 
-        // === ENREGISTREMENT DU RACCOURCI FORCE CTRL+M ===
-    // 'CommandOrControl+M' est intercepté lorsque la fenêtre a le focus
+
+// DANS MAIN.JS -> Tout en bas de la fonction createWindow(), juste avant le dernier }
+
+    // Raccourci global ultra-puissant pour la touche Échap
     win.on('focus', () => {
-        globalShortcut.register('CommandOrControl+M', () => {
-            if (!win || win.isDestroyed() || !activePanel) return;
+        globalShortcut.register('Escape', () => {
+            if (!win || win.isDestroyed()) return;
 
-            // Logique de bascule de zoom identique
-            if (maximizedPanelId === activePanel) {
+            let geometryChanged = false;
+
+            // 1. Si le volet IA est ouvert, on le ferme
+            if (isAiSidebarVisible) {
+                isAiSidebarVisible = false;
+                geometryChanged = true;
+                win.webContents.send("toggle-ai-sidebar-keyboard-force", false);
+                console.log("[IA CLAVIER] Volet IA masqué via Échap");
+            }
+
+            // 2. Si une tuile est agrandie, on la restaure
+            if (maximizedPanelId) {
+                const panelIdToRestore = maximizedPanelId;
                 maximizedPanelId = null;
-            } else {
-                maximizedPanelId = activePanel;
+                geometryChanged = true;
+                win.webContents.send("zoom-changed", maximizedPanelId);
+
+                if (handleViews[panelIdToRestore]) {
+                    try { win.removeBrowserView(handleViews[panelIdToRestore]); } catch(e){}
+                    delete handleViews[panelIdToRestore];
+                }
+                console.log("[IA CLAVIER] Tuile restaurée via Échap");
             }
 
-            forceRebuildSplitters = true;
-            resizeViews();
-
-            win.webContents.send("zoom-changed", maximizedPanelId);
-
-            if (handleViews[activePanel]) {
-                try { win.removeBrowserView(handleViews[activePanel]); } catch(e){}
-                delete handleViews[activePanel];
+            // 3. Si un changement a eu lieu, on recalcule l'écran
+            if (geometryChanged) {
+                forceRebuildSplitters = true;
+                resizeViews();
+                updatePanelHandles();
             }
-            updatePanelHandles();
         });
     });
 
-    // Très important : Libérer le raccourci quand la fenêtre perd le focus 
-    // pour éviter de bloquer le Ctrl+M des autres applications de votre PC
+    // Sécurité : On libère la touche Échap dès que le navigateur n'est plus au premier plan
     win.on('blur', () => {
-        globalShortcut.unregister('CommandOrControl+M');
+        globalShortcut.unregister('Escape');
     });
+
+
+
 }
 
 function replaceNode(current, target, replacement) {
