@@ -374,7 +374,7 @@ html.dark .bookmark-item:hover {
 
 
     <!-- Dans index.html -> Dans la div #toolbar-buttons -->
-    <button id="ai-sidebar-button" title="Demander à l'IA Ollama" style="width:28px; height:24px; background:#2d2d30; color:#4ade80; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer;">🤖</button>
+    <button id="ai-sidebar-button" title="Demander à l'IA Ollama" style="width:28px; height:24px; background:#2d2d30; color:#4ade80; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer;">✨</button>
 
 
     <!-- Bouton Undo d'annulation -->
@@ -420,14 +420,17 @@ html.dark .bookmark-item:hover {
 <!-- Dans index.html -> Juste sous la div #history-sidebar -->
 <div id="ai-sidebar" style="position: fixed; top: 38px; right: -300px; width: 300px; bottom: 0; background: #1e1e1e; border-left: 1px solid #3c3c3c; z-index: 99999; display: flex; flex-direction: column; padding: 12px; box-sizing: border-box; transition: right 0.3s ease; color: #cfcfcf; font-family: sans-serif;">
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3c3c3c; padding-bottom: 8px; margin-bottom: 12px;">
-        <span style="color: #ffffff; font-weight: bold; font-size: 13px;">Assistant IA (Ollama)</span>
+        <!-- Dans index.html -> Dans la div #ai-sidebar -->
+<span style="color: #ffffff; font-weight: bold; font-size: 13px;">Assistant IA ✨ (Ollama)</span>
+
         <span id="close-ai-sidebar" style="cursor: pointer; color: #ef4444; font-weight: bold;">×</span>
     </div>
     
     <!-- Zone de texte où s'affichera la réponse de l'IA -->
-    <div id="ai-response-container" style="flex: 1; overflow-y: auto; font-size: 12px; line-height: 1.5; padding-right: 4px; white-space: pre-wrap; margin-bottom: 12px;">
-        Cliquez sur le bouton ci-dessous ou posez une question pour analyser la page web active...
-    </div>
+<!-- Dans index.html -> Dans la div #ai-sidebar, remplacez la ligne du conteneur par celle-ci -->
+<div id="ai-response-container" style="flex: 1; overflow-y: auto; font-size: 12px; line-height: 1.5; padding-right: 4px; white-space: pre-wrap; margin-bottom: 12px; text-align: left;">
+    Cliquez sur le bouton ci-dessous ou posez une question pour analyser la page web active...
+</div>
 
     <!-- Saisie utilisateur et boutons de commande -->
     <div style="display: flex; flex-direction: column; gap: 6px;">
@@ -1555,22 +1558,43 @@ document.getElementById("ai-user-prompt").addEventListener("keydown", (e) => {
 
 
 // VOTRE FONCTION INTEGRÉE ET MISE À JOUR :
-async function envoyerRequeteIA(questionUser) {
-    const modeleChoisi = "qwen2.5:1.5b"; // Modifiez par "mistral" ou "qwen2.5" ou "llama3"
+// DANS INDEX.HTML -> Remplacez la fonction envoyerRequeteIA par celle-ci :
 
-    // 1. Afficher un état de chargement visuel dans l'interface
-    aiResponseContainer.innerHTML = '<span style="color: #6b7280; font-style: italic;">🤖 L\'IA analyse le contenu de la tuile active... Veuillez patienter.</span>';
+async function envoyerRequeteIA(questionUser) {
+    const modeleChoisi = "qwen2.5:1.5b";
+    
+    // 1. Affichage de l'état de vérification initial
+    aiResponseContainer.innerHTML = '<span style="color: #6b7280; font-style: italic;">🤖 L\'IA vérifie la cible...</span>';
     
     try {
-        // 2. Appel de votre pont Electron sécurisé vers Ollama
-        const reponseIA = await window.api.nanobrowser.askOllama(questionUser, modeleChoisi);
+        // 2. Appel asynchrone de votre script principal main.js
+        const reponse = await window.api.nanobrowser.askOllama(questionUser, modeleChoisi);
         
-        // 3. Injection de la réponse directement dans le conteneur de votre interface
-        aiResponseContainer.innerText = reponseIA;
+        // 3. INTERCEPTION CRUCIALE : Si le texte vaut exactement le mot-clé de sécurité
+// DANS INDEX.HTML -> Dans la fonction envoyerRequeteIA
+
+if (reponse && reponse.trim() === "SELECT_PANEL_REQUIRED") {
+    aiResponseContainer.innerHTML = `
+<div style="padding: 4px; line-height: 1.6; text-align: left;">
+<div style="text-align: center; margin-bottom: 12px;">
+<span style="color: #ef4444; font-weight: bold; font-size: 13px;">❌ Action impossible</span>
+</div>
+<span style="color: #a3a3a3; font-size: 11px;">Veuillez d'abord cliquer au centre de la tuile web que vous souhaitez analyser (Google, Wikipédia, etc.) pour lui donner le focus, puis réessayez.</span>
+</div>
+    `;
+    return; // On stoppe la fonction ici
+}
+
+        // 4. Affichage normal du résumé ou de la réponse si un panneau avait le focus
+        if (reponse) {
+            aiResponseContainer.innerText = reponse;
+        } else {
+            aiResponseContainer.innerHTML = '<span style="color: #ef4444;">❌ L\'IA a renvoyé une réponse vide.</span>';
+        }
         
     } catch (error) {
-        console.error("Erreur lors de l'appel IA :", error);
-        aiResponseContainer.innerHTML = `<span style="color: #ef4444;">❌ Erreur : Impossible de joindre l'agent IA. (${error.message})</span>`;
+        console.error("Erreur IHM Assistant:", error);
+        aiResponseContainer.innerHTML = `<span style="color: #ef4444;">❌ Impossible de joindre l'IA (${error.message}).</span>`;
     }
 }
 

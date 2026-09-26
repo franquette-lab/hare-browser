@@ -3103,82 +3103,80 @@ ipcMain.handle("nanobrowser-get-context", async () => {
     }
 });
 
-// DANS MAIN.JS -> Remplacez tout le bloc "nanobrowser-ask-ollama" par celui-ci :
 
-// DANS MAIN.JS -> Remplacez le bloc "nanobrowser-ask-ollama" par cette version de diagnostic :
 
-ipcMain.handle("nanobrowser-ask-ollama", async (event, { prompt, model = "llama3" }) => {
+
+
+// DANS MAIN.JS -> Au début de ipcMain.handle("nanobrowser-ask-ollama")
+
+ipcMain.handle("nanobrowser-ask-ollama", async (event, { prompt, model = "qwen2.5:1.5b" }) => {
     console.log("\n[IA DIAGNOSTIC] Déclenchement de la requête...");
     
-    if (!activePanel && rootNode) {
-        const firstPanelNode = findFirstPanel(rootNode);
-        if (firstPanelNode) activePanel = firstPanelNode.id;
+    // CORRECTION : On SUPPRIME le findFirstPanel automatique caché !
+    // Si activePanel est nul, on s'arrête immédiatement en envoyant un signal clair
+    if (!activePanel) {
+        console.log("[IA DIAGNOSTIC] ❌ Requête rejetée : Aucun panneau n'a le focus.");
+        return "SELECT_PANEL_REQUIRED"; // Message clé que l'interface va intercepter
     }
-    console.log("[IA DIAGNOSTIC] Tuile active ciblée :", activePanel);
-
-    if (!activePanel) return "Aucune tuile active détectée.";
+    
+    console.log("[IA DIAGNOSTIC] Tuile active ciblée avec certitude :", activePanel);
     const panel = findPanelNode(rootNode, activePanel);
     if (!panel || !panel.view) return "Tuile introuvable.";
 
     try {
+
+        // 1. Déploiement et exécution de l'injecteur DOM
         const injectorPath = path.join(__dirname, 'nanobrowser', 'injector.js');
         if (fs.existsSync(injectorPath)) {
             const scriptCode = fs.readFileSync(injectorPath, 'utf8');
+            // Le '; void 0;' final évite l'erreur "An object could not be cloned"
             await panel.view.webContents.executeJavaScript(scriptCode + "; void 0;");
             console.log("[IA DIAGNOSTIC] Injecteur de texte déployé avec succès.");
         }
 
+        // 2. Récupération du contenu textuel de la page web active
         const pageContent = await panel.view.webContents.executeJavaScript(
             "window.NanobrowserExecutor && window.NanobrowserExecutor.getPageContent()"
         );
 
         if (!pageContent || !pageContent.text) {
             console.log("[IA DIAGNOSTIC] ❌ Échec de l'extraction du texte.");
-            return "Impossible de lire le texte de la page.";
+            return "Impossible de lire le texte de la page courante.";
         }
         console.log("[IA DIAGNOSTIC] Contenu capturé avec succès (Longueur :", pageContent.text.length, "caractères).");
 
-// Dans main.js -> Dans ipcMain.handle("nanobrowser-ask-ollama")
+        // 3. Ajustement dynamique de l'instruction système (Prompt Engineering)
+        let systemInstruction = "";
+        if (prompt.toLowerCase().includes("résumé") || prompt.toLowerCase().includes("resume")) {
+            systemInstruction = `Tu es un assistant IA. Résume la page web suivante de façon concise en 3 points clés.\nTitre : ${pageContent.title}\nContenu : ${pageContent.text.substring(0, 5000)}`;
+        } else {
+            systemInstruction = `Tu es un assistant IA intégré au navigateur. Réponds à la question de l'utilisateur en utilisant les informations de la page web courante si nécessaire.\nTitre de la page : ${pageContent.title}\nContenu de la page : ${pageContent.text.substring(0, 5000)}`;
+        }
 
-// Remplacer l'ancienne définition de systemInstruction par cette logique :
-let systemInstruction = "";
+        // 4. Préparation de la structure JSON pour Ollama
+        const postData = JSON.stringify({
+            model: model,
+            prompt: prompt,
+            system: systemInstruction,
+            stream: false // Requis pour obtenir la réponse d'un seul bloc
+        });
 
-if (prompt.includes("résumé")) {
-    // Si l'utilisateur a cliqué sur le bouton vert "Résumer la page"
-    systemInstruction = `Tu es un assistant IA. Résume la page web suivante de façon concise en 3 points clés.\nTitre : ${pageContent.title}\nContenu : ${pageContent.text.substring(0, 5000)}`;
-} else {
-    // Si l'utilisateur a posé une question personnalisée dans le champ de texte
-    systemInstruction = `Tu es un assistant IA intégré au navigateur. Réponds à la question de l'utilisateur en utilisant les informations de la page web courante si nécessaire.\nTitre de la page : ${pageContent.title}\nContenu de la page : ${pageContent.text.substring(0, 5000)}`;
-}
-
-// Le reste de votre bloc de données (postData) et de la requête HTTP demeure identique
-const postData = JSON.stringify({
-    model: model,
-    prompt: prompt,
-    system: systemInstruction,
-    stream: false
-});
-
-        console.log("[IA DIAGNOSTIC] Envoi de la requête HTTP à Ollama (127.0.0.1:11434)...");
+        console.log(`[IA DIAGNOSTIC] Envoi de la requête HTTP à Ollama (127.0.0.1:11434) avec le modèle ${model}...`);
         const http = require('http');
         
+        // 5. Envoi via le module HTTP natif pour contourner les blocages de pare-feu/CORS sous Windows
         return new Promise((resolve) => {
-
-
-// Dans main.js -> Dans la requête http.request vers Ollama :
-
-const req = http.request({
-    hostname: '127.0.0.1',
-    port: 11434,
-    path: '/api/generate',
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData)
-    },
-    timeout: 120000 // CORRECTION : On passe à 2 minutes (120000 ms) pour laisser l'IA générer le texte
-}, (res) => {
-                
+            const req = http.request({
+                hostname: '127.0.0.1',
+                port: 11434,
+                path: '/api/generate',
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(postData)
+                },
+                timeout: 120000 // 2 minutes max pour laisser les processeurs plus anciens répondre
+            }, (res) => {
                 let body = '';
                 console.log("[IA DIAGNOSTIC] Connexion établie. Code statut Ollama :", res.statusCode);
                 res.setEncoding('utf8');
@@ -3187,23 +3185,23 @@ const req = http.request({
                     try {
                         const parsed = JSON.parse(body);
                         console.log("[IA DIAGNOSTIC] ✅ Réponse reçue d'Ollama avec succès !");
-                        resolve(parsed.response || "Réponse vide.");
+                        resolve(parsed.response || "L'IA a renvoyé une réponse vide.");
                     } catch (e) {
                         console.log("[IA DIAGNOSTIC] ❌ Échec de la lecture du JSON d'Ollama.");
-                        resolve("Erreur format réponse.");
+                        resolve("Erreur lors de l'analyse du format de la réponse.");
                     }
                 });
             });
 
             req.on('error', (e) => {
                 console.log("[IA DIAGNOSTIC] ❌ ERREUR RÉSEAU OLLAMA :", e.message);
-                resolve(`Erreur réseau Ollama : ${e.message}`);
+                resolve(`Impossible de joindre l'IA local. Vérifiez qu'Ollama est démarré (${e.message}).`);
             });
 
             req.on('timeout', () => {
                 req.destroy();
                 console.log("[IA DIAGNOSTIC] ❌ ERREUR : Temps d'attente dépassé (Timeout).");
-                resolve("Ollama a mis trop de temps à répondre.");
+                resolve("L'IA locale a mis trop de temps à répondre (Délai d'attente dépassé).");
             });
 
             req.write(postData);
@@ -3211,11 +3209,10 @@ const req = http.request({
         });
 
     } catch (error) {
-        console.error("[IA DIAGNOSTIC] ❌ Erreur critique :", error);
-        return `Erreur système : ${error.message}`;
+        console.error("[IA DIAGNOSTIC] ❌ Erreur critique lors du traitement de l'IA :", error);
+        return `Erreur système interne : ${error.message}`;
     }
 });
-
 
 // L'interface IA demande à exécuter une action (ex: cliquer sur un bouton)
 ipcMain.handle("nanobrowser-execute-action", async (event, { actionType, argument }) => {
