@@ -808,32 +808,27 @@ function rebuildUrlBar(panels) {
         }
     });
 
-    // Dans index.html -> Écouteurs des boutons de scindage classique
-    document.getElementById("split-vertical").addEventListener("click", () => {
-        let targetPanelId = activePanel;
+document.getElementById("split-vertical").addEventListener("click", () => {
+    if (currentMaximizedId) return; // Sécurité
+    let targetPanelId = activePanel;
+    if (!targetPanelId && currentPanels && currentPanels.length > 0) {
+        targetPanelId = currentPanels[0].id;
+    }
+    if (targetPanelId) {
+        window.api.splitPanel(targetPanelId, "vertical");
+    }
+});
 
-        // Sécurité : Si aucun panneau n'est actif, on prend le premier disponible
-        if (!targetPanelId && currentPanels && currentPanels.length > 0) {
-            targetPanelId = currentPanels[0].id;
-        }
-
-        if (targetPanelId) {
-            window.api.splitPanel(targetPanelId, "vertical");
-        }
-    });
-
-    document.getElementById("split-horizontal").addEventListener("click", () => {
-        let targetPanelId = activePanel;
-
-        // Sécurité : Si aucun panneau n'est actif, on prend le premier disponible
-        if (!targetPanelId && currentPanels && currentPanels.length > 0) {
-            targetPanelId = currentPanels[0].id;
-        }
-
-        if (targetPanelId) {
-            window.api.splitPanel(targetPanelId, "horizontal");
-        }
-    });
+document.getElementById("split-horizontal").addEventListener("click", () => {
+    if (currentMaximizedId) return; // Sécurité
+    let targetPanelId = activePanel;
+    if (!targetPanelId && currentPanels && currentPanels.length > 0) {
+        targetPanelId = currentPanels[0].id;
+    }
+    if (targetPanelId) {
+        window.api.splitPanel(targetPanelId, "horizontal");
+    }
+});
     
     document.getElementById("close-panel").addEventListener("click", () => window.api.closePanel(activePanel));
     document.getElementById("undo").addEventListener("click", () => window.api.undo());
@@ -1004,16 +999,13 @@ function updateMaximizedTabDisplay(maximizedPanelId) {
         const panelId = input.id.replace("-url", "");
 
         if (maximizedPanelId) {
-
             if (panelId === maximizedPanelId) {
                 tab.style.display = "flex";
                 tab.style.flex = "1";
             } else {
                 tab.style.display = "none";
             }
-
         } else {
-
             tab.style.display = "flex";
             tab.style.flex = "1";
         }
@@ -1021,21 +1013,54 @@ function updateMaximizedTabDisplay(maximizedPanelId) {
 }
 
 window.api.onZoomChanged((maximizedPanelId) => {
-
     currentMaximizedId = maximizedPanelId;
-
     updateMaximizedTabDisplay(maximizedPanelId);
 
     const container = document.getElementById("url-bar");
-
     if (!container) return;
 
+    // Ciblage des boutons de la barre d'outils à griser
+    const btnPrivate = document.getElementById("split-private-vertical");
+    const btnVertical = document.getElementById("split-vertical");
+    const btnHorizontal = document.getElementById("split-horizontal");
+    
     if (maximizedPanelId) {
         container.classList.add("maximized-mode");
+        
+        // Mode Zoom actif : On grise et désactive les boutons
+        [btnPrivate, btnVertical, btnHorizontal].forEach(btn => {
+            if (btn) {
+                btn.disabled = true;
+                btn.style.opacity = "0.4";
+                btn.style.cursor = "not-allowed";
+                btn.title = btn.title + " (Désactivé en mode Zoom)";
+            }
+        });
     } else {
         container.classList.remove("maximized-mode");
+        
+        // Mode Mosaïque normal : On réactive les boutons
+        if (btnPrivate) {
+            btnPrivate.disabled = false;
+            btnPrivate.style.opacity = "1";
+            btnPrivate.style.cursor = "pointer";
+            btnPrivate.title = "Ouvrir une tuile privée à droite (Ctrl+Shift+N)";
+        }
+        if (btnVertical) {
+            btnVertical.disabled = false;
+            btnVertical.style.opacity = "1";
+            btnVertical.style.cursor = "pointer";
+            btnVertical.title = "Scinder à droite (Ctrl+T)";
+        }
+        if (btnHorizontal) {
+            btnHorizontal.disabled = false;
+            btnHorizontal.style.opacity = "1";
+            btnHorizontal.style.cursor = "pointer";
+            btnHorizontal.title = "Scinder vers le bas (Ctrl+H)";
+        }
     }
 });
+
 
 function updateCloseButtonState() {
     const closeBtn = document.getElementById("close-panel");
@@ -1496,13 +1521,11 @@ document.addEventListener('keydown', (e) => {
 
 
 document.getElementById("split-private-vertical").addEventListener("click", () => {
+    if (currentMaximizedId) return; // Sécurité : bloque l'action si zoom actif
     let targetPanelId = activePanel;
-
-    // Si l'IHM n'a pas de panneau actif en mémoire, on prend le premier disponible dans la liste globale
     if (!targetPanelId && typeof currentPanels !== 'undefined' && currentPanels.length > 0) {
         targetPanelId = currentPanels[0].id;
     }
-
     if (targetPanelId) {
         window.api.splitPanel(targetPanelId, "vertical", true);
     }
@@ -1621,40 +1644,6 @@ window.api.on("trigger-ai-action", (data) => {
 });
 
 
-// DANS LA BALISE <SCRIPT> DE INDEX.HTML -> À ajouter ou fusionner
-
-window.api.on("zoom-changed", (maximizedPanelId) => {
-    // Si maximizedPanelId n'est pas nul, c'est que le mode Zoom est actif
-    const isZoomActive = maximizedPanelId !== null;
-
-    // Récupération de vos 3 boutons de la barre d'outils
-    const btnSplitRight = document.getElementById("split-right-btn");
-    const btnSplitBottom = document.getElementById("split-bottom-btn");
-    const btnPrivate = document.getElementById("open-private-btn");
-
-    [btnSplitRight, btnSplitBottom, btnPrivate].forEach(btn => {
-        if (btn) {
-            // 1. On active ou désactive nativement le bouton HTML
-            btn.disabled = isZoomActive;
-
-            // 2. Ajustement du style visuel (Grisé / Semi-transparent si inactif)
-            if (isZoomActive) {
-                btn.style.opacity = "0.4";
-                btn.style.cursor = "not-allowed";
-                // On sauvegarde le titre d'origine et on prévient l'utilisateur
-                btn.dataset.oldTitle = btn.title;
-                btn.title = "Désactivé en mode Zoom (Restaurez la mosaïque pour scinder)";
-            } else {
-                // Rétablissement du style normal
-                btn.style.opacity = "1";
-                btn.style.cursor = "pointer";
-                if (btn.dataset.oldTitle) {
-                    btn.title = btn.dataset.oldTitle;
-                }
-            }
-        }
-    });
-});
 
 
 // Tout en haut de votre logique de Sidebar dans index.html (Script)
