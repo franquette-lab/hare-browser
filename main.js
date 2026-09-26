@@ -1752,12 +1752,36 @@ ipcMain.on('toggle-dark-mode-request', (event, enable) => {
         });
     }
 
+    // --- SÉCURITÉ & INJECTION DYNAMIQUE SUR LES PAGES INCOGNITO ---
+    function répercuterThèmeSurPanneauxPrivés(node) {
+        if (!node) return;
+        
+        if (node.view && node.isPrivate && !node.view.webContents.isDestroyed()) {
+            const themeToApply = isDarkModeForced ? "mw-theme-client-dark" : "mw-theme-client-light";
+            
+            // On force la modification de la classe racine HTML de la page d'accueil incognito
+            node.view.webContents.executeJavaScript(`
+                document.documentElement.className = "${themeToApply}";
+                void 0;
+            `).catch(err => console.error("Erreur mise à jour thème tuile privée:", err));
+        }
+        
+        // Parcours récursif des branches gauche et droite de votre mosaïque
+        répercuterThèmeSurPanneauxPrivés(node.first);
+        répercuterThèmeSurPanneauxPrivés(node.second);
+    }
+
+    // Déclenchement immédiat de la synchronisation sur l'arbre complet des panneaux
+    répercuterThèmeSurPanneauxPrivés(rootNode);
+
+    // --- LOGIQUE CLASSIQUE POUR LES PAGES PUBLIQUES ET EXTERNES ---
     const allViews = win.getBrowserViews();
 
     allViews.forEach(v => {
-
         if (!v.webContents || v.webContents.isDestroyed()) return;
         const url = v.webContents.getURL();
+        
+        // MODIFICATION : On ignore l'injection agressive du fallback noir sur nos pages d'accueil privées
         if (url.startsWith('data:text/html') || v.webContents.getUserAgent() === "InternalBorder") return;
 
         if (typeof v.webContents.setForceDarkModeEnabled === 'function') {
@@ -1790,6 +1814,7 @@ ipcMain.on('toggle-dark-mode-request', (event, enable) => {
             v.webContents.executeJavaScript(scriptToRemove).catch(e => console.error(e));
         }
     });
+    
     updatePanelHandles(); 
 });
 
@@ -1967,25 +1992,28 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
                 }
                 .btn-search:hover { background-color: #7e22ce; }
 
-                /* 🕵️ BASCULE ET FORÇAGE EN MODE SOMBRE (Correction des sélecteurs) */
-                .mw-theme-client-dark body {
-                    background-color: #120b18 !important; /* Votre fond violet très sombre d'origine */
-                    color: #e2e8f0 !important;
-                }
-                .mw-theme-client-dark .container {
-                    background: #1e1229 !important;
-                    border-color: #4c1d95 !important;
-                    box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
-                }
-                .mw-theme-client-dark h1 { color: #c084fc !important; }
-                .mw-theme-client-dark p { color: #94a3b8 !important; }
-                .mw-theme-client-dark .list-box {
-                    background: #150b1d !important;
-                    border-color: #2e1065 !important;
-                }
-                .mw-theme-client-dark ul { color: #cbd5e1 !important; }
-                .mw-theme-client-dark .list-box.secure h3 { color: #4ade80 !important; }
-                .mw-theme-client-dark .list-box.warn h3 { color: #facc15 !important; }
+
+
+/* 🕵️ BASCULE DYNAMIQUE DU MODE SOMBRE (Correction des sélecteurs) */
+html.mw-theme-client-dark body {
+    background-color: #120b18 !important; /* Votre fond violet très sombre d'origine */
+    color: #e2e8f0 !important;
+}
+html.mw-theme-client-dark .container {
+    background: #1e1229 !important;
+    border-color: #4c1d95 !important;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
+}
+html.mw-theme-client-dark h1 { color: #c084fc !important; }
+html.mw-theme-client-dark p { color: #94a3b8 !important; }
+html.mw-theme-client-dark .list-box { background: #150b1d !important; border-color: #2e1065 !important; }
+html.mw-theme-client-dark ul { color: #cbd5e1 !important; }
+html.mw-theme-client-dark .list-box.secure h3 { color: #4ade80 !important; }
+html.mw-theme-client-dark .list-box.warn h3 { color: #facc15 !important; }
+
+
+
+
             </style>
         </head>
         <body>
