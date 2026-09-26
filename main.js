@@ -34,8 +34,11 @@ if (!fs.existsSync(appDataPath)) {
 
 const splitters = [];
 
-// Dans main.js -> Corrigez le nom de la variable pour supprimer l'erreur en boucle :
-const historyPath = path.join(__dirname, 'navigation_history.json');
+// DANS MAIN.JS -> Tout en haut du fichier avec vos variables de chemins :
+
+// REMPLACEZ : const historyPath = path.join(__dirname, 'navigation_history.json');
+// PAR CE CHEMIN SÉCURISÉ (Dans AppData comme vos favoris) :
+const historyPath = path.join(app.getPath('userData'), 'navigation_history.json');
 
 
 // Chemin vers le fichier de stockage des favoris
@@ -227,20 +230,30 @@ function getThemePreference() {
 }
 
 // ====== FONCTION DE SAUVEGARDE ASYNCHRONE ET ATOMIQUE SÉCURISÉE ======
+// DANS MAIN.JS -> Remplacer la fonction safeWriteJsonAsync par cette version robuste
+
 async function safeWriteJsonAsync(filePath, data) {
     const tmpPath = filePath + '.tmp';
     try {
         const jsonString = JSON.stringify(data, null, 2);
-        // 1. Écriture asynchrone dans un fichier temporaire (ne bloque pas le navigateur)
+        
+        // Écriture asynchrone du fichier temporaire
         await fsPromises.writeFile(tmpPath, jsonString, 'utf-8');
-        // 2. Remplacement atomique de l'ancien fichier par le nouveau
+        
+        // Remplacement atomique de l'ancien fichier
         await fsPromises.rename(tmpPath, filePath);
     } catch (error) {
-        console.error(`Erreur lors de la sauvegarde sécurisée de ${filePath} :`, error);
-        // Nettoyage du fichier temporaire en cas d'échec
-        try { await fsPromises.unlink(tmpPath); } catch (e) {}
+        console.error(`[SYSTEME] Échec écriture asynchrone sur ${filePath}, tentative en mode direct...`);
+        try {
+            // Méthode de secours synchrone si Windows verrouille le renommage atomique asynchrone
+            fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+            if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+        } catch (innerError) {
+            console.error(`Erreur critique de sauvegarde sur ${filePath} :`, innerError);
+        }
     }
 }
+    
 
 
 // ======================================================================
@@ -1018,11 +1031,26 @@ function setupNavigationTracking(panel) {
 // Dans main.js -> À l'intérieur de la fonction setupNavigationTracking(panel)
 
     // Écouteur pour intercepter le clic droit sur la page web de la tuile
-    panel.view.webContents.on("context-menu", (event, params) => {
-        event.preventDefault();
-        // On affiche notre menu d'actions au pixel près où se trouve la souris
-        afficherMenuContextuelPanneau(panel.view.webContents, params.x, params.y);
-    });
+// Dans main.js -> À l'intérieur de setupNavigationTracking(panel)
+
+// Écouteur pour intercepter le clic droit sur la page web de la tuile
+panel.view.webContents.on("context-menu", (event, params) => {
+    event.preventDefault();
+    
+    // === CORRECTIF : Forcer le focus sur ce panneau lors du clic droit ===
+    activePanel = panel.id;
+    if (win && !win.isDestroyed()) {
+        // Met à jour le rectangle bleu de focus visuel autour de la tuile
+        win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
+        // Met à jour la barre d'onglets supérieure
+        win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
+    }
+    updateActiveBorder(panel.bounds);
+    // ===================================================================
+
+    // On affiche ensuite le menu d'actions au pixel près où se trouve la souris
+    afficherMenuContextuelPanneau(panel.view.webContents, params.x, params.y);
+});
 
 
     panel.view.webContents.on("did-start-loading", () => {
@@ -3354,63 +3382,81 @@ ipcMain.handle("nanobrowser-get-context", async () => {
 
 // DANS MAIN.JS -> Au début de ipcMain.handle("nanobrowser-ask-ollama")
 
+// DANS MAIN.JS -> Remplacer le gestionnaire complet "nanobrowser-ask-ollama"
+
 ipcMain.handle("nanobrowser-ask-ollama", async (event, { prompt, model = "qwen2.5:1.5b" }) => {
     console.log("\n[IA DIAGNOSTIC] Déclenchement de la requête...");
     
-    // CORRECTION : On SUPPRIME le findFirstPanel automatique caché !
-    // Si activePanel est nul, on s'arrête immédiatement en envoyant un signal clair
     if (!activePanel) {
-        console.log("[IA DIAGNOSTIC] ❌ Requête rejetée : Aucun panneau n'a le focus.");
-        return "SELECT_PANEL_REQUIRED"; // Message clé que l'interface va intercepter
+        console.log("[IA DIAGNOSTIC] Requête rejetée : Aucun panneau n'a le focus.");
+        return "SELECT_PANEL_REQUIRED";
     }
     
-    console.log("[IA DIAGNOSTIC] Tuile active ciblée avec certitude :", activePanel);
+    console.log("[IA DIAGNOSTIC] Tuile active ciblée :", activePanel);
     const panel = findPanelNode(rootNode, activePanel);
     if (!panel || !panel.view) return "Tuile introuvable.";
 
-    try {
+    // Déclaration de la variable en dehors de la Promesse pour y avoir accès partout
+    let pageContent = null;
 
+    try {
         // 1. Déploiement et exécution de l'injecteur DOM
         const injectorPath = path.join(__dirname, 'nanobrowser', 'injector.js');
         if (fs.existsSync(injectorPath)) {
             const scriptCode = fs.readFileSync(injectorPath, 'utf8');
-            // Le '; void 0;' final évite l'erreur "An object could not be cloned"
             await panel.view.webContents.executeJavaScript(scriptCode + "; void 0;");
-            console.log("[IA DIAGNOSTIC] Injecteur de texte déployé avec succès.");
+            console.log("[IA DIAGNOSTIC] Injecteur de texte déployé.");
         }
 
-        // 2. Récupération du contenu textuel de la page web active
-        const pageContent = await panel.view.webContents.executeJavaScript(
-            "window.NanobrowserExecutor && window.NanobrowserExecutor.getPageContent()"
-        );
+        // Un micro-délai pour laisser le moteur Chromium enregistrer l'objet dans le scope window
+        await new Promise(r => setTimeout(r, 50));
+
+        // 2. Récupération sécurisée du contenu textuel du DOM
+        pageContent = await panel.view.webContents.executeJavaScript(`
+            (function() {
+                if (window.NanobrowserExecutor && typeof window.NanobrowserExecutor.getPageContent === 'function') {
+                    return window.NanobrowserExecutor.getPageContent();
+                }
+                // Secours direct si l'objet window a sauté ou n'est pas prêt :
+                return {
+                    text: document.body.innerText || "",
+                    url: window.location.href || "",
+                    title: document.title || ""
+                };
+            })();
+        `);
 
         if (!pageContent || !pageContent.text) {
-            console.log("[IA DIAGNOSTIC] ❌ Échec de l'extraction du texte.");
+            console.log("[IA DIAGNOSTIC] Échec de l'extraction du texte.");
             return "Impossible de lire le texte de la page courante.";
         }
         console.log("[IA DIAGNOSTIC] Contenu capturé avec succès (Longueur :", pageContent.text.length, "caractères).");
 
-        // 3. Ajustement dynamique de l'instruction système (Prompt Engineering)
-        let systemInstruction = "";
-        if (prompt.toLowerCase().includes("résumé") || prompt.toLowerCase().includes("resume")) {
-            systemInstruction = `Tu es un assistant IA. Résume la page web suivante de façon concise en 3 points clés.\nTitre : ${pageContent.title}\nContenu : ${pageContent.text.substring(0, 5000)}`;
-        } else {
-            systemInstruction = `Tu es un assistant IA intégré au navigateur. Réponds à la question de l'utilisateur en utilisant les informations de la page web courante si nécessaire.\nTitre de la page : ${pageContent.title}\nContenu de la page : ${pageContent.text.substring(0, 5000)}`;
-        }
+    } catch (err) {
+        console.error("[IA DIAGNOSTIC] Erreur lors de l'extraction de la page :", err);
+        return `Erreur lors de la lecture de la page web : ${err.message}`;
+    }
 
-        // 4. Préparation de la structure JSON pour Ollama
-        const postData = JSON.stringify({
-            model: model,
-            prompt: prompt,
-            system: systemInstruction,
-            stream: false // Requis pour obtenir la réponse d'un seul bloc
-        });
+    // 3. Traitement et envoi de la requête asynchrone à Ollama
+    return new Promise((resolve) => {
+        try {
+            let systemInstruction = "";
+            if (prompt.toLowerCase().includes("résumé") || prompt.toLowerCase().includes("resume")) {
+                systemInstruction = `Tu es un assistant IA. Résume la page web suivante de façon concise en 3 points clés.\nTitre : ${pageContent.title}\nContenu : ${pageContent.text.substring(0, 5000)}`;
+            } else {
+                systemInstruction = `Tu es un assistant IA intégré au navigateur. Réponds à la question de l'utilisateur en utilisant les informations de la page web courante si nécessaire.\nTitre de la page : ${pageContent.title}\nContenu de la page : ${pageContent.text.substring(0, 5000)}`;
+            }
 
-        console.log(`[IA DIAGNOSTIC] Envoi de la requête HTTP à Ollama (127.0.0.1:11434) avec le modèle ${model}...`);
-        const http = require('http');
-        
-        // 5. Envoi via le module HTTP natif pour contourner les blocages de pare-feu/CORS sous Windows
-        return new Promise((resolve) => {
+            const postData = JSON.stringify({
+                model: model,
+                prompt: prompt,
+                system: systemInstruction,
+                stream: false
+            });
+
+            console.log(`[IA DIAGNOSTIC] Envoi de la requête HTTP à Ollama avec le modèle ${model}...`);
+            const http = require('http');
+            
             const req = http.request({
                 hostname: '127.0.0.1',
                 port: 11434,
@@ -3420,43 +3466,42 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, { prompt, model = "qwen2.
                     'Content-Type': 'application/json',
                     'Content-Length': Buffer.byteLength(postData)
                 },
-                timeout: 120000 // 2 minutes max pour laisser les processeurs plus anciens répondre
+                timeout: 120000
             }, (res) => {
                 let body = '';
-                console.log("[IA DIAGNOSTIC] Connexion établie. Code statut Ollama :", res.statusCode);
                 res.setEncoding('utf8');
                 res.on('data', (chunk) => body += chunk);
                 res.on('end', () => {
                     try {
                         const parsed = JSON.parse(body);
-                        console.log("[IA DIAGNOSTIC] ✅ Réponse reçue d'Ollama avec succès !");
+                        console.log("[IA DIAGNOSTIC] Réponse reçue d'Ollama avec succès.");
                         resolve(parsed.response || "L'IA a renvoyé une réponse vide.");
                     } catch (e) {
-                        console.log("[IA DIAGNOSTIC] ❌ Échec de la lecture du JSON d'Ollama.");
-                        resolve("Erreur lors de l'analyse du format de la réponse.");
+                        console.log("[IA DIAGNOSTIC] Échec de la lecture du JSON d'Ollama.");
+                        resolve("Erreur lors de l'analyse du format de la réponse renvoyée par Ollama.");
                     }
                 });
             });
 
             req.on('error', (e) => {
-                console.log("[IA DIAGNOSTIC] ❌ ERREUR RÉSEAU OLLAMA :", e.message);
-                resolve(`Impossible de joindre l'IA local. Vérifiez qu'Ollama est démarré (${e.message}).`);
+                console.log("[IA DIAGNOSTIC] ERREUR RÉSEAU OLLAMA :", e.message);
+                resolve(`Impossible de joindre l'IA locale. Vérifiez qu'Ollama est démarré en arrière-plan (${e.message}).`);
             });
 
             req.on('timeout', () => {
                 req.destroy();
-                console.log("[IA DIAGNOSTIC] ❌ ERREUR : Temps d'attente dépassé (Timeout).");
+                console.log("[IA DIAGNOSTIC] ERREUR : Temps d'attente dépassé (Timeout).");
                 resolve("L'IA locale a mis trop de temps à répondre (Délai d'attente dépassé).");
             });
 
             req.write(postData);
             req.end();
-        });
 
-    } catch (error) {
-        console.error("[IA DIAGNOSTIC] ❌ Erreur critique lors du traitement de l'IA :", error);
-        return `Erreur système interne : ${error.message}`;
-    }
+        } catch (innerError) {
+            console.error("[IA DIAGNOSTIC] Erreur interne dans la promesse Ollama :", innerError);
+            resolve(`Erreur interne de traitement : ${innerError.message}`);
+        }
+    });
 });
 
 // L'interface IA demande à exécuter une action (ex: cliquer sur un bouton)

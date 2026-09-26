@@ -25,30 +25,35 @@ contextBridge.exposeInMainWorld(
 // Dans preload.js -> À l'intérieur de contextBridge.exposeInMainWorld('api', { ... })
 
 // Dans preload.js -> À insérer dans l'objet exposé sous 'api'
-on: (channel, func) => {
+// Dans preload.js -> Dans la méthode on: (channel, func)
 
+on: (channel, func) => {
     const validChannels = [
         "system-theme-changed", 
         "ai-sidebar-geometry-update", 
-        "toggle-ai-sidebar-keyboard-force" // <-- AJOUTEZ CETTE LIGNE ICI
+        "toggle-ai-sidebar-keyboard-force",
+        "trigger-ai-action" // <-- AJOUTEZ CETTE LIGNE ICI pour autoriser le clic droit !
     ];
 
     if (validChannels.includes(channel)) {
-        // Supprime l'écouteur précédent s'il existe pour éviter les fuites de mémoire
         ipcRenderer.removeAllListeners(channel);
         ipcRenderer.on(channel, (event, ...args) => func(...args));
     }
 },
 
 
+// DANS PRELOAD.JS -> Dans l'objet exposé sous 'api' :
 
+// Ajoutez cette ligne directe :
+askOllamaDirect: (prompt, model) => ipcRenderer.invoke("nanobrowser-ask-ollama", { prompt, model }),
+
+// Lignes existantes (vous pouvez les laisser) :
 nanobrowser: {
     getContext: () => ipcRenderer.invoke("nanobrowser-get-context"),
     executeAction: (actionType, argument) => ipcRenderer.invoke("nanobrowser-execute-action", { actionType, argument }),
-    
-    // AJOUTEZ CETTE LIGNE :
     askOllama: (prompt, model) => ipcRenderer.invoke("nanobrowser-ask-ollama", { prompt, model })
 },
+
 
 // Dans preload.js -> Dans l'objet exposé sous contextBridge
 toggleAiSidebar: (isVisible) => ipcRenderer.send("toggle-ai-sidebar-request", isVisible),

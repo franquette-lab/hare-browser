@@ -1704,34 +1704,38 @@ if (document.documentElement.classList.contains('mw-theme-client-dark') || typeo
 
 
 
+// DANS INDEX.HTML -> Remplacer la fonction envoyerRequeteIA
+
 async function envoyerRequeteIA(questionUser) {
     const modeleChoisi = "qwen2.5:1.5b";
+    const aiSidebar = document.getElementById("ai-sidebar");
     
-    // État de chargement élégant avec le nouvel émoji
-    aiResponseContainer.innerHTML = '<span style="color: #a1a1aa; font-style: italic; font-size: 12px;">✨ L\'IA analyse le contenu de la tuile active... Veuillez patienter.</span>';
+    // Force l'ouverture visuelle immédiate du volet
+    if (aiSidebar) aiSidebar.style.right = "0px";
+    
+    // Affiche le message d'attente à l'utilisateur
+    aiResponseContainer.innerHTML = '<span style="color: #a1a1aa; font-style: italic; font-size: 12px;">⏳ L\'IA analyse le contenu de la tuile active... Veuillez patienter.</span>';
+    
+    console.log("[IHM DIAGNOSTIC] Envoi de la demande d'IA au processus principal pour :", questionUser);
     
     try {
-        const reponse = await window.api.nanobrowser.askOllama(questionUser, modeleChoisi);
+        // Appel via le canal direct aplati
+        const reponse = await window.api.askOllamaDirect(questionUser, modeleChoisi);
         
-        // Interception et affichage du focus manquant aligné impeccablement à gauche
-// DANS INDEX.HTML -> Dans votre fonction envoyerRequeteIA()
+        console.log("[IHM DIAGNOSTIC] Réponse reçue du processus principal :", reponse);
 
-// DANS INDEX.HTML -> Dans la fonction envoyerRequeteIA()
-
-if (reponse && reponse.trim() === "SELECT_PANEL_REQUIRED") {
-    aiResponseContainer.innerHTML = `
-<div style="line-height: 1.6; text-align: left;">
-<div class="ai-alert-badge" style="display: flex; flex-direction: row; align-items: center; justify-content: center; height: 38px; line-height: 38px; margin-bottom: 16px; border-radius: 6px; font-weight: 600; font-size: 12.5px; box-sizing: border-box;">
-    <span style="display: inline-flex; align-items: center; justify-content: center; height: 100%; line-height: 1;">❌ Action impossible</span>
-</div>
-<span style="font-size: 12px;">Veuillez d'abord cliquer au centre de la tuile web que vous souhaitez analyser pour lui donner le focus, puis réessayez.</span>
-</div>
-    `;
-    return; // On stoppe la fonction ici
-}
-
+        if (reponse && reponse.trim() === "SELECT_PANEL_REQUIRED") {
+            aiResponseContainer.innerHTML = `
+                <div style="line-height: 1.6; text-align: left;">
+                <div class="ai-alert-badge" style="display: flex; flex-direction: row; align-items: center; justify-content: center; height: 38px; line-height: 38px; margin-bottom: 16px; border-radius: 6px; font-weight: 600; font-size: 12.5px; box-sizing: border-box; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #f87171;">
+                    <span style="display: inline-flex; align-items: center; justify-content: center; height: 100%; line-height: 1;">⚠️ Action impossible</span>
+                </div>
+                <span style="font-size: 12px;">Veuillez d'abord cliquer au centre de la tuile web que vous souhaitez analyser pour lui donner le focus, puis réessayez.</span>
+                </div>
+            `;
+            return;
+        }
         
-        // Affichage du résultat final
         if (reponse) {
             aiResponseContainer.innerText = reponse;
         } else {
@@ -1740,9 +1744,10 @@ if (reponse && reponse.trim() === "SELECT_PANEL_REQUIRED") {
         
     } catch (error) {
         console.error("Erreur IHM Assistant:", error);
-        aiResponseContainer.innerHTML = `<span style="color: #f87171; font-size: 12px;">❌ Impossible de joindre l'IA (${error.message}).</span>`;
+        aiResponseContainer.innerHTML = `<span style="color: #f87171; font-size: 12px;">❌ Impossible de joindre le pont IPC (${error.message}).</span>`;
     }
 }
+
 
 
 </script>
