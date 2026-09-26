@@ -87,6 +87,88 @@ let isAiSidebarVisible = false; // Par défaut, le volet est fermé
 
 const https = require("https");
 
+
+
+// DANS MAIN.JS -> À ajouter avec vos autres fonctions globales
+
+function afficherMenuContextuelPanneau(webContents, x, y) {
+    const panel = findPanelByWebContents(webContents);
+    const panelId = panel ? panel.id : activePanel;
+    if (!panelId) return;
+
+    const targetPanel = findPanelNode(rootNode, panelId);
+    const isPrivate = targetPanel ? targetPanel.isPrivate : false;
+
+    const menuTemplate = [
+        {
+            label: `✨ Actions IA (Assistant)`,
+            enabled: false // Titre de section non cliquable
+        },
+        {
+            label: "   📝 Résumer cette tuile web",
+            click: () => {
+                if (win && !win.isDestroyed()) {
+                    // Force l'ouverture de la sidebar IA si elle était fermée
+                    if (!isAiSidebarVisible) ipcMain.emit("toggle-ai-sidebar-request", null, true);
+                    // Déclenche l'action de résumé automatique dans l'IHM
+                    win.webContents.send("trigger-ai-action", { action: "resume" });
+                }
+            }
+        },
+        {
+            label: "   🔍 Analyser les mots-clés de la page",
+            click: () => {
+                if (win && !win.isDestroyed()) {
+                    if (!isAiSidebarVisible) ipcMain.emit("toggle-ai-sidebar-request", null, true);
+                    win.webContents.send("trigger-ai-action", { action: "keywords" });
+                }
+            }
+        },
+        { type: "separator" },
+        {
+            label: "🧱 Agencement de la mosaïque",
+            enabled: false
+        },
+        {
+            label: "   ✂️ Scinder verticalement (Ctrl+T)",
+            click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', false)
+        },
+        {
+            label: "   ⚍ Scinder horizontalement (Ctrl+H)",
+            click: () => ipcMain.emit('split-panel', null, panelId, 'horizontal', false)
+        },
+        {
+            label: isPrivate ? "   🕵️ Ouvrir une tuile publique classique" : "   🕵️ Scinder en Navigation Privée (Ctrl+Shift+N)",
+            click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', !isPrivate)
+        },
+        { type: "separator" },
+        {
+            label: maximizedPanelId === panelId ? "🗗 Restaurer la taille de la mosaïque (Échap)" : "🗖 Maximiser cette tuile (Ctrl+M)",
+            click: () => {
+                maximizedPanelId = maximizedPanelId === panelId ? null : panelId;
+                forceRebuildSplitters = true;
+                resizeViews();
+                win.webContents.send("zoom-changed", maximizedPanelId);
+                updatePanelHandles();
+            }
+        },
+        {
+            label: "🖨️ Imprimer le contenu de la page (Ctrl+P)",
+            click: () => ipcMain.emit('print-panel', null, panelId)
+        },
+        { type: "separator" },
+        {
+            label: "❌ Fermer cette tuile (Ctrl+W)",
+            click: () => ipcMain.emit('close-panel', null, panelId)
+        }
+    ];
+
+    const contextMenu = Menu.buildFromTemplate(menuTemplate);
+    contextMenu.popup({ window: win, x, y });
+}
+
+
+
 function applyThemeToView(view) {
 
     if (!view || !view.webContents) {
@@ -874,15 +956,23 @@ function collectPanelNodes(node, panels = []) {
     return panels;
 }
 
+// Dans main.js -> Remplacez votre fonction updatePanelUrl par celle-ci :
+
 function updatePanelUrl(panel, url) {
-    panel.url = url;
-    if (panel.view && !panel.view.webContents.isDestroyed()) {
-        panel.title = panel.view.webContents.getTitle();
+    // CORRECTIF : Si le panneau est privé et qu'il est sur la page d'accueil d'origine
+    if (panel.isPrivate && (url.startsWith('data:text/html') || url === panel.url)) {
+        panel.url = "Navigation Privée";
+        panel.title = "Navigation Privée";
+    } else {
+        panel.url = url;
+        if (panel.view && !panel.view.webContents.isDestroyed()) {
+            panel.title = panel.view.webContents.getTitle();
+        }
     }
 
     win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
-
 }
+
 
 function updateNavigationButtons() {
 
@@ -918,6 +1008,16 @@ function setupNavigationTracking(panel) {
     if (!panel || !panel.view) return;
 
     let initialLoadFinished = false;
+
+
+// Dans main.js -> À l'intérieur de la fonction setupNavigationTracking(panel)
+
+    // Écouteur pour intercepter le clic droit sur la page web de la tuile
+    panel.view.webContents.on("context-menu", (event, params) => {
+        event.preventDefault();
+        // On affiche notre menu d'actions au pixel près où se trouve la souris
+        afficherMenuContextuelPanneau(panel.view.webContents, params.x, params.y);
+    });
 
 
     panel.view.webContents.on("did-start-loading", () => {
@@ -958,9 +1058,15 @@ panel.view.webContents.on("did-finish-load", () => {
         const scriptCode = fs.readFileSync(injectorPath, 'utf8');
         
         // CORRECTION : On ajoute ; void 0; à la fin pour éviter qu'Electron essaie de cloner l'objet window
+/*
         panel.view.webContents.executeJavaScript(scriptCode + "; void 0;")
             .then(() => console.log(`IA prête sur la tuile ${panel.id}`))
             .catch(err => console.error("Erreur injection IA:", err));
+*/
+        panel.view.webContents.executeJavaScript(scriptCode + "; void 0;")
+            .catch(err => console.error("Erreur injection IA:", err));
+
+
     }
 });
 
@@ -1730,7 +1836,6 @@ app.on('web-contents-created', (event, webContents) => {
 ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
 
     const node = findPanelNode(rootNode, panelId);
-
     const parent = findParentNode(rootNode, panelId);    
 
     // ====== DANS MAIN.JS -> ipcMain.on("split-panel", ...) ======
@@ -1749,82 +1854,104 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
     const newView = new BrowserView(viewOptions);
     win.addBrowserView(newView);
 
-    // 1. Définition du code HTML / CSS de la page d'accueil privée
-    // 1. Définition du code HTML / CSS de la page d'accueil privée mis à jour
+
+// ___________________________________________________________________________________________
+
+// ====== DANS MAIN.JS -> ipcMain.on("split-panel", ...) ======
+
+    // --- CORRECTION DU THÈME INCOGNITO ---
+    // Au lieu de lire une variable globale, on demande directement à Electron son état réel
+    const { nativeTheme } = require('electron');
+    const isDark = nativeTheme.shouldUseDarkColors; 
+    const themeClass = isDark ? "mw-theme-client-dark" : "mw-theme-client-light";
+
+    // 1. Définition du code HTML / CSS de la page d'accueil privée mis à jour dynamiquement
     const incognitoHomeHtml = `
         <!DOCTYPE html>
-        <html lang="fr">
+        <html lang="fr" class="${themeClass}">
         <head>
             <meta charset="utf-8">
             <title>Navigation Privée</title>
             <style>
+                /* CONFIGURATION DE LA GÉOMÉTRIE (Élimine l'air en bas) */
+                html, body {
+                    height: 100%;
+                    margin: 0;
+                    padding: 0;
+                    overflow: hidden;
+                }
                 body {
                     font-family: 'Segoe UI', system-ui, sans-serif;
-                    background-color: #120b18; /* Fond violet très sombre */
-                    color: #e2e8f0;
+                    background-color: #f3f4f6; /* Gris clair par défaut */
+                    color: #1f2937; /* Texte foncé par défaut */
                     display: flex;
                     flex-direction: column;
                     align-items: center;
                     justify-content: center;
-                    min-height: 100vh;
-                    margin: 0;
-                    padding: 20px;
                     box-sizing: border-box;
+                    padding: 24px;
+                    transition: background 0.2s, color 0.2s;
                 }
                 .container {
-                    max-width: 550px;
+                    width: 100%;
+                    max-width: 480px;
+                    max-height: 95vh;
+                    overflow-y: auto;
                     text-align: center;
-                    background: #1e1229; /* Carte un peu plus claire */
-                    padding: 40px;
+                    background: #ffffff; /* Carte blanche */
+                    padding: 24px;
                     border-radius: 12px;
-                    border: 1px solid #4c1d95;
-                    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+                    border: 1px solid #e5e7eb;
+                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+                    box-sizing: border-box;
                 }
                 .icon {
-                    font-size: 54px;
-                    margin-bottom: 10px;
+                    font-size: 32px;
+                    margin-bottom: 8px;
                 }
                 h1 {
-                    font-size: 24px;
-                    margin-bottom: 15px;
-                    color: #c084fc; /* Violet néon */
+                    font-size: 20px;
+                    margin-top: 0;
+                    margin-bottom: 12px;
+                    color: #6b21a8; /* Violet foncé élégant */
                     font-weight: 600;
                 }
                 p {
-                    font-size: 14px;
-                    color: #94a3b8;
-                    line-height: 1.6;
-                    margin-bottom: 30px;
+                    font-size: 13px;
+                    color: #4b5563;
+                    line-height: 1.5;
+                    margin-bottom: 20px;
                 }
                 .lists-container {
                     display: flex;
-                    gap: 20px;
+                    flex-direction: column;
+                    gap: 12px;
                     text-align: left;
-                    margin-bottom: 30px;
+                    margin-bottom: 20px;
                 }
                 .list-box {
                     flex: 1;
-                    background: #150b1d;
-                    padding: 15px;
+                    background: #f9fafb;
+                    padding: 12px;
                     border-radius: 8px;
-                    border: 1px solid #2e1065;
+                    border: 1px solid #e5e7eb;
                 }
                 .list-box h3 {
                     margin-top: 0;
-                    font-size: 13px;
+                    font-size: 12.5px;
                     display: flex;
                     align-items: center;
                     gap: 6px;
                 }
-                .list-box.secure h3 { color: #4ade80; } /* Vert */
-                .list-box.warn h3 { color: #facc15; }   /* Jaune */
+                .list-box.secure h3 { color: #16a34a; }
+                .list-box.warn h3 { color: #d97706; }
                 ul {
                     margin: 0;
                     padding-left: 18px;
-                    font-size: 12px;
-                    color: #cbd5e1;
+                    font-size: 11.5px;
+                    color: #374151;
                 }
-                li { margin-bottom: 8px; line-height: 1.4; }
+                li { margin-bottom: 6px; line-height: 1.4; }
                 .btn-search {
                     background-color: #6b21a8;
                     color: white;
@@ -1834,9 +1961,31 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
                     border-radius: 6px;
                     cursor: pointer;
                     font-weight: 500;
+                    width: 100%;
+                    box-sizing: border-box;
                     transition: background 0.2s;
                 }
                 .btn-search:hover { background-color: #7e22ce; }
+
+                /* 🕵️ BASCULE ET FORÇAGE EN MODE SOMBRE (Correction des sélecteurs) */
+                .mw-theme-client-dark body {
+                    background-color: #120b18 !important; /* Votre fond violet très sombre d'origine */
+                    color: #e2e8f0 !important;
+                }
+                .mw-theme-client-dark .container {
+                    background: #1e1229 !important;
+                    border-color: #4c1d95 !important;
+                    box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
+                }
+                .mw-theme-client-dark h1 { color: #c084fc !important; }
+                .mw-theme-client-dark p { color: #94a3b8 !important; }
+                .mw-theme-client-dark .list-box {
+                    background: #150b1d !important;
+                    border-color: #2e1065 !important;
+                }
+                .mw-theme-client-dark ul { color: #cbd5e1 !important; }
+                .mw-theme-client-dark .list-box.secure h3 { color: #4ade80 !important; }
+                .mw-theme-client-dark .list-box.warn h3 { color: #facc15 !important; }
             </style>
         </head>
         <body>
@@ -1852,7 +2001,7 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
                             <li>Historique de navigation locale</li>
                             <li>Cookies et données de session</li>
                             <li>Saisies dans les formulaires</li>
-                            <li><b>Mémoire cache détruite à la fermeture</b></li>
+                            <li>Mémoire cache détruite à la fermeture</li>
                         </ul>
                     </div>
                     <div class="list-box warn">
@@ -1886,7 +2035,6 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
     setupNavigationTracking(newPanel);            
 
     const newSplit = new SplitNode(direction);
-
     newSplit.ratio = 0.5;
 
     if (!parent) {
@@ -1901,9 +2049,7 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
     }
 
     saveState();
-    
     activePanel = newPanelId;
-    
     forceRebuildSplitters = true;
     resizeViews();
     
@@ -1911,6 +2057,7 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
     win.webContents.send("active-panel-changed", { id: newPanel.id, bounds: newPanel.bounds });
     updateActiveBorder(newPanel.bounds);
 });
+
 
 function createDefaultLayout() {
 
