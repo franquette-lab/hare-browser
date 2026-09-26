@@ -794,19 +794,23 @@ function rebuildUrlBar(panels) {
     document.getElementById("forward-button").addEventListener("click", () => window.api.goForward(activePanel));
     document.getElementById("refresh-button").addEventListener("click", () => window.api.refresh(activePanel));
 
-    document.getElementById("save-config-btn")?.addEventListener("click", async () => {
-        const success = await window.api.saveConfigToFile();
-        if (success) {
-            console.log("Configuration des panneaux exportée avec succès !");
-        }
-    });
+// Remplacez l'écouteur du bouton Sauver par :
+document.getElementById("save-config-btn")?.addEventListener("click", async () => {
+    if (currentMaximizedId) return; // Sécurité : bloque l'export si zoom actif
+    const success = await window.api.saveConfigToFile();
+    if (success) {
+        console.log("Configuration des panneaux exportée avec succès !");
+    }
+});
 
-    document.getElementById("load-config-btn")?.addEventListener("click", async () => {
-        const success = await window.api.loadConfigFromFile();
-        if (success) {
-            console.log("Nouvelle configuration des panneaux chargée avec succès !");
-        }
-    });
+// Remplacez l'écouteur du bouton Charger par :
+document.getElementById("load-config-btn")?.addEventListener("click", async () => {
+    if (currentMaximizedId) return; // Sécurité : bloque l'import si zoom actif
+    const success = await window.api.loadConfigFromFile();
+    if (success) {
+        console.log("Nouvelle configuration des panneaux chargée avec succès !");
+    }
+});
 
 document.getElementById("split-vertical").addEventListener("click", () => {
     if (currentMaximizedId) return; // Sécurité
@@ -1019,27 +1023,32 @@ window.api.onZoomChanged((maximizedPanelId) => {
     const container = document.getElementById("url-bar");
     if (!container) return;
 
-    // Ciblage des boutons de la barre d'outils à griser
+    // Ciblage de toutes les icônes de la barre d'outils à griser en mode zoom
     const btnPrivate = document.getElementById("split-private-vertical");
     const btnVertical = document.getElementById("split-vertical");
     const btnHorizontal = document.getElementById("split-horizontal");
+    const btnSave = document.getElementById("save-config-btn");
+    const btnLoad = document.getElementById("load-config-btn");
     
     if (maximizedPanelId) {
         container.classList.add("maximized-mode");
         
-        // Mode Zoom actif : On grise et désactive les boutons
-        [btnPrivate, btnVertical, btnHorizontal].forEach(btn => {
+        // Mode Zoom actif : On grise et désactive toutes les actions d'agencement et config
+        [btnPrivate, btnVertical, btnHorizontal, btnSave, btnLoad].forEach(btn => {
             if (btn) {
                 btn.disabled = true;
                 btn.style.opacity = "0.4";
                 btn.style.cursor = "not-allowed";
-                btn.title = btn.title + " (Désactivé en mode Zoom)";
+                // On évite d'accumuler le texte d'avertissement s'il est déjà présent
+                if (!btn.title.includes("(Désactivé")) {
+                    btn.title = btn.title + " (Désactivé en mode Zoom)";
+                }
             }
         });
     } else {
         container.classList.remove("maximized-mode");
         
-        // Mode Mosaïque normal : On réactive les boutons
+        // Mode Mosaïque normal : On réactive tous les boutons avec leur titre d'origine
         if (btnPrivate) {
             btnPrivate.disabled = false;
             btnPrivate.style.opacity = "1";
@@ -1057,6 +1066,18 @@ window.api.onZoomChanged((maximizedPanelId) => {
             btnHorizontal.style.opacity = "1";
             btnHorizontal.style.cursor = "pointer";
             btnHorizontal.title = "Scinder vers le bas (Ctrl+H)";
+        }
+        if (btnSave) {
+            btnSave.disabled = false;
+            btnSave.style.opacity = "1";
+            btnSave.style.cursor = "pointer";
+            btnSave.title = "Sauver la configuration des panneaux (Ctrl+S)";
+        }
+        if (btnLoad) {
+            btnLoad.disabled = false;
+            btnLoad.style.opacity = "1";
+            btnLoad.style.cursor = "pointer";
+            btnLoad.title = "Charger une configuration des panneaux (Ctrl+O)";
         }
     }
 });
