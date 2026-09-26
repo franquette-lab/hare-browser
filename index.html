@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
 <!-- ====== index.html ====== -->
+ <!-- Tout en haut de la balise <head> dans index.html -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data: http://127.0.0.1:11434; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
 <head>
     <meta charset="UTF-8">
     <title></title>
@@ -338,6 +340,67 @@ html.dark .bookmark-item:hover {
     align-items: center;
 }
 
+
+
+/* =================================================== */
+/* DESIGN DE L'ASSISTANT IA DYNAMIQUE CLAIR / SOMBRE  */
+/* =================================================== */
+
+/* 1. Thème CLAIR par défaut (Textes bien foncés) */
+/* 1. Thème CLAIR par défaut - FORÇAGE DES CONTRASTES */
+.ai-sidebar-native {
+    background: #f3f4f6 !important;
+    color: #111827 !important; /* Texte de base très foncé */
+    border-left-color: #cbd5e1 !important;
+}
+.ai-sidebar-native .ai-title-text {
+    color: #111827 !important; /* TITRE EN NOIR FONCÉ SURCHARGÉ */
+}
+.ai-sidebar-native #ai-response-container {
+    color: #1f2937 !important; /* Descriptif en gris très foncé */
+}
+/* Forçage de l'encadré du bas en gris clair (plus de rectangle noir) */
+.ai-sidebar-native .ai-footer-box {
+    background: #e5e7eb !important; /* Fond gris clair */
+    border: 1px solid #cbd5e1 !important;
+}
+.ai-sidebar-native #ai-user-prompt {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border-color: #cbd5e1 !important;
+}
+
+
+
+/* 2. Thème SOMBRE automatique (Dès que la classe est activée) */
+.ai-sidebar-native.dark-mode-active {
+    background: #1e1e1e !important;
+    color: #cfcfcf !important;
+    border-left-color: #3c3c3c !important;
+}
+.ai-sidebar-native.dark-mode-active .ai-title-text {
+    color: #ffffff !important;
+}
+.ai-sidebar-native.dark-mode-active #ai-response-container {
+    color: #e2e8f0 !important;
+}
+/* Encadré du bas en noir/anthracite en mode sombre */
+.ai-sidebar-native.dark-mode-active .ai-footer-box {
+    background: #18181b !important;
+    border: 1px solid #27272a !important;
+}
+.ai-sidebar-native.dark-mode-active #ai-user-prompt {
+    background: #2d2d30 !important;
+    color: #ffffff !important;
+    border-color: #3c3c3c !important;
+}
+.ai-sidebar-native.dark-mode-active .ai-alert-badge {
+    background: rgba(239, 68, 68, 0.1) !important;
+    border: 1px solid rgba(239, 68, 68, 0.2) !important;
+    color: #f87171 !important;
+}
+
+
 </style>
 
 <body class="m-0 flex items-center justify-center bg-gray-100 dark:bg-zinc-900 min-h-screen">
@@ -417,27 +480,32 @@ html.dark .bookmark-item:hover {
 </div>
 
 
-<!-- Dans index.html -> Juste sous la div #history-sidebar -->
-<div id="ai-sidebar" style="position: fixed; top: 38px; right: -300px; width: 300px; bottom: 0; background: #1e1e1e; border-left: 1px solid #3c3c3c; z-index: 99999; display: flex; flex-direction: column; padding: 12px; box-sizing: border-box; transition: right 0.3s ease; color: #cfcfcf; font-family: sans-serif;">
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3c3c3c; padding-bottom: 8px; margin-bottom: 12px;">
-        <!-- Dans index.html -> Dans la div #ai-sidebar -->
-<span style="color: #ffffff; font-weight: bold; font-size: 13px;">Assistant IA ✨ (Ollama)</span>
+<!-- Dans index.html -> Remplacez la ligne d'ouverture de #ai-sidebar par celle-ci (on enlève le background fixe et la top position en dur) -->
+<div id="ai-sidebar" class="ai-sidebar-native" style="position: fixed; top: 64px; right: -300px; width: 300px; bottom: 0; border-left: 1px solid #3c3c3c; z-index: 99999; display: flex; flex-direction: column; padding: 16px; box-sizing: border-box; transition: right 0.3s ease, background 0.2s, color 0.2s, border-color 0.2s; font-family: sans-serif;">
+    
+    <!-- En-tête de la Sidebar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3c3c3c; padding-bottom: 12px; margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 14px;">✨</span>
 
-        <span id="close-ai-sidebar" style="cursor: pointer; color: #ef4444; font-weight: bold;">×</span>
+            <span class="ai-title-text" style="font-weight: bold; font-size: 13px;">Assistant IA (Ollama)</span>
+
+        </div>
+        <span id="close-ai-sidebar" style="cursor: pointer; color: #9ca3af; font-weight: bold; font-size: 16px; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#9ca3af'">×</span>
     </div>
     
-    <!-- Zone de texte où s'affichera la réponse de l'IA -->
-<!-- Dans index.html -> Dans la div #ai-sidebar, remplacez la ligne du conteneur par celle-ci -->
-<div id="ai-response-container" style="flex: 1; overflow-y: auto; font-size: 12px; line-height: 1.5; padding-right: 4px; white-space: pre-wrap; margin-bottom: 12px; text-align: left;">
-    Cliquez sur le bouton ci-dessous ou posez une question pour analyser la page web active...
-</div>
+    <!-- Zone d'affichage des réponses (Conteneur de texte) -->
+    <div id="ai-response-container" style="flex: 1; overflow-y: auto; font-size: 12.5px; line-height: 1.6; padding-right: 4px; white-space: pre-wrap; margin-bottom: 16px; text-align: left; color: #e2e8f0;">Cliquez sur le bouton ci-dessous ou posez une question pour analyser une page web...</div>
 
-    <!-- Saisie utilisateur et boutons de commande -->
-    <div style="display: flex; flex-direction: column; gap: 6px;">
-        <input type="text" id="ai-user-prompt" placeholder="Poser une question sur la page..." style="width: 100%; height: 26px; background: #2d2d30; border: 1px solid #3c3c3c; color: white; border-radius: 4px; padding: 0 6px; font-size: 12px; box-sizing: border-box;">
-        <div style="display: flex; gap: 4px;">
-            <button id="ai-submit-btn" style="flex: 1; height: 24px; background: #2563eb; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: bold;">Poser la question</button>
-            <button id="ai-summary-btn" style="height: 24px; background: #15803d; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: bold; padding: 0 8px;">Résumer la page</button>
+    <!-- Zone de saisie et Commandes -->
+    <!-- Dans index.html -> Dans la div #ai-sidebar, remplacez la ligne de l'encadré du bas par celle-ci : -->
+    <div class="ai-footer-box" style="display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 8px;">
+ 
+        <input type="text" id="ai-user-prompt" placeholder="Poser une question..." style="width: 100%; height: 32px; background: #2d2d30; border: 1px solid #3c3c3c; color: white; border-radius: 6px; padding: 0 10px; font-size: 12px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#3c3c3c'">
+        
+        <div style="display: flex; gap: 8px;">
+            <button id="ai-submit-btn" style="flex: 1; height: 30px; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; transition: background 0.2s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Poser la question</button>
+            <button id="ai-summary-btn" style="height: 30px; background: #16a34a; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; padding: 0 12px; transition: background 0.2s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">Résumer</button>
         </div>
     </div>
 </div>
@@ -1560,41 +1628,76 @@ document.getElementById("ai-user-prompt").addEventListener("keydown", (e) => {
 // VOTRE FONCTION INTEGRÉE ET MISE À JOUR :
 // DANS INDEX.HTML -> Remplacez la fonction envoyerRequeteIA par celle-ci :
 
+// DANS INDEX.HTML -> Dans la balise <script>, remplacez votre fonction par celle-ci :
+
+
+// Dans la balise <script> de index.html
+
+// Tout en haut de votre logique de Sidebar dans index.html (Script)
+const aiSidebarElement = document.getElementById("ai-sidebar");
+
+// Synchronisation de la hauteur de la barre d'outils
+window.api.on("ai-sidebar-geometry-update", (data) => {
+    if (data && data.topPosition) {
+        aiSidebarElement.style.top = data.topPosition + "px";
+    }
+});
+
+// Synchronisation dynamique du thème Clair / Sombre
+window.api.on("system-theme-changed", (isDarkMode) => {
+    if (isDarkMode) {
+        aiSidebarElement.classList.add("dark-mode-active");
+    } else {
+        aiSidebarElement.classList.remove("dark-mode-active");
+    }
+});
+
+// Vérification de secours au démarrage (calée sur l'état de votre fonction setDarkMode de l'IHM)
+if (document.documentElement.classList.contains('mw-theme-client-dark') || typeof isDarkModeForced !== 'undefined' && isDarkModeForced) {
+    aiSidebarElement.classList.add("dark-mode-active");
+} else {
+    aiSidebarElement.classList.remove("dark-mode-active");
+}
+
+
+
 async function envoyerRequeteIA(questionUser) {
     const modeleChoisi = "qwen2.5:1.5b";
     
-    // 1. Affichage de l'état de vérification initial
-    aiResponseContainer.innerHTML = '<span style="color: #6b7280; font-style: italic;">🤖 L\'IA vérifie la cible...</span>';
+    // État de chargement élégant avec le nouvel émoji
+    aiResponseContainer.innerHTML = '<span style="color: #a1a1aa; font-style: italic; font-size: 12px;">✨ L\'IA analyse le contenu de la tuile active... Veuillez patienter.</span>';
     
     try {
-        // 2. Appel asynchrone de votre script principal main.js
         const reponse = await window.api.nanobrowser.askOllama(questionUser, modeleChoisi);
         
-        // 3. INTERCEPTION CRUCIALE : Si le texte vaut exactement le mot-clé de sécurité
-// DANS INDEX.HTML -> Dans la fonction envoyerRequeteIA
+        // Interception et affichage du focus manquant aligné impeccablement à gauche
+// DANS INDEX.HTML -> Dans votre fonction envoyerRequeteIA()
+
+// DANS INDEX.HTML -> Dans la fonction envoyerRequeteIA()
 
 if (reponse && reponse.trim() === "SELECT_PANEL_REQUIRED") {
     aiResponseContainer.innerHTML = `
-<div style="padding: 4px; line-height: 1.6; text-align: left;">
-<div style="text-align: center; margin-bottom: 12px;">
-<span style="color: #ef4444; font-weight: bold; font-size: 13px;">❌ Action impossible</span>
+<div style="line-height: 1.6; text-align: left;">
+<div class="ai-alert-badge" style="display: flex; flex-direction: row; align-items: center; justify-content: center; height: 38px; line-height: 38px; margin-bottom: 16px; border-radius: 6px; font-weight: 600; font-size: 12.5px; box-sizing: border-box;">
+    <span style="display: inline-flex; align-items: center; justify-content: center; height: 100%; line-height: 1;">❌ Action impossible</span>
 </div>
-<span style="color: #a3a3a3; font-size: 11px;">Veuillez d'abord cliquer au centre de la tuile web que vous souhaitez analyser (Google, Wikipédia, etc.) pour lui donner le focus, puis réessayez.</span>
+<span style="font-size: 12px;">Veuillez d'abord cliquer au centre de la tuile web que vous souhaitez analyser pour lui donner le focus, puis réessayez.</span>
 </div>
     `;
     return; // On stoppe la fonction ici
 }
 
-        // 4. Affichage normal du résumé ou de la réponse si un panneau avait le focus
+        
+        // Affichage du résultat final
         if (reponse) {
             aiResponseContainer.innerText = reponse;
         } else {
-            aiResponseContainer.innerHTML = '<span style="color: #ef4444;">❌ L\'IA a renvoyé une réponse vide.</span>';
+            aiResponseContainer.innerHTML = '<span style="color: #f87171; font-size: 12px;">❌ L\'IA a renvoyé une réponse vide.</span>';
         }
         
     } catch (error) {
         console.error("Erreur IHM Assistant:", error);
-        aiResponseContainer.innerHTML = `<span style="color: #ef4444;">❌ Impossible de joindre l'IA (${error.message}).</span>`;
+        aiResponseContainer.innerHTML = `<span style="color: #f87171; font-size: 12px;">❌ Impossible de joindre l'IA (${error.message}).</span>`;
     }
 }
 

@@ -1,10 +1,11 @@
 node_modules/
-tailwind.css
 src/
-scripts.txt
 OLD/
 searxng/
 dist/
 NeverIdle/
 ORACLE/
 dist/
+navigation_history.json
+scripts.txt
+tailwind.css

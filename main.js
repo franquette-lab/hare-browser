@@ -1194,8 +1194,16 @@ ipcMain.on("show-url-context-menu", (event) => {
 ipcMain.on("toggle-ai-sidebar-request", (event, isVisible) => {
     isAiSidebarVisible = isVisible;
     forceRebuildSplitters = true;
-    resizeViews(); // Recalcule la taille de l'écran immédiatement
+    resizeViews(); // Recalcule l'affichage des tuiles
+    
+    // NOUVEAU : On informe l'IHM de la hauteur exacte de la barre d'outils (TOOLBAR_HEIGHT)
+    if (win && !win.isDestroyed()) {
+        win.webContents.send("ai-sidebar-geometry-update", {
+            topPosition: TOOLBAR_HEIGHT
+        });
+    }
 });
+
 
 
 ipcMain.on("navigate", (event, panelId, input) => {
