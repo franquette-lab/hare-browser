@@ -89,7 +89,8 @@ const https = require("https");
 
 
 
-// DANS MAIN.JS -> À ajouter avec vos autres fonctions globales
+
+// DANS MAIN.JS -> Remplacez la fonction afficherMenuContextuelPanneau par celle-ci :
 
 function afficherMenuContextuelPanneau(webContents, x, y) {
     const panel = findPanelByWebContents(webContents);
@@ -99,18 +100,19 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
     const targetPanel = findPanelNode(rootNode, panelId);
     const isPrivate = targetPanel ? targetPanel.isPrivate : false;
 
+    // NOUVEAU : Détecter si le mode zoom/maximisé est actif sur le navigateur
+    const isZoomActive = maximizedPanelId !== null;
+
     const menuTemplate = [
         {
             label: `✨ Actions IA (Assistant)`,
-            enabled: false // Titre de section non cliquable
+            enabled: false
         },
         {
             label: "   📝 Résumer cette tuile web",
             click: () => {
                 if (win && !win.isDestroyed()) {
-                    // Force l'ouverture de la sidebar IA si elle était fermée
                     if (!isAiSidebarVisible) ipcMain.emit("toggle-ai-sidebar-request", null, true);
-                    // Déclenche l'action de résumé automatique dans l'IHM
                     win.webContents.send("trigger-ai-action", { action: "resume" });
                 }
             }
@@ -126,19 +128,22 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
         },
         { type: "separator" },
         {
-            label: "🧱 Agencement de la mosaïque",
+            label: isZoomActive ? "🧱 Agencement (Désactivé en mode Zoom)" : "🧱 Agencement de la mosaïque",
             enabled: false
         },
         {
             label: "   ✂️ Scinder verticalement (Ctrl+T)",
+            enabled: !isZoomActive, // NOUVEAU : Grisé si zoom actif
             click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', false)
         },
         {
             label: "   ⚍ Scinder horizontalement (Ctrl+H)",
+            enabled: !isZoomActive, // NOUVEAU : Grisé si zoom actif
             click: () => ipcMain.emit('split-panel', null, panelId, 'horizontal', false)
         },
         {
             label: isPrivate ? "   🕵️ Ouvrir une tuile publique classique" : "   🕵️ Scinder en Navigation Privée (Ctrl+Shift+N)",
+            enabled: !isZoomActive, // NOUVEAU : Grisé si zoom actif
             click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', !isPrivate)
         },
         { type: "separator" },
@@ -2812,7 +2817,6 @@ function createWindow() {
                 isAiSidebarVisible = false;
                 geometryChanged = true;
                 win.webContents.send("toggle-ai-sidebar-keyboard-force", false);
-                console.log("[IA CLAVIER] Volet IA masqué via Échap");
             }
 
             // 2. Si une tuile est agrandie, on la restaure
@@ -2826,7 +2830,6 @@ function createWindow() {
                     try { win.removeBrowserView(handleViews[panelIdToRestore]); } catch(e){}
                     delete handleViews[panelIdToRestore];
                 }
-                console.log("[IA CLAVIER] Tuile restaurée via Échap");
             }
 
             // 3. Si un changement a eu lieu, on recalcule l'écran

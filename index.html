@@ -1621,6 +1621,42 @@ window.api.on("trigger-ai-action", (data) => {
 });
 
 
+// DANS LA BALISE <SCRIPT> DE INDEX.HTML -> À ajouter ou fusionner
+
+window.api.on("zoom-changed", (maximizedPanelId) => {
+    // Si maximizedPanelId n'est pas nul, c'est que le mode Zoom est actif
+    const isZoomActive = maximizedPanelId !== null;
+
+    // Récupération de vos 3 boutons de la barre d'outils
+    const btnSplitRight = document.getElementById("split-right-btn");
+    const btnSplitBottom = document.getElementById("split-bottom-btn");
+    const btnPrivate = document.getElementById("open-private-btn");
+
+    [btnSplitRight, btnSplitBottom, btnPrivate].forEach(btn => {
+        if (btn) {
+            // 1. On active ou désactive nativement le bouton HTML
+            btn.disabled = isZoomActive;
+
+            // 2. Ajustement du style visuel (Grisé / Semi-transparent si inactif)
+            if (isZoomActive) {
+                btn.style.opacity = "0.4";
+                btn.style.cursor = "not-allowed";
+                // On sauvegarde le titre d'origine et on prévient l'utilisateur
+                btn.dataset.oldTitle = btn.title;
+                btn.title = "Désactivé en mode Zoom (Restaurez la mosaïque pour scinder)";
+            } else {
+                // Rétablissement du style normal
+                btn.style.opacity = "1";
+                btn.style.cursor = "pointer";
+                if (btn.dataset.oldTitle) {
+                    btn.title = btn.dataset.oldTitle;
+                }
+            }
+        }
+    });
+});
+
+
 // Tout en haut de votre logique de Sidebar dans index.html (Script)
 const aiSidebarElement = document.getElementById("ai-sidebar");
 
