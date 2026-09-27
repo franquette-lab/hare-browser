@@ -421,6 +421,9 @@ html.dark .bookmark-item:hover {
     <!-- L'attribut onclick appelle directement notre nouveau pont preload de manière brute -->
     <button id="history-button" title="Historique (Ctrl+H)" onclick="window.api.openHistoryWindow()" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer; position:relative; z-index:999999 !important;">🕒</button>
 
+    <!-- Bouton Gestionnaire de mots de passe -->
+    <button id="pwd-manager-btn" title="Gestionnaire de mots de passe" style="width:28px; height:24px; background:#2d2d30; color:#fbbf24; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🔑</button>
+
     <!-- À insérer dans votre bloc #toolbar-buttons (par exemple à côté de votre bouton d'impression ou d'historique) -->
     <button id="save-config-btn" title="Sauver la configuration des panneaux (Ctrl+S)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">💾</button>
    
@@ -511,6 +514,23 @@ html.dark .bookmark-item:hover {
             <button id="ai-summary-btn" style="height: 30px; background: #16a34a; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; padding: 0 12px; transition: background 0.2s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">Résumer</button>
         </div>
     </div>
+</div>
+
+
+<!-- Fenêtre Modale compacte du gestionnaire de mots de passe -->
+<!-- Dans index.html -> Remplacer la ligne d'ouverture de pwd-modal par celle-ci -->
+    <div id="pwd-modal" style="display: none; position: fixed; top: 50px; right: 20px; width: 320px; background: #ffffff; border: 1px solid #d1d5db; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); z-index: 9999999 !important; padding: 16px; font-family: sans-serif; color: #1f2937;">
+    
+    <!-- Formulaire d'ajout rapide -->
+    <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px; font-size:11px;">
+        <input type="text" id="pwd-input-url" placeholder="Ex: google.com" style="padding:4px; border:1px solid var(--button-border); border-radius:4px; background:transparent; color:inherit;">
+        <input type="text" id="pwd-input-user" placeholder="Identifiant / E-mail" style="padding:4px; border:1px solid var(--button-border); border-radius:4px; background:transparent; color:inherit;">
+        <input type="password" id="pwd-input-pass" placeholder="Mot de passe" style="padding:4px; border:1px solid var(--button-border); border-radius:4px; background:transparent; color:inherit;">
+        <button id="pwd-save-btn" style="background:#2563eb; color:white; border:none; border-radius:4px; padding:6px; cursor:pointer; font-weight:bold;">Enregistrer</button>
+    </div>
+
+    <!-- Liste des identifiants existants -->
+    <div id="pwd-list-container" style="max-height:180px; overflow-y:auto; font-size:11px; display:flex; flex-direction:column; gap:6px;"></div>
 </div>
 
 
@@ -1636,6 +1656,63 @@ document.getElementById("ai-user-prompt").addEventListener("keydown", (e) => {
         document.getElementById("ai-submit-btn").click();
     }
 });
+
+
+// DANS INDEX.HTML -> Modifier l'écouteur de clic du bouton "pwd-manager-btn"
+
+// DANS INDEX.HTML -> Remplacer l'écouteur du bouton de gestion des mots de passe
+document.getElementById("pwd-manager-btn").addEventListener("click", () => {
+    // Demande au processus principal d'ouvrir la fenêtre de gestion native
+    window.api.openPasswordManagerWindow();
+});
+
+
+document.getElementById("pwd-save-btn").addEventListener("click", async () => {
+    const url = document.getElementById("pwd-input-url").value.trim();
+    const username = document.getElementById("pwd-input-user").value.trim();
+    const password = document.getElementById("pwd-input-pass").value.trim();
+
+    if (url && username && password) {
+        await window.api.passwords.saveEntry({ url, username, password });
+        // Vide les champs de saisie
+        document.getElementById("pwd-input-url").value = "";
+        document.getElementById("pwd-input-user").value = "";
+        document.getElementById("pwd-input-pass").value = "";
+        refreshPasswordList();
+    }
+});
+
+async function refreshPasswordList() {
+    const container = document.getElementById("pwd-list-container");
+    if (!container) return;
+    container.innerHTML = "";
+    
+    const list = await window.api.passwords.getAll() || [];
+    if (list.length === 0) {
+        container.innerHTML = '<span style="color:#6b7280; font-style:italic; text-align:center;">Aucun mot de passe enregistré.</span>';
+        return;
+    }
+
+    list.forEach((item, index) => {
+        const div = document.createElement("div");
+        div.style = "display:flex; justify-content:space-between; align-items:center; background:var(--bg-main); padding:6px; border-radius:4px; border:1px solid var(--border-color);";
+        div.innerHTML = `
+            <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; padding-right:6px;">
+                <strong style="color:#2563eb;">${item.url}</strong><br>
+                <span style="color:#6b7280;">${item.username}</span> • <span style="font-family:monospace;">••••••</span>
+            </div>
+            <button class="pwd-del-btn" data-index="${index}" style="background:#ef4444; color:white; border:none; padding:2px 6px; border-radius:4px; cursor:pointer;">×</button>
+        `;
+        
+        div.querySelector(".pwd-del-btn").addEventListener("click", async (e) => {
+            const idx = e.target.getAttribute("data-index");
+            await window.api.passwords.deleteEntry(Number(idx));
+            refreshPasswordList();
+        });
+        
+        container.appendChild(div);
+    });
+}
 
 
 // VOTRE FONCTION INTEGRÉE ET MISE À JOUR :

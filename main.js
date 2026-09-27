@@ -5,6 +5,7 @@
 // Tout en haut de votre fichier main.js
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // Évite les blocages de certificats locaux
 
+// DANS MAIN.JS -> Tout en haut du fichier (après les constantes et imports)
 const {
     app,
     BrowserWindow,
@@ -14,9 +15,18 @@ const {
     nativeImage,
     nativeTheme,
     dialog,
-    globalShortcut, // <-- AJOUTEZ globalShortcut ICI
-    shell           // <-- AJOUTEZ shell ICI pour gérer les fichiers et dossiers
+    globalShortcut,
+    shell,
+    safeStorage // <-- Assurez-vous que safeStorage est bien présent dans vos imports Electron
 } = require('electron');
+
+// === CORRECTIF ALERTE SECURITE WINDOWS ===
+// Force Electron à utiliser une clé de chiffrement alternative interne au lieu de solliciter 
+// l'API de protection Windows (DPAPI) qui génère l'invite d'identité bloquante en développement.
+if (typeof safeStorage.setUseAlternativeEncryption === 'function') {
+    safeStorage.setUseAlternativeEncryption(true);
+}
+
 
 // En haut de main.js avec vos autres variables globales
 const APP_TITLE = "Hare Browser"; 
@@ -90,6 +100,20 @@ let isAiSidebarVisible = false; // Par défaut, le volet est fermé
 
 const https = require("https");
 
+
+
+// DANS MAIN.JS -> GESTION ET AFFICHAGE DE LA POPUP NATIVE DE MOTS DE PASSE
+let pwdWindow = null;
+
+function updatePasswordWindowContent() {
+    if (pwdWindow && !pwdWindow.isDestroyed()) {
+        const passwordList = getStoredPasswords();
+        pwdWindow.webContents.send('render-passwords', {
+            list: passwordList,
+            isDarkMode: isDarkModeForced
+        });
+    }
+}
 
 
 
@@ -253,7 +277,167 @@ async function safeWriteJsonAsync(filePath, data) {
         }
     }
 }
-    
+
+
+
+
+
+
+
+// DANS MAIN.JS -> Remplacer le bloc complet de gestion des mots de passe
+
+const passwordsPath = path.join(app.getPath('userData'), 'passwords.json');
+
+// Forçage de l'encryption alternative (à placer juste avant app.whenReady())
+app.on('ready', () => {
+    if (safeStorage && typeof safeStorage.setUseAlternativeEncryption === 'function') {
+        safeStorage.setUseAlternativeEncryption(true);
+    }
+});
+
+function getStoredPasswords() {
+    try {
+        // Sécurité absolue : si le fichier n'existe pas, on le crée tout de suite proprement
+        if (!fs.existsSync(passwordsPath)) {
+            fs.writeFileSync(passwordsPath, JSON.stringify([], null, 2), 'utf-8');
+            return [];
+        }
+        
+        const rawData = fs.readFileSync(passwordsPath, 'utf-8');
+        if (!rawData || !rawData.trim()) return [];
+        
+        const encryptedList = JSON.parse(rawData);
+        if (!Array.isArray(encryptedList)) return [];
+        
+        return encryptedList.map(item => {
+            try {
+                if (safeStorage && safeStorage.isEncryptionAvailable() && item.password && item.password.startsWith('encrypted:')) {
+                    const buffer = Buffer.from(item.password.replace('encrypted:', ''), 'base64');
+                    return { ...item, password: safeStorage.decryptString(buffer) };
+                }
+            } catch (e) { 
+                console.error("[PWD] Echec dechiffrement d'une ligne, fallback brut:", e); 
+            }
+            // Secours si non chiffré ou clé corrompue
+            return { ...item, password: item.password ? item.password.replace('encrypted:', '') : "" }; 
+        });
+    } catch (e) {
+        console.error("[PWD] Erreur critique lecture fichier, reinitialisation :", e);
+        return [];
+    }
+}
+
+async function savePasswordsSecurely(passwordList) {
+    try {
+        const encryptedList = passwordList.map(item => {
+            if (safeStorage && safeStorage.isEncryptionAvailable() && item.password) {
+                const encryptedBuffer = safeStorage.encryptString(item.password);
+                return { ...item, password: 'encrypted:' + encryptedBuffer.toString('base64') };
+            }
+            return item;
+        });
+        // Utilisation de la méthode robuste safeWriteJsonAsync de votre projet
+        await safeWriteJsonAsync(passwordsPath, encryptedList);
+        return true;
+    } catch (e) {
+        console.error("[PWD] Erreur écriture securisee :", e);
+        return false;
+    }
+}
+
+ipcMain.on("open-password-manager-window", () => {
+    if (pwdWindow && !pwdWindow.isDestroyed()) {
+        pwdWindow.focus();
+        return;
+    }
+
+    // Crée une fenêtre popup native de taille idéale au premier plan fixe
+    pwdWindow = new BrowserWindow({
+        width: 350,
+        height: 420,
+        title: "Gestionnaire de mots de passe",
+        backgroundColor: isDarkModeForced ? "#2d2d30" : "#ffffff",
+        autoHideMenuBar: true,
+        alwaysOnTop: true, // Reste au-dessus de vos BrowserViews mosaïques !
+        resizable: false,
+        webPreferences: {
+            nodeIntegration: true, 
+            contextIsolation: false 
+        }
+    });
+
+    pwdWindow.loadFile(path.join(__dirname, 'passwords.html'));
+
+    pwdWindow.webContents.on('did-finish-load', () => {
+        updatePasswordWindowContent();
+    });
+
+    pwdWindow.on("closed", () => {
+        pwdWindow = null;
+    });
+});
+
+// Écouteurs d'actions émis depuis passwords.html
+ipcMain.on('pwd-ui-save', async (event, entry) => {
+    let list = getStoredPasswords();
+    const existingIndex = list.findIndex(p => p.url === entry.url && p.username === entry.username);
+    if (existingIndex >= 0) {
+        list[existingIndex] = entry;
+    } else {
+        list.push(entry);
+    }
+    await savePasswordsSecurely(list);
+    updatePasswordWindowContent(); // Rafraîchit l'affichage de la popup
+});
+
+ipcMain.on('pwd-ui-delete', async (event, index) => {
+    let list = getStoredPasswords();
+    if (index >= 0 && index < list.length) {
+        list.splice(index, 1);
+        await savePasswordsSecurely(list);
+        updatePasswordWindowContent(); // Rafraîchit l'affichage de la popup
+    }
+});
+
+
+
+// Ré-enregistrement des handles IPC nettoyés
+ipcMain.removeHandler('pwd-get-all');
+ipcMain.handle('pwd-get-all', () => {
+    return getStoredPasswords();
+});
+
+ipcMain.removeHandler('pwd-save-entry');
+ipcMain.handle('pwd-save-entry', async (event, entry) => {
+    try {
+        let list = getStoredPasswords();
+        const existingIndex = list.findIndex(p => p.url === entry.url && p.username === entry.username);
+        if (existingIndex >= 0) {
+            list[existingIndex] = entry;
+        } else {
+            list.push(entry);
+        }
+        return await savePasswordsSecurely(list);
+    } catch (e) {
+        return false;
+    }
+});
+
+ipcMain.removeHandler('pwd-delete-entry');
+ipcMain.handle('pwd-delete-entry', async (event, index) => {
+    try {
+        let list = getStoredPasswords();
+        if (index >= 0 && index < list.length) {
+            list.splice(index, 1);
+            return await savePasswordsSecurely(list);
+        }
+        return false;
+    } catch (e) {
+        return false;
+    }
+});
+
+
 
 
 // ======================================================================
@@ -1083,23 +1267,46 @@ panel.view.webContents.on("context-menu", (event, params) => {
         }
     });
    
-// Dans main.js -> Dans la fonction setupNavigationTracking(panel)
-// Dans main.js -> Dans votre écouteur "did-finish-load"
-panel.view.webContents.on("did-finish-load", () => {
-    const injectorPath = path.join(__dirname, 'nanobrowser', 'injector.js');
-    if (fs.existsSync(injectorPath)) {
-        const scriptCode = fs.readFileSync(injectorPath, 'utf8');
-        
-        // CORRECTION : On ajoute ; void 0; à la fin pour éviter qu'Electron essaie de cloner l'objet window
-/*
-        panel.view.webContents.executeJavaScript(scriptCode + "; void 0;")
-            .then(() => console.log(`IA prête sur la tuile ${panel.id}`))
-            .catch(err => console.error("Erreur injection IA:", err));
-*/
-        panel.view.webContents.executeJavaScript(scriptCode + "; void 0;")
-            .catch(err => console.error("Erreur injection IA:", err));
 
+// Dans main.js -> Dans setupNavigationTracking -> did-finish-load
 
+panel.view.webContents.on("did-finish-load", async () => {
+    // ... (Votre code existant qui injecte le fichier injector.js) ...
+
+    // === CORRECTIF CRUCIAL DE L'AUTOFILL AUTOMATIQUE ===
+    if (!panel.isPrivate) { 
+        const currentUrl = panel.view.webContents.getURL();
+        try {
+            // Appelle directement la fonction JavaScript locale sans passer par ipcMain.handlers
+            let hostname = "";
+            try {
+                hostname = new URL(currentUrl).hostname.replace(/^www\./, "");
+            } catch (e) {
+                hostname = "";
+            }
+
+            if (hostname) {
+                const list = getStoredPasswords(); // Récupère la liste décodée
+                const matches = list.filter(p => p.url && p.url.includes(hostname));
+
+                if (matches && matches.length > 0) {
+                    const bestMatch = matches[0]; // Prend le premier compte correspondant
+                    
+                    console.log(`[PWD AUTOFILL] Correspondance trouvée pour ${hostname} : ${bestMatch.username}`);
+                    
+                    // Exécute la méthode d'autofill injectée dans le DOM de la tuile web
+                    const fillScript = `
+                        if (window.NanobrowserExecutor && typeof window.NanobrowserExecutor.autofillCredentials === 'function') {
+                            window.NanobrowserExecutor.autofillCredentials("${bestMatch.username}", "${bestMatch.password}");
+                        }
+                        void 0;
+                    `;
+                    panel.view.webContents.executeJavaScript(fillScript).catch(() => {});
+                }
+            }
+        } catch (err) { 
+            console.error("Erreur Autofill résolue :", err); 
+        }
     }
 });
 
@@ -1309,6 +1516,20 @@ function layoutNode(node, x, y, width, height) {
         layoutNode(node.second, x, y + firstHeight, width, height - firstHeight);
     }
 }
+
+
+// À mettre avec vos autres ipcMain.handle dans main.js
+ipcMain.removeHandler('pwd-find-for-url');
+ipcMain.handle('pwd-find-for-url', (event, targetUrl) => {
+    try {
+        const hostname = new URL(targetUrl).hostname.replace(/^www\./, "");
+        const list = getStoredPasswords();
+        return list.filter(p => p.url && p.url.includes(hostname));
+    } catch {
+        return [];
+    }
+});
+
 
 
 ipcMain.on("show-url-context-menu", (event) => {

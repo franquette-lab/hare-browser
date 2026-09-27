@@ -55,6 +55,18 @@ nanobrowser: {
 },
 
 
+// DANS PRELOAD.JS -> À insérer à la racine de l'objet exposé sous 'api'
+passwords: {
+    getAll: () => ipcRenderer.invoke('pwd-get-all'),
+    saveEntry: (entry) => ipcRenderer.invoke('pwd-save-entry', entry),
+    deleteEntry: (index) => ipcRenderer.invoke('pwd-delete-entry', index),
+    findForUrl: (url) => ipcRenderer.invoke('pwd-find-for-url', url)
+},
+
+// DANS PRELOAD.JS -> Dans l'objet exposé sous 'api' :
+openPasswordManagerWindow: () => ipcRenderer.send("open-password-manager-window"),
+
+
 // Dans preload.js -> Dans l'objet exposé sous contextBridge
 toggleAiSidebar: (isVisible) => ipcRenderer.send("toggle-ai-sidebar-request", isVisible),
 
