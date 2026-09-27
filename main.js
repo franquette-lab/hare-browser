@@ -345,20 +345,22 @@ async function savePasswordsSecurely(passwordList) {
     }
 }
 
+// Dans main.js -> Remplacer l'écouteur "open-password-manager-window" complet
+
 ipcMain.on("open-password-manager-window", () => {
     if (pwdWindow && !pwdWindow.isDestroyed()) {
         pwdWindow.focus();
         return;
     }
 
-    // Crée une fenêtre popup native de taille idéale au premier plan fixe
+    // Crée la fenêtre avec les bordures standards de l'OS
     pwdWindow = new BrowserWindow({
         width: 350,
         height: 420,
         title: "Gestionnaire de mots de passe",
         backgroundColor: isDarkModeForced ? "#2d2d30" : "#ffffff",
         autoHideMenuBar: true,
-        alwaysOnTop: true, // Reste au-dessus de vos BrowserViews mosaïques !
+        alwaysOnTop: true,
         resizable: false,
         webPreferences: {
             nodeIntegration: true, 
@@ -376,6 +378,7 @@ ipcMain.on("open-password-manager-window", () => {
         pwdWindow = null;
     });
 });
+
 
 // Écouteurs d'actions émis depuis passwords.html
 ipcMain.on('pwd-ui-save', async (event, entry) => {
@@ -1952,102 +1955,39 @@ ipcMain.on("history-click", (event, url) => {
 // ====== GESTION DU MODE SOMBRE À LA DEMANDE (INJECTION AVANCÉE) ======
 isDarkModeForced = getThemePreference();
 
-
-
-
-
-
 // ====== DANS SCRIPT : main.js ======
+
+// DANS MAIN.JS -> Remplacer l'écouteur 'toggle-dark-mode-request'
 
 ipcMain.on('toggle-dark-mode-request', (event, enable) => {
     isDarkModeForced = enable;
     nativeTheme.themeSource = enable ? 'dark' : 'light';
 
+    // 1. Mise à jour de la fenêtre principale
     if (win && !win.isDestroyed()) {
-        win.setBackgroundColor(enable ? '#252526' : '#f3f4f6');
-        
-        if (typeof win.setTitleBarOverlay === 'function') {
-            win.setTitleBarOverlay({
-                color: enable ? '#252526' : '#ffffff',
-                symbolColor: enable ? '#cfcfcf' : '#1f2937',
-                height: 38
-            });
-        }
         win.webContents.send('system-theme-changed', enable);
     }
-    
-    // === AJOUT PROTECTION ET NETTOYAGE DES POIGNÉES FLOTTANTES ===
-    Object.keys(handleViews).forEach(id => {
-        try {
-            win.removeBrowserView(handleViews[id]);
-            if (!handleViews[id].webContents.isDestroyed()) {
-                handleViews[id].webContents.destroy();
-            }
-        } catch(e) {}
-        delete handleViews[id];
-    });
 
-    // Nettoyage et reconstruction des splitters
-    splitterViews.forEach(view => {
-        try { win.removeBrowserView(view); view.webContents.close(); } catch {}
-    });
-    splitterViews = [];
-
-    // Recalcule la géométrie et ré-instancie de nouvelles poignées avec le bon thème
-    resizeViews();   
-    updatePanelHandles(); 
-
-    // --- CORRECTION DE LA COULEUR DE FOND DE LA BARRE APPLICATIVE ---
-    if (win && typeof win.setTitleBarOverlay === 'function') {
-        win.setTitleBarOverlay({
-            color: isDarkModeForced ? '#252526' : '#ffffff',
-            symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937',
-            height: 38
-        });
-    }
-
-    // --- SÉCURITÉ & INJECTION DYNAMIQUE SUR LES PAGES INCOGNITO ---
-    function répercuterThèmeSurPanneauxPrivés(node) {
-        if (!node) return;
-        
-        if (node.view && node.isPrivate && !node.view.webContents.isDestroyed()) {
-            const themeToApply = isDarkModeForced ? "mw-theme-client-dark" : "mw-theme-client-light";
-            
-            // On force la modification de la classe racine HTML de la page d'accueil incognito
-            node.view.webContents.executeJavaScript(`
-                document.documentElement.className = "${themeToApply}";
-                void 0;
-            `).catch(err => console.error("Erreur mise à jour thème tuile privée:", err));
-        }
-        
-        // Parcours récursif des branches gauche et droite de votre mosaïque
-        répercuterThèmeSurPanneauxPrivés(node.first);
-        répercuterThèmeSurPanneauxPrivés(node.second);
-    }
-
-    // Déclenchement immédiat de la synchronisation sur l'arbre complet des panneaux
-    répercuterThèmeSurPanneauxPrivés(rootNode);
-
-    // --- LOGIQUE CLASSIQUE POUR LES PAGES PUBLIQUES ET EXTERNES ---
+    // 2. Traitement des tuiles web (BrowserViews)
     const allViews = win.getBrowserViews();
-
     allViews.forEach(v => {
         if (!v.webContents || v.webContents.isDestroyed()) return;
         const url = v.webContents.getURL();
         
-        // MODIFICATION : On ignore l'injection agressive du fallback noir sur nos pages d'accueil privées
         if (url.startsWith('data:text/html') || v.webContents.getUserAgent() === "InternalBorder") return;
 
+        // Désactive ou active le mode sombre natif de Chromium
         if (typeof v.webContents.setForceDarkModeEnabled === 'function') {
-            v.webContents.setForceDarkModeEnabled(isDarkModeForced);
+            v.webContents.setForceDarkModeEnabled(enable);
         }
 
-        if (isDarkModeForced) {
+        if (enable) {
+            // Mode Sombre : On injecte les styles
             const scriptToInject = `
                 (function() {
                     document.documentElement.classList.add('mw-theme-client-dark');
                     if (document.body) document.body.classList.add('mw-theme-client-dark');
-                    if (!window.location.hostname.includes('wikipedia.org') && !document.getElementById('hare-dark-fallback')) {
+                    if (!document.getElementById('hare-dark-fallback')) {
                         const style = document.createElement('style');
                         style.id = 'hare-dark-fallback';
                         style.innerHTML = \`html, body { background-color: #121212 !important; color: #e0e0e0 !important; } a { color: #8ab4f8 !important; }\`;
@@ -2055,8 +1995,9 @@ ipcMain.on('toggle-dark-mode-request', (event, enable) => {
                     }
                 })();
             `;
-            v.webContents.executeJavaScript(scriptToInject).catch(e => console.error(e));
+            v.webContents.executeJavaScript(scriptToInject).catch(() => {});
         } else {
+            // Mode Clair : On nettoie ET on force un rechargement léger pour vider le cache de rendu
             const scriptToRemove = `
                 (function() {
                     document.documentElement.classList.remove('mw-theme-client-dark');
@@ -2065,12 +2006,34 @@ ipcMain.on('toggle-dark-mode-request', (event, enable) => {
                     if (style) style.remove();
                 })();
             `;
-            v.webContents.executeJavaScript(scriptToRemove).catch(e => console.error(e));
+            v.webContents.executeJavaScript(scriptToRemove).then(() => {
+                // Force Wikipédia et les autres pages à réadopter le thème clair natif
+                v.webContents.reloadIgnoringCache();
+            }).catch(() => {
+                v.webContents.reload();
+            });
         }
     });
-    
-    updatePanelHandles(); 
+
+    // 3. CORRECTIF RADICAL pour la fenêtre de gestion des mots de passe
+    if (pwdWindow && !pwdWindow.isDestroyed()) {
+        // Si elle est ouverte, on la ferme et on la réouvre instantanément au même endroit.
+        // Cela force Windows à recalculer les couleurs de la barre de titre et du cadre natif.
+        const bounds = pwdWindow.getBounds();
+        pwdWindow.close(); 
+        
+        // Petite temporisation de 50ms pour laisser le système détruire l'ancienne bordure
+        setTimeout(() => {
+            ipcMain.emit('open-password-manager-window');
+            if (pwdWindow && !pwdWindow.isDestroyed()) {
+                pwdWindow.setBounds(bounds);
+            }
+        }, 50);
+    }
 });
+
+
+
 
 // Script d'injection magique : s'exécute AVANT que Wikipédia ne calcule ses styles
 app.on('web-contents-created', (event, webContents) => {
@@ -3043,10 +3006,19 @@ function createWindow() {
         }
     });
 
-    // AJOUT ICI : Fermer automatiquement l'historique quand la fenêtre principale est détruite
+    // ====== DANS MAIN.JS -> DANS LA FONCTION createWindow() ======
+
+    // AJOUT ICI : Fermer automatiquement l'historique ET les mots de passe 
+    // quand la fenêtre principale est détruite par l'utilisateur
     win.on('closed', () => {
+        // Ferme la fenêtre d'historique si elle existe
         if (global.historyWindow && !global.historyWindow.isDestroyed()) {
             global.historyWindow.close();
+        }
+        
+        // === CORRECTIF : Ferme la fenêtre des mots de passe si elle existe ===
+        if (pwdWindow && !pwdWindow.isDestroyed()) {
+            pwdWindow.close();
         }
     });
     
