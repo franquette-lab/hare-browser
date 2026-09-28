@@ -31,15 +31,13 @@ contextBridge.exposeInMainWorld(
         splitPanel: (panelId, direction, isPrivate, initialUrl) => ipcRenderer.send('split-panel', panelId, direction, isPrivate, initialUrl),
         undo: () => ipcRenderer.send("undo"),
         
-        onActivePanelChanged: (callback) => {
-            ipcRenderer.on("active-panel-changes", (_event, donneesPanel) => {
-                // SÉCURITÉ : On s'assure que la donnée existe avant d'appeler l'IHM
-                if (typeof callback === "function" && donneesPanel) {
-                    callback(donneesPanel);
-                }
-            });
-        },
-
+onActivePanelChanged: (callback) => {
+    ipcRenderer.on("active-panel-changed", (_event, donneesPanel) => {
+        if (typeof callback === "function" && donneesPanel) {
+            callback(donneesPanel);
+        }
+    });
+},
         openPasswordManagerWindow: () =>
     ipcRenderer.send("open-password-manager-window"),
 
