@@ -814,34 +814,11 @@ window.api.onPanelsUpdated((panelsList, zoomPanelId) => {
 
 
 
-/*
-function rebuildUrlBar(panels) {
-    const container = document.getElementById("url-bar-tabs-container"); // Ajustez l'id selon votre code si nécessaire
-    if (!container) return;
-    container.innerHTML = "";
 
-    if (!panels || !Array.isArray(panels)) return;
 
-    panels.forEach((p) => {
-        if (!p) return;
-        
-        const tab = document.createElement("div");
-        tab.className = `url-tab ${p.id === activePanel ? "active" : ""}`;
-        if (p.isPrivate) tab.classList.add("private-tab");
 
-        // Utilisation stricte de 'p' pour éviter tout conflit avec 'panel'
-        tab.innerHTML = `
-            <input type="text" id="${p.id}-url" value="${p.url || ''}" data-url="${p.realUrl || p.url || ''}">
-            <button id="star-${p.id}">☆</button>
-        `;
 
-        container.appendChild(tab);
 
-        // Liaison des événements en utilisant uniquement la variable locale de boucle 'p'
-        attachUrlHandler(p.id);
-    });
-}
-*/
 
 function rebuildUrlBar(panels) {
     // 1. Ciblage de votre élément conteneur d'origine
@@ -860,23 +837,10 @@ function rebuildUrlBar(panels) {
     panels.forEach((panel) => {
         if (!panel) return;
 
-
-
-
-
-
-
-
-
-
-
-
-
         const tabWrapper = document.createElement("div");
         tabWrapper.className = "url-tab";
 
         const isActive = activePanel === panel.id;
-
 
     console.log(
     "TAB",
@@ -954,19 +918,39 @@ function rebuildUrlBar(panels) {
 // SPINNER DE CHARGEMENT
 // ============================
 const loadingIndicator = document.createElement("span");
-
-loadingIndicator.className = "loading-indicator";
-loadingIndicator.textContent = "";
-
+loadingIndicator.id = "loading-" + panel.id;
+loadingIndicator.className = "loading-spinner";
+loadingIndicator.textContent = "⟳";
 loadingIndicator.style.display = "none";
 loadingIndicator.style.marginRight = "6px";
 loadingIndicator.style.fontSize = "14px";
 loadingIndicator.style.color = "#3b82f6";
 loadingIndicator.style.flex = "0 0 auto";
-loadingIndicator.style.alignItems = "center";
-loadingIndicator.style.justifyContent = "center";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 tabWrapper.appendChild(loadingIndicator);
+
+
 
         // ============================
         // BADGE PRIVÉ
@@ -1024,15 +1008,23 @@ tabWrapper.appendChild(loadingIndicator);
             tabWrapper.setAttribute("draggable", "true");
         });
 
-        input.addEventListener("click", (e) => {
-            e.stopPropagation();
-            window.api.setActivePanel(panel.id);
-        });
+input.addEventListener("click", (e) => {
+    e.stopPropagation();
 
-input.addEventListener("focus", () => { 
     window.api.setActivePanel(panel.id);
 
-    urlIcon.textContent = "✏️";
+    setTimeout(() => {
+        input.focus();
+        input.select();
+    }, 50);
+});
+
+input.addEventListener("focus", () => {
+    window.api.setActivePanel(panel.id);
+
+    if (urlIcon) {
+        urlIcon.textContent = "✏️";
+    }
 
     const rawUrl = input.dataset.url || "";
 
@@ -1049,10 +1041,18 @@ input.addEventListener("focus", () => {
 
     input.style.color = isDark ? "#ffffff" : "#1f2937";
 
-    setTimeout(() => {
-        input.setSelectionRange(0, input.value.length);
-    }, 10);
+setTimeout(() => {
+    input.select();
+}, 10);
+
+
 });
+
+
+
+
+
+
 input.addEventListener("blur", () => {
     const realUrl = input.dataset.url || "";
 
@@ -1060,7 +1060,9 @@ input.addEventListener("blur", () => {
         ? getDisplayUrl(realUrl)
         : realUrl;
 
-    urlIcon.textContent = getUrlTypeIcon(realUrl);
+    if (urlIcon) {
+        urlIcon.textContent = getUrlTypeIcon(realUrl);
+    }
 });
 
         tabWrapper.appendChild(input);
@@ -1258,7 +1260,18 @@ window.api.onActivePanelChanged((data) => {
 
     activePanel = data.id;
 
+//  rebuildUrlBar(currentPanels);
+const focusedElement = document.activeElement;
+const wasUrlInput =
+    focusedElement &&
+    focusedElement.classList &&
+    focusedElement.classList.contains("url-input");
+
+if (!wasUrlInput) {
     rebuildUrlBar(currentPanels);
+}
+
+
 
     if (typeof refreshTabBorders === "function") {
         refreshTabBorders();
@@ -1934,8 +1947,20 @@ document.getElementById("print-button").addEventListener("click", () => {
     }
 });
 
+
+
+
+
+
+
+
+
+
+
 // 1. ÉCOUTEUR DE CHARGEMENT (CORRIGÉ ET SÉCURISÉ)
+
 window.api.onPageLoading((data) => {
+
     if (!data || !data.panelId) return;
 
     const indicatorElement = document.getElementById("loading-" + data.panelId);
@@ -1949,15 +1974,34 @@ window.api.onPageLoading((data) => {
     if (input) {
         const tabWrapper = input.closest(".url-tab");
         if (tabWrapper) {
-            const spinner = tabWrapper.querySelector("span");
-            if (spinner) {
-                spinner.style.display = data.loading ? "flex" : "none";
-            }
+
+    const spinner =
+        document.getElementById("loading-" + data.panelId);
+
+    if (spinner) {
+        spinner.style.display =
+            data.loading ? "inline-block" : "none";
+    }
+
+
         }
     }
 });
 
 
+/*
+window.api.onPageLoading((data) => {
+    if (!data || !data.panelId) return;
+
+    const spinner =
+        document.getElementById("loading-" + data.panelId);
+
+    if (spinner) {
+        spinner.style.display =
+            data.loading ? "inline-block" : "none";
+    }
+});
+*/
 
 // ===================================================
 // LOGIQUE DE L'ASSISTANT IA OLLAMA
