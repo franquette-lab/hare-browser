@@ -3487,10 +3487,23 @@ ipcMain.on("print-panel", (event, panelId) => {
 ipcMain.on("set-active-panel", (event, panelId) => {
     const panel = findPanelNode(rootNode, panelId);
     if (!panel) return;
+    
     activePanel = panelId;
+    
+    // 1. Met à jour le liseré bleu autour du panneau actif
     win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
     updateActiveBorder(panel.bounds);
+    
+    // 2. CORRECTIF : Notifie index.html que la liste des panneaux a un nouvel actif
+    // (Cela permet à votre barre d'outils/onglets de savoir quel panneau est sélectionné)
+    win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
+    
+    // 3. Donne réellement le focus au contenu de la page web
+    if (panel.view && !panel.view.webContents.isDestroyed()) {
+        panel.view.webContents.focus();
+    }
 });
+
 
 // Intercepte les demandes de focus issues de la poignée injectée
 ipcMain.on("set-active-panel-from-handle", (event, panelId) => {
