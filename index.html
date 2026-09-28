@@ -163,6 +163,22 @@ body {
    BARRE D'URL
 ===================================================== */
 
+.url-bar-container {
+    display: flex;
+    align-items: center;
+    position: relative;
+    background: #2d2d30; /* Adaptez à votre thème */
+    border-radius: 6px;
+    padding: 4px 8px;
+}
+
+.url-icon {
+    margin-right: 8px;
+    font-size: 14px;
+    user-select: none;
+}
+
+
 #url-bar {
     height: 36px !important;
     background: var(--bg-secondary);
@@ -189,6 +205,7 @@ body {
     font-size: 14px !important; /* Optionnel : réduit légèrement la police si le texte est coupé */
     font-Weight: 500;
 }
+
 
 .dark .url-input {
     color: #ffffff;
@@ -478,6 +495,7 @@ html.dark .bookmark-item:hover {
 
 </div>
 
+<!-- Dans votre boucle qui génère chaque en-tête de tuile -->
 <div id="url-bar" style="position: fixed; top: 38px; left: 0; right: 0; z-index: 50;"></div>
 
 <div id="active-panel-frame"></div>
@@ -560,6 +578,39 @@ let applicationDarkMode = false;
 // === LOGIQUE DE BASCULE DU MODE SOMBRE ===
 let darkModeEnabled = false;
 
+
+
+        // Assurez-vous que ce code s'exécute une fois le DOM chargé
+        document.addEventListener("DOMContentLoaded", () => {
+            const urlInput = document.getElementById('url-input');
+            const urlIcon = document.getElementById('url-icon');
+
+            function checkSearchOrUrl(input) {
+                input = input.trim();
+                if (input === "") return "🌐";
+
+                if (input.includes("://") || input.startsWith("data:") || input.startsWith("about:")) {
+                    return "🌐";
+                }
+
+                // Note : Correction de l'expression régulière (le \$ final empêchait la détection à la saisie)
+                const domainRegex = /^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?(\/.*)?$/;
+                if (domainRegex.test(input) && !input.includes(" ")) {
+                    return "🌐";
+                }
+
+                return "🔍";
+            }
+
+            if (urlInput && urlIcon) {
+                urlInput.addEventListener('input', (e) => {
+                    urlIcon.textContent = checkSearchOrUrl(e.target.value);
+                });
+            }
+        });
+
+
+
 // === LOGIQUE DE BASCULE DU MODE SOMBRE ===
 const darkModeBtn = document.getElementById("dark-mode-button");
 
@@ -638,6 +689,38 @@ input.addEventListener("keydown", (e) => {
     }
 }
 
+function getUrlTypeIcon(url, isPrivate = false) {
+
+    // Pas d'icône supplémentaire en navigation privée
+    if (isPrivate) {
+        return "";
+    }
+
+    if (!url) return "🌐";
+
+    try {
+
+        const parsed = new URL(url);
+
+        if (
+            parsed.hostname.includes("google") &&
+            parsed.pathname === "/search"
+        ) {
+            return "🔍";
+        }
+
+        if (parsed.pathname.includes("/search")) {
+            return "🔍";
+        }
+
+        return "🌐";
+
+    } catch {
+
+        return "🔍";
+
+    }
+}
 function getDisplayUrl(url) {
     try {
         const parsedUrl = new URL(url);
@@ -738,7 +821,7 @@ window.api.onPanelsUpdated((panelsList, zoomPanelId) => {
 
 
 
-
+/*
 function rebuildUrlBar(panels) {
     const container = document.getElementById("url-bar-tabs-container"); // Ajustez l'id selon votre code si nécessaire
     if (!container) return;
@@ -765,6 +848,7 @@ function rebuildUrlBar(panels) {
         attachUrlHandler(p.id);
     });
 }
+*/
 
 function rebuildUrlBar(panels) {
     // 1. Ciblage de votre élément conteneur d'origine
@@ -782,6 +866,18 @@ function rebuildUrlBar(panels) {
     // 2. Boucle sur les panneaux pour générer l'interface
     panels.forEach((panel) => {
         if (!panel) return;
+
+
+
+
+
+
+
+
+
+
+
+
 
         const tabWrapper = document.createElement("div");
         tabWrapper.className = "url-tab";
@@ -850,21 +946,23 @@ function rebuildUrlBar(panels) {
             }
         });
 
-        // ============================
-        // SPINNER DE CHARGEMENT
-        // ============================
-        const loadingIndicator = document.createElement("span");
-        loadingIndicator.style.display = "none";
-        loadingIndicator.style.marginRight = "6px";
-        loadingIndicator.style.fontSize = "14px";
-        loadingIndicator.style.color = "#3b82f6";
-        loadingIndicator.style.flex = "0 0 auto";
-        loadingIndicator.style.minWidth = "14px";
+// ============================
+// SPINNER DE CHARGEMENT
+// ============================
+const loadingIndicator = document.createElement("span");
 
-        loadingIndicator.style.display = "flex";
-        loadingIndicator.style.alignItems = "center";
-        loadingIndicator.style.justifyContent = "center";
-        tabWrapper.appendChild(loadingIndicator);
+loadingIndicator.className = "loading-indicator";
+loadingIndicator.textContent = "";
+
+loadingIndicator.style.display = "none";
+loadingIndicator.style.marginRight = "6px";
+loadingIndicator.style.fontSize = "14px";
+loadingIndicator.style.color = "#3b82f6";
+loadingIndicator.style.flex = "0 0 auto";
+loadingIndicator.style.alignItems = "center";
+loadingIndicator.style.justifyContent = "center";
+
+tabWrapper.appendChild(loadingIndicator);
 
         // ============================
         // BADGE PRIVÉ
@@ -872,8 +970,27 @@ function rebuildUrlBar(panels) {
         if (panel.isPrivate) {
             const incognitoBadge = document.createElement("span");
             incognitoBadge.className = "incognito-badge";
-            incognitoBadge.textContent = "👥";
+            incognitoBadge.textContent = "🕵️";
             tabWrapper.appendChild(incognitoBadge);
+        }
+
+        // ============================
+        // ICONE URL / RECHERCHE
+        // ============================
+        let urlIcon = null;
+
+        if (!panel.isPrivate) {
+            urlIcon = document.createElement("span");
+
+            urlIcon.textContent = getUrlTypeIcon(
+                panel.realUrl || panel.url || ""
+            );
+
+            urlIcon.style.flex = "0 0 auto";
+            urlIcon.style.fontSize = "14px";
+            urlIcon.style.marginRight = "4px";
+
+            tabWrapper.appendChild(urlIcon);
         }
 
         // ============================
@@ -906,31 +1023,50 @@ function rebuildUrlBar(panels) {
             window.api.setActivePanel(panel.id);
         });
 
-        input.addEventListener("focus", () => { 
-            window.api.setActivePanel(panel.id); 
-            
-            const rawUrl = input.dataset.url || "";
-            // Correction : extraction robuste de la recherche Google
-            if (rawUrl.includes("://google.com")) {
-                try {
-                    const urlObj = new URL(rawUrl);
-                    input.value = urlObj.searchParams.get("q") || rawUrl;
-                } catch(e) {
-                    input.value = rawUrl;
-                }
-            } else {
-                input.value = rawUrl;
-            }
-            
-            input.style.color = isDark ? "#ffffff" : "#1f2937"; 
-            setTimeout(() => { input.setSelectionRange(0, input.value.length); }, 10); 
-        });
+input.addEventListener("focus", () => { 
+    window.api.setActivePanel(panel.id);
 
-        input.addEventListener("blur", () => {
-            input.value = typeof getDisplayUrl === "function" ? getDisplayUrl(input.dataset.url) : input.dataset.url;
-        });
+    urlIcon.textContent = "✏️";
+
+    const rawUrl = input.dataset.url || "";
+
+    if (rawUrl.includes("://google.com")) {
+        try {
+            const urlObj = new URL(rawUrl);
+            input.value = urlObj.searchParams.get("q") || rawUrl;
+        } catch(e) {
+            input.value = rawUrl;
+        }
+    } else {
+        input.value = rawUrl;
+    }
+
+    input.style.color = isDark ? "#ffffff" : "#1f2937";
+
+    setTimeout(() => {
+        input.setSelectionRange(0, input.value.length);
+    }, 10);
+});
+input.addEventListener("blur", () => {
+    const realUrl = input.dataset.url || "";
+
+    input.value = typeof getDisplayUrl === "function"
+        ? getDisplayUrl(realUrl)
+        : realUrl;
+
+    urlIcon.textContent = getUrlTypeIcon(realUrl);
+});
 
         tabWrapper.appendChild(input);
+
+
+
+
+
+
+
+
+
 
         // ============================
         // FAVORIS
