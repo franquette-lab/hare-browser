@@ -896,7 +896,8 @@ function rebuildUrlBar(panels) {
         tabWrapper.style.gap = "6px";
         tabWrapper.style.flex = "1";
         tabWrapper.style.minWidth = "0";
-        tabWrapper.style.padding = "2px 6px";
+//      tabWrapper.style.padding = "2px 6px";
+        tabWrapper.style.padding = "0px 6px";
         tabWrapper.style.borderRadius = "6px";
 
         if (panel.isPrivate) {
@@ -1006,6 +1007,8 @@ tabWrapper.appendChild(loadingIndicator);
 
         input.style.flex = "1";
         input.style.minWidth = "0";
+        input.style.height = "18px";
+        input.style.lineHeight = "18px";
         input.style.border = "none";
         input.style.outline = "none";
         input.style.background = "transparent";
@@ -1244,17 +1247,23 @@ window.api.onFocusUrlBar((panelId) => {
     window.api.setActivePanel(panelId);
 });
 
+
+
+
+
+
 window.api.onActivePanelChanged((data) => {
 
     if (!data || !data.id) return;
-    
-    // On met à jour le panneau actif global avec l'ID reçu
+
     activePanel = data.id;
-    
+
+    rebuildUrlBar(currentPanels);
+
     if (typeof refreshTabBorders === "function") {
         refreshTabBorders();
     }
-    
+
     const frame = document.getElementById("active-panel-frame");
     if (frame && data.bounds) {
         frame.style.display = "block";
