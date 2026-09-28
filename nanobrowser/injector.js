@@ -11,7 +11,6 @@
         },
         
         getPageContent() {
-            // On ne renvoie que du texte brut (parfaitement clonable par Electron)
             return {
                 text: document.body.innerText || "",
                 url: window.location.href || "",
@@ -20,6 +19,8 @@
         }
     };
 })();
+
+
 
 // nanobrowser/injector.js -> Mettre à jour le script autonome
 (function() {

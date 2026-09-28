@@ -529,6 +529,8 @@ function getFavoris() {
 }
 
 function registerDownloadHandler(session) {
+    if (!session) return;
+
     session.on('will-download', (event, item, webContents) => {
         const filename = item.getFilename();
 
@@ -545,7 +547,8 @@ function registerDownloadHandler(session) {
                 
                 if (totalBytes > 0) {
                     const percent = Math.round((receivedBytes / totalBytes) * 100);
-                    if (win && !win.isDestroyed()) {
+                    // AJOUT SÉCURITÉ : On vérifie que la fenêtre et ses webContents ne sont pas détruits
+                    if (win && !win.isDestroyed() && win.webContents && !win.webContents.isDestroyed()) {
                         win.webContents.send('download-progress', { panelId, percent, filename });
                     }
                 }
@@ -556,7 +559,8 @@ function registerDownloadHandler(session) {
             // Nettoyage de la référence
             delete activeDownloads[panelId];
 
-            if (win && !win.isDestroyed()) {
+            // AJOUT SÉCURITÉ : On vérifie que la fenêtre et ses webContents ne sont pas détruits
+            if (win && !win.isDestroyed() && win.webContents && !win.webContents.isDestroyed()) {
                 win.webContents.send('download-done', { panelId });
             }
 
@@ -565,27 +569,32 @@ function registerDownloadHandler(session) {
                 const ext = path.extname(filename).toLowerCase();
                 const dangerousExtensions = ['.exe', '.msi', '.bat', '.cmd', '.vbs', '.sh', '.scr'];
 
-                if (dangerousExtensions.includes(ext)) {
-                    dialog.showMessageBox(win, {
-                        type: 'warning',
-                        buttons: ['Exécuter le fichier', 'Annuler'],
-                        defaultId: 1,
-                        cancelId: 1,
-                        title: 'Alerte de sécurité',
-                        message: `Téléchargement terminé : ${filename}`,
-                        detail: "Ce type de fichier peut contenir des virus. Voulez-vous l'exécuter ?"
-                    }).then((response) => {
-                        if (response.response === 0) {
-                            shell.openPath(finalPath).catch((e) => console.error(e));
-                        }
-                    });
-                } else {
-                    shell.openPath(finalPath).catch((e) => console.error(e));
+                // AJOUT SÉCURITÉ : On vérifie que la fenêtre existe toujours avant d'ouvrir la boîte de dialogue
+                if (win && !win.isDestroyed()) {
+                    if (dangerousExtensions.includes(ext)) {
+                        dialog.showMessageBox(win, {
+                            type: 'warning',
+                            buttons: ['Exécuter le fichier', 'Annuler'],
+                            defaultId: 1,
+                            cancelId: 1,
+                            title: 'Alerte de sécurité',
+                            message: `Téléchargement terminé : ${filename}`,
+                            detail: "Ce type de fichier peut contenir des virus. Voulez-vous l'exécuter ?"
+                        }).then((response) => {
+                            if (response.response === 0) {
+                                shell.openPath(finalPath).catch((e) => console.error(e));
+                            }
+                        });
+                    } else {
+                        shell.openPath(finalPath).catch((e) => console.error(e));
+                    }
                 }
             }
         });
     });
 }
+
+
 
 function extractResults(data) {
 
@@ -1059,20 +1068,29 @@ function isValidUrl(text) {
     }
 }
 
-function buildNavigationTarget(input) {
 
+
+function buildNavigationTarget(input) {
     input = input.trim();
 
-    if (isValidUrl(input)) {
+    // 1. Si c'est une URL valide ou une page locale
+    if (input.includes("://") || input.startsWith("data:") || input.startsWith("about:")) {
         return input;
     }
 
-    if (/^[a-z0-9-]+\.[a-z]{2,}/i.test(input)) {
+    // 2. Si ça ressemble à un domaine direct sans espace (ex: google.com, wikipedia.org)
+    if (/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?(\/.*)?\$/.test(input) && !input.includes(" ")) {
         return "https://" + input;
     }
 
+    // 3. Sinon, c'est une recherche de mots-clés sur Google
     return `http://129.151.254.175:8080/search?q=${encodeURIComponent(input)}`;
 }
+
+
+
+
+
 
 function findPanelByWebContents(webContents) {
     function walk(node) {
@@ -1240,12 +1258,24 @@ panel.view.webContents.on("context-menu", (event, params) => {
 });
 
 
-    panel.view.webContents.on("did-start-loading", () => {
+
+
+panel.view.webContents.on("did-start-loading", () => {
+
+    console.log(
+        "START",
+        panel.id,
+        panel.view.webContents.getURL()
+    );
+
+
 
         // Ignore le chargement initial au démarrage
-        if (!initialLoadFinished) {
-            return;
-        }
+ if (!initialLoadFinished) {
+console.log("START BLOQUÉ");
+return;
+}
+
 
         if (win && !win.isDestroyed()) {
             win.webContents.send("page-loading", {
@@ -1256,6 +1286,13 @@ panel.view.webContents.on("context-menu", (event, params) => {
     });
 
     panel.view.webContents.on("did-stop-loading", () => {
+
+
+console.log(
+"STOP",
+panel.id,
+panel.view.webContents.getURL()
+);
 
         if (!initialLoadFinished) {
             initialLoadFinished = true;
@@ -1570,6 +1607,8 @@ ipcMain.on("toggle-ai-sidebar-request", (event, isVisible) => {
 
 
 ipcMain.on("navigate", (event, panelId, input) => {
+
+console.log("NAVIGATE", panelId, input);
 
     const panel = findPanelNode(rootNode, panelId);
 
@@ -3809,10 +3848,6 @@ ipcMain.handle("refresh", (event, panelId) => {
     if (panel && panel.view) panel.view.webContents.reload();
 });
 
-app.on('will-quit', () => {
-    // Désactive absolument tous les raccourcis globaux propres à l'application
-    globalShortcut.unregisterAll();
-});
 
 
 
