@@ -1880,13 +1880,15 @@ let historyWindow = null;
 function updateHistoryWindowContent() {
     if (global.historyWindow && !global.historyWindow.isDestroyed()) {
         const historyList = getNavigationHistory();
+
+        console.log("NB HISTORIQUE =", historyList.length);
+
         global.historyWindow.webContents.send('render-history', {
-            historyList: historyList,
+            historyList,
             isDarkMode: isDarkModeForced
         });
     }
 }
-
 // Écouteur pour ouvrir la fenêtre
 ipcMain.on("open-history-window", () => {
     if (global.historyWindow && !global.historyWindow.isDestroyed()) {
@@ -1909,6 +1911,8 @@ ipcMain.on("open-history-window", () => {
     });
 
     global.historyWindow.loadFile(path.join(__dirname, 'history.html'));
+
+global.historyWindow.webContents.openDevTools();
 
     global.historyWindow.webContents.on('did-finish-load', () => {
         updateHistoryWindowContent();

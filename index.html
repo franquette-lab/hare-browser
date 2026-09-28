@@ -279,11 +279,13 @@ html.dark #url-bar {
 }
 
 #bookmarks-list {
-    display: flex;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
     align-items: center;
-    gap: 4px;
     overflow-x: auto;
-    max-width: 500px;
+    overflow-y: hidden;
 }
 
 #clear-bookmarks-btn {
@@ -360,15 +362,6 @@ html.dark .bookmark-item:hover {
 #close-bookmarks-bar:hover {
     background: #991b1b;
     color: #fca5a5;
-}
-
-/* À insérer dans votre bloc <style> ou à modifier si existant */
-#bookmarks-list {
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: wrap !important; /* Permet de passer à la ligne suivante si la barre est pleine */
-    gap: 6px !important;       /* Espace horizontal entre chaque favori */
-    align-items: center;
 }
 
 
@@ -1640,7 +1633,7 @@ async function renderHistory(historyList) {
 // 3. Écouteur pour le bouton de la barre d'outils
 document.getElementById("history-button").addEventListener("click", (e) => {
     e.stopPropagation();
-    toggleHistorySidebar();
+    window.api.openHistoryWindow();
 });
 
 // 4. Écouteur pour le bouton de nettoyage
@@ -1664,15 +1657,13 @@ window.api.onHistoryUpdated?.((updatedHistory) => {
     }
 });
 
-// 6. Gestion du raccourci clavier Ctrl+H depuis l'IHM
-window.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h') {
-        e.preventDefault();
-        toggleHistorySidebar();
-    }
-});
-
 document.addEventListener("keydown", (e) => {
+
+if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "h") {
+e.preventDefault();
+window.api.openHistoryWindow();
+return;
+}
 
     if (e.ctrlKey && e.key.toLowerCase() === "s") {
         e.preventDefault();
@@ -1741,9 +1732,8 @@ document.getElementById("clear-bookmarks-btn")?.addEventListener("click", async 
 
 // Ajoutez cette ligne avec vos autres écouteurs de boutons de la barre d'outils
 document.getElementById("history-button").addEventListener("click", (e) => {
-    console.log("Bouton historique cliqué");
     e.stopPropagation();
-    toggleHistorySidebar();
+    window.api.openHistoryWindow();
 });
 
 
