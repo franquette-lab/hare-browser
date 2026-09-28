@@ -39,6 +39,13 @@ contextBridge.exposeInMainWorld(
                 }
             });
         },
+
+        openPasswordManagerWindow: () =>
+    ipcRenderer.send("open-password-manager-window"),
+
+
+        openHistoryWindow: () => ipcRenderer.send("open-history-window"),
+
         onPanelsUpdated: (callback) => {
             ipcRenderer.on("panels-updated", (_event, panelsList, zoomPanelId) => {
                 if (typeof callback === "function") {
