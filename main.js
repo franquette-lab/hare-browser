@@ -84,7 +84,7 @@ let isBookmarksBarVisible = true; // La barre est affichée par défaut
 
 //let TOOLBAR_HEIGHT = 77;
 //const TOOLBAR_MIN_HEIGHT = 77;
-let TOOLBAR_HEIGHT = 77; // 64
+let TOOLBAR_HEIGHT = 76; // 64
 const TOOLBAR_MIN_HEIGHT = 77;
 
 let history = [];
@@ -1912,7 +1912,7 @@ ipcMain.on("open-history-window", () => {
 
     global.historyWindow.loadFile(path.join(__dirname, 'history.html'));
 
-global.historyWindow.webContents.openDevTools();
+// global.historyWindow.webContents.openDevTools();
 
     global.historyWindow.webContents.on('did-finish-load', () => {
         updateHistoryWindowContent();
@@ -2006,6 +2006,33 @@ ipcMain.on('toggle-dark-mode-request', (event, enable) => {
     isDarkModeForced = enable;
     nativeTheme.themeSource = enable ? 'dark' : 'light';
 
+// Mise à jour de la barre de titre Electron
+if (win && !win.isDestroyed()) {
+    win.setTitleBarOverlay({
+        color: enable ? '#252526' : '#ffffff',
+        symbolColor: enable ? '#cfcfcf' : '#1f2937',
+        height: 38
+    });
+
+    win.setBackgroundColor(
+        enable ? '#252526' : '#f3f4f6'
+    );
+}    
+
+    // Force la recréation complète des poignées
+    Object.keys(handleViews).forEach(id => {
+        try {
+            win.removeBrowserView(handleViews[id]);
+            if (!handleViews[id].webContents.isDestroyed()) {
+                handleViews[id].webContents.destroy();
+            }
+        } catch (e) {}
+
+        delete handleViews[id];
+    });
+
+    updatePanelHandles();    
+
     // 1. Mise à jour de la fenêtre principale
     if (win && !win.isDestroyed()) {
         win.webContents.send('system-theme-changed', enable);
@@ -2073,6 +2100,24 @@ ipcMain.on('toggle-dark-mode-request', (event, enable) => {
             }
         }, 50);
     }
+
+// === Rafraîchissement des éléments natifs ===
+
+// Recrée les splitters avec les nouvelles couleurs
+updateSplitterTheme();
+
+forceRebuildSplitters = true;
+
+// Recrée les poignées de déplacement
+updatePanelHandles();
+
+// Met à jour la fenêtre Historique si elle est ouverte
+updateHistoryWindowContent();
+
+// Recalcule la géométrie
+resizeViews();
+
+
 });
 
 

@@ -1758,6 +1758,10 @@ window.api.onSystemThemeChanged((isDark) => {
 
     rebuildUrlBar(currentPanels);
     rebuildBookmarksBar();
+
+    updateToolbarTheme();
+
+    
 });
 
 updateCloseButtonState();
@@ -1775,6 +1779,21 @@ function updateUrlBarTheme() {
 }
 
 
+function updateToolbarTheme() {
+    const isDark = applicationDarkMode;
+
+    const bg = isDark ? "#2d2d30" : "#ffffff";
+    const border = isDark ? "#3c3c3c" : "#d1d5db";
+    const text = isDark ? "#cfcfcf" : "#1f2937";
+
+    document.querySelectorAll("#toolbar-buttons button").forEach(btn => {
+        btn.style.background = bg;
+        btn.style.borderColor = border;
+        btn.style.color = text;
+    });
+}
+
+
 function setDarkMode(enabled) {
 
     applicationDarkMode = enabled;
@@ -1783,7 +1802,7 @@ function setDarkMode(enabled) {
     "setDarkMode(",
     enabled,
     ")"
-);
+    );
 
     window.api.saveThemePreference(enabled);
     window.api.toggleDarkMode(enabled);
@@ -1816,6 +1835,9 @@ function setDarkMode(enabled) {
     if (typeof rebuildBookmarksBar === "function") {
         rebuildBookmarksBar();
     }
+
+    updateToolbarTheme();
+
 }
 
 function applyTheme() {
