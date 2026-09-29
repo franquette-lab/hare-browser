@@ -1425,7 +1425,11 @@ panel.view.webContents.on("did-finish-load", async () => {
         activePanel = panel.id;
         
         if (win && !win.isDestroyed() && win.webContents && !win.webContents.isDestroyed()) {
-            win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
+            win.webContents.send("active-panel-changed", {
+                id: panel.id,
+                bounds: panel.bounds,
+                selectUrl: true
+            });
 
             if (panelChanged) {
                 win.webContents.send("navigation-state-changed", {

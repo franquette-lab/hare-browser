@@ -1291,21 +1291,17 @@ window.api.onActivePanelChanged((data) => {
 
     activePanel = data.id;
 
-//  rebuildUrlBar(currentPanels);
-const wasUrlInput =
-    focusedElement &&
-    focusedElement.classList &&
-    focusedElement.classList.contains("url-input");
-
-/*
-    if (!wasUrlInput) {
-    rebuildUrlBar(currentPanels);
-}
-*/
-
 
     if (typeof refreshTabBorders === "function") {
         refreshTabBorders();
+    }
+
+    if (data.selectUrl) {
+        const input = document.getElementById(`${data.id}-url`);
+        if (input) {
+            input.focus({ preventScroll: true });
+            input.select();
+        }
     }
 
     const frame = document.getElementById("active-panel-frame");
