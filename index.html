@@ -197,6 +197,13 @@ body {
 .url-tab {
     padding: 0px 6px !important; /* Supprime le padding vertical (haut/bas) pour aplatir l'onglet */
     height: 30px !important;
+    box-sizing: border-box;
+    border: 1px solid transparent;
+}
+
+.url-tab.active-url-tab {
+    border: 2px solid #3b82f6 !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important;
 }
 
 .url-input {
@@ -640,18 +647,22 @@ function refreshTabBorders() {
         const panelId = input.id.replace("-url", "");
         const isActiveTab = !!(activePanel && panelId === activePanel);
         const isPrivateTab = !!tabWrapper.querySelector(".incognito-badge");
+        tabWrapper.classList.toggle("active-url-tab", isActiveTab);
 
         if (isPrivateTab) {
             tabWrapper.style.background = isActiveTab ? "#2a193d" : "#1e112c";
             tabWrapper.style.borderColor = "#4a2874";
+            tabWrapper.style.borderWidth = isActiveTab ? "2px" : "1px";
         } else if (isActiveTab) {
             tabWrapper.style.borderColor = "#3b82f6";
             tabWrapper.style.background = isDark ? "#203a5d" : "#dbeafe";
+            tabWrapper.style.borderWidth = "2px";
         } else {
             tabWrapper.style.borderColor = isDark ? "#3c3c3c" : "#d1d5db";
             tabWrapper.style.background = isDark
                 ? "#3a3a3f"
                 : "#f3f4f6";
+            tabWrapper.style.borderWidth = "1px";
         }
 
         tabWrapper.style.boxShadow = isActiveTab
@@ -759,14 +770,44 @@ window.api.onPanelsUpdated((panelsList, zoomPanelId) => {
     // Ne pas reconstruire la barre si l'utilisateur édite une URL : set-active-panel
     // envoie panels-updated et innerHTML = "" détruirait l'input (flash URL complète).
     const focusedElement = document.activeElement;
+
     const wasUrlInput =
         focusedElement &&
         focusedElement.classList &&
         focusedElement.classList.contains("url-input");
 
     try {
-        if (typeof rebuildUrlBar === "function" && !wasUrlInput) {
-            rebuildUrlBar(currentPanels);
+        const urlBar = document.getElementById("url-bar");
+        const existingIds = urlBar
+            ? Array.from(urlBar.querySelectorAll(".url-input"), input => input.id.replace(/-url$/, ""))
+            : [];
+        const nextIds = currentPanels.map(panel => panel.id);
+        const structureChanged =
+            existingIds.length !== nextIds.length ||
+            existingIds.some((id, index) => id !== nextIds[index]);
+
+        if (structureChanged) {
+            if (typeof rebuildUrlBar === "function") rebuildUrlBar(currentPanels);
+            if (typeof refreshTabBorders === "function") refreshTabBorders();
+        } else if (urlBar) {
+            currentPanels.forEach(panel => {
+                const input = document.getElementById(`${panel.id}-url`);
+                if (!input) return;
+
+                const url = panel.realUrl || panel.url || "";
+                if (input.dataset.url !== url) input.dataset.url = url;
+                if (!wasUrlInput || document.activeElement !== input) {
+                    const displayUrl = typeof getDisplayUrl === "function" ? getDisplayUrl(url) : url;
+                    if (input.value !== displayUrl) input.value = displayUrl;
+                }
+
+                const icon = input.parentElement.querySelector("span:not(.loading-spinner):not(.incognito-badge)");
+                if (icon) {
+                    const iconText = getUrlTypeIcon(url, panel.isPrivate);
+                    if (icon.textContent !== iconText) icon.textContent = iconText;
+                }
+            });
+            if (typeof refreshTabBorders === "function") refreshTabBorders();
         }
     } catch (err) {
         console.error("Erreur dans rebuildUrlBar lors du rafraîchissement :", err);
@@ -852,6 +893,7 @@ function rebuildUrlBar(panels) {
 //      tabWrapper.style.padding = "2px 6px";
         tabWrapper.style.padding = "0px 6px";
         tabWrapper.style.borderRadius = "6px";
+        tabWrapper.style.boxSizing = "border-box";
 
         if (panel.isPrivate) {
             tabWrapper.style.background = isActive ? "#2a193d" : "#1e112c";
@@ -1009,7 +1051,10 @@ tabWrapper.appendChild(loadingIndicator);
 input.addEventListener("click", (e) => {
     e.stopPropagation();
 
-    if (activePanel !== panel.id) {
+    const panelChanged = activePanel !== panel.id;
+    activePanel = panel.id;
+    if (typeof refreshTabBorders === "function") refreshTabBorders();
+    if (panelChanged) {
         window.api.setActivePanel(panel.id, { keepChromeFocus: true });
     }
 
@@ -1017,41 +1062,21 @@ input.addEventListener("click", (e) => {
     // Si l'input a déjà le focus, on ne re-sélectionne pas : le 2e clic
     // peut placer le caret pour éditer une partie de l'URL.
     if (document.activeElement !== input) {
-        setTimeout(() => {
-            input.focus();
-            input.select();
-        }, 50);
+        input.focus();
+        input.select();
     }
 });
 
 input.addEventListener("focus", () => {
-    if (activePanel !== panel.id) {
+    const panelChanged = activePanel !== panel.id;
+    activePanel = panel.id;
+    if (typeof refreshTabBorders === "function") refreshTabBorders();
+
+    if (panelChanged) {
         window.api.setActivePanel(panel.id, { keepChromeFocus: true });
     }
 
-    if (urlIcon) {
-        urlIcon.textContent = "✏️";
-    }
-
-    const rawUrl = input.dataset.url || "";
-
-    if (rawUrl.includes("://google.com")) {
-        try {
-            const urlObj = new URL(rawUrl);
-            input.value = urlObj.searchParams.get("q") || rawUrl;
-        } catch(e) {
-            input.value = rawUrl;
-        }
-    } else {
-        input.value = rawUrl;
-    }
-
     input.style.color = isDark ? "#ffffff" : "#1f2937";
-
-setTimeout(() => {
-    input.select();
-}, 10);
-
 
 });
 
@@ -1063,13 +1088,10 @@ setTimeout(() => {
 input.addEventListener("blur", () => {
     const realUrl = input.dataset.url || "";
 
-    input.value = typeof getDisplayUrl === "function"
+    const displayUrl = typeof getDisplayUrl === "function"
         ? getDisplayUrl(realUrl)
         : realUrl;
-
-    if (urlIcon) {
-        urlIcon.textContent = getUrlTypeIcon(realUrl);
-    }
+    if (input.value !== displayUrl) input.value = displayUrl;
 });
 
         tabWrapper.appendChild(input);
@@ -1270,16 +1292,16 @@ window.api.onActivePanelChanged((data) => {
     activePanel = data.id;
 
 //  rebuildUrlBar(currentPanels);
-const focusedElement = document.activeElement;
 const wasUrlInput =
     focusedElement &&
     focusedElement.classList &&
     focusedElement.classList.contains("url-input");
 
-if (!wasUrlInput) {
+/*
+    if (!wasUrlInput) {
     rebuildUrlBar(currentPanels);
 }
-
+*/
 
 
     if (typeof refreshTabBorders === "function") {

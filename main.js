@@ -547,7 +547,7 @@ function registerDownloadHandler(session) {
                 
                 if (totalBytes > 0) {
                     const percent = Math.round((receivedBytes / totalBytes) * 100);
-                    // AJOUT SÉCURITÉ : On vérifie que la fenêtre et ses webContents ne sont pas détruits
+                    // AJOUT SÉCURITÉ : On vérifie que la fenêtre et ses webContents ne sont pas détrits
                     if (win && !win.isDestroyed() && win.webContents && !win.webContents.isDestroyed()) {
                         win.webContents.send('download-progress', { panelId, percent, filename });
                     }
@@ -559,7 +559,7 @@ function registerDownloadHandler(session) {
             // Nettoyage de la référence
             delete activeDownloads[panelId];
 
-            // AJOUT SÉCURITÉ : On vérifie que la fenêtre et ses webContents ne sont pas détruits
+            // AJOUT SÉCURITÉ : On vérifie que la fenêtre et ses webContents ne sont pas détrits
             if (win && !win.isDestroyed() && win.webContents && !win.webContents.isDestroyed()) {
                 win.webContents.send('download-done', { panelId });
             }
@@ -708,6 +708,7 @@ function updateActiveBorder(bounds, options) {
             
             // === CORRECTIF CRUCIAL A : Empêche le liseré d'intercepter les clics ===
             bView.webContents.setIgnoreMenuShortcuts(true);
+            bView.webContents.userAgent = "InternalBorder";
             
             bView.webContents.loadURL("data:text/html," + encodeURIComponent(`
                 <html><body style="margin:0; padding:0; background:#3b82f6; overflow:hidden;"></body></html>
@@ -719,18 +720,18 @@ function updateActiveBorder(bounds, options) {
     borderLayouts.forEach((layout, index) => {
         const bView = borderViews[index];
         if (bView && !bView.webContents.isDestroyed()) {
-            bView.setBounds(layout);
-            try {
-                // setTopBrowserView vole le focus du chrome et peut relancer
-                // le handler focus des tuiles → reconstruction des barres d'URL en boucle.
-                if (!skipRaise) {
-                    win.setTopBrowserView(bView);
-                }
-                // Indique à Chromium de laisser passer le clic à travers le liseré bleu
-                bView.webContents.userAgent = "InternalBorder";
-            } catch (e) {}
+            const current = bView.getBounds();
+            if (
+                current.x !== layout.x ||
+                current.y !== layout.y ||
+                current.width !== layout.width ||
+                current.height !== layout.height
+            ) {
+                bView.setBounds(layout);
+            }
         }
     });
+
 }
 
 let handleDraggedPanelId = null;
@@ -805,7 +806,6 @@ function updatePanelHandles() {
                 // On récupère les dimensions actuelles de la poignée stockée
                 const currentBounds = handleViews[panel.id].getBounds();
                 handleViews[panel.id].setBounds(handleBounds);
-                win.setTopBrowserView(handleViews[panel.id]);
                 
                 // Si la poignée est déjà là mais que sa taille a changé (ex: passage de 24px à 60px après le mode sombre),
                 // il faut détruire l'ancienne pour forcer la re-création complète du HTML ci-dessous.
@@ -1187,16 +1187,25 @@ function collectPanelNodes(node, panels = []) {
 // Dans main.js -> Remplacez votre fonction updatePanelUrl par celle-ci :
 
 function updatePanelUrl(panel, url) {
-    // CORRECTIF : Si le panneau est privé et qu'il est sur la page d'accueil d'origine
+    const previousUrl = panel.url;
+    let nextUrl = url;
+
+    // Si le panneau est privé et qu'il est sur sa page d'accueil d'origine.
     if (panel.isPrivate && (url.startsWith('data:text/html') || url === panel.url)) {
-        panel.url = "Navigation Privée";
+        nextUrl = "Navigation Privée";
         panel.title = "Navigation Privée";
     } else {
-        panel.url = url;
         if (panel.view && !panel.view.webContents.isDestroyed()) {
             panel.title = panel.view.webContents.getTitle();
         }
     }
+
+    panel.url = nextUrl;
+
+    // Les sites peuvent modifier document.title plusieurs fois après le chargement.
+    // Ces changements ne modifient pas l'adresse affichée : évite de rafraîchir
+    // toute l'interface pour la même URL.
+    if (previousUrl === nextUrl) return;
 
     win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
 }
@@ -1409,30 +1418,26 @@ panel.view.webContents.on("did-finish-load", async () => {
 
 
     panel.view.webContents.on("focus", () => {
-        // Focus parasite (liseré setTopBrowserView) : ne pas reconstruire les onglets.
-        if (activePanel === panel.id) {
-            return;
-        }
-
+        // Synchronise systématiquement l'onglet renderer lors du focus natif.
+        // Le processus principal et index.html peuvent avoir des états différents
+        // après un clic dans la barre d'adresse; ne pas court-circuiter l'IPC.
+        const panelChanged = activePanel !== panel.id;
         activePanel = panel.id;
         
-        // === CORRECTIF CRUCIAL B : Forcer la mise à jour géométrique à chaque clic dans la page ===
         if (win && !win.isDestroyed() && win.webContents && !win.webContents.isDestroyed()) {
             win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
-            
-            // Met également à jour l'état des en-têtes et des onglets de index.html
-            win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
-        }
-        
-        updateActiveBorder(panel.bounds);
-        
-        win.webContents.send("navigation-state-changed", {
-            panelId: panel.id,
-            canGoBack: panel.view.webContents.navigationHistory.canGoBack(),
-            canGoForward: panel.view.webContents.navigationHistory.canGoForward()
-        });
-    });
 
+            if (panelChanged) {
+                win.webContents.send("navigation-state-changed", {
+                    panelId: panel.id,
+                    canGoBack: panel.view.webContents.navigationHistory.canGoBack(),
+                    canGoForward: panel.view.webContents.navigationHistory.canGoForward()
+                });
+            }
+        }
+
+        if (panelChanged) updateActiveBorder(panel.bounds);
+    });
 
     panel.view.webContents.on("did-fail-load", (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
         if (!isMainFrame) return;
@@ -2484,9 +2489,6 @@ function createWindow() {
         }
     });
 
-    // Ouvre automatiquement les DevTools au démarrage de l'application
-    win.webContents.openDevTools();
-
     win.setMaxListeners(30);
 
 // Remplacez registerDownloadHandler(win.webContents.session); par :
@@ -2498,8 +2500,6 @@ function createWindow() {
         console.log("WARNING MESSAGE:", warning.message);
         console.log("WARNING STACK:", warning.stack);
     });
-
-    win.loadFile("index.html");
 
     win.webContents.on("did-finish-load", () => {
         win.webContents.send("app-title", APP_TITLE);
@@ -3053,29 +3053,24 @@ function createWindow() {
         if (resizeDebounceTimer) clearTimeout(resizeDebounceTimer);
         resizeDebounceTimer = setTimeout(() => {
             if (win.isDestroyed()) return;
-            forceRebuildSplitters = true;
             resizeViews();
         }, 30); // Petit délai pour laisser Electron respirer
     });
 
     // Prise en charge du mode plein écran (Maximized / Fullscreen)
     win.on("maximize", () => {
-        forceRebuildSplitters = true;
         resizeViews();
     });
 
     win.on("unmaximize", () => {
-        forceRebuildSplitters = true;
         resizeViews();
     });
 
     win.on("enter-full-screen", () => {
-        forceRebuildSplitters = true;
         resizeViews();
     });
 
     win.on("leave-full-screen", () => {
-        forceRebuildSplitters = true;
         resizeViews();
     });
 
@@ -3094,7 +3089,7 @@ function createWindow() {
             defaultId: 1, 
             cancelId: 1,  
             title: 'Confirmation',
-            message: `Êtes-vous sûr de vouloir fermer ${APP_TITLE} ?`,
+            message: `Êtes-vous sûr de vouloir fermer ${APP_TITLE} ?`, // === DYNAMIQUE ICI ===
             detail: 'Tous vos panneaux et onglets ouverts seront perdus.'
         });
 
@@ -3275,20 +3270,20 @@ function detachPanelToFullscreen(panelId) {
 
 function resizeViews() {
     if (win.isDestroyed()) return;
+    const bounds = win.getContentBounds();
+
+    // Windows peut signaler une taille nulle quand la fenêtre est minimisée.
+    // Ne pas vider les splitters ni modifier les BrowserView pendant cet état.
+    if (bounds.width <= 0 || bounds.height <= 0) {
+        return;
+    }
     
     // 1. Récupérer la taille réelle de la zone de contenu utile d'Electron
-    const bounds = win.getContentBounds();
-    
     // CORRECTION ICI : Changez "const" par "let" pour s'autoriser à modifier la variable
     let width = bounds.width; 
     const height = bounds.height;
     
     splitters.length = 0;
-
-    // === AJOUT : Si un panneau est maximisé, on force la disparition des splitters ===
-    if (maximizedPanelId) {
-        forceRebuildSplitters = true;
-    }
 
     if (forceRebuildSplitters) {
         splitterViews.forEach((v) => { try { win.removeBrowserView(v); } catch(e) {} });
@@ -3424,10 +3419,6 @@ function resizeViews() {
             if (targetBounds) {
                 updateActiveBorder(targetBounds);
                 
-                // OPTIMISATION : On remonte également la poignée du panneau actif pour qu'elle reste accessible
-                if (handleViews[activePanel]) {
-                    try { win.setTopBrowserView(handleViews[activePanel]); } catch(e) {}
-                }
             } else {
                 // Cache les liserés si le panneau actif fait partie des panneaux masqués
                 borderViews.forEach(bView => {
@@ -3584,8 +3575,6 @@ ipcMain.handle('save-config-to-file', async () => {
 });
 
 
-
-
 // 2. CHARGER LA CONFIGURATION DEPUIS UN FICHIER
 ipcMain.handle('load-config-from-file', async () => {
     const { filePaths } = await dialog.showOpenDialog(win, {
@@ -3670,7 +3659,6 @@ ipcMain.handle('load-config-from-file', async () => {
     }
     return false;
 });
-
 
 
 // Dans main.js -> Avec vos autres écouteurs ipcMain
