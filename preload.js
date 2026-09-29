@@ -26,7 +26,7 @@ contextBridge.exposeInMainWorld(
 
 
         // --- GESTION GÉOMÉTRIE ET PANNEAUX ACTIFS ---
-        setActivePanel: (panelId) => ipcRenderer.send("set-active-panel", panelId),
+        setActivePanel: (panelId, options) => ipcRenderer.send("set-active-panel", panelId, options),
         closePanel: (panelId) => ipcRenderer.send("close-panel", panelId),
         splitPanel: (panelId, direction, isPrivate, initialUrl) => ipcRenderer.send('split-panel', panelId, direction, isPrivate, initialUrl),
         undo: () => ipcRenderer.send("undo"),

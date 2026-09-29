@@ -204,6 +204,7 @@ body {
     height: 18px !important;
     font-size: 14px !important; /* Optionnel : réduit légèrement la police si le texte est coupé */
     font-Weight: 500;
+    cursor: text;
 }
 
 
@@ -634,49 +635,28 @@ function refreshTabBorders() {
 
         if (!input) continue;
 
-
-
-        input.type = "text";
-        input.id = panel.id + "-url";
-        input.className = "url-input";
-
-input.addEventListener("keydown", (e) => {
-
-    if (e.key === "Enter") {
-
-        console.log(
-            "NAVIGATION",
-            panel.id,
-            e.target.value
-        );
-
-        window.api.navigate(
-            panel.id,
-            e.target.value
-        );
-    }
-});
-
-        
-
+        // panelId lu depuis l'input existant : on ne touche pas à l'id ni aux
+        // écouteurs (sinon reconstruction / perte de sélection).
         const panelId = input.id.replace("-url", "");
+        const isActiveTab = !!(activePanel && panelId === activePanel);
+        const isPrivateTab = !!tabWrapper.querySelector(".incognito-badge");
 
-        if (activePanel && panelId === activePanel) {
+        if (isPrivateTab) {
+            tabWrapper.style.background = isActiveTab ? "#2a193d" : "#1e112c";
+            tabWrapper.style.borderColor = "#4a2874";
+        } else if (isActiveTab) {
             tabWrapper.style.borderColor = "#3b82f6";
-
             tabWrapper.style.background = isDark ? "#203a5d" : "#dbeafe";
-
-
         } else {
-            
             tabWrapper.style.borderColor = isDark ? "#3c3c3c" : "#d1d5db";
-
-
             tabWrapper.style.background = isDark
                 ? "#3a3a3f"
                 : "#f3f4f6";
-
         }
+
+        tabWrapper.style.boxShadow = isActiveTab
+            ? "0 0 0 2px rgba(59,130,246,0.5)"
+            : "none";
 
 
     }
@@ -737,31 +717,32 @@ function attachUrlHandler(panelId) {
     const input = document.getElementById(panelId + "-url");
     if (!input) return;
 
-    // On supprime les anciens écouteurs pour éviter les conflits
-    const newInput = input.cloneNode(true);
-    input.parentNode.replaceChild(newInput, input);
+    // Ne pas cloner l'input : cloneNode supprime les écouteurs déjà posés
+    // (sélection au clic, expansion de l'URL au focus). rebuildUrlBar crée
+    // déjà un nouvel input à chaque reconstruction, donc pas de doublon ici.
 
-    newInput.addEventListener("keydown", (e) => {
+    input.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
             e.preventDefault();
-            const valeureSaisie = newInput.value.trim();
+            const valeureSaisie = input.value.trim();
             if (valeureSaisie) {
                 console.log("Navigation demandée pour le panneau " + panelId + " vers : " + valeureSaisie);
                 window.api.navigate(panelId, valeureSaisie);
-                newInput.blur();
+                input.blur();
             }
         }
     });
 
-    // Conserver les autres écouteurs utiles sur le nouvel input
-    newInput.addEventListener("mousedown", (e) => {
-        const tabWrapper = newInput.closest(".url-tab") || newInput.parentElement;
+    input.addEventListener("mousedown", (e) => {
+        const tabWrapper = input.closest(".url-tab") || input.parentElement;
         if (tabWrapper) tabWrapper.setAttribute("draggable", "false");
     });
     
-    newInput.addEventListener("click", (e) => {
+    input.addEventListener("click", (e) => {
         e.stopPropagation();
-        window.api.setActivePanel(panelId);
+        if (activePanel !== panelId) {
+            window.api.setActivePanel(panelId, { keepChromeFocus: true });
+        }
     });
 }
 
@@ -775,8 +756,16 @@ window.api.onPanelsUpdated((panelsList, zoomPanelId) => {
     currentMaximizedId = zoomPanelId || null;
 
     // 3. Exécution compartimentée pour isoler et identifier les bugs
+    // Ne pas reconstruire la barre si l'utilisateur édite une URL : set-active-panel
+    // envoie panels-updated et innerHTML = "" détruirait l'input (flash URL complète).
+    const focusedElement = document.activeElement;
+    const wasUrlInput =
+        focusedElement &&
+        focusedElement.classList &&
+        focusedElement.classList.contains("url-input");
+
     try {
-        if (typeof rebuildUrlBar === "function") {
+        if (typeof rebuildUrlBar === "function" && !wasUrlInput) {
             rebuildUrlBar(currentPanels);
         }
     } catch (err) {
@@ -1000,8 +989,17 @@ tabWrapper.appendChild(loadingIndicator);
         input.dataset.url = panel.realUrl || panel.url || "";
         input.value = typeof getDisplayUrl === "function" ? getDisplayUrl(input.dataset.url) : input.dataset.url;
 
-        input.addEventListener("mousedown", () => {
+        input.style.cursor = "text";
+
+        input.addEventListener("mousedown", (e) => {
             tabWrapper.setAttribute("draggable", "false");
+            // Premier clic : toute l'URL (comme Chrome). preventDefault évite
+            // le caret et le drag HTML5 de l'onglet qui volent la sélection.
+            if (document.activeElement !== input) {
+                e.preventDefault();
+                input.focus();
+                input.select();
+            }
         });
 
         window.addEventListener("mouseup", () => {
@@ -1011,16 +1009,25 @@ tabWrapper.appendChild(loadingIndicator);
 input.addEventListener("click", (e) => {
     e.stopPropagation();
 
-    window.api.setActivePanel(panel.id);
+    if (activePanel !== panel.id) {
+        window.api.setActivePanel(panel.id, { keepChromeFocus: true });
+    }
 
-    setTimeout(() => {
-        input.focus();
-        input.select();
-    }, 50);
+    // Filet de sécurité si le mousedown n'a pas pu focuser (ex. course IPC).
+    // Si l'input a déjà le focus, on ne re-sélectionne pas : le 2e clic
+    // peut placer le caret pour éditer une partie de l'URL.
+    if (document.activeElement !== input) {
+        setTimeout(() => {
+            input.focus();
+            input.select();
+        }, 50);
+    }
 });
 
 input.addEventListener("focus", () => {
-    window.api.setActivePanel(panel.id);
+    if (activePanel !== panel.id) {
+        window.api.setActivePanel(panel.id, { keepChromeFocus: true });
+    }
 
     if (urlIcon) {
         urlIcon.textContent = "✏️";
@@ -1246,7 +1253,9 @@ window.api.onFocusUrlBar((panelId) => {
         }, 5);
     }
     
-    window.api.setActivePanel(panelId);
+    if (activePanel !== panelId) {
+        window.api.setActivePanel(panelId, { keepChromeFocus: true });
+    }
 });
 
 

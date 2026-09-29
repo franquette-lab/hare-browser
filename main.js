@@ -684,10 +684,11 @@ async function buildSearchPage(query) {
     `;
 }
 
-function updateActiveBorder(bounds) {
+function updateActiveBorder(bounds, options) {
     if (!bounds || !win || win.isDestroyed()) return;
 
     const BORDER_THICKNESS = 2;
+    const skipRaise = options && options.skipRaise;
 
     const borderLayouts = [
         { x: bounds.x, y: bounds.y, width: bounds.width, height: BORDER_THICKNESS }, // TOP
@@ -720,7 +721,11 @@ function updateActiveBorder(bounds) {
         if (bView && !bView.webContents.isDestroyed()) {
             bView.setBounds(layout);
             try {
-                win.setTopBrowserView(bView);
+                // setTopBrowserView vole le focus du chrome et peut relancer
+                // le handler focus des tuiles → reconstruction des barres d'URL en boucle.
+                if (!skipRaise) {
+                    win.setTopBrowserView(bView);
+                }
                 // Indique à Chromium de laisser passer le clic à travers le liseré bleu
                 bView.webContents.userAgent = "InternalBorder";
             } catch (e) {}
@@ -1404,10 +1409,15 @@ panel.view.webContents.on("did-finish-load", async () => {
 
 
     panel.view.webContents.on("focus", () => {
+        // Focus parasite (liseré setTopBrowserView) : ne pas reconstruire les onglets.
+        if (activePanel === panel.id) {
+            return;
+        }
+
         activePanel = panel.id;
         
         // === CORRECTIF CRUCIAL B : Forcer la mise à jour géométrique à chaque clic dans la page ===
-        if (win && !win.isDestroyed()) {
+        if (win && !win.isDestroyed() && win.webContents && !win.webContents.isDestroyed()) {
             win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
             
             // Met également à jour l'état des en-têtes et des onglets de index.html
@@ -3484,22 +3494,30 @@ ipcMain.on("print-panel", (event, panelId) => {
 });
 
 
-ipcMain.on("set-active-panel", (event, panelId) => {
+ipcMain.on("set-active-panel", (event, panelId, options) => {
     const panel = findPanelNode(rootNode, panelId);
     if (!panel) return;
+    if (!win || win.isDestroyed() || !win.webContents || win.webContents.isDestroyed()) return;
     
     activePanel = panelId;
+    const keepChromeFocus = options && options.keepChromeFocus;
     
     // 1. Met à jour le liseré bleu autour du panneau actif
     win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
-    updateActiveBorder(panel.bounds);
+    // Depuis la barre d'URL : déplacer le liseré sans setTopBrowserView
+    // (sinon focus tuile → panels-updated → clignotement de toutes les barres).
+    updateActiveBorder(panel.bounds, keepChromeFocus ? { skipRaise: true } : undefined);
     
     // 2. CORRECTIF : Notifie index.html que la liste des panneaux a un nouvel actif
     // (Cela permet à votre barre d'outils/onglets de savoir quel panneau est sélectionné)
-    win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
+    if (!keepChromeFocus) {
+        win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
+    }
     
     // 3. Donne réellement le focus au contenu de la page web
-    if (panel.view && !panel.view.webContents.isDestroyed()) {
+    // Sauf si le chrome (barre d'URL) demande à garder le focus : sinon
+    // webContents.focus() fait un blur immédiat de l'input (URL courte + pas de sélection).
+    if (!keepChromeFocus && panel.view && !panel.view.webContents.isDestroyed()) {
         panel.view.webContents.focus();
     }
 });
