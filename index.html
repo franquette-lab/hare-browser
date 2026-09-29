@@ -1070,6 +1070,11 @@ input.addEventListener("click", (e) => {
 input.addEventListener("focus", () => {
     const panelChanged = activePanel !== panel.id;
     activePanel = panel.id;
+
+    // Affiche l'adresse réellement naviguée dès que l'utilisateur cible ce champ.
+    const realUrl = input.dataset.url || "";
+    if (input.value !== realUrl) input.value = realUrl;
+
     if (typeof refreshTabBorders === "function") refreshTabBorders();
 
     if (panelChanged) {
