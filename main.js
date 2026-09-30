@@ -5,7 +5,6 @@
 // Tout en haut de votre fichier main.js
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // Évite les blocages de certificats locaux
 
-// DANS MAIN.JS -> Tout en haut du fichier (après les constantes et imports)
 const {
     app,
     BrowserWindow,
@@ -27,7 +26,6 @@ if (typeof safeStorage.setUseAlternativeEncryption === 'function') {
     safeStorage.setUseAlternativeEncryption(true);
 }
 
-
 // En haut de main.js avec vos autres variables globales
 const APP_TITLE = "Hare Browser"; 
 const SEARCH_ENGINE_HOST = "129.151.254.175";
@@ -42,15 +40,11 @@ if (!fs.existsSync(appDataPath)) {
     fs.mkdirSync(appDataPath, { recursive: true });
 }
 
-
 const splitters = [];
-
-// DANS MAIN.JS -> Tout en haut du fichier avec vos variables de chemins :
 
 // REMPLACEZ : const historyPath = path.join(__dirname, 'navigation_history.json');
 // PAR CE CHEMIN SÉCURISÉ (Dans AppData comme vos favoris) :
 const historyPath = path.join(app.getPath('userData'), 'navigation_history.json');
-
 
 // Chemin vers le fichier de stockage des favoris
 const favorisPath = path.join(app.getPath('userData'), 'favoris.json');
@@ -60,7 +54,6 @@ const themePath = path.join(app.getPath('userData'), 'theme.json');
 // Stockage des 4 bordures bleues
 let borderViews = []; 
 
-// === AJOUTEZ CETTE LIGNE JUSTE EN DESSOUS ===
 let handleViews = {}; 
 
 let win;
@@ -83,9 +76,7 @@ let maximizedPanelId = null;
 // En haut de main.js, à la place de const TOOLBAR_HEIGHT = 105;
 let isBookmarksBarVisible = true; // La barre est affichée par défaut
 
-//let TOOLBAR_HEIGHT = 77;
-//const TOOLBAR_MIN_HEIGHT = 77;
-let TOOLBAR_HEIGHT = 76; // 64
+let TOOLBAR_HEIGHT = 76;
 const TOOLBAR_MIN_HEIGHT = 77;
 
 let history = [];
@@ -98,12 +89,8 @@ let isDarkModeForced = false;
 
 let isAiSidebarVisible = false; // Par défaut, le volet est fermé
 
-
 const https = require("https");
 
-
-
-// DANS MAIN.JS -> GESTION ET AFFICHAGE DE LA POPUP NATIVE DE MOTS DE PASSE
 let pwdWindow = null;
 
 function updatePasswordWindowContent() {
@@ -115,10 +102,6 @@ function updatePasswordWindowContent() {
         });
     }
 }
-
-
-
-// DANS MAIN.JS -> Remplacez la fonction afficherMenuContextuelPanneau par celle-ci :
 
 function afficherMenuContextuelPanneau(webContents, x, y) {
     const panel = findPanelByWebContents(webContents);
@@ -200,8 +183,6 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
     contextMenu.popup({ window: win, x, y });
 }
 
-
-
 function applyThemeToView(view) {
 
     if (!view || !view.webContents) {
@@ -255,8 +236,6 @@ function getThemePreference() {
 }
 
 // ====== FONCTION DE SAUVEGARDE ASYNCHRONE ET ATOMIQUE SÉCURISÉE ======
-// DANS MAIN.JS -> Remplacer la fonction safeWriteJsonAsync par cette version robuste
-
 async function safeWriteJsonAsync(filePath, data) {
     const tmpPath = filePath + '.tmp';
     try {
@@ -278,14 +257,6 @@ async function safeWriteJsonAsync(filePath, data) {
         }
     }
 }
-
-
-
-
-
-
-
-// DANS MAIN.JS -> Remplacer le bloc complet de gestion des mots de passe
 
 const passwordsPath = path.join(app.getPath('userData'), 'passwords.json');
 
@@ -346,8 +317,6 @@ async function savePasswordsSecurely(passwordList) {
     }
 }
 
-// Dans main.js -> Remplacer l'écouteur "open-password-manager-window" complet
-
 ipcMain.on("open-password-manager-window", () => {
     if (pwdWindow && !pwdWindow.isDestroyed()) {
         pwdWindow.focus();
@@ -380,7 +349,6 @@ ipcMain.on("open-password-manager-window", () => {
     });
 });
 
-
 // Écouteurs d'actions émis depuis passwords.html
 ipcMain.on('pwd-ui-save', async (event, entry) => {
     let list = getStoredPasswords();
@@ -402,8 +370,6 @@ ipcMain.on('pwd-ui-delete', async (event, index) => {
         updatePasswordWindowContent(); // Rafraîchit l'affichage de la popup
     }
 });
-
-
 
 // Ré-enregistrement des handles IPC nettoyés
 ipcMain.removeHandler('pwd-get-all');
@@ -440,9 +406,6 @@ ipcMain.handle('pwd-delete-entry', async (event, index) => {
         return false;
     }
 });
-
-
-
 
 // ======================================================================
 // FONCTIONS HISTORIQUE SÉCURISÉES (Anti-crash et Anti-corruption)
@@ -595,35 +558,24 @@ function registerDownloadHandler(session) {
     });
 }
 
-
-
 function extractResults(data) {
-
     const results = [];
-
     for (const item of data.RelatedTopics || []) {
-
         if (item.Text) {
             results.push({
                 title: item.Text,
                 url: item.FirstURL
             });
         }
-
         if (item.Topics) {
-
             for (const topic of item.Topics) {
-
                 results.push({
                     title: topic.Text,
                     url: topic.FirstURL
                 });
-
             }
         }
-
     }
-
     return results;
 }
 
@@ -699,8 +651,6 @@ function updateActiveBorder(bounds, options) {
         { x: bounds.x + bounds.width - BORDER_THICKNESS, y: bounds.y, width: BORDER_THICKNESS, height: bounds.height } // RIGHT
     ];
 
-    
-
     // Création des 4 bordures si elles n'existent pas
     if (borderViews.length === 0) {
         for (let i = 0; i < 4; i++) {
@@ -732,7 +682,6 @@ function updateActiveBorder(bounds, options) {
             }
         }
     });
-
 }
 
 let handleDraggedPanelId = null;
@@ -765,7 +714,6 @@ function updatePanelHandles() {
         return ua !== "InternalBorder" && !url.startsWith("data:text/html");
     });
 
-    // ====== MODIFICATION ICI ======
     // Au lieu de compter les BrowserViews (qui incluent les poignées et liserés en cours de reconstruction),
     // on utilise la liste réelle de vos panneaux (panelsList) issue de la structure de données.
     const isLastRemaining = (panelsList.length === 1);
@@ -950,7 +898,6 @@ function updatePanelHandles() {
     });
 }
 
-
 function findNeighborPanel(activeBounds, direction, panelsList) {
     if (!activeBounds) return null;
     
@@ -988,7 +935,6 @@ function findNeighborPanel(activeBounds, direction, panelsList) {
             }
         }
     });
-
     return bestTarget;
 }
 
@@ -1074,8 +1020,6 @@ function isValidUrl(text) {
     }
 }
 
-
-
 function buildNavigationTarget(input) {
     input = input.trim();
 
@@ -1092,11 +1036,6 @@ function buildNavigationTarget(input) {
     // 3. Sinon, c'est une recherche de mots-clés sur Google
     return `http://129.151.254.175:8080/search?q=${encodeURIComponent(input)}`;
 }
-
-
-
-
-
 
 function findPanelByWebContents(webContents) {
     function walk(node) {
@@ -1117,17 +1056,13 @@ function findPanelByWebContents(webContents) {
 }   
 
 function findPanelByView(view) {
-
     function walk(node) {
         if (!node) return null;
-
         if (node.type === "panel" && node.view === view) {
             return node;
         }
-
         return walk(node.first) || walk(node.second);
     }
-
     return walk(rootNode);
 }
 
@@ -1158,16 +1093,14 @@ function findFirstPanel(node) {
 function collectPanels(node, panels = []) {
     if (!node) return panels;
     if (node.type === "panel") {
-
-
-panels.push({ 
-    id: node.id,
-    url: node.url,
-    realUrl: node.url,
-    title: node.title,
-    isPrivate: node.isPrivate,
-    searchQuery: node.searchQuery || ""
-});
+        panels.push({ 
+            id: node.id,
+            url: node.url,
+            realUrl: node.url,
+            title: node.title,
+            isPrivate: node.isPrivate,
+            searchQuery: node.searchQuery || ""
+        });
         return panels;
     }
     collectPanels(node.first, panels);
@@ -1185,8 +1118,6 @@ function collectPanelNodes(node, panels = []) {
     collectPanelNodes(node.second, panels);
     return panels;
 }
-
-// Dans main.js -> Remplacez votre fonction updatePanelUrl par celle-ci :
 
 function updatePanelUrl(panel, url) {
     const previousUrl = panel.url;
@@ -1222,7 +1153,6 @@ function updatePanelUrl(panel, url) {
 
     win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
 }
-
 
 function updateNavigationButtons() {
 
@@ -1283,41 +1213,31 @@ function setupNavigationTracking(panel) {
         syncSearchQueryFromPage();
     });
 
-
-// Dans main.js -> À l'intérieur de la fonction setupNavigationTracking(panel)
-
     // Écouteur pour intercepter le clic droit sur la page web de la tuile
-// Dans main.js -> À l'intérieur de setupNavigationTracking(panel)
+    panel.view.webContents.on("context-menu", (event, params) => {
+        event.preventDefault();
+        
+        // === CORRECTIF : Forcer le focus sur ce panneau lors du clic droit ===
+        activePanel = panel.id;
+        if (win && !win.isDestroyed()) {
+            // Met à jour le rectangle bleu de focus visuel autour de la tuile
+            win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
+            // Met à jour la barre d'onglets supérieure
+            win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
+        }
+        updateActiveBorder(panel.bounds);
+        // ===================================================================
 
-// Écouteur pour intercepter le clic droit sur la page web de la tuile
-panel.view.webContents.on("context-menu", (event, params) => {
-    event.preventDefault();
-    
-    // === CORRECTIF : Forcer le focus sur ce panneau lors du clic droit ===
-    activePanel = panel.id;
-    if (win && !win.isDestroyed()) {
-        // Met à jour le rectangle bleu de focus visuel autour de la tuile
-        win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
-        // Met à jour la barre d'onglets supérieure
-        win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
-    }
-    updateActiveBorder(panel.bounds);
-    // ===================================================================
+        // On affiche ensuite le menu d'actions au pixel près où se trouve la souris
+        afficherMenuContextuelPanneau(panel.view.webContents, params.x, params.y);
+    });
 
-    // On affiche ensuite le menu d'actions au pixel près où se trouve la souris
-    afficherMenuContextuelPanneau(panel.view.webContents, params.x, params.y);
-});
-
-
-
-
-panel.view.webContents.on("did-start-loading", () => {
-
+    panel.view.webContents.on("did-start-loading", () => {
 
         // Ignore le chargement initial au démarrage
- if (!initialLoadFinished) {
-return;
-}
+        if (!initialLoadFinished) {
+        return;
+        }
 
 
         if (win && !win.isDestroyed()) {
@@ -1329,12 +1249,10 @@ return;
     });
 
     panel.view.webContents.on("did-stop-loading", () => {
-
         if (!initialLoadFinished) {
             initialLoadFinished = true;
             return;
         }
-
         if (win && !win.isDestroyed()) {
             win.webContents.send("page-loading", {
                 panelId: panel.id,
@@ -1342,60 +1260,50 @@ return;
             });
         }
     });
-   
 
-// Dans main.js -> Dans setupNavigationTracking -> did-finish-load
+    panel.view.webContents.on("did-finish-load", async () => {
+        // ... (Votre code existant qui injecte le fichier injector.js) ...
 
-panel.view.webContents.on("did-finish-load", async () => {
-    // ... (Votre code existant qui injecte le fichier injector.js) ...
-
-    // === CORRECTIF CRUCIAL DE L'AUTOFILL AUTOMATIQUE ===
-    if (!panel.isPrivate) { 
-        const currentUrl = panel.view.webContents.getURL();
-        try {
-            // Appelle directement la fonction JavaScript locale sans passer par ipcMain.handlers
-            let hostname = "";
+        // === CORRECTIF CRUCIAL DE L'AUTOFILL AUTOMATIQUE ===
+        if (!panel.isPrivate) { 
+            const currentUrl = panel.view.webContents.getURL();
             try {
-                hostname = new URL(currentUrl).hostname.replace(/^www\./, "");
-            } catch (e) {
-                hostname = "";
-            }
-
-            if (hostname) {
-                const list = getStoredPasswords(); // Récupère la liste décodée
-                const matches = list.filter(p => p.url && p.url.includes(hostname));
-
-                if (matches && matches.length > 0) {
-                    const bestMatch = matches[0]; // Prend le premier compte correspondant
-                    
-                    console.log(`[PWD AUTOFILL] Correspondance trouvée pour ${hostname} : ${bestMatch.username}`);
-                    
-                    // Exécute la méthode d'autofill injectée dans le DOM de la tuile web
-                    const fillScript = `
-                        if (window.NanobrowserExecutor && typeof window.NanobrowserExecutor.autofillCredentials === 'function') {
-                            window.NanobrowserExecutor.autofillCredentials("${bestMatch.username}", "${bestMatch.password}");
-                        }
-                        void 0;
-                    `;
-                    panel.view.webContents.executeJavaScript(fillScript).catch(() => {});
+                // Appelle directement la fonction JavaScript locale sans passer par ipcMain.handlers
+                let hostname = "";
+                try {
+                    hostname = new URL(currentUrl).hostname.replace(/^www\./, "");
+                } catch (e) {
+                    hostname = "";
                 }
+
+                if (hostname) {
+                    const list = getStoredPasswords(); // Récupère la liste décodée
+                    const matches = list.filter(p => p.url && p.url.includes(hostname));
+
+                    if (matches && matches.length > 0) {
+                        const bestMatch = matches[0]; // Prend le premier compte correspondant
+                        
+                        console.log(`[PWD AUTOFILL] Correspondance trouvée pour ${hostname} : ${bestMatch.username}`);
+                        
+                        // Exécute la méthode d'autofill injectée dans le DOM de la tuile web
+                        const fillScript = `
+                            if (window.NanobrowserExecutor && typeof window.NanobrowserExecutor.autofillCredentials === 'function') {
+                                window.NanobrowserExecutor.autofillCredentials("${bestMatch.username}", "${bestMatch.password}");
+                            }
+                            void 0;
+                        `;
+                        panel.view.webContents.executeJavaScript(fillScript).catch(() => {});
+                    }
+                }
+            } catch (err) { 
+                console.error("Erreur Autofill résolue :", err); 
             }
-        } catch (err) { 
-            console.error("Erreur Autofill résolue :", err); 
         }
-    }
 
-    // Certains moteurs envoient le terme via POST : la requête n'est alors
-    // pas dans l'URL et doit être lue dans le formulaire de la page.
-    await syncSearchQueryFromPage();
-});
-
-
-
-
-
-// -----------------------------------------------------------
-
+        // Certains moteurs envoient le terme via POST : la requête n'est alors
+        // pas dans l'URL et doit être lue dans le formulaire de la page.
+        await syncSearchQueryFromPage();
+    });
 
     if (typeof panel.view.webContents.setForceDarkModeEnabled === 'function') {
         panel.view.webContents.setForceDarkModeEnabled(isDarkModeForced);
@@ -1532,8 +1440,6 @@ panel.view.webContents.on("did-finish-load", async () => {
         // On injecte le code HTML directement dans la BrowserView défaillante
         panel.view.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(errorHtml));
     });
-
-    
 }
 
 function layoutNode(node, x, y, width, height) {
@@ -1615,8 +1521,6 @@ ipcMain.handle('pwd-find-for-url', (event, targetUrl) => {
     }
 });
 
-
-
 ipcMain.on("show-url-context-menu", (event) => {
     const menu = Menu.buildFromTemplate([
         { role: "undo", label: "Annuler" },
@@ -1649,21 +1553,13 @@ ipcMain.on("toggle-ai-sidebar-request", (event, isVisible) => {
     }
 });
 
-
-
 ipcMain.on("navigate", (event, panelId, input) => {
-
-console.log("NAVIGATE", panelId, input);
-
     const panel = findPanelNode(rootNode, panelId);
-
     if (!panel || !panel.view)
         return;
-
     panel.view.webContents.loadURL(
         buildNavigationTarget(input)
     );
-
 });
 
 // Écouteur pour intercepter le clic sur le bouton d'annulation de l'IHM
@@ -1674,7 +1570,6 @@ ipcMain.on("cancel-download", (event, panelId) => {
         item.cancel();
     }
 });
-
 
 // Écouteur pour intercepter le clic sur la croix (X) de index.html
 ipcMain.on("toggle-bookmarks-bar-request", () => {
@@ -1692,6 +1587,7 @@ ipcMain.on("toggle-bookmarks-bar-request", () => {
 });
 
 function swapPanelsInTree(idA, idB) {
+
     saveState();
     
     const nodeA = findPanelNode(rootNode, idA);
@@ -1755,7 +1651,6 @@ ipcMain.on("panel-drag-start", (event, panelId) => {
         icon: emptyIcon
     });
 });
-
 
 app.on('drag-end', () => {
     if (!panelBeingDragged) return;
@@ -1901,7 +1796,6 @@ ipcMain.on("undo", (event) => {
     resizeViews();
 
     // 9. Mise à jour complète de la barre d'onglets HTML et du rectangle de focus
-//  win.webContents.send("panels-updated", collectPanels(rootNode));
     win.webContents.send(
         "panels-updated",
         collectPanels(rootNode),
@@ -1923,25 +1817,47 @@ let historyWindow = null;
 
 // Fonction pour envoyer les données fraîches à la fenêtre d'historique
 function updateHistoryWindowContent() {
-    if (global.historyWindow && !global.historyWindow.isDestroyed()) {
+    const targetHistoryWindow = historyWindow && !historyWindow.isDestroyed()
+        ? historyWindow
+        : global.historyWindow;
+
+    if (targetHistoryWindow && !targetHistoryWindow.isDestroyed()) {
         const historyList = getNavigationHistory();
+        const themeIsDark = isDarkModeForced;
 
-        console.log("NB HISTORIQUE =", historyList.length);
-
-        global.historyWindow.webContents.send('render-history', {
+        targetHistoryWindow.setBackgroundColor(themeIsDark ? "#1e1e1e" : "#f9fafb");
+        targetHistoryWindow.webContents.send('history-theme-changed', themeIsDark);
+        targetHistoryWindow.webContents.send('render-history', {
             historyList,
-            isDarkMode: isDarkModeForced
+            isDarkMode: themeIsDark
         });
+        if (targetHistoryWindow.webContents.isLoading()) {
+            targetHistoryWindow.webContents.once('did-finish-load', () => {
+                if (!targetHistoryWindow.isDestroyed()) {
+                    targetHistoryWindow.webContents.executeJavaScript(
+                        `window.applyHistoryTheme?.(${JSON.stringify(themeIsDark)});`
+                    ).catch(() => {});
+                }
+            });
+        } else {
+            targetHistoryWindow.webContents.executeJavaScript(
+                `window.applyHistoryTheme?.(${JSON.stringify(themeIsDark)});`
+            ).catch(() => {});
+        }
     }
 }
 // Écouteur pour ouvrir la fenêtre
 ipcMain.on("open-history-window", () => {
-    if (global.historyWindow && !global.historyWindow.isDestroyed()) {
-        global.historyWindow.focus();
+    const existingHistoryWindow = historyWindow && !historyWindow.isDestroyed()
+        ? historyWindow
+        : global.historyWindow;
+    if (existingHistoryWindow && !existingHistoryWindow.isDestroyed()) {
+        existingHistoryWindow.focus();
+        updateHistoryWindowContent();
         return;
     }
 
-    global.historyWindow = new BrowserWindow({
+    historyWindow = new BrowserWindow({
         width: 450,
         height: 600,
         title: "Historique de navigation",
@@ -1955,15 +1871,15 @@ ipcMain.on("open-history-window", () => {
         }
     });
 
-    global.historyWindow.loadFile(path.join(__dirname, 'history.html'));
+    global.historyWindow = historyWindow;
+    historyWindow.loadFile(path.join(__dirname, 'history.html'));
 
-// global.historyWindow.webContents.openDevTools();
-
-    global.historyWindow.webContents.on('did-finish-load', () => {
+    historyWindow.webContents.on('did-finish-load', () => {
         updateHistoryWindowContent();
     });
 
-    global.historyWindow.on("closed", () => {
+    historyWindow.on("closed", () => {
+        historyWindow = null;
         global.historyWindow = null;
     });
 });
@@ -2040,29 +1956,24 @@ ipcMain.on("history-click", (event, url) => {
     }
 });
 
-// ====== GESTION DU MODE SOMBRE À LA DEMANDE (INJECTION AVANCÉE) ======
 isDarkModeForced = getThemePreference();
-
-// ====== DANS SCRIPT : main.js ======
-
-// DANS MAIN.JS -> Remplacer l'écouteur 'toggle-dark-mode-request'
 
 ipcMain.on('toggle-dark-mode-request', (event, enable) => {
     isDarkModeForced = enable;
     nativeTheme.themeSource = enable ? 'dark' : 'light';
 
-// Mise à jour de la barre de titre Electron
-if (win && !win.isDestroyed()) {
-    win.setTitleBarOverlay({
-        color: enable ? '#252526' : '#ffffff',
-        symbolColor: enable ? '#cfcfcf' : '#1f2937',
-        height: 38
-    });
+    // Mise à jour de la barre de titre Electron
+    if (win && !win.isDestroyed()) {
+        win.setTitleBarOverlay({
+            color: enable ? '#252526' : '#ffffff',
+            symbolColor: enable ? '#cfcfcf' : '#1f2937',
+            height: 38
+        });
 
-    win.setBackgroundColor(
-        enable ? '#252526' : '#f3f4f6'
-    );
-}    
+        win.setBackgroundColor(
+            enable ? '#252526' : '#f3f4f6'
+        );
+    }    
 
     // Force la recréation complète des poignées
     Object.keys(handleViews).forEach(id => {
@@ -2146,27 +2057,30 @@ if (win && !win.isDestroyed()) {
         }, 50);
     }
 
-// === Rafraîchissement des éléments natifs ===
+    // === Rafraîchissement des éléments natifs ===
 
-// Recrée les splitters avec les nouvelles couleurs
-updateSplitterTheme();
+    // Recrée les splitters avec les nouvelles couleurs
+    updateSplitterTheme();
 
-forceRebuildSplitters = true;
+    forceRebuildSplitters = true;
 
-// Recrée les poignées de déplacement
-updatePanelHandles();
+    // Recrée les poignées de déplacement
+    updatePanelHandles();
 
-// Met à jour la fenêtre Historique si elle est ouverte
-updateHistoryWindowContent();
+    // Recharge la fenêtre d'historique pour éviter qu'un ancien rendu/CSS
+    // sombre reste affiché après le changement de thème.
+    const openHistoryWindow = historyWindow && !historyWindow.isDestroyed()
+        ? historyWindow
+        : global.historyWindow;
+    if (openHistoryWindow && !openHistoryWindow.isDestroyed()) {
+        openHistoryWindow.setBackgroundColor(enable ? "#1e1e1e" : "#f9fafb");
+        openHistoryWindow.webContents.reload();
+    }
 
-// Recalcule la géométrie
-resizeViews();
-
+    // Recalcule la géométrie
+    resizeViews();
 
 });
-
-
-
 
 // Script d'injection magique : s'exécute AVANT que Wikipédia ne calcule ses styles
 app.on('web-contents-created', (event, webContents) => {
@@ -2228,11 +2142,6 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
 
     const newView = new BrowserView(viewOptions);
     win.addBrowserView(newView);
-
-
-// ___________________________________________________________________________________________
-
-// ====== DANS MAIN.JS -> ipcMain.on("split-panel", ...) ======
 
     // --- CORRECTION DU THÈME INCOGNITO ---
     // Au lieu de lire une variable globale, on demande directement à Electron son état réel
@@ -2342,27 +2251,22 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
                 }
                 .btn-search:hover { background-color: #7e22ce; }
 
-
-
-/* 🕵️ BASCULE DYNAMIQUE DU MODE SOMBRE (Correction des sélecteurs) */
-html.mw-theme-client-dark body {
-    background-color: #120b18 !important; /* Votre fond violet très sombre d'origine */
-    color: #e2e8f0 !important;
-}
-html.mw-theme-client-dark .container {
-    background: #1e1229 !important;
-    border-color: #4c1d95 !important;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
-}
-html.mw-theme-client-dark h1 { color: #c084fc !important; }
-html.mw-theme-client-dark p { color: #94a3b8 !important; }
-html.mw-theme-client-dark .list-box { background: #150b1d !important; border-color: #2e1065 !important; }
-html.mw-theme-client-dark ul { color: #cbd5e1 !important; }
-html.mw-theme-client-dark .list-box.secure h3 { color: #4ade80 !important; }
-html.mw-theme-client-dark .list-box.warn h3 { color: #facc15 !important; }
-
-
-
+            /* 🕵️ BASCULE DYNAMIQUE DU MODE SOMBRE (Correction des sélecteurs) */
+            html.mw-theme-client-dark body {
+                background-color: #120b18 !important; /* Votre fond violet très sombre d'origine */
+                color: #e2e8f0 !important;
+            }
+            html.mw-theme-client-dark .container {
+                background: #1e1229 !important;
+                border-color: #4c1d95 !important;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
+            }
+            html.mw-theme-client-dark h1 { color: #c084fc !important; }
+            html.mw-theme-client-dark p { color: #94a3b8 !important; }
+            html.mw-theme-client-dark .list-box { background: #150b1d !important; border-color: #2e1065 !important; }
+            html.mw-theme-client-dark ul { color: #cbd5e1 !important; }
+            html.mw-theme-client-dark .list-box.secure h3 { color: #4ade80 !important; }
+            html.mw-theme-client-dark .list-box.warn h3 { color: #facc15 !important; }
 
             </style>
         </head>
@@ -2435,7 +2339,6 @@ html.mw-theme-client-dark .list-box.warn h3 { color: #facc15 !important; }
     win.webContents.send("active-panel-changed", { id: newPanel.id, bounds: newPanel.bounds });
     updateActiveBorder(newPanel.bounds);
 });
-
 
 function createDefaultLayout() {
 
@@ -2521,9 +2424,7 @@ function createWindow() {
 
     win.setMaxListeners(30);
 
-// Remplacez registerDownloadHandler(win.webContents.session); par :
     registerDownloadHandler(win.webContents.session);
-    
 
     process.on("warning", (warning) => {
         console.log("WARNING NAME:", warning.name);
@@ -2545,12 +2446,6 @@ function createWindow() {
             panel.view.webContents.setForceDarkModeEnabled(isDarkModeForced);
         }
     });    
-
-
-
-
-    // ====== DANS SCRIPT : main.js ======
-    // À insérer à l'intérieur du tableau 'template' dans la fonction createWindow()
 
     const template = [
         {
@@ -2578,48 +2473,42 @@ function createWindow() {
                         }
                     }
                 },
+                {
+                    label: 'Quitter le mode agrandi / Masquer l\'IA',
+                    accelerator: 'Escape',
+                    click: () => {
+                        let geometryChanged = false;
 
-// DANS MAIN.JS -> Remplacez le bloc existant de l'accélérateur 'Escape' par celui-ci :
+                        // 1. Si le volet de l'assistant IA est visible, on le ferme
+                        if (isAiSidebarVisible) {
+                            isAiSidebarVisible = false;
+                            geometryChanged = true;
+                            // On prévient l'IHM (index.html) de ranger le volet en arrière-plan
+                            win.webContents.send("toggle-ai-sidebar-keyboard-force", false);
+                        }
 
-{
-    label: 'Quitter le mode agrandi / Masquer l\'IA',
-    accelerator: 'Escape',
-    click: () => {
-        let geometryChanged = false;
+                        // 2. Si un panneau est maximisé (votre logique d'origine), on le restaure
+                        if (maximizedPanelId) {
+                            const panelIdToRestore = maximizedPanelId;
+                            maximizedPanelId = null;
+                            geometryChanged = true;
 
-        // 1. Si le volet de l'assistant IA est visible, on le ferme
-        if (isAiSidebarVisible) {
-            isAiSidebarVisible = false;
-            geometryChanged = true;
-            // On prévient l'IHM (index.html) de ranger le volet en arrière-plan
-            win.webContents.send("toggle-ai-sidebar-keyboard-force", false);
-        }
+                            win.webContents.send("zoom-changed", maximizedPanelId);
 
-        // 2. Si un panneau est maximisé (votre logique d'origine), on le restaure
-        if (maximizedPanelId) {
-            const panelIdToRestore = maximizedPanelId;
-            maximizedPanelId = null;
-            geometryChanged = true;
+                            if (handleViews[panelIdToRestore]) {
+                                try { win.removeBrowserView(handleViews[panelIdToRestore]); } catch(e){}
+                                delete handleViews[panelIdToRestore];
+                            }
+                        }
 
-            win.webContents.send("zoom-changed", maximizedPanelId);
-
-            if (handleViews[panelIdToRestore]) {
-                try { win.removeBrowserView(handleViews[panelIdToRestore]); } catch(e){}
-                delete handleViews[panelIdToRestore];
-            }
-        }
-
-        // 3. Si la géométrie globale a bougé, on force Electron à recalculer l'écran
-        if (geometryChanged) {
-            forceRebuildSplitters = true;
-            resizeViews();
-            updatePanelHandles();
-        }
-    }
-},
-
-
-
+                        // 3. Si la géométrie globale a bougé, on force Electron à recalculer l'écran
+                        if (geometryChanged) {
+                            forceRebuildSplitters = true;
+                            resizeViews();
+                            updatePanelHandles();
+                        }
+                    }
+                },
                 {
                     label: 'Charger une configuration de panneaux',
                     accelerator: 'CmdOrCtrl+O',
@@ -3054,7 +2943,6 @@ function createWindow() {
 
         addToHistory(url, title);
 
-//      win.webContents.send("panels-updated", collectPanels(rootNode));
         win.webContents.send(
             "panels-updated",
             collectPanels(rootNode),
@@ -3104,10 +2992,6 @@ function createWindow() {
         resizeViews();
     });
 
-
-
-// ====== DANS MAIN.JS -> DANS LA FONCTION createWindow() ======
-
     // Intercepte le clic sur la croix de fermeture de la fenêtre
     win.on('close', (e) => {
         // Empêche la fermeture immédiate
@@ -3129,9 +3013,6 @@ function createWindow() {
         }
     });
 
-    // ====== DANS MAIN.JS -> DANS LA FONCTION createWindow() ======
-
-    // AJOUT ICI : Fermer automatiquement l'historique ET les mots de passe 
     // quand la fenêtre principale est détruite par l'utilisateur
     win.on('closed', () => {
         // Ferme la fenêtre d'historique si elle existe
@@ -3144,10 +3025,6 @@ function createWindow() {
             pwdWindow.close();
         }
     });
-    
-
-
-// DANS MAIN.JS -> Tout en bas de la fonction createWindow(), juste avant le dernier }
 
     // Raccourci global ultra-puissant pour la touche Échap
     win.on('focus', () => {
@@ -3189,9 +3066,6 @@ function createWindow() {
     win.on('blur', () => {
         globalShortcut.unregister('Escape');
     });
-
-
-
 }
 
 function replaceNode(current, target, replacement) {
@@ -3221,7 +3095,6 @@ function detachPanelToFullscreen(panelId) {
 
     // 3. Maximiser immédiatement la nouvelle fenêtre
     fullscreenWin.maximize();
-
 
     // 4. Décrocher la BrowserView de la fenêtre principale et l'attacher à la nouvelle
     try {
@@ -3275,7 +3148,6 @@ function detachPanelToFullscreen(panelId) {
         forceRebuildSplitters = true;
         resizeViews();
 
-//      win.webContents.send("panels-updated", collectPanels(rootNode));
         win.webContents.send(
             "panels-updated",
             collectPanels(rootNode),
@@ -3284,19 +3156,6 @@ function detachPanelToFullscreen(panelId) {
 
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-// DANS MAIN.JS -> Dans la fonction resizeViews()
 
 function resizeViews() {
     if (win.isDestroyed()) return;
@@ -3474,8 +3333,6 @@ function resizeViews() {
     win.webContents.send("zoom-changed", maximizedPanelId); 
 }
 
-
-
 function moveActivePanelKeyboard(direction) {
     if (!activePanel || maximizedPanelId) return; // Désactivé si un panneau est zoomé
 
@@ -3514,7 +3371,6 @@ ipcMain.on("print-panel", (event, panelId) => {
     }
 });
 
-
 ipcMain.on("set-active-panel", (event, panelId, options) => {
     const panel = findPanelNode(rootNode, panelId);
     if (!panel) return;
@@ -3542,7 +3398,6 @@ ipcMain.on("set-active-panel", (event, panelId, options) => {
         panel.view.webContents.focus();
     }
 });
-
 
 // Intercepte les demandes de focus issues de la poignée injectée
 ipcMain.on("set-active-panel-from-handle", (event, panelId) => {
@@ -3575,8 +3430,6 @@ ipcMain.handle('clear-favoris', () => {
     }
 });
 
-// À ajouter avec vos autres gestionnaires ipcMain (ex: sous ipcMain.handle('get-favoris', ...))
-
 // 1. SAUVEGARDER LA CONFIGURATION DANS UN FICHIER
 ipcMain.handle('save-config-to-file', async () => {
     if (!rootNode) return false;
@@ -3603,7 +3456,6 @@ ipcMain.handle('save-config-to-file', async () => {
     }
     return false;
 });
-
 
 // 2. CHARGER LA CONFIGURATION DEPUIS UN FICHIER
 ipcMain.handle('load-config-from-file', async () => {
@@ -3690,9 +3542,6 @@ ipcMain.handle('load-config-from-file', async () => {
     return false;
 });
 
-
-// Dans main.js -> Avec vos autres écouteurs ipcMain
-
 // L'interface IA demande à récupérer le texte de la page active pour son LLM
 ipcMain.handle("nanobrowser-get-context", async () => {
     if (!activePanel) return null;
@@ -3705,14 +3554,6 @@ ipcMain.handle("nanobrowser-get-context", async () => {
         return null;
     }
 });
-
-
-
-
-
-// DANS MAIN.JS -> Au début de ipcMain.handle("nanobrowser-ask-ollama")
-
-// DANS MAIN.JS -> Remplacer le gestionnaire complet "nanobrowser-ask-ollama"
 
 ipcMain.handle("nanobrowser-ask-ollama", async (event, { prompt, model = "qwen2.5:1.5b" }) => {
     console.log("\n[IA DIAGNOSTIC] Déclenchement de la requête...");
@@ -3843,7 +3684,6 @@ ipcMain.handle("nanobrowser-execute-action", async (event, { actionType, argumen
     if (actionType === "click") {
         return await panel.view.webContents.executeJavaScript(`window.NanobrowserExecutor.clickElement("${argument}")`);
     }
-    // Ajoutez ici les autres types d'actions (scroll, fill, etc.)
 });
 
 
@@ -3868,8 +3708,6 @@ ipcMain.handle('get-history', () => {
     return getNavigationHistory();
 });
 
-
-
 ipcMain.handle('clear-history', async () => {
     await safeWriteJsonAsync(historyPath, []); // <-- Remplacement ici
     if (win && !win.isDestroyed()) {
@@ -3877,7 +3715,6 @@ ipcMain.handle('clear-history', async () => {
     }
     return true;
 });
-
 
 // À placer avec vos autres ipcMain.handle (...)
 ipcMain.handle('delete-history-item', async (event, index) => {
@@ -3924,7 +3761,6 @@ ipcMain.handle('toggle-favori', async (event, { url, title }) => {
     }
 });
 
-
 ipcMain.handle("go-back", (event, panelId) => {
     const panel = findPanelNode(rootNode, panelId);
     if (panel && panel.view && panel.view.webContents.navigationHistory.canGoBack()) {
@@ -3946,15 +3782,8 @@ ipcMain.handle("refresh", (event, panelId) => {
     if (panel && panel.view) panel.view.webContents.reload();
 });
 
-
-
-
-// Ligne temporaire pour vider le fichier des favoris sur le disque
-//  fs.writeFileSync(path.join(app.getPath('userData'), 'favoris.json'), JSON.stringify([]));
-
 app.on('will-quit', () => {
     globalShortcut.unregisterAll();
 });
 
 app.whenReady().then(createWindow);
-

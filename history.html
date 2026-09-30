@@ -121,6 +121,27 @@ h2 span, h2 img {
 <!-- ====== DANS HISTORY.HTML ====== -->
 <script>
 
+function applyHistoryTheme(isDark) {
+    document.documentElement.style.colorScheme = isDark ? "dark" : "light";
+    document.body.style.background = isDark ? "#1e1e1e" : "#f9fafb";
+    document.body.style.color = isDark ? "#cfcfcf" : "#1f2937";
+
+    const title = document.getElementById("history-title");
+    if (title) title.style.color = isDark ? "#ffffff" : "#000000";
+
+    const header = document.querySelector(".header");
+    if (header) {
+        header.style.borderColor = isDark ? "#3c3c3c" : "#e5e7eb";
+        header.style.background = isDark ? "#1e1e1e" : "#f9fafb";
+    }
+
+    document.documentElement.style.setProperty("--scrollbar-track", isDark ? "#1e1e1e" : "#f9fafb");
+    document.documentElement.style.setProperty("--scrollbar-thumb", isDark ? "#374151" : "#cbd5e1");
+    document.documentElement.style.setProperty("--scrollbar-thumb-hover", isDark ? "#4b5563" : "#94a3b8");
+}
+
+window.applyHistoryTheme = applyHistoryTheme;
+window.historyApi.onThemeChanged(applyHistoryTheme);
 
 
 window.historyApi.onRenderHistory((data) => {
@@ -147,27 +168,7 @@ window.historyApi.onRenderHistory((data) => {
 
     const isDark = data.isDarkMode;
     
-    // Application globale des thèmes (Lignes déjà existantes dans votre code)
-    document.body.style.background = isDark ? "#1e1e1e" : "#f9fafb";
-    document.body.style.color = isDark ? "#cfcfcf" : "#1f2937";
-    document.getElementById('history-title').style.color = isDark ? "#ffffff" : "#000000";
-
-    const headerElement = document.querySelector('.header');
-    headerElement.style.borderColor = isDark ? "#3c3c3c" : "#e5e7eb";
-
-    // SÉCURITÉ COMPLÉMENTAIRE : Force le fond opaque sur l'en-tête fixe
-    headerElement.style.background = isDark ? "#1e1e1e" : "#f9fafb";
-
-    // INJECTION DES COULEURS DE LA BARRE DE DÉFILEMENT SELON LE MODE
-    if (isDark) {
-        document.documentElement.style.setProperty('--scrollbar-track', '#1e1e1e');
-        document.documentElement.style.setProperty('--scrollbar-thumb', '#374151');
-        document.documentElement.style.setProperty('--scrollbar-thumb-hover', '#4b5563');
-    } else {
-        document.documentElement.style.setProperty('--scrollbar-track', '#f9fafb'); // Fond blanc/gris très clair
-        document.documentElement.style.setProperty('--scrollbar-thumb', '#cbd5e1'); // Curseur gris clair
-        document.documentElement.style.setProperty('--scrollbar-thumb-hover', '#94a3b8'); // Curseur au survol
-    }
+    applyHistoryTheme(isDark);
 
 
         // Gestion du bouton Effacer tout

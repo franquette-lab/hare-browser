@@ -2,9 +2,6 @@
 // preload-history.js
 // ==================
 
-// première ligne de preload-history.js
-console.log("PRELOAD HISTORY CHARGE");
-
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld(
@@ -19,6 +16,10 @@ contextBridge.exposeInMainWorld(
                 console.log("PRELOAD : render-history reçu");
                 callback(data);
             });
+        },
+
+        onThemeChanged: (callback) => {
+            ipcRenderer.on('history-theme-changed', (_event, isDarkMode) => callback(isDarkMode));
         },
 
         // Fonctions d'action sécurisées vers le processus principal
