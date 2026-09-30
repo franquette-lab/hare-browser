@@ -544,7 +544,7 @@ html.dark .bookmark-item:hover {
     <!-- Dans index.html -> Dans la div #ai-sidebar, remplacez la ligne de l'encadré du bas par celle-ci : -->
     <div class="ai-footer-box" style="display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 8px;">
  
-        <input type="text" id="ai-user-prompt" placeholder="Poser une question sur une page web......" style="width: 100%; height: 32px; background: #2d2d30; border: 1px solid #3c3c3c; color: white; border-radius: 6px; padding: 0 10px; font-size: 12px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#3c3c3c'">
+        <input type="text" id="ai-user-prompt" placeholder="Poser une question sur une page web..." style="width: 100%; height: 32px; background: #2d2d30; border: 1px solid #3c3c3c; color: white; border-radius: 6px; padding: 0 10px; font-size: 12px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#3c3c3c'">
         
         <div style="display: flex; gap: 8px;">
             <button id="ai-submit-btn" style="flex: 1; height: 30px; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; transition: background 0.2s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Poser la question</button>
@@ -997,6 +997,18 @@ tabWrapper.appendChild(loadingIndicator);
             tabWrapper.appendChild(incognitoBadge);
         }
 
+        const addressGroup = document.createElement("div");
+        addressGroup.className = "url-address-group";
+        addressGroup.style.display = "flex";
+        addressGroup.style.alignItems = "center";
+        addressGroup.style.flex = "1";
+        addressGroup.style.minWidth = "0";
+        addressGroup.style.gap = "4px";
+        addressGroup.style.padding = "0 6px";
+        addressGroup.style.border = isDark ? "1px solid #3c3c3c" : "1px solid #d1d5db";
+        addressGroup.style.borderRadius = "5px";
+        addressGroup.style.background = isDark ? "#252526" : "#ffffff";
+
         // ============================
         // ICONE URL / RECHERCHE
         // ============================
@@ -1013,7 +1025,7 @@ tabWrapper.appendChild(loadingIndicator);
             urlIcon.style.fontSize = "14px";
             urlIcon.style.marginRight = "4px";
 
-            tabWrapper.appendChild(urlIcon);
+            addressGroup.appendChild(urlIcon);
         }
 
         // ============================
@@ -1103,36 +1115,7 @@ input.addEventListener("blur", () => {
     if (input.value !== displayUrl) input.value = displayUrl;
 });
 
-tabWrapper.appendChild(input);
-
-// ============================
-// BOUTON SCINDER
-// ============================
-const btnSplit = document.createElement("div");
-btnSplit.className = "btn-split";
-btnSplit.textContent = "+";
-btnSplit.title = "Scinder ce panneau";
-
-btnSplit.style.cursor = "pointer";
-btnSplit.style.fontSize = "16px";
-btnSplit.style.fontWeight = "bold";
-btnSplit.style.color = "#22c55e";
-btnSplit.style.marginLeft = "6px";
-btnSplit.style.flex = "0 0 auto";
-
-btnSplit.addEventListener("mousedown", (e) => {
-    e.stopPropagation();
-});
-
-btnSplit.addEventListener("click", (e) => {
-    e.stopPropagation();
-
-    activePanel = panel.id;
-
-    window.api.splitPanel(panel.id, "vertical");
-});
-
-tabWrapper.appendChild(btnSplit);
+addressGroup.appendChild(input);
 
 
 
@@ -1154,7 +1137,8 @@ tabWrapper.appendChild(btnSplit);
         starBtn.style.cursor = "pointer";
         starBtn.style.fontSize = "14px";
         starBtn.style.color = "#6b7280";
-        starBtn.style.marginLeft = "8px";
+        starBtn.style.marginLeft = "2px";
+        starBtn.style.flex = "0 0 auto";
 
         starBtn.addEventListener("mousedown", (e) => e.stopPropagation());
 
@@ -1175,7 +1159,38 @@ tabWrapper.appendChild(btnSplit);
             starBtn.style.display = "none";
         }
 
-        tabWrapper.appendChild(starBtn);
+        addressGroup.appendChild(starBtn);
+        tabWrapper.appendChild(addressGroup);
+
+        // ============================
+        // BOUTON SCINDER
+        // ============================
+        const btnSplit = document.createElement("div");
+        btnSplit.className = "btn-split";
+        btnSplit.textContent = "+";
+        btnSplit.title = "Scinder ce panneau";
+        btnSplit.style.cursor = "pointer";
+        btnSplit.style.fontSize = "16px";
+        btnSplit.style.fontWeight = "bold";
+        btnSplit.style.color = "#22c55e";
+        btnSplit.style.display = "flex";
+        btnSplit.style.alignItems = "center";
+        btnSplit.style.justifyContent = "center";
+        btnSplit.style.width = "18px";
+        btnSplit.style.marginLeft = "3px";
+        btnSplit.style.flex = "0 0 auto";
+
+        btnSplit.addEventListener("mousedown", (e) => {
+            e.stopPropagation();
+        });
+
+        btnSplit.addEventListener("click", (e) => {
+            e.stopPropagation();
+            activePanel = panel.id;
+            window.api.splitPanel(panel.id, "vertical");
+        });
+
+        tabWrapper.appendChild(btnSplit);
 
         // ============================
         // BARRE DE PROGRESSION
@@ -1569,8 +1584,9 @@ window.api.onDownloadDone((data) => {
     if (container && currentMaximizedId) {
         container.classList.add("maximized-mode");
         const activeInput = document.getElementById(`${currentMaximizedId}-url`);
-        if (activeInput && activeInput.parentElement) {
-            activeInput.parentElement.classList.add("panel-is-maximized");
+        const activeTab = activeInput?.closest(".url-tab");
+        if (activeTab) {
+            activeTab.classList.add("panel-is-maximized");
         }
     }
 });
@@ -1966,7 +1982,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 });
 
-
 document.addEventListener('keydown', (e) => {
 
     if (e.ctrlKey && e.key.toLowerCase() === 's') {
@@ -1981,7 +1996,6 @@ document.addEventListener('keydown', (e) => {
         // même action que le bouton Charger
     }
 });
-
 
 document.getElementById("split-private-vertical").addEventListener("click", () => {
     if (currentMaximizedId) return; // Sécurité : bloque l'action si zoom actif
@@ -2011,18 +2025,7 @@ document.getElementById("print-button").addEventListener("click", () => {
     }
 });
 
-
-
-
-
-
-
-
-
-
-
 // 1. ÉCOUTEUR DE CHARGEMENT (CORRIGÉ ET SÉCURISÉ)
-
 window.api.onPageLoading((data) => {
 
     if (!data || !data.panelId) return;
@@ -2039,33 +2042,18 @@ window.api.onPageLoading((data) => {
         const tabWrapper = input.closest(".url-tab");
         if (tabWrapper) {
 
-    const spinner =
-        document.getElementById("loading-" + data.panelId);
+            const spinner =
+                document.getElementById("loading-" + data.panelId);
 
-    if (spinner) {
-        spinner.style.display =
-            data.loading ? "inline-block" : "none";
-    }
+            if (spinner) {
+                spinner.style.display =
+                    data.loading ? "inline-block" : "none";
+            }
 
 
         }
     }
 });
-
-
-/*
-window.api.onPageLoading((data) => {
-    if (!data || !data.panelId) return;
-
-    const spinner =
-        document.getElementById("loading-" + data.panelId);
-
-    if (spinner) {
-        spinner.style.display =
-            data.loading ? "inline-block" : "none";
-    }
-});
-*/
 
 // ===================================================
 // LOGIQUE DE L'ASSISTANT IA OLLAMA
@@ -2123,9 +2111,6 @@ document.getElementById("ai-user-prompt").addEventListener("keydown", (e) => {
     }
 });
 
-
-// DANS INDEX.HTML -> Modifier l'écouteur de clic du bouton "pwd-manager-btn"
-
 // DANS INDEX.HTML -> Remplacer l'écouteur du bouton de gestion des mots de passe
 document.getElementById("pwd-manager-btn").addEventListener("click", () => {
     // Demande au processus principal d'ouvrir la fenêtre de gestion native
@@ -2179,19 +2164,6 @@ async function refreshPasswordList() {
         container.appendChild(div);
     });
 }
-
-
-// VOTRE FONCTION INTEGRÉE ET MISE À JOUR :
-// DANS INDEX.HTML -> Remplacez la fonction envoyerRequeteIA par celle-ci :
-
-// DANS INDEX.HTML -> Dans la balise <script>, remplacez votre fonction par celle-ci :
-
-
-// Dans la balise <script> de index.html
-
-
-// DANS INDEX.HTML -> À ajouter dans votre balise <script> en bas :
-
 // Écouter les ordres lancés depuis le menu contextuel natif (clic droit)
 window.api.on("trigger-ai-action", (data) => {
     // On s'assure que la sidebar affiche bien le mode actif graphiquement
@@ -2206,9 +2178,6 @@ window.api.on("trigger-ai-action", (data) => {
         envoyerRequeteIA("Extrais les 5 mots-clés ou entités les plus importants de cette page avec une définition d'une ligne pour chacun.");
     }
 });
-
-
-
 
 // Tout en haut de votre logique de Sidebar dans index.html (Script)
 const aiSidebarElement = document.getElementById("ai-sidebar");
@@ -2228,7 +2197,6 @@ window.api.on("toggle-ai-sidebar-keyboard-force", (isVisible) => {
     }
 });
 
-
 // Synchronisation dynamique du thème Clair / Sombre
 window.api.on("system-theme-changed", (isDarkMode) => {
     if (isDarkMode) {
@@ -2244,10 +2212,6 @@ if (document.documentElement.classList.contains('mw-theme-client-dark') || typeo
 } else {
     aiSidebarElement.classList.remove("dark-mode-active");
 }
-
-
-
-// DANS INDEX.HTML -> Remplacer la fonction envoyerRequeteIA
 
 async function envoyerRequeteIA(questionUser) {
     const modeleChoisi = "qwen2.5:1.5b";

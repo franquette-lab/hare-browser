@@ -1276,17 +1276,9 @@ panel.view.webContents.on("context-menu", (event, params) => {
 
 panel.view.webContents.on("did-start-loading", () => {
 
-    console.log(
-        "START",
-        panel.id,
-        panel.view.webContents.getURL()
-    );
-
-
 
         // Ignore le chargement initial au démarrage
  if (!initialLoadFinished) {
-console.log("START BLOQUÉ");
 return;
 }
 
@@ -1300,13 +1292,6 @@ return;
     });
 
     panel.view.webContents.on("did-stop-loading", () => {
-
-
-console.log(
-"STOP",
-panel.id,
-panel.view.webContents.getURL()
-);
 
         if (!initialLoadFinished) {
             initialLoadFinished = true;
