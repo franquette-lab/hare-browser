@@ -655,8 +655,10 @@ function refreshTabBorders() {
         tabWrapper.classList.toggle("active-url-tab", isActiveTab);
 
         if (isPrivateTab) {
-            tabWrapper.style.background = isActiveTab ? "#2a193d" : "#1e112c";
-            tabWrapper.style.borderColor = "#4a2874";
+            tabWrapper.style.background = isDark
+                ? (isActiveTab ? "#2a193d" : "#1e112c")
+                : (isActiveTab ? "#ede9fe" : "#f5f3ff");
+            tabWrapper.style.borderColor = isDark ? "#4a2874" : "#c4b5fd";
             tabWrapper.style.borderWidth = isActiveTab ? "2px" : "1px";
         } else if (isActiveTab) {
             tabWrapper.style.borderColor = "#3b82f6";
@@ -901,8 +903,10 @@ function rebuildUrlBar(panels) {
         tabWrapper.style.boxSizing = "border-box";
 
         if (panel.isPrivate) {
-            tabWrapper.style.background = isActive ? "#2a193d" : "#1e112c";
-            tabWrapper.style.border = "1px solid #4a2874";
+            tabWrapper.style.background = isDark
+                ? (isActive ? "#2a193d" : "#1e112c")
+                : (isActive ? "#ede9fe" : "#f5f3ff");
+            tabWrapper.style.border = `1px solid ${isDark ? "#4a2874" : "#c4b5fd"}`;
         } else {
             tabWrapper.style.background = isDark ? "#2d2d30" : "#f3f4f6";
             tabWrapper.style.border = isDark ? "1px solid #3c3c3c" : "1px solid #d1d5db";
@@ -936,7 +940,7 @@ function rebuildUrlBar(panels) {
 
         tabWrapper.addEventListener("dragleave", () => {
             if (panel.isPrivate) {
-                tabWrapper.style.borderColor = "#4a2874";
+                tabWrapper.style.borderColor = isDark ? "#4a2874" : "#c4b5fd";
             } else {
                 tabWrapper.style.borderColor = isDark ? "#3c3c3c" : "#d1d5db";
             }
@@ -1006,9 +1010,13 @@ tabWrapper.appendChild(loadingIndicator);
         addressGroup.style.minWidth = "0";
         addressGroup.style.gap = "4px";
         addressGroup.style.padding = "0 6px";
-        addressGroup.style.border = isDark ? "1px solid #3c3c3c" : "1px solid #d1d5db";
+        addressGroup.style.border = panel.isPrivate
+            ? `1px solid ${isDark ? "#6b21a8" : "#d8b4fe"}`
+            : (isDark ? "1px solid #3c3c3c" : "1px solid #d1d5db");
         addressGroup.style.borderRadius = "5px";
-        addressGroup.style.background = isDark ? "#252526" : "#ffffff";
+        addressGroup.style.background = panel.isPrivate
+            ? (isDark ? "#252526" : "#faf5ff")
+            : (isDark ? "#252526" : "#ffffff");
 
         // ============================
         // ICONE URL / RECHERCHE
