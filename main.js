@@ -27,13 +27,15 @@ if (typeof safeStorage.setUseAlternativeEncryption === 'function') {
 }
 
 // En haut de main.js avec vos autres variables globales
-const APP_TITLE = "Hare Browser"; 
+const APP_TITLE = "Hare Browser";
 const SEARCH_ENGINE_HOST = "129.151.254.175";
 
 // Dans main.js -> Tout en haut
 const fs = require('fs');
 const fsPromises = require("fs").promises;
 const path = require('path');
+const { pathToFileURL } = require("url");
+const HOME_PAGE_URL = pathToFileURL(path.join(__dirname, "home.html")).href;
 
 const appDataPath = app.getPath('userData');
 if (!fs.existsSync(appDataPath)) {
@@ -1023,6 +1025,10 @@ function isValidUrl(text) {
 function buildNavigationTarget(input) {
     input = input.trim();
 
+    if (input.toLowerCase() === "hare://home") {
+        return HOME_PAGE_URL;
+    }
+
     // 1. Si c'est une URL valide ou une page locale
     if (input.includes("://") || input.startsWith("data:") || input.startsWith("about:")) {
         return input;
@@ -1188,6 +1194,24 @@ function setupNavigationTracking(panel) {
     if (!panel || !panel.view) return;
 
     let initialLoadFinished = false;
+
+    panel.view.webContents.on("will-navigate", (event, targetUrl) => {
+        try {
+            const target = new URL(targetUrl);
+            const isSearchEngineHome =
+                target.hostname === SEARCH_ENGINE_HOST &&
+                target.port === "8080" &&
+                target.pathname === "/" &&
+                !target.searchParams.has("q");
+
+            if (isSearchEngineHome) {
+                event.preventDefault();
+                panel.view.webContents.loadURL(HOME_PAGE_URL);
+            }
+        } catch (error) {
+            console.debug("Impossible de vérifier l’URL d’accueil du moteur :", error);
+        }
+    });
 
     const syncSearchQueryFromPage = async () => {
         if (!panel.view || panel.view.webContents.isDestroyed()) return;
@@ -1557,9 +1581,12 @@ ipcMain.on("navigate", (event, panelId, input) => {
     const panel = findPanelNode(rootNode, panelId);
     if (!panel || !panel.view)
         return;
+
     panel.view.webContents.loadURL(
         buildNavigationTarget(input)
     );
+
+    
 });
 
 // Écouteur pour intercepter le clic sur le bouton d'annulation de l'IHM
@@ -2360,7 +2387,7 @@ function createDefaultLayout() {
     win.addBrowserView(centerView);
     win.addBrowserView(rightView);
 
-    leftView.webContents.loadURL("https://www.google.com");
+    leftView.webContents.loadURL(HOME_PAGE_URL);
     centerView.webContents.loadURL("https://fr.wikipedia.org");
     rightView.webContents.loadURL("https://github.com");
 
@@ -2381,7 +2408,7 @@ function createDefaultLayout() {
     rootNode = new SplitNode("vertical");
     rootNode.ratio = 0.33;
 
-    rootNode.first = new PanelNode("panel1", leftView, "https://www.google.com");
+    rootNode.first = new PanelNode("panel1", leftView, HOME_PAGE_URL);
     rootNode.second = new SplitNode("vertical");
     rootNode.second.ratio = 0.5;
     rootNode.second.first = new PanelNode("panel2", centerView, "https://fr.wikipedia.org");

@@ -736,6 +736,9 @@ function getSearchQueryFromUrl(url, fallbackQuery = "") {
 function getDisplayUrl(url, fallbackQuery = "") {
     try {
         const parsedUrl = new URL(url);
+        if (parsedUrl.protocol === "file:" && parsedUrl.pathname.toLowerCase().endsWith("/home.html")) {
+            return "Accueil Hare Browser";
+        }
         const searchQuery = isSearchResultsUrl(url)
             ? getSearchQueryFromUrl(url, fallbackQuery)
             : null;

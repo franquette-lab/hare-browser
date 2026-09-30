@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Hare Browser</title>
+
+<style>
+:root {
+    --bg-color: #f5f7fa;
+    --card-color: #ffffff;
+    --text-color: #222;
+    --secondary-color: #666;
+    --input-border: #d0d7de;
+    --input-bg: #ffffff;
+    --accent-color: #2563eb;
+    --shadow-color: rgba(0,0,0,0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-color: #1e1f22;
+        --card-color: #2b2d31;
+        --text-color: #f3f3f3;
+        --secondary-color: #b0b0b0;
+        --input-border: #444;
+        --input-bg: #353840;
+        --accent-color: #60a5fa;
+        --shadow-color: rgba(0,0,0,0.35);
+    }
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: var(--bg-color);
+    font-family: "Segoe UI", sans-serif;
+    color: var(--text-color);
+}
+
+.container {
+    width: 100%;
+    max-width: 700px;
+    padding: 30px;
+    text-align: center;
+}
+
+.logo {
+    width: 220px;
+    max-width: 70%;
+    margin-bottom: 20px;
+    user-select: none;
+}
+
+h1 {
+    margin: 0;
+    font-size: 48px;
+    font-weight: 700;
+}
+
+.subtitle {
+    margin-top: 10px;
+    color: var(--secondary-color);
+    font-size: 16px;
+}
+
+.search-form {
+    margin-top: 35px;
+}
+
+.search-wrapper {
+    display: flex;
+    align-items: center;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+.search-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--text-color);
+    font-size: 16px;
+    padding: 16px;
+}
+
+.search-button {
+    border: none;
+    background: var(--accent-color);
+    color: white;
+    padding: 16px 22px;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.search-button:hover {
+    filter: brightness(1.08);
+}
+
+.footer {
+    margin-top: 35px;
+    color: var(--secondary-color);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.footer a {
+    color: var(--accent-color);
+    text-decoration: none;
+}
+
+.footer a:hover {
+    text-decoration: underline;
+}
+
+.version {
+    margin-top: 10px;
+    font-size: 12px;
+}
+
+.features {
+    margin-top: 25px;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.feature {
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: var(--card-color);
+    box-shadow: 0 2px 8px var(--shadow-color);
+    font-size: 13px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- Remplacer par votre image -->
+    <img
+        src="images/hare-home.png"
+        alt="Hare Browser"
+        class="logo">
+
+    <h1>Hare Browser</h1>
+
+    <div class="subtitle">Votre espace de navigation privé</div>
+
+    <form
+        class="search-form"
+        action="http://129.151.254.175:8080/search"
+        method="get">
+
+        <div class="search-wrapper">
+
+            <input
+                class="search-input"
+                type="text"
+                name="q"
+                placeholder="Rechercher avec Hare Browser..."
+                autofocus
+                autocomplete="off">
+
+            <button
+                class="search-button"
+                type="submit">
+                🔍
+            </button>
+
+        </div>
+
+    </form>
+
+    <div class="features">
+        <div class="feature">🐇 Rapide</div>
+        <div class="feature">🔒 Respect de la vie privée</div>
+        <div class="feature">🧩 Navigation mosaïque</div>
+        <div class="feature">🚫 Sans suivi</div>
+    </div>
+
+    <div class="footer">
+
+        Propulsé par SearXNG
+
+        <div class="version">
+            2026.9.10+ba055b3e0 • un métamoteur ouvert et respectueux de la vie privée
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>
