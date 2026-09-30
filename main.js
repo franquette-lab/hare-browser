@@ -1413,7 +1413,7 @@ panel.view.webContents.on("did-finish-load", async () => {
             win.webContents.send("active-panel-changed", {
                 id: panel.id,
                 bounds: panel.bounds,
-                selectUrl: true
+                selectUrl: false
             });
 
             if (panelChanged) {

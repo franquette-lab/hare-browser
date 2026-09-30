@@ -741,6 +741,10 @@ function attachUrlHandler(panelId) {
 
     input.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
+            if (input.readOnly) {
+                e.preventDefault();
+                return;
+            }
             e.preventDefault();
             const valeureSaisie = input.value.trim();
             if (valeureSaisie) {
@@ -1044,6 +1048,7 @@ tabWrapper.appendChild(loadingIndicator);
         input.type = "text";
         input.className = "url-input";
         input.id = `${panel.id}-url`; // Correction : ID unique affecté dynamiquement
+        input.readOnly = !!panel.isPrivate;
 
         input.style.flex = "1";
         input.style.minWidth = "0";
@@ -1056,7 +1061,7 @@ tabWrapper.appendChild(loadingIndicator);
         input.dataset.url = panel.realUrl || panel.url || "";
         input.value = typeof getDisplayUrl === "function" ? getDisplayUrl(input.dataset.url) : input.dataset.url;
 
-        input.style.cursor = "text";
+        input.style.cursor = panel.isPrivate ? "default" : "text";
 
         input.addEventListener("mousedown", (e) => {
             tabWrapper.setAttribute("draggable", "false");
@@ -1329,7 +1334,7 @@ window.api.onFocusUrlBar((panelId) => {
     }
     
     const input = document.getElementById(panelId + "-url");
-    if (input) {
+    if (input && !input.readOnly) {
         setTimeout(() => {
             input.focus();
             input.setSelectionRange(0, input.value.length);
@@ -1357,12 +1362,12 @@ window.api.onActivePanelChanged((data) => {
         refreshTabBorders();
     }
 
-    if (data.selectUrl) {
-        const input = document.getElementById(`${data.id}-url`);
-        if (input) {
-            input.focus({ preventScroll: true });
-            input.select();
-        }
+    const input = document.getElementById(`${data.id}-url`);
+    if (data.selectUrl && input && !input.readOnly) {
+        input.focus({ preventScroll: true });
+        input.select();
+    } else if (input?.readOnly && document.activeElement === input) {
+        input.blur();
     }
 
     const frame = document.getElementById("active-panel-frame");
@@ -1805,7 +1810,7 @@ document.addEventListener("keydown", (e) => {
         e.preventDefault();
         if (activePanel) {
             const input = document.getElementById(`${activePanel}-url`);
-            if (input) {
+            if (input && !input.readOnly) {
                 input.focus();
                 input.setSelectionRange(0, input.value.length);
             }
