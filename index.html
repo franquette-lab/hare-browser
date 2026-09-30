@@ -432,6 +432,10 @@ html.dark .bookmark-item:hover {
     color: #f87171 !important;
 }
 
+.btn-split:hover {
+    color: #4ade80;
+    transform: scale(1.2);
+}
 
 </style>
 
@@ -1099,8 +1103,36 @@ input.addEventListener("blur", () => {
     if (input.value !== displayUrl) input.value = displayUrl;
 });
 
-        tabWrapper.appendChild(input);
+tabWrapper.appendChild(input);
 
+// ============================
+// BOUTON SCINDER
+// ============================
+const btnSplit = document.createElement("div");
+btnSplit.className = "btn-split";
+btnSplit.textContent = "+";
+btnSplit.title = "Scinder ce panneau";
+
+btnSplit.style.cursor = "pointer";
+btnSplit.style.fontSize = "16px";
+btnSplit.style.fontWeight = "bold";
+btnSplit.style.color = "#22c55e";
+btnSplit.style.marginLeft = "6px";
+btnSplit.style.flex = "0 0 auto";
+
+btnSplit.addEventListener("mousedown", (e) => {
+    e.stopPropagation();
+});
+
+btnSplit.addEventListener("click", (e) => {
+    e.stopPropagation();
+
+    activePanel = panel.id;
+
+    window.api.splitPanel(panel.id, "vertical");
+});
+
+tabWrapper.appendChild(btnSplit);
 
 
 
