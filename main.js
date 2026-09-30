@@ -30,6 +30,7 @@ if (typeof safeStorage.setUseAlternativeEncryption === 'function') {
 
 // En haut de main.js avec vos autres variables globales
 const APP_TITLE = "Hare Browser"; 
+const SEARCH_ENGINE_HOST = "129.151.254.175";
 
 // Dans main.js -> Tout en haut
 const fs = require('fs');
@@ -1164,7 +1165,8 @@ panels.push({
     url: node.url,
     realUrl: node.url,
     title: node.title,
-    isPrivate: node.isPrivate
+    isPrivate: node.isPrivate,
+    searchQuery: node.searchQuery || ""
 });
         return panels;
     }
@@ -1189,6 +1191,17 @@ function collectPanelNodes(node, panels = []) {
 function updatePanelUrl(panel, url) {
     const previousUrl = panel.url;
     let nextUrl = url;
+
+    try {
+        const parsedUrl = new URL(url);
+        if (parsedUrl.pathname === "/search" || parsedUrl.pathname.endsWith("/search")) {
+            panel.searchQuery = parsedUrl.searchParams.get("q") || panel.searchQuery || "";
+        } else {
+            panel.searchQuery = "";
+        }
+    } catch {
+        panel.searchQuery = "";
+    }
 
     // Si le panneau est privé et qu'il est sur sa page d'accueil d'origine.
     if (panel.isPrivate && (url.startsWith('data:text/html') || url === panel.url)) {
@@ -1245,6 +1258,30 @@ function setupNavigationTracking(panel) {
     if (!panel || !panel.view) return;
 
     let initialLoadFinished = false;
+
+    const syncSearchQueryFromPage = async () => {
+        if (!panel.view || panel.view.webContents.isDestroyed()) return;
+        try {
+            const currentUrl = new URL(panel.view.webContents.getURL());
+            const isSearchEnginePage = currentUrl.hostname === SEARCH_ENGINE_HOST;
+            const isSearchResultsPage = currentUrl.pathname === "/search" || currentUrl.pathname.endsWith("/search");
+            if (!isSearchEnginePage && !isSearchResultsPage) return;
+
+            const query = await panel.view.webContents.executeJavaScript(
+                'document.querySelector("input[name=\\"q\\"]")?.value?.trim() || ""'
+            );
+            panel.searchQuery = query;
+            if (win && !win.isDestroyed()) {
+                win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
+            }
+        } catch (error) {
+            console.debug("Impossible de synchroniser la requête du moteur de recherche :", error);
+        }
+    };
+
+    panel.view.webContents.on("did-navigate-in-page", () => {
+        syncSearchQueryFromPage();
+    });
 
 
 // Dans main.js -> À l'intérieur de la fonction setupNavigationTracking(panel)
@@ -1347,6 +1384,10 @@ panel.view.webContents.on("did-finish-load", async () => {
             console.error("Erreur Autofill résolue :", err); 
         }
     }
+
+    // Certains moteurs envoient le terme via POST : la requête n'est alors
+    // pas dans l'URL et doit être lue dans le formulaire de la page.
+    await syncSearchQueryFromPage();
 });
 
 

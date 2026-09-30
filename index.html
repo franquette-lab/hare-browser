@@ -577,6 +577,7 @@ html.dark .bookmark-item:hover {
 let activePanel = null;
 let currentPanels = []; // Stockage global pour maintenir la liste des panneaux
 let currentMaximizedId = null; // Mémoire globale du mode zoom
+let applicationTitle = "Hare Browser";
 
 // AJOUTEZ CETTE LIGNE ICI POUR QU'ELLE SOIT ACCESSIBLE PARTOUT :
 let applicationDarkMode = false; 
@@ -712,16 +713,38 @@ function getUrlTypeIcon(url, isPrivate = false) {
 
     }
 }
-function getDisplayUrl(url) {
+function isSearchResultsUrl(url) {
     try {
         const parsedUrl = new URL(url);
-        
-        // Si c'est une recherche Google, on extrait les mots-clés pour l'onglet
-        if (parsedUrl.hostname.includes("google.com") && parsedUrl.pathname === "/search") {
-            const queryParams = new URLSearchParams(parsedUrl.search);
-            return "Recherche : " + (queryParams.get('q') || "");
+        return parsedUrl.hostname === "129.151.254.175" ||
+            parsedUrl.pathname === "/search" ||
+            parsedUrl.pathname.endsWith("/search");
+    } catch {
+        return false;
+    }
+}
+
+function getSearchQueryFromUrl(url, fallbackQuery = "") {
+    try {
+        const parsedUrl = new URL(url);
+        return parsedUrl.searchParams.get("q") || fallbackQuery || null;
+    } catch {
+        return fallbackQuery || null;
+    }
+}
+
+function getDisplayUrl(url, fallbackQuery = "") {
+    try {
+        const parsedUrl = new URL(url);
+        const searchQuery = isSearchResultsUrl(url)
+            ? getSearchQueryFromUrl(url, fallbackQuery)
+            : null;
+        if (searchQuery !== null) return `${searchQuery} - Recherche ${applicationTitle}`;
+
+        if (parsedUrl.hostname === "129.151.254.175") {
+            return `Moteur de recherche ${applicationTitle}`;
         }
-        
+
         // Comportement normal pour les autres sites (ex: github.com)
         return parsedUrl.hostname.replace(/^www\./, "");
     } catch {
@@ -749,8 +772,16 @@ function attachUrlHandler(panelId) {
             const valeureSaisie = input.value.trim();
             if (valeureSaisie) {
                 console.log("Navigation demandée pour le panneau " + panelId + " vers : " + valeureSaisie);
+                const isSearchQuery =
+                    !valeureSaisie.includes("://") &&
+                    !valeureSaisie.startsWith("data:") &&
+                    !valeureSaisie.startsWith("about:") &&
+                    !/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(\:[0-9]+)?(\/.*)?$/.test(valeureSaisie);
                 window.api.navigate(panelId, valeureSaisie);
                 input.blur();
+                if (isSearchQuery) {
+                    input.value = `${valeureSaisie} - Recherche ${applicationTitle}`;
+                }
             }
         }
     });
@@ -807,8 +838,10 @@ window.api.onPanelsUpdated((panelsList, zoomPanelId) => {
 
                 const url = panel.realUrl || panel.url || "";
                 if (input.dataset.url !== url) input.dataset.url = url;
-                if (!wasUrlInput || document.activeElement !== input) {
-                    const displayUrl = typeof getDisplayUrl === "function" ? getDisplayUrl(url) : url;
+                input.readOnly = !!panel.isPrivate || isSearchResultsUrl(url);
+                input.style.cursor = input.readOnly ? "default" : "text";
+                if (input.readOnly || !wasUrlInput || document.activeElement !== input) {
+                    const displayUrl = typeof getDisplayUrl === "function" ? getDisplayUrl(url, panel.searchQuery) : url;
                     if (input.value !== displayUrl) input.value = displayUrl;
                 }
 
@@ -1048,7 +1081,7 @@ tabWrapper.appendChild(loadingIndicator);
         input.type = "text";
         input.className = "url-input";
         input.id = `${panel.id}-url`; // Correction : ID unique affecté dynamiquement
-        input.readOnly = !!panel.isPrivate;
+        input.readOnly = !!panel.isPrivate || isSearchResultsUrl(panel.realUrl || panel.url || "");
 
         input.style.flex = "1";
         input.style.minWidth = "0";
@@ -1059,9 +1092,9 @@ tabWrapper.appendChild(loadingIndicator);
         input.style.background = "transparent";
 
         input.dataset.url = panel.realUrl || panel.url || "";
-        input.value = typeof getDisplayUrl === "function" ? getDisplayUrl(input.dataset.url) : input.dataset.url;
+        input.value = typeof getDisplayUrl === "function" ? getDisplayUrl(input.dataset.url, panel.searchQuery) : input.dataset.url;
 
-        input.style.cursor = panel.isPrivate ? "default" : "text";
+        input.style.cursor = input.readOnly ? "default" : "text";
 
         input.addEventListener("mousedown", (e) => {
             tabWrapper.setAttribute("draggable", "false");
@@ -1102,8 +1135,10 @@ input.addEventListener("focus", () => {
     activePanel = panel.id;
 
     // Affiche l'adresse réellement naviguée dès que l'utilisateur cible ce champ.
-    const realUrl = input.dataset.url || "";
-    if (input.value !== realUrl) input.value = realUrl;
+    if (!input.readOnly) {
+        const realUrl = input.dataset.url || "";
+        if (input.value !== realUrl) input.value = realUrl;
+    }
 
     if (typeof refreshTabBorders === "function") refreshTabBorders();
 
@@ -1124,7 +1159,7 @@ input.addEventListener("blur", () => {
     const realUrl = input.dataset.url || "";
 
     const displayUrl = typeof getDisplayUrl === "function"
-        ? getDisplayUrl(realUrl)
+        ? getDisplayUrl(realUrl, panel.searchQuery)
         : realUrl;
     if (input.value !== displayUrl) input.value = displayUrl;
 });
@@ -1589,7 +1624,7 @@ window.api.onDownloadDone((data) => {
         const input = document.getElementById(`${data.panelId}-url`);
         const panelData = currentPanels.find(p => p.id === data.panelId);
         if (input && panelData) {
-            input.value = getDisplayUrl(panelData.realUrl || panelData.url || "");
+            input.value = getDisplayUrl(panelData.realUrl || panelData.url || "", panelData.searchQuery);
             input.style.color = "#d4d4d4";
         }
     }
@@ -1865,6 +1900,7 @@ document.getElementById("history-button").addEventListener("click", (e) => {
 
 // Écoute le signal du processus principal pour changer le titre de la fenêtre
 window.api.onTitleChanged?.((newTitle) => {
+    if (newTitle) applicationTitle = newTitle;
     document.title = newTitle;
 });
 
