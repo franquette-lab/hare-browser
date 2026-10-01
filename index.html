@@ -1917,8 +1917,7 @@ window.api.onTitleChanged?.((newTitle) => {
     document.title = newTitle;
 });
 
-window.api.onSystemThemeChanged((isDark) => {
-
+function applyAppTheme(isDark) {
     applicationDarkMode = isDark;
 
     document.documentElement.classList.toggle("dark", isDark);
@@ -1935,21 +1934,27 @@ window.api.onSystemThemeChanged((isDark) => {
     rebuildBookmarksBar();
 
     updateToolbarTheme();
+    updateUrlBarTheme();
+}
 
-    
-});
+window.applyAppTheme = applyAppTheme;
+window.api.onSystemThemeChanged(applyAppTheme);
 
 updateCloseButtonState();
 
 function updateUrlBarTheme() {
     const urlBarContainer = document.getElementById("url-bar");
     if (urlBarContainer) {
-        urlBarContainer.style.background = applicationDarkMode ? "#252526" : "#f9fafb";
+        urlBarContainer.style.setProperty(
+            "background-color",
+            applicationDarkMode ? "#252526" : "#f9fafb",
+            "important"
+        );
         
         // Applique la couleur de bordure sombre ou claire sur les deux côtés simultanément
         const borderColor = applicationDarkMode ? "#3c3c3c" : "#e5e7eb";
-        urlBarContainer.style.borderBottomColor = borderColor;
-        urlBarContainer.style.borderTopColor = borderColor;
+        urlBarContainer.style.setProperty("border-bottom-color", borderColor, "important");
+        urlBarContainer.style.setProperty("border-top-color", borderColor, "important");
     }
 }
 
@@ -1961,18 +1966,20 @@ function updateToolbarTheme() {
     const border = isDark ? "#3c3c3c" : "#d1d5db";
     const text = isDark ? "#cfcfcf" : "#1f2937";
 
+    const toolbar = document.getElementById("toolbar-buttons");
+    if (toolbar) {
+        toolbar.style.backgroundColor = isDark ? "#252526" : "#ffffff";
+    }
+
     document.querySelectorAll("#toolbar-buttons button").forEach(btn => {
-        btn.style.background = bg;
-        btn.style.borderColor = border;
-        btn.style.color = text;
+        btn.style.setProperty("background-color", bg, "important");
+        btn.style.setProperty("border-color", border, "important");
+        btn.style.setProperty("color", text, "important");
     });
 }
 
 
 function setDarkMode(enabled) {
-
-    applicationDarkMode = enabled;
-
     console.log(
     "setDarkMode(",
     enabled,
@@ -1981,38 +1988,7 @@ function setDarkMode(enabled) {
 
     window.api.saveThemePreference(enabled);
     window.api.toggleDarkMode(enabled);
-
-    document.documentElement.classList.toggle(
-        "dark",
-        enabled
-    );
-
-    document.body.classList.toggle(
-        "dark",
-        enabled
-    );
-
-    const darkModeBtn =
-        document.getElementById("dark-mode-button");
-
-    if (darkModeBtn) {
-        darkModeBtn.innerText =
-            enabled ? "☀️" : "🌙";
-
-        darkModeBtn.title =
-            enabled
-                ? "Désactiver le mode sombre"
-                : "Activer le mode sombre";
-    }
-
-    rebuildUrlBar(currentPanels);
-
-    if (typeof rebuildBookmarksBar === "function") {
-        rebuildBookmarksBar();
-    }
-
-    updateToolbarTheme();
-
+    applyAppTheme(enabled);
 }
 
 function applyTheme() {
@@ -2289,8 +2265,8 @@ async function envoyerRequeteIA(questionUser) {
     console.log("[IHM DIAGNOSTIC] Envoi de la demande d'IA au processus principal pour :", questionUser);
     
     try {
-        // Appel via le canal direct aplati
-        const reponse = await window.api.askOllamaDirect(questionUser, modeleChoisi);
+        // Utilise l'API exposée par le preload pour appeler le gestionnaire IPC Ollama.
+        const reponse = await window.api.nanobrowser.askOllama(questionUser, modeleChoisi);
         
         console.log("[IHM DIAGNOSTIC] Réponse reçue du processus principal :", reponse);
 

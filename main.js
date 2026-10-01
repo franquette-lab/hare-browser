@@ -1206,6 +1206,9 @@ panel.view.webContents.on("will-navigate", (event, targetUrl) => {
                 panel.view.webContents.loadURL(HOME_PAGE_URL);
             } else if (target.hostname === "history") {
                 ipcMain.emit("open-history-window");
+            } else if (target.hostname === "private") {
+                activePanel = panel.id;
+                ipcMain.emit("split-panel", null, panel.id, "vertical", true);
             } else if (target.hostname === "toggle-theme") {
                 // Déclenche instantanément votre fonction globale de changement de thème
                 // en lui transmettant l'inverse du mode actuel
@@ -2004,6 +2007,7 @@ isDarkModeForced = getThemePreference();
 ipcMain.on('toggle-dark-mode-request', (event, enable) => {
     isDarkModeForced = enable;
     nativeTheme.themeSource = enable ? 'dark' : 'light';
+    fs.writeFileSync(themePath, JSON.stringify({ darkMode: enable }, null, 2));
 
     // Mise à jour de la barre de titre Electron
     if (win && !win.isDestroyed()) {
@@ -2016,6 +2020,15 @@ ipcMain.on('toggle-dark-mode-request', (event, enable) => {
         win.setBackgroundColor(
             enable ? '#252526' : '#f3f4f6'
         );
+
+        // Notifier immédiatement l'interface propre à l'application. Les opérations
+        // de reconstruction des BrowserView ci-dessous ne doivent pas bloquer son thème.
+        win.webContents.send('system-theme-changed', enable);
+        win.webContents.executeJavaScript(
+            `window.applyAppTheme?.(${JSON.stringify(enable)});`
+        ).catch((error) => {
+            console.warn("Impossible d'appliquer le thème à l'interface principale :", error);
+        });
     }    
 
     // Force la recréation complète des poignées
@@ -2031,11 +2044,6 @@ ipcMain.on('toggle-dark-mode-request', (event, enable) => {
     });
 
     updatePanelHandles();    
-
-    // 1. Mise à jour de la fenêtre principale
-    if (win && !win.isDestroyed()) {
-        win.webContents.send('system-theme-changed', enable);
-    }
 
     // 2. Traitement des tuiles web (BrowserViews)
     const allViews = win.getBrowserViews();
@@ -2455,7 +2463,8 @@ function createWindow() {
         }
     });
 
-    win.setMaxListeners(30);
+//  win.setMaxListeners(30);
+    win.setMaxListeners(0);
 
     registerDownloadHandler(win.webContents.session);
 
