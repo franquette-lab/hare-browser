@@ -525,7 +525,7 @@ html.dark .bookmark-item:hover {
 
 
 <!-- Dans index.html -> Remplacez la ligne d'ouverture de #ai-sidebar par celle-ci (on enlève le background fixe et la top position en dur) -->
-<div id="ai-sidebar" class="ai-sidebar-native" style="position: fixed; top: 64px; right: -300px; width: 300px; bottom: 0; border-left: 1px solid #3c3c3c; z-index: 99999; display: flex; flex-direction: column; padding: 16px; box-sizing: border-box; transition: right 0.3s ease, background 0.2s, color 0.2s, border-color 0.2s; font-family: sans-serif;">
+<div id="ai-sidebar" class="ai-sidebar-native" style="position: fixed; top: 64px; right: 0; width: 300px; bottom: 0; border-left: 1px solid #3c3c3c; z-index: 99999; display: flex; flex-direction: column; padding: 16px; box-sizing: border-box; transition: right 0.3s ease, background 0.2s, color 0.2s, border-color 0.2s; font-family: sans-serif;">
     
     <!-- En-tête de la Sidebar -->
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3c3c3c; padding-bottom: 12px; margin-bottom: 16px;">
@@ -739,7 +739,7 @@ function getDisplayUrl(url, fallbackQuery = "") {
         if (parsedUrl.protocol === "file:") {
             const localPage = parsedUrl.pathname.toLowerCase();
             if (localPage.endsWith("/home.html")) return "Accueil";
-            if (localPage.endsWith("/welcome.html")) return "Bienvenue !";
+            if (localPage.endsWith("/welcome.html")) return "Bienvenue  ";
         }
         const searchQuery = isSearchResultsUrl(url)
             ? getSearchQueryFromUrl(url, fallbackQuery)

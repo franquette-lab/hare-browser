@@ -89,7 +89,7 @@ const SPLITTER_SIZE = 10;
 let leftView, centerView, rightView;
 let isDarkModeForced = false;
 
-let isAiSidebarVisible = false; // Par défaut, le volet est fermé
+let isAiSidebarVisible = true; // Par défaut, le volet est ouvert désormais
 
 const https = require("https");
 
@@ -1195,33 +1195,38 @@ function setupNavigationTracking(panel) {
 
     let initialLoadFinished = false;
 
-    panel.view.webContents.on("will-navigate", (event, targetUrl) => {
-        try {
-            const target = new URL(targetUrl);
-            if (target.protocol === "hare:") {
-                event.preventDefault();
-                if (target.hostname === "home") {
-                    panel.view.webContents.loadURL(HOME_PAGE_URL);
-                } else if (target.hostname === "history") {
-                    ipcMain.emit("open-history-window");
-                }
-                return;
-            }
+panel.view.webContents.on("will-navigate", (event, targetUrl) => {
+    try {
+        const target = new URL(targetUrl);
+        if (target.protocol === "hare:") {
+            event.preventDefault(); // Stoppe la navigation Chromium pour éviter l'écran blanc ou l'erreur
 
-            const isSearchEngineHome =
-                target.hostname === SEARCH_ENGINE_HOST &&
-                target.port === "8080" &&
-                target.pathname === "/" &&
-                !target.searchParams.has("q");
-
-            if (isSearchEngineHome) {
-                event.preventDefault();
+            if (target.hostname === "home") {
                 panel.view.webContents.loadURL(HOME_PAGE_URL);
+            } else if (target.hostname === "history") {
+                ipcMain.emit("open-history-window");
+            } else if (target.hostname === "toggle-theme") {
+                // Déclenche instantanément votre fonction globale de changement de thème
+                // en lui transmettant l'inverse du mode actuel
+                ipcMain.emit('toggle-dark-mode-request', null, !isDarkModeForced);
             }
-        } catch (error) {
-            console.debug("Impossible de vérifier l’URL d’accueil du moteur :", error);
+            return;
         }
-    });
+
+        const isSearchEngineHome =
+            target.hostname === SEARCH_ENGINE_HOST &&
+            target.port === "8080" &&
+            target.pathname === "/" &&
+            !target.searchParams.has("q");
+
+        if (isSearchEngineHome) {
+            event.preventDefault();
+            panel.view.webContents.loadURL(HOME_PAGE_URL);
+        }
+    } catch (error) {
+        console.debug("Impossible de vérifier l’URL d’accueil du moteur :", error);
+    }
+});
 
     const syncSearchQueryFromPage = async () => {
         if (!panel.view || panel.view.webContents.isDestroyed()) return;
@@ -2379,55 +2384,44 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
 
 function createDefaultLayout() {
 
+    // On instancie uniquement 2 vues de navigation au lieu de 3
     leftView = new BrowserView();
     centerView = new BrowserView();
-    rightView = new BrowserView();
 
-    [leftView, centerView, rightView].forEach(view => {
-
+    [leftView, centerView].forEach(view => {
         view.webContents.once("did-finish-load", () => {
-
             applyThemeToView(view);
-
         });
-
     });
 
     win.addBrowserView(leftView);
     win.addBrowserView(centerView);
-    win.addBrowserView(rightView);
 
+    // Chargement de home.html sur la tuile de gauche
     leftView.webContents.loadURL(HOME_PAGE_URL);
+    
+    // Chargement de welcome.html sur la tuile de droite
     const welcomePageUrl = pathToFileURL(path.join(__dirname, "welcome.html")).href;
     centerView.webContents.loadURL(welcomePageUrl);
-    rightView.webContents.loadURL(welcomePageUrl);
 
-    [leftView, centerView, rightView].forEach(view => {
-
+    [leftView, centerView].forEach(view => {
         view.webContents.once('did-finish-load', () => {
-
             if (typeof view.webContents.setForceDarkModeEnabled === 'function') {
-                view.webContents.setForceDarkModeEnabled(
-                    isDarkModeForced
-                );
+                view.webContents.setForceDarkModeEnabled(isDarkModeForced);
             }
-
         });
-
     });
 
+    // Reconstruction de la structure de l'arbre en 2 panneaux verticaux (50/50)
     rootNode = new SplitNode("vertical");
-    rootNode.ratio = 0.33;
+    rootNode.ratio = 0.5; // Division parfaite au milieu de l'écran utile
 
     rootNode.first = new PanelNode("panel1", leftView, HOME_PAGE_URL);
-    rootNode.second = new SplitNode("vertical");
-    rootNode.second.ratio = 0.5;
-    rootNode.second.first = new PanelNode("panel2", centerView, welcomePageUrl);
-    rootNode.second.second = new PanelNode("panel3", rightView, welcomePageUrl);
+    rootNode.second = new PanelNode("panel2", centerView, welcomePageUrl);
 
-    // Tout à la fin de la fonction createDefaultLayout() :
+    // Initialisation des écouteurs de navigation sur nos deux panneaux actifs
     collectPanelNodes(rootNode).forEach((panel) => {
-        setupNavigationTracking(panel); // <-- C'est cet appel qui va injecter l'intercepteur de zoom
+        setupNavigationTracking(panel);
     });
 
     updateNavigationButtons();
@@ -3195,18 +3189,18 @@ function detachPanelToFullscreen(panelId) {
     }
 }
 
+
+
+
+
+
+
+
 function resizeViews() {
     if (win.isDestroyed()) return;
     const bounds = win.getContentBounds();
-
-    // Windows peut signaler une taille nulle quand la fenêtre est minimisée.
-    // Ne pas vider les splitters ni modifier les BrowserView pendant cet état.
-    if (bounds.width <= 0 || bounds.height <= 0) {
-        return;
-    }
+    if (bounds.width <= 0 || bounds.height <= 0) return;
     
-    // 1. Récupérer la taille réelle de la zone de contenu utile d'Electron
-    // CORRECTION ICI : Changez "const" par "let" pour s'autoriser à modifier la variable
     let width = bounds.width; 
     const height = bounds.height;
     
@@ -3218,10 +3212,10 @@ function resizeViews() {
         forceRebuildSplitters = false;
     }
 
-    // === AJOUT DYNAMIQUE DE L'IA ===
-    // Maintenant que width est un "let", cette ligne va fonctionner sans planter !
+    // L'assistant IA est rendu dans index.html ; on réserve simplement sa largeur.
     if (isAiSidebarVisible) {
-        width = width - 300;
+        const SIDEBAR_WIDTH = 300;
+        width = width - SIDEBAR_WIDTH;
     }
 
     // Le reste de votre fonction reste STRICTEMENT identique...

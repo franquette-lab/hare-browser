@@ -146,6 +146,35 @@ h1 {
     box-shadow: 0 2px 8px var(--shadow-color);
     font-size: 13px;
 }
+
+/* --- BOUTON DE RECHERCHE PRINCIPAL (LOUPE) --- */
+
+/* MODE CLAIR : Harmonisé en bleu vif */
+html.mw-theme-client-light .search-button, 
+html.mw-theme-client-light button[type="submit"],
+html.mw-theme-client-light .btn-search {
+    background-color: #2563eb !important;
+    border-color: #2563eb !important;
+    color: #ffffff !important;
+}
+html.mw-theme-client-light .search-button:hover,
+html.mw-theme-client-light button[type="submit"]:hover {
+    background-color: #1d4ed8 !important;
+}
+
+/* MODE SOMBRE : Harmonisé en bleu ciel doux */
+html.mw-theme-client-dark .search-button, 
+html.mw-theme-client-dark button[type="submit"],
+html.mw-theme-client-dark .btn-search {
+    background-color: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+    color: #ffffff !important;
+}
+html.mw-theme-client-dark .search-button:hover,
+html.mw-theme-client-dark button[type="submit"]:hover {
+    background-color: #60a5fa !important;
+}
+
 </style>
 </head>
 
@@ -155,7 +184,7 @@ h1 {
 
     <!-- Remplacer par votre image -->
     <img
-        src="images/hare-home.png"
+        src="images/hare-sans-bg.png"
         alt="Hare Browser"
         class="logo">
 

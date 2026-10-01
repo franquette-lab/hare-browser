@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Bienvenue !</title>
+<title>Bienvenue</title>
 
 <style>
 :root {
@@ -61,13 +60,15 @@ body {
 
 .hero p {
     margin-top: 10px;
+    margin-bottom: 4px;
     color: var(--text-secondary);
-    font-size: 18px;
+    font-size: 14px;
 }
 
 .badge {
     display: inline-block;
-    margin-top: 10px;
+    position: relative;
+    top: 12px;
     padding: 8px 16px;
     background: var(--card);
     border: 1px solid var(--border);
@@ -79,6 +80,7 @@ body {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 15px;
+    margin-top: 40px;
 }
 
 .card {
@@ -105,41 +107,60 @@ body {
     line-height: 1.5;
 }
 
-.links {
-    margin-top: 25px;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 12px;
+.welcome-buttons-container {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 100% !important;
+    margin: 35px 0 0 0 !important;
 }
 
-.button {
-    display: inline-block;
-    min-width: 220px;
-    padding: 12px 20px;
-    border-radius: 12px;
-    text-decoration: none;
-    text-align: center;
-    color: white;
-    background: var(--accent);
-    font-weight: 600;
-    transition: .2s;
+.welcome-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 10px 24px !important;
+    border-radius: 20px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
+    margin: 0 8px !important;
+    border: none !important;
+    transition: background-color .2s ease-in-out !important;
 }
 
-.button:hover {
-    background: var(--accent-hover);
+html.mw-theme-client-light .welcome-btn,
+.mw-theme-client-light .welcome-btn,
+body .welcome-btn {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+}
+
+html.mw-theme-client-light .welcome-btn:hover {
+    background-color: #1d4ed8 !important;
+}
+
+html.mw-theme-client-dark .welcome-btn,
+.mw-theme-client-dark .welcome-btn {
+    background-color: #3b82f6 !important;
+    color: #ffffff !important;
+}
+
+html.mw-theme-client-dark .welcome-btn:hover {
+    background-color: #60a5fa !important;
 }
 
 .footer {
-    margin-top: 25px;
+    margin-top: 40px;
     text-align: center;
     color: var(--text-secondary);
     font-size: 14px;
-    line-height: 1.6;
+    line-height: 1.4;
 }
 
 .version {
-    margin-top: 6px;
+    margin-top: 0;
+    font-size: 13px;
 }
 </style>
 </head>
@@ -149,17 +170,15 @@ body {
 <div class="container">
 
     <div class="hero">
-
         <h1>🐇 Hare Browser</h1>
 
         <p>
-            Navigation mosaïque • Vie privée • Recherche SearXNG • IA locale Ollama
+            Navigation mosaïque • Recherche respectueuse • IA locale • Confidentialité
         </p>
 
         <div class="badge">
             Version 1.0.0
         </div>
-
     </div>
 
     <div class="cards">
@@ -167,51 +186,48 @@ body {
         <div class="card">
             <h2>🧩 Navigation mosaïque</h2>
             <p>
-                Organisez votre navigation dans plusieurs panneaux
-                indépendants et redimensionnables pour afficher
-                plusieurs sites simultanément.
+                Organisez votre navigation dans plusieurs panneaux indépendants
+                et redimensionnables pour afficher plusieurs sites simultanément.
             </p>
         </div>
 
         <div class="card">
-            <h2>🔍 Recherche SearXNG</h2>
+            <h2>🔍 Recherche respectueuse</h2>
             <p>
-                Effectuez vos recherches grâce à SearXNG,
-                un métamoteur open source respectueux
-                de la confidentialité.
+                Effectuez vos recherches grâce à SearXNG, un métamoteur open source
+                respectueux de la confidentialité et sans profilage des utilisateurs.
             </p>
         </div>
 
         <div class="card">
-            <h2>🤖 IA locale Ollama</h2>
+            <h2>🤖 IA locale</h2>
             <p>
-                Utilisez des modèles d'intelligence artificielle
-                exécutés localement. Vos échanges restent
-                sur votre ordinateur.
+                Une IA exécutée sur votre ordinateur, sans cloud distant,
+                pour un impact réduit sur l'environnement et davantage de confidentialité.
             </p>
         </div>
 
         <div class="card">
-            <h2>🔒 Vie privée</h2>
+            <h2>🔒 Confidentialité</h2>
             <p>
-                Navigation privée, réduction du suivi et contrôle
-                renforcé de vos données personnelles.
+                Navigation privée, réduction du suivi et contrôle renforcé
+                de vos données personnelles.
             </p>
         </div>
 
         <div class="card">
             <h2>🌗 Thèmes clair et sombre</h2>
             <p>
-                Basculez instantanément entre les modes clair
-                et sombre selon vos préférences.
+                Basculez instantanément entre les modes clair et sombre
+                selon vos préférences.
             </p>
         </div>
 
         <div class="card">
             <h2>📜 Historique</h2>
             <p>
-                Retrouvez facilement les pages récemment
-                visitées depuis l'historique intégré.
+                Retrouvez facilement les pages récemment visitées
+                depuis l'historique intégré.
             </p>
         </div>
 
@@ -233,32 +249,23 @@ body {
 
     </div>
 
-    <div class="links">
-
-        <a class="button" href="hare://home">
-            🔍 Recherche
+    <div class="welcome-buttons-container">
+        <a href="#" class="welcome-btn">🔍 Recherche</a>
+        <a href="#" class="welcome-btn">📜 Historique</a>
+        <a href="#"
+           class="welcome-btn"
+           onclick="window.location.href='hare://toggle-theme'; return false;">
+            🌗 Thème
         </a>
-
-        <a class="button" href="hare://history">
-            📜 Historique
-        </a>
-
-        <a class="button" href="hare://toggle-theme">
-            🌗 Basculer le thème
-        </a>
-
     </div>
 
     <div class="footer">
-
         <div>
             Hare Browser allie productivité, confidentialité et navigation moderne.
         </div>
-
         <div class="version">
             Propulsé par SearXNG • Ollama • Electron • Hare Browser
         </div>
-
     </div>
 
 </div>
