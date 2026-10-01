@@ -80,6 +80,7 @@ let isBookmarksBarVisible = true; // La barre est affichée par défaut
 
 let TOOLBAR_HEIGHT = 76;
 const TOOLBAR_MIN_HEIGHT = 77;
+let lastAiSidebarTopPosition = TOOLBAR_HEIGHT;
 
 let history = [];
 let lastClosedPanel = null;
@@ -3200,6 +3201,14 @@ function resizeViews() {
     if (win.isDestroyed()) return;
     const bounds = win.getContentBounds();
     if (bounds.width <= 0 || bounds.height <= 0) return;
+
+    // Keep the AI sidebar aligned with the top edge of the browser panels.
+    if (lastAiSidebarTopPosition !== TOOLBAR_HEIGHT) {
+        lastAiSidebarTopPosition = TOOLBAR_HEIGHT;
+        win.webContents.send("ai-sidebar-geometry-update", {
+            topPosition: TOOLBAR_HEIGHT
+        });
+    }
     
     let width = bounds.width; 
     const height = bounds.height;
