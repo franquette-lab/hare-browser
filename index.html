@@ -1103,6 +1103,7 @@ tabWrapper.appendChild(loadingIndicator);
 
         input.addEventListener("mousedown", (e) => {
             tabWrapper.setAttribute("draggable", "false");
+            if (e.button !== 0) return;
             // Premier clic : toute l'URL (comme Chrome). preventDefault évite
             // le caret et le drag HTML5 de l'onglet qui volent la sélection.
             if (document.activeElement !== input) {
@@ -1110,6 +1111,13 @@ tabWrapper.appendChild(loadingIndicator);
                 input.focus();
                 input.select();
             }
+        });
+
+        input.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            input.focus();
+            window.api.showUrlContextMenu();
         });
 
         window.addEventListener("mouseup", () => {
