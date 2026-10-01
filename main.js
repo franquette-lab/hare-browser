@@ -1198,6 +1198,16 @@ function setupNavigationTracking(panel) {
     panel.view.webContents.on("will-navigate", (event, targetUrl) => {
         try {
             const target = new URL(targetUrl);
+            if (target.protocol === "hare:") {
+                event.preventDefault();
+                if (target.hostname === "home") {
+                    panel.view.webContents.loadURL(HOME_PAGE_URL);
+                } else if (target.hostname === "history") {
+                    ipcMain.emit("open-history-window");
+                }
+                return;
+            }
+
             const isSearchEngineHome =
                 target.hostname === SEARCH_ENGINE_HOST &&
                 target.port === "8080" &&
@@ -2388,8 +2398,9 @@ function createDefaultLayout() {
     win.addBrowserView(rightView);
 
     leftView.webContents.loadURL(HOME_PAGE_URL);
-    centerView.webContents.loadURL("https://fr.wikipedia.org");
-    rightView.webContents.loadURL("https://github.com");
+    const welcomePageUrl = pathToFileURL(path.join(__dirname, "welcome.html")).href;
+    centerView.webContents.loadURL(welcomePageUrl);
+    rightView.webContents.loadURL(welcomePageUrl);
 
     [leftView, centerView, rightView].forEach(view => {
 
@@ -2411,8 +2422,8 @@ function createDefaultLayout() {
     rootNode.first = new PanelNode("panel1", leftView, HOME_PAGE_URL);
     rootNode.second = new SplitNode("vertical");
     rootNode.second.ratio = 0.5;
-    rootNode.second.first = new PanelNode("panel2", centerView, "https://fr.wikipedia.org");
-    rootNode.second.second = new PanelNode("panel3", rightView, "https://github.com");
+    rootNode.second.first = new PanelNode("panel2", centerView, welcomePageUrl);
+    rootNode.second.second = new PanelNode("panel3", rightView, welcomePageUrl);
 
     // Tout à la fin de la fonction createDefaultLayout() :
     collectPanelNodes(rootNode).forEach((panel) => {
