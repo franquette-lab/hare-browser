@@ -81,6 +81,10 @@ body {
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 15px;
     margin-top: 40px;
+
+    /* Descend uniquement les cartes */
+    position: relative;
+    top: 30px;
 }
 
 .card {
@@ -112,7 +116,9 @@ body {
     justify-content: center !important;
     align-items: center !important;
     width: 100% !important;
-    margin: 35px 0 0 0 !important;
+
+    /* Descend les boutons et le footer */
+    margin: 65px 0 0 0 !important;
 }
 
 .welcome-btn {
@@ -203,7 +209,7 @@ html.mw-theme-client-dark .welcome-btn:hover {
             <h2>🤖 IA locale</h2>
             <p>
                 Une IA exécutée sur votre ordinateur, sans cloud distant,
-                pour un impact réduit sur l'environnement et davantage de confidentialité.
+                pour un impact réduit sur l'environnement et plus de confidentialité.
             </p>
         </div>
 
@@ -249,15 +255,19 @@ html.mw-theme-client-dark .welcome-btn:hover {
 
     </div>
 
-    <div class="welcome-buttons-container">
-        <a href="#" class="welcome-btn">🔍 Recherche</a>
-        <a href="#" class="welcome-btn">📜 Historique</a>
-        <a href="#"
-           class="welcome-btn"
-           onclick="window.location.href='hare://toggle-theme'; return false;">
-            🌗 Thème
-        </a>
-    </div>
+		<div class="welcome-buttons-container">
+				<a href="#" class="welcome-btn">📜 Historique</a>
+			<a href="#"
+			   class="welcome-btn"
+			   onclick="window.location.href='hare://private'; return false;">
+				🕶️ Navigation privée
+			</a>
+			<a href="#"
+			   class="welcome-btn"
+			   onclick="window.location.href='hare://toggle-theme'; return false;">
+				🌗 Thème
+			</a>
+		</div>
 
     <div class="footer">
         <div>
