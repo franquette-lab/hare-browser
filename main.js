@@ -1209,6 +1209,8 @@ panel.view.webContents.on("will-navigate", (event, targetUrl) => {
             } else if (target.hostname === "private") {
                 activePanel = panel.id;
                 ipcMain.emit("split-panel", null, panel.id, "vertical", true);
+            } else if (target.hostname === "close-panel") {
+                ipcMain.emit("close-panel", null, panel.id);
             } else if (target.hostname === "toggle-theme") {
                 // Déclenche instantanément votre fonction globale de changement de thème
                 // en lui transmettant l'inverse du mode actuel
