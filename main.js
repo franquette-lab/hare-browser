@@ -119,6 +119,20 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
 
     const menuTemplate = [
         {
+            label: "✏️ Édition",
+            enabled: false
+        },
+        { role: "undo", label: "   ↩️ Annuler" },
+        { role: "redo", label: "   ↪️ Rétablir" },
+        { type: "separator" },
+        { role: "cut", label: "   ✂️ Couper" },
+        { role: "copy", label: "   📋 Copier" },
+        { role: "paste", label: "   📌 Coller" },
+        { role: "delete", label: "   🗑️ Supprimer" },
+        { type: "separator" },
+        { role: "selectAll", label: "   Sélectionner tout" },
+        { type: "separator" },
+        {
             label: `✨ Actions IA (Assistant)`,
             enabled: false
         },
