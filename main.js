@@ -2,8 +2,7 @@
 // SCRIPT : main.js //
 // ---------------- //
 
-// Tout en haut de votre fichier main.js
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // Évite les blocages de certificats locaux
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; 
 
 const {
     app,
@@ -19,6 +18,12 @@ const {
     screen,
     safeStorage // <-- Assurez-vous que safeStorage est bien présent dans vos imports Electron
 } = require('electron');
+
+
+// 🌟 CONFIGURATION LOGS CHROMIUM : Masque les alertes et erreurs de routage internes (Mojo/Blink)
+// '3' coupe les logs de niveau INFO, WARNING et ERROR natifs de Chromium, ne laissant que les crashs critiques.
+process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
+app.commandLine.appendSwitch('log-level', '3'); 
 
 // === CORRECTIF ALERTE SECURITE WINDOWS ===
 // Force Electron à utiliser une clé de chiffrement alternative interne au lieu de solliciter 
@@ -1599,9 +1604,9 @@ panel.view.webContents.on("will-navigate", (event, targetUrl) => {
 function layoutNode(node, x, y, width, height) {
     if (!node || width <= 0 || height <= 0) return;
 
-    // ======================================================================
+    // =============================================================================
     // SI UN PANNEAU EST MAXIMISÉ : On optimise la RAM et le CPU des tuiles masquées
-    // ======================================================================
+    // =============================================================================
     if (maximizedPanelId) {
         if (node.type === "panel") {
             if (node.id === maximizedPanelId) {
@@ -1647,9 +1652,9 @@ function layoutNode(node, x, y, width, height) {
         return;
     }
 
-    // ======================================================================
+    // ==========================================================
     // COMPORTEMENT STANDARD (Arbre de tuiles normal en mosaïque)
-    // ======================================================================
+    // ==========================================================
     if (node.type === "panel") {
         node.bounds = { x, y, width, height };
         if (node.view && !node.view.webContents.isDestroyed()) {
@@ -1688,7 +1693,6 @@ function layoutNode(node, x, y, width, height) {
         layoutNode(node.second, x, y + firstHeight, width, height - firstHeight);
     }
 }
-
 
 // À mettre avec vos autres ipcMain.handle dans main.js
 ipcMain.removeHandler('pwd-find-for-url');
@@ -1803,8 +1807,6 @@ function swapPanelsInTree(idA, idB) {
     resizeViews();
 
     // 5. Notification complète et immédiate à l'interface HTML
-//  win.webContents.send("panels-updated", collectPanels(rootNode));
-
     win.webContents.send(
         "panels-updated",
         collectPanels(rootNode),
@@ -1917,21 +1919,21 @@ ipcMain.on("close-panel", (event, panelId) => {
 
         // 3. Suppression des écouteurs pour éviter les fuites de mémoire (Memory Leaks)
         viewToDestroy.webContents.removeAllListeners();
-        
-        // 4. Chargement d'une page blanche pour purger instantanément le GPU et les arbres DOM de Chromium
+
+        // Au lieu de détruire après 50ms pendant que "about:blank" charge,
+        // on détruit uniquement LORSQUE la page blanche a fini son cycle de traitement graphique.
         viewToDestroy.webContents.loadURL("about:blank").then(() => {
-            // Une fois la page blanche chargée, on élimine définitivement le processus de rendu
+            // On attend l'événement de stabilisation avant de détruire
             setTimeout(() => {
                 if (!viewToDestroy.webContents.isDestroyed()) {
                     viewToDestroy.webContents.destroy(); 
-                    console.log(`[RAM] Processus Chromium de la tuile ${panelId} libéré avec succès.`);
+                    console.log(`[RAM] Processus Chromium de la tuile ${panelId} libéré proprement.`);
                 }
-            }, 50); // Micro-délai pour laisser Chromium vider ses structures géométriques
+            }, 150); // Passer de 50ms à 150ms donne le temps nécessaire à Mojo pour clore ses canaux
         }).catch(() => {
             if (!viewToDestroy.webContents.isDestroyed()) viewToDestroy.webContents.destroy();
         });
     }
-    // ==================================================================================
 
     const parent = findParentNode(rootNode, panelId);
     if (!parent) return;
@@ -1962,6 +1964,13 @@ ipcMain.on("close-panel", (event, panelId) => {
         collectPanels(rootNode),
         maximizedPanelId
     );
+
+    // AJOUTEZ CE LOG DE DIAGNOSTIC À LA TOUTE FIN DE LA FONCTION :
+    setTimeout(async () => {
+        const memory = await process.getProcessMemoryInfo();
+        console.log(`[DIAGNOSTIC RAM] Après fermeture de ${panelId} - RAM du Main Process : ${(memory.private / 1024 / 1024).toFixed(2)} Mo`);
+    }, 1000);
+
 });
 
 ipcMain.on("undo", (event) => {
@@ -2014,9 +2023,9 @@ ipcMain.on("undo", (event) => {
 // 1. DÉCLARATION DE LA VARIABLE (Doit être en premier !)
 let historyWindow = null; 
 
-// ======================================================================
+// ==================================================
 // BLOC HISTORIQUE NATIF CORRIGÉ VIA ARCHITECTURE IPC
-// ======================================================================
+// ==================================================
 
 // Fonction pour envoyer les données fraîches à la fenêtre d'historique
 function updateHistoryWindowContent() {
@@ -2688,6 +2697,21 @@ async function createWindow() {
                         }
                     }
                 },
+
+                /*
+                {
+                    label: "Ouvrir le gestionnaire des tâches",
+                    accelerator: "CmdOrCtrl+Alt+T",
+                    click: () => {
+                        // La méthode correcte en Electron pour ouvrir les DevTools de la fenêtre 
+                        // principale et accéder à l'onglet de monitoring des processus
+                        if (win && !win.isDestroyed()) {
+                            win.webContents.openDevTools({ mode: 'detach' });
+                        }
+                    }
+                },
+                */
+
                 {
                     label: 'Quitter le mode agrandi / Masquer l\'IA',
                     accelerator: 'Escape',
@@ -3230,30 +3254,6 @@ async function createWindow() {
         resizeViews();
     });
 
-
-/*
-    // Intercepte le clic sur la croix de fermeture de la fenêtre
-    win.on('close', (e) => {
-        // Empêche la fermeture immédiate
-        e.preventDefault();
-
-        const response = dialog.showMessageBoxSync(win, {
-            type: 'question',
-            buttons: ['Oui, quitter', 'Annuler'],
-            defaultId: 1, 
-            cancelId: 1,  
-            title: 'Confirmation',
-            message: `Êtes-vous sûr de vouloir fermer ${APP_TITLE} ?`, // === DYNAMIQUE ICI ===
-            detail: 'Tous vos panneaux et onglets ouverts seront perdus.'
-        });
-
-        // Seul l'index 0 ("Oui, quitter") détruit la fenêtre
-        if (response === 0) {
-            win.destroy(); 
-        }
-    });
-*/
-
 // Intercepte le clic sur la croix de fermeture de la fenêtre principale
 win.on('close', (e) => {
     // Empêche la fermeture immédiate le temps de demander confirmation
@@ -3346,6 +3346,10 @@ win.on('close', (e) => {
         globalShortcut.unregister('Escape');
     });
 }
+
+
+
+
 
 function replaceNode(current, target, replacement) {
     if (!current) return false;
