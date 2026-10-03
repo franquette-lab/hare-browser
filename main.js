@@ -16,6 +16,7 @@ const {
     dialog,
     globalShortcut,
     shell,
+    screen,
     safeStorage // <-- Assurez-vous que safeStorage est bien présent dans vos imports Electron
 } = require('electron');
 
@@ -30,28 +31,55 @@ if (typeof safeStorage.setUseAlternativeEncryption === 'function') {
 const APP_TITLE = "Hare Browser";
 const SEARCH_ENGINE_HOST = "129.151.254.175";
 
-// Dans main.js -> Tout en haut
-const fs = require('fs');
-const fsPromises = require("fs").promises;
-const path = require('path');
-const { pathToFileURL } = require("url");
-const HOME_PAGE_URL = pathToFileURL(path.join(__dirname, "home.html")).href;
+// Les modules Node sont chargés au premier accès, puis conservés en cache.
+const nodeModuleCache = new Map();
+function getNodeModule(moduleName) {
+    if (!nodeModuleCache.has(moduleName)) {
+        nodeModuleCache.set(moduleName, require(moduleName));
+    }
+    return nodeModuleCache.get(moduleName);
+}
+
+function lazyNodeModule(moduleName) {
+    return new Proxy(Object.create(null), {
+        get(_target, property) {
+            const module = getNodeModule(moduleName);
+            const value = module[property];
+            return typeof value === "function" ? value.bind(module) : value;
+        }
+    });
+}
+
+const fs = lazyNodeModule("fs");
+const fsPromises = lazyNodeModule("fs/promises");
+const path = lazyNodeModule("path");
+
+function getPathToFileURL(filePath) {
+    return getNodeModule("url").pathToFileURL(filePath);
+}
+
+function getHomePageUrl() {
+    return getPathToFileURL(path.join(__dirname, "home.html")).href;
+}
 
 const appDataPath = app.getPath('userData');
-if (!fs.existsSync(appDataPath)) {
-    fs.mkdirSync(appDataPath, { recursive: true });
-}
 
 const splitters = [];
 
 // REMPLACEZ : const historyPath = path.join(__dirname, 'navigation_history.json');
 // PAR CE CHEMIN SÉCURISÉ (Dans AppData comme vos favoris) :
-const historyPath = path.join(app.getPath('userData'), 'navigation_history.json');
+function getHistoryPath() {
+    return path.join(appDataPath, 'navigation_history.json');
+}
 
 // Chemin vers le fichier de stockage des favoris
-const favorisPath = path.join(app.getPath('userData'), 'favoris.json');
+function getFavorisPath() {
+    return path.join(appDataPath, 'favoris.json');
+}
 
-const themePath = path.join(app.getPath('userData'), 'theme.json');
+function getThemePath() {
+    return path.join(appDataPath, 'theme.json');
+}
 
 // Stockage des 4 bordures bleues
 let borderViews = []; 
@@ -95,8 +123,6 @@ let leftView, centerView, rightView;
 let isDarkModeForced = false;
 
 let isAiSidebarVisible = true; // Par défaut, le volet est ouvert désormais
-
-const https = require("https");
 
 let pwdWindow = null;
 
@@ -265,14 +291,14 @@ function updateSplitterTheme() {
 
 async function getThemePreference() {
     try {
-        const rawPreference = await fsPromises.readFile(themePath, "utf8");
+        const rawPreference = await fsPromises.readFile(getThemePath(), "utf8");
         const preference = JSON.parse(rawPreference);
         return typeof preference.darkMode === "boolean" ? preference.darkMode : false;
     } catch (error) {
         if (error.code === "ENOENT") {
             try {
                 await fsPromises.writeFile(
-                    themePath,
+                    getThemePath(),
                     JSON.stringify({ darkMode: false }, null, 2),
                     "utf8"
                 );
@@ -309,7 +335,9 @@ async function safeWriteJsonAsync(filePath, data) {
     }
 }
 
-const passwordsPath = path.join(app.getPath('userData'), 'passwords.json');
+function getPasswordsPath() {
+    return path.join(appDataPath, 'passwords.json');
+}
 
 // Forçage de l'encryption alternative (à placer juste avant app.whenReady())
 app.on('ready', () => {
@@ -321,12 +349,12 @@ app.on('ready', () => {
 function getStoredPasswords() {
     try {
         // Sécurité absolue : si le fichier n'existe pas, on le crée tout de suite proprement
-        if (!fs.existsSync(passwordsPath)) {
-            fs.writeFileSync(passwordsPath, JSON.stringify([], null, 2), 'utf-8');
+        if (!fs.existsSync(getPasswordsPath())) {
+            fs.writeFileSync(getPasswordsPath(), JSON.stringify([], null, 2), 'utf-8');
             return [];
         }
         
-        const rawData = fs.readFileSync(passwordsPath, 'utf-8');
+        const rawData = fs.readFileSync(getPasswordsPath(), 'utf-8');
         if (!rawData || !rawData.trim()) return [];
         
         const encryptedList = JSON.parse(rawData);
@@ -360,7 +388,7 @@ async function savePasswordsSecurely(passwordList) {
             return item;
         });
         // Utilisation de la méthode robuste safeWriteJsonAsync de votre projet
-        await safeWriteJsonAsync(passwordsPath, encryptedList);
+        await safeWriteJsonAsync(getPasswordsPath(), encryptedList);
         return true;
     } catch (e) {
         console.error("[PWD] Erreur écriture securisee :", e);
@@ -465,16 +493,16 @@ ipcMain.handle('pwd-delete-entry', async (event, index) => {
 // Fonction pour lire l'historique sur le disque en toute sécurité
 function getNavigationHistory() {
     try {
-        if (!fs.existsSync(historyPath)) {
+        if (!fs.existsSync(getHistoryPath())) {
             // Utilisation d'un tableau vide de secours si le fichier n'existe pas
-            fs.writeFileSync(historyPath, JSON.stringify([], null, 2), 'utf-8');
+            fs.writeFileSync(getHistoryPath(), JSON.stringify([], null, 2), 'utf-8');
             return [];
         }
-        const data = fs.readFileSync(historyPath, 'utf-8');
+        const data = fs.readFileSync(getHistoryPath(), 'utf-8');
         
         // Sécurité si le fichier existe mais est totalement vide (0 Ko)
         if (!data.trim()) {
-            fs.writeFileSync(historyPath, JSON.stringify([], null, 2), 'utf-8');
+            fs.writeFileSync(getHistoryPath(), JSON.stringify([], null, 2), 'utf-8');
             return [];
         }
         
@@ -482,7 +510,7 @@ function getNavigationHistory() {
     } catch (e) {
         console.error("Erreur lecture historique (Fichier corrompu ou vide), réinitialisation :", e);
         // En cas de fichier JSON malformé, on réinitialise pour éviter le crash permanent
-        try { fs.writeFileSync(historyPath, JSON.stringify([], null, 2), 'utf-8'); } catch(err) {}
+        try { fs.writeFileSync(getHistoryPath(), JSON.stringify([], null, 2), 'utf-8'); } catch(err) {}
         return [];
     }
 }
@@ -507,7 +535,7 @@ async function addToHistory(url, title) {
         if (historyList.length > 1000) historyList.pop();
 
         // Écriture atomique sécurisée à la place du writeFileSync bloquant
-        await safeWriteJsonAsync(historyPath, historyList);
+        await safeWriteJsonAsync(getHistoryPath(), historyList);
         
         // Notifier l'IHM en temps réel si elle est ouverte
         if (win && !win.isDestroyed()) {
@@ -521,16 +549,16 @@ async function addToHistory(url, title) {
 // Fonction pour lire les favoris sur le disque en toute sécurité
 function getFavoris() {
     try {
-        if (!fs.existsSync(favorisPath)) {
+        if (!fs.existsSync(getFavorisPath())) {
             // Création d'un tableau de favoris vide par défaut
-            fs.writeFileSync(favorisPath, JSON.stringify([], null, 2), 'utf-8');
+            fs.writeFileSync(getFavorisPath(), JSON.stringify([], null, 2), 'utf-8');
             return [];
         }
-        const data = fs.readFileSync(favorisPath, 'utf-8');
+        const data = fs.readFileSync(getFavorisPath(), 'utf-8');
         
         // Sécurité si le fichier existe mais est totalement vide (0 Ko)
         if (!data.trim()) {
-            fs.writeFileSync(favorisPath, JSON.stringify([], null, 2), 'utf-8');
+            fs.writeFileSync(getFavorisPath(), JSON.stringify([], null, 2), 'utf-8');
             return [];
         }
         
@@ -538,7 +566,7 @@ function getFavoris() {
     } catch (e) {
         console.error("Erreur lors de la lecture des favoris (Fichier corrompu ou vide), réinitialisation :", e);
         // Réparation automatique en cas de fichier JSON corrompu
-        try { fs.writeFileSync(favorisPath, JSON.stringify([], null, 2), 'utf-8'); } catch(err) {}
+        try { fs.writeFileSync(getFavorisPath(), JSON.stringify([], null, 2), 'utf-8'); } catch(err) {}
         return [];
     }
 }
@@ -932,7 +960,6 @@ function updatePanelHandles() {
                 return;
             }
             if (title === "drag-end" && handleDraggedPanelId) {
-                const { screen } = require('electron');
                 const mousePoint = screen.getCursorScreenPoint();
                 const winContentBounds = win.getContentBounds();
                 const localX = mousePoint.x - winContentBounds.x;
@@ -1083,11 +1110,11 @@ function buildNavigationTarget(input) {
     input = input.trim();
 
     if (input.toLowerCase() === "hare://home") {
-        return HOME_PAGE_URL;
+        return getHomePageUrl();
     }
 
     if (input.toLowerCase() === "hare://help") {
-        return pathToFileURL(path.join(__dirname, "help.html")).href;
+        return getPathToFileURL(path.join(__dirname, "help.html")).href;
     }
 
     // 1. Si c'est une URL valide ou une page locale
@@ -1280,7 +1307,7 @@ panel.view.webContents.on("will-navigate", (event, targetUrl) => {
             event.preventDefault(); // Stoppe la navigation Chromium pour éviter l'écran blanc ou l'erreur
 
             if (target.hostname === "home") {
-                panel.view.webContents.loadURL(HOME_PAGE_URL);
+                panel.view.webContents.loadURL(getHomePageUrl());
             } else if (target.hostname === "help") {
                 openHelpInPanel(panel).catch(console.error);
             } else if (target.hostname === "history") {
@@ -1306,7 +1333,7 @@ panel.view.webContents.on("will-navigate", (event, targetUrl) => {
 
         if (isSearchEngineHome) {
             event.preventDefault();
-            panel.view.webContents.loadURL(HOME_PAGE_URL);
+            panel.view.webContents.loadURL(getHomePageUrl());
         }
     } catch (error) {
         console.debug("Impossible de vérifier l’URL d’accueil du moteur :", error);
@@ -1785,7 +1812,6 @@ ipcMain.on("panel-drag-start", (event, panelId) => {
 app.on('drag-end', () => {
     if (!panelBeingDragged) return;
 
-    const { screen } = require('electron');
     const mousePoint = screen.getCursorScreenPoint();
     const winContentBounds = win.getContentBounds();
     const localX = mousePoint.x - winContentBounds.x;
@@ -2025,7 +2051,7 @@ ipcMain.on('delete-single-history', (event, index) => {
     let historyList = getNavigationHistory();
     if (index >= 0 && index < historyList.length) {
         historyList.splice(index, 1);
-        fs.writeFileSync(historyPath, JSON.stringify(historyList, null, 2));
+        fs.writeFileSync(getHistoryPath(), JSON.stringify(historyList, null, 2));
         
         ipcMain.emit('history-data-changed');
         if (win && !win.isDestroyed()) win.webContents.send('history-updated', historyList);
@@ -2034,7 +2060,7 @@ ipcMain.on('delete-single-history', (event, index) => {
 
 // E. Effacer tout l'historique d'un coup
 ipcMain.on('clear-all-history', () => {
-    fs.writeFileSync(historyPath, JSON.stringify([]));
+    fs.writeFileSync(getHistoryPath(), JSON.stringify([]));
     ipcMain.emit('history-data-changed');
     if (win && !win.isDestroyed()) win.webContents.send('history-updated', []);
 });
@@ -2057,7 +2083,7 @@ ipcMain.on('delete-single-history', (event, index) => {
     let historyList = getNavigationHistory();
     if (index >= 0 && index < historyList.length) {
         historyList.splice(index, 1);
-        fs.writeFileSync(historyPath, JSON.stringify(historyList, null, 2));
+        fs.writeFileSync(getHistoryPath(), JSON.stringify(historyList, null, 2));
         
         // On notifie la fenêtre d'historique et la fenêtre principale pour mettre à jour l'affichage
         ipcMain.emit('history-data-changed');
@@ -2067,7 +2093,7 @@ ipcMain.on('delete-single-history', (event, index) => {
 
 // 2. Tout effacer d'un coup
 ipcMain.on('clear-all-history', () => {
-    fs.writeFileSync(historyPath, JSON.stringify([]));
+    fs.writeFileSync(getHistoryPath(), JSON.stringify([]));
     ipcMain.emit('history-data-changed');
     if (win && !win.isDestroyed()) win.webContents.send('history-updated', []);
 });
@@ -2089,7 +2115,7 @@ ipcMain.on("history-click", (event, url) => {
 ipcMain.on('toggle-dark-mode-request', (event, enable) => {
     isDarkModeForced = enable;
     nativeTheme.themeSource = enable ? 'dark' : 'light';
-    fs.writeFileSync(themePath, JSON.stringify({ darkMode: enable }, null, 2));
+    fs.writeFileSync(getThemePath(), JSON.stringify({ darkMode: enable }, null, 2));
 
     // Mise à jour de la barre de titre Electron
     if (win && !win.isDestroyed()) {
@@ -2285,7 +2311,6 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
 
     // --- CORRECTION DU THÈME INCOGNITO ---
     // Au lieu de lire une variable globale, on demande directement à Electron son état réel
-    const { nativeTheme } = require('electron');
     const isDark = nativeTheme.shouldUseDarkColors; 
     const themeClass = isDark ? "mw-theme-client-dark" : "mw-theme-client-light";
 
@@ -2449,7 +2474,7 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
     // et non directement sur l'instance SearXNG.
     const defaultUrl = isPrivate
         ? "data:text/html;charset=utf-8," + encodeURIComponent(incognitoHomeHtml)
-        : HOME_PAGE_URL;
+        : getHomePageUrl();
 
     newView.webContents.loadURL(defaultUrl);
 
@@ -2481,41 +2506,23 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
     updateActiveBorder(newPanel.bounds);
 });
 
-function createDefaultLayout() {
+async function createDefaultLayout() {
 
     // On instancie uniquement 2 vues de navigation au lieu de 3
     leftView = new BrowserView();
     centerView = new BrowserView();
 
-    [leftView, centerView].forEach(view => {
-        view.webContents.once("did-finish-load", () => {
-            applyThemeToView(view);
-        });
-    });
-
     win.addBrowserView(leftView);
     win.addBrowserView(centerView);
 
-    // Chargement de home.html sur la tuile de gauche
-    leftView.webContents.loadURL(HOME_PAGE_URL);
-    
-    // Chargement de welcome.html sur la tuile de droite
-    const welcomePageUrl = pathToFileURL(path.join(__dirname, "welcome.html")).href;
-    centerView.webContents.loadURL(welcomePageUrl);
-
-    [leftView, centerView].forEach(view => {
-        view.webContents.once('did-finish-load', () => {
-            if (typeof view.webContents.setForceDarkModeEnabled === 'function') {
-                view.webContents.setForceDarkModeEnabled(isDarkModeForced);
-            }
-        });
-    });
+    const homePageUrl = getHomePageUrl();
+    const welcomePageUrl = getPathToFileURL(path.join(__dirname, "welcome.html")).href;
 
     // Reconstruction de la structure de l'arbre en 2 panneaux verticaux (50/50)
     rootNode = new SplitNode("vertical");
     rootNode.ratio = 0.5; // Division parfaite au milieu de l'écran utile
 
-    rootNode.first = new PanelNode("panel1", leftView, HOME_PAGE_URL);
+    rootNode.first = new PanelNode("panel1", leftView, homePageUrl);
     rootNode.second = new PanelNode("panel2", centerView, welcomePageUrl);
 
     // Initialisation des écouteurs de navigation sur nos deux panneaux actifs
@@ -2523,11 +2530,34 @@ function createDefaultLayout() {
         setupNavigationTracking(panel);
     });
 
+    [leftView, centerView].forEach(view => {
+        if (typeof view.webContents.setForceDarkModeEnabled === 'function') {
+            view.webContents.setForceDarkModeEnabled(isDarkModeForced);
+        }
+    });
+
+    // Termine home.html avant de démarrer welcome.html afin d'éviter deux
+    // chargements initiaux simultanés.
+    try {
+        await leftView.webContents.loadURL(homePageUrl);
+        applyThemeToView(leftView);
+    } catch (error) {
+        console.error("Erreur de chargement de la tuile d'accueil :", error);
+    }
+
+    try {
+        await centerView.webContents.loadURL(welcomePageUrl);
+        applyThemeToView(centerView);
+    } catch (error) {
+        console.error("Erreur de chargement de la tuile de bienvenue :", error);
+    }
+
     updateNavigationButtons();
 }
 
 async function createWindow() {
 
+    await fsPromises.mkdir(appDataPath, { recursive: true });
     isDarkModeForced = await getThemePreference();
 
     win = new BrowserWindow({
@@ -2568,7 +2598,7 @@ async function createWindow() {
         win.webContents.send("app-title", APP_TITLE);
     });
 
-    createDefaultLayout();
+    await createDefaultLayout();
 
     collectPanelNodes(rootNode).forEach(panel => {
         if (
@@ -3595,7 +3625,7 @@ ipcMain.handle('open-help', async () => {
 ipcMain.handle('clear-favoris', () => {
     try {
         // Écrit un tableau vide dans le fichier des favoris
-        fs.writeFileSync(favorisPath, JSON.stringify([]));
+        fs.writeFileSync(getFavorisPath(), JSON.stringify([]));
         
         // Notifie l'IHM (index.html) pour forcer la mise à jour visuelle immédiate
         if (win && !win.isDestroyed()) {
@@ -3805,7 +3835,7 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, { prompt, model = "qwen2.
             });
 
             console.log(`[IA DIAGNOSTIC] Envoi de la requête HTTP à Ollama avec le modèle ${model}...`);
-            const http = require('http');
+            const http = getNodeModule("http");
             
             const req = http.request({
                 hostname: '127.0.0.1',
@@ -3875,7 +3905,7 @@ ipcMain.handle("save-theme-preference", (event, isDark) => {
     isDarkModeForced = isDark;
 
     fs.writeFileSync(
-        themePath,
+        getThemePath(),
         JSON.stringify({ darkMode: isDark }, null, 2)
     );
 
@@ -3888,7 +3918,7 @@ ipcMain.handle('get-history', () => {
 });
 
 ipcMain.handle('clear-history', async () => {
-    await safeWriteJsonAsync(historyPath, []); // <-- Remplacement ici
+    await safeWriteJsonAsync(getHistoryPath(), []); // <-- Remplacement ici
     if (win && !win.isDestroyed()) {
         win.webContents.send('history-updated', []);
     }
@@ -3901,7 +3931,7 @@ ipcMain.handle('delete-history-item', async (event, index) => {
         let historyList = getNavigationHistory();
         if (index >= 0 && index < historyList.length) {
             historyList.splice(index, 1); // Supprime l'élément ciblé
-            fs.writeFileSync(historyPath, JSON.stringify(historyList, null, 2));
+            fs.writeFileSync(getHistoryPath(), JSON.stringify(historyList, null, 2));
             
             // Notifie la fenêtre principale
             if (win && !win.isDestroyed()) {
@@ -3941,7 +3971,7 @@ ipcMain.handle('toggle-favori', async (event, { url, title }) => {
         }
 
         // Sauvegarde sécurisée, asynchrone et atomique (.tmp -> renommé)
-        await safeWriteJsonAsync(favorisPath, favoris); 
+        await safeWriteJsonAsync(getFavorisPath(), favoris); 
         
         if (win && !win.isDestroyed()) {
             win.webContents.send('favoris-updated', favoris);
