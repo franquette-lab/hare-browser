@@ -3177,6 +3177,8 @@ async function createWindow() {
         resizeViews();
     });
 
+
+/*
     // Intercepte le clic sur la croix de fermeture de la fenêtre
     win.on('close', (e) => {
         // Empêche la fermeture immédiate
@@ -3197,6 +3199,45 @@ async function createWindow() {
             win.destroy(); 
         }
     });
+*/
+
+// Intercepte le clic sur la croix de fermeture de la fenêtre principale
+win.on('close', (e) => {
+    // Empêche la fermeture immédiate le temps de demander confirmation
+    e.preventDefault();
+
+    // 🌟 CORRECTIF CRUCIAL : On désactive temporairement le premier plan des fenêtres secondaires
+    if (historyWindow && !historyWindow.isDestroyed()) {
+        historyWindow.setAlwaysOnTop(false);
+    }
+    if (pwdWindow && !pwdWindow.isDestroyed()) {
+        pwdWindow.setAlwaysOnTop(false);
+    }
+
+    // On affiche la boîte de dialogue en la liant à la fenêtre principale 'win'
+    const response = dialog.showMessageBoxSync(win, {
+        type: 'question',
+        buttons: ['Oui, quitter', 'Annuler'],
+        defaultId: 1, 
+        cancelId: 1,  
+        title: 'Confirmation',
+        message: `Êtes-vous sûr de vouloir fermer ${APP_TITLE} ?`,
+        detail: 'Tous vos panneaux et onglets ouverts seront perdus.'
+    });
+
+    // Seul l'index 0 ("Oui, quitter") détruit la fenêtre
+    if (response === 0) {
+        win.destroy(); 
+    } else {
+        // 🌟 RESTAURATION : Si l'utilisateur annule, on remet le "Always on Top" pour garder le comportement d'origine
+        if (historyWindow && !historyWindow.isDestroyed()) {
+            historyWindow.setAlwaysOnTop(true);
+        }
+        if (pwdWindow && !pwdWindow.isDestroyed()) {
+            pwdWindow.setAlwaysOnTop(true);
+        }
+    }
+});
 
     // quand la fenêtre principale est détruite par l'utilisateur
     win.on('closed', () => {
