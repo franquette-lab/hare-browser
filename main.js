@@ -1370,6 +1370,7 @@ panel.view.webContents.on("will-navigate", (event, targetUrl) => {
     });
 
     // Écouteur pour intercepter le clic droit sur la page web de la tuile
+/*
     panel.view.webContents.on("context-menu", (event, params) => {
         event.preventDefault();
         
@@ -1386,6 +1387,32 @@ panel.view.webContents.on("will-navigate", (event, targetUrl) => {
 
         // On affiche ensuite le menu d'actions au pixel près où se trouve la souris
         afficherMenuContextuelPanneau(panel.view.webContents, params.x, params.y);
+    });
+*/
+    // Écouteur pour intercepter le clic droit sur la page web de la tuile
+    panel.view.webContents.on("context-menu", (event, params) => {
+        event.preventDefault();
+        
+        // Forcer le focus et l'activation visuelle sur ce panneau
+        activePanel = panel.id;
+        if (win && !win.isDestroyed()) {
+            win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
+            win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
+        }
+        updateActiveBorder(panel.bounds);
+
+        // 🌟 CORRECTIF DES COORDONNÉES : Traduire les coordonnées locales en globales
+        // Si le panneau a des dimensions et une position calculées dans la mosaïque
+        let menuX = params.x;
+        let menuY = params.y;
+
+        if (panel.bounds) {
+            menuX = panel.bounds.x + params.x;
+            menuY = panel.bounds.y + params.y;
+        }
+
+        // On affiche maintenant le menu d'actions au pixel exact sous la souris
+        afficherMenuContextuelPanneau(panel.view.webContents, menuX, menuY);
     });
 
     panel.view.webContents.on("did-start-loading", () => {
