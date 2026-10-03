@@ -3555,6 +3555,12 @@ ipcMain.on("fullscreen-toolbar-request", (event, visible) => {
     setFullscreenToolbarVisible(visible === true);
 });
 
+ipcMain.on("toggle-fullscreen-request", () => {
+    if (win && !win.isDestroyed()) {
+        win.setFullScreen(!win.isFullScreen());
+    }
+});
+
 // À insérer avec vos autres écouteurs "ipcMain.on"
 ipcMain.on("print-panel", (event, panelId) => {
     const panel = findPanelNode(rootNode, panelId);

@@ -561,6 +561,8 @@ html.dark .bookmark-item:hover {
     <!-- Bouton Fermeture du panneau -->
     <button id="close-panel" title="Fermer le panneau actif (Ctrl+W)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; cursor:pointer;">✕</button>
 
+    <button id="fullscreen-toggle-button" title="Activer le plein écran (F11)" aria-label="Activer le plein écran" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:17px; cursor:pointer;">⛶</button>
+
     <div id="bookmarks-bar">
         <div id="bookmarks-list"></div>
         <div class="bookmarks-actions">
@@ -1371,6 +1373,22 @@ addressGroup.appendChild(input);
     document.getElementById("back-button").addEventListener("click", () => window.api.goBack(activePanel));
     document.getElementById("forward-button").addEventListener("click", () => window.api.goForward(activePanel));
     document.getElementById("refresh-button").addEventListener("click", () => window.api.refresh(activePanel));
+
+    const fullscreenToggleButton = document.getElementById("fullscreen-toggle-button");
+    fullscreenToggleButton?.addEventListener("click", () => window.api.toggleFullscreen());
+
+    window.api.onFullscreenToolbarState((state) => {
+        if (!fullscreenToggleButton) return;
+
+        const isFullscreen = !!state?.fullscreen;
+        fullscreenToggleButton.title = isFullscreen
+            ? "Quitter le plein écran (F11)"
+            : "Activer le plein écran (F11)";
+        fullscreenToggleButton.setAttribute(
+            "aria-label",
+            isFullscreen ? "Quitter le plein écran" : "Activer le plein écran"
+        );
+    });
 
 // Remplacez l'écouteur du bouton Sauver par :
 document.getElementById("save-config-btn")?.addEventListener("click", async () => {

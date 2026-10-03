@@ -27,6 +27,9 @@ contextBridge.exposeInMainWorld(
         requestFullscreenToolbar: (visible) => {
             ipcRenderer.send("fullscreen-toolbar-request", visible);
         },
+        toggleFullscreen: () => {
+            ipcRenderer.send("toggle-fullscreen-request");
+        },
 
 
 
