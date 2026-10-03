@@ -1599,7 +1599,9 @@ panel.view.webContents.on("will-navigate", (event, targetUrl) => {
 function layoutNode(node, x, y, width, height) {
     if (!node || width <= 0 || height <= 0) return;
 
-    // SI UN PANNEAU EST MAXIMISÉ : On nettoie et on surcharge le comportement
+    // ======================================================================
+    // SI UN PANNEAU EST MAXIMISÉ : On optimise la RAM et le CPU des tuiles masquées
+    // ======================================================================
     if (maximizedPanelId) {
         if (node.type === "panel") {
             if (node.id === maximizedPanelId) {
@@ -1607,20 +1609,31 @@ function layoutNode(node, x, y, width, height) {
                 node.bounds = { x, y, width, height };
                 if (node.view && !node.view.webContents.isDestroyed()) {
                     node.view.setBounds({ x, y, width, height });
+                    
+                    // 🚀 SORTIE DE SOMMEIL : On redonne 100% des performances au panneau actif
+                    try {
+                        node.view.webContents.setAudioMuted(false);
+                    } catch (e) {}
                 }
             } else {
-                // CORRECTIF : On écrase totalement les anciennes coordonnées 
-                // pour forcer Chromium à effacer le panneau de l'affichage
+                // CORRECTIF GÉOMÉTRIE : On efface le panneau de l'affichage
                 node.bounds = null;
                 if (node.view && !node.view.webContents.isDestroyed()) {
                     node.view.setBounds({ x: -2000, y: -2000, width: 0, height: 0 });
                     
-                    // 🌟 Mettre la vue en sommeil complet pour économiser la RAM
-                    node.view.webContents.forceAtputSelection = false; 
-                    node.view.webContents.setAudioMuted(true); // Optionnel : coupe le son des tuiles masquées
+                    // 💤 MISE EN SOMMEIL RECHERCHÉE : Économie RAM & CPU agressive
+                    try {
+                        // 1. Coupe les flux audio en arrière-plan
+                        node.view.webContents.setAudioMuted(true);
+                        
+                        // 2. Force Chromium à suspendre l'exécution des timers JavaScript lourds (ex: animations, pubs)
+                        if (typeof node.view.webContents.setBackgroundThrottling === 'function') {
+                            node.view.webContents.setBackgroundThrottling(true);
+                        }
+                    } catch (e) {}
                 }
                 
-                // CORRECTIF : On détruit immédiatement la poignée flottante associée
+                // CORRECTIF POIGNÉE : On détruit immédiatement la poignée flottante associée
                 if (handleViews[node.id]) {
                     try { win.removeBrowserView(handleViews[node.id]); } catch(e) {}
                     delete handleViews[node.id];
@@ -1634,11 +1647,21 @@ function layoutNode(node, x, y, width, height) {
         return;
     }
 
-    // COMPORTEMENT STANDARD (Arbre de tuiles normal)
+    // ======================================================================
+    // COMPORTEMENT STANDARD (Arbre de tuiles normal en mosaïque)
+    // ======================================================================
     if (node.type === "panel") {
         node.bounds = { x, y, width, height };
         if (node.view && !node.view.webContents.isDestroyed()) {
             node.view.setBounds({ x, y, width, height });
+            
+            // 🚀 REVIREMENT : On s'assure que toutes les tuiles de la mosaïque ont leurs performances maximales
+            try {
+                node.view.webContents.setAudioMuted(false);
+                if (typeof node.view.webContents.setBackgroundThrottling === 'function') {
+                    node.view.webContents.setBackgroundThrottling(false); // Réveille le JS
+                }
+            } catch (e) {}
         }
         return;
     }
