@@ -2278,6 +2278,13 @@ const aiSidebar = document.getElementById("ai-sidebar");
 const aiResponseContainer = document.getElementById("ai-response-container");
 const aiUserPrompt = document.getElementById("ai-user-prompt");
 
+// Afficher le menu natif d'édition (copier/coller) dans tout le volet IA.
+aiSidebar.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    window.api.showUrlContextMenu();
+});
+
 // Ouvrir / Fermer le volet IA
 // Dans index.html -> Modifier l'écouteur existant du bouton de l'IA
 document.getElementById("ai-sidebar-button").addEventListener("click", () => {
