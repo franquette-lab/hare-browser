@@ -2,8 +2,6 @@
 // SCRIPT : main.js //
 // ---------------- //
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; 
-
 const {
     app,
     BrowserWindow,
@@ -16,7 +14,8 @@ const {
     globalShortcut,
     shell,
     screen,
-    safeStorage // <-- Assurez-vous que safeStorage est bien présent dans vos imports Electron
+    safeStorage, // <-- Assurez-vous que safeStorage est bien présent dans vos imports Electron
+    session
 } = require('electron');
 
 
@@ -1901,6 +1900,32 @@ ipcMain.on("move-panel", (event, draggedPanelId, targetPanelId) => {
     }
 });
 
+async function purgePrivateSession(targetSession, panelId) {
+    const storagePath = targetSession.getStoragePath();
+    console.log(`[SÉCURITÉ] Purge de la session privée ${panelId} (stockage: ${storagePath || 'mémoire volatile'}).`);
+
+    try {
+        await targetSession.closeAllConnections();
+    } catch (error) {
+        console.warn(`[SÉCURITÉ] Fermeture des connexions ${panelId} :`, error);
+    }
+
+    const cleanupResults = await Promise.allSettled([
+        targetSession.clearData(),
+        targetSession.clearAuthCache(),
+        targetSession.clearCache()
+    ]);
+    cleanupResults.forEach((result) => {
+        if (result.status === 'rejected') {
+            console.error(`[SÉCURITÉ] Échec d'une opération de purge pour ${panelId} :`, result.reason);
+        }
+    });
+
+    if (cleanupResults.every((result) => result.status === 'fulfilled')) {
+        console.log(`[SÉCURITÉ] Données, authentification et cache de ${panelId} purgés.`);
+    }
+}
+
 ipcMain.on("close-panel", (event, panelId) => {
     // === VÉRIFICATION DU NOMBRE DE PANNEAUX RESTANTS ===
     const allViews = win.getBrowserViews();
@@ -1947,19 +1972,28 @@ ipcMain.on("close-panel", (event, panelId) => {
         // 3. Suppression des écouteurs pour éviter les fuites de mémoire (Memory Leaks)
         viewToDestroy.webContents.removeAllListeners();
 
-        // Au lieu de détruire après 50ms pendant que "about:blank" charge,
-        // on détruit uniquement LORSQUE la page blanche a fini son cycle de traitement graphique.
-        viewToDestroy.webContents.loadURL("about:blank").then(() => {
-            // On attend l'événement de stabilisation avant de détruire
-            setTimeout(() => {
-                if (!viewToDestroy.webContents.isDestroyed()) {
-                    viewToDestroy.webContents.destroy(); 
-                    console.log(`[RAM] Processus Chromium de la tuile ${panelId} libéré proprement.`);
-                }
-            }, 150); // Passer de 50ms à 150ms donne le temps nécessaire à Mojo pour clore ses canaux
-        }).catch(() => {
-            if (!viewToDestroy.webContents.isDestroyed()) viewToDestroy.webContents.destroy();
-        });
+        if (node.isPrivate) {
+            // Arrête immédiatement les scripts de la page avant d'effacer les données de session.
+            try {
+                viewToDestroy.webContents.stop();
+                viewToDestroy.webContents.destroy();
+            } catch (error) {
+                console.warn(`[SÉCURITÉ] Destruction de la vue privée ${panelId} :`, error);
+            }
+            void purgePrivateSession(targetSession, panelId);
+        } else {
+            // Pour une tuile standard, attend la stabilisation de la page blanche avant destruction.
+            viewToDestroy.webContents.loadURL("about:blank").then(() => {
+                setTimeout(() => {
+                    if (!viewToDestroy.webContents.isDestroyed()) {
+                        viewToDestroy.webContents.destroy();
+                        console.log(`[RAM] Processus Chromium de la tuile ${panelId} libéré proprement.`);
+                    }
+                }, 150);
+            }).catch(() => {
+                if (!viewToDestroy.webContents.isDestroyed()) viewToDestroy.webContents.destroy();
+            });
+        }
     }
 
     const parent = findParentNode(rootNode, panelId);
@@ -2379,11 +2413,15 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
     // ====== DANS MAIN.JS -> ipcMain.on("split-panel", ...) ======
     const newPanelId = "panel" + nextPanelNumber++;
 
-    // CORRECTIF : Utiliser une partition en mémoire pure sans préfixe "persist:"
-    // Le simple fait de l'appeler 'incognito_panelX' crée une session isolée et volatile.
+    // Session dédiée en mémoire (sans "persist:") et sans cache HTTP.
+    const privatePartition = isPrivate ? `incognito_${newPanelId}` : undefined;
+    const privatePartitionSession = isPrivate
+        ? session.fromPartition(privatePartition, { cache: false })
+        : undefined;
+
     const viewOptions = {
         webPreferences: {
-            partition: isPrivate ? `incognito_${newPanelId}` : undefined, // Votre logique incognito isolée
+            ...(privatePartitionSession ? { session: privatePartitionSession } : {}),
             contextIsolation: true,
             nodeIntegration: false,
             
@@ -2391,12 +2429,37 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
             backgroundThrottling: true,      // Force Chromium à couper le CPU de la tuile si elle est masquée (ex: en mode maximisé)
             offscreen: false,                // Assure l'accélération matérielle standard
             spellcheck: false,               // Désactive le correcteur synchrone (très lourd en RAM sur le multi-fenêtres)
-            enableWebSQL: false              // Coupe une base obsolète pour économiser l'allocation de départ
+            enableWebSQL: false,             // Coupe une base obsolète pour économiser l'allocation de départ
+            webSecurity: true,
+            allowRunningInsecureContent: false
         }
     };
 
     const newView = new BrowserView(viewOptions);
     win.addBrowserView(newView);
+
+    if (isPrivate) {
+        const privateSession = newView.webContents.session;
+        const deniedPermissions = [
+            'geolocation',
+            'geolocation-approximate',
+            'media',
+            'notifications',
+            'midiSysex',
+            'sensors'
+        ];
+
+        privateSession.setPermissionRequestHandler((webContents, permission, callback) => {
+            if (deniedPermissions.includes(permission)) {
+                console.log(`[SÉCURITÉ] Permission '${permission}' refusée en navigation privée.`);
+                return callback(false);
+            }
+            callback(true);
+        });
+        privateSession.setPermissionCheckHandler((_webContents, permission) => {
+            return !deniedPermissions.includes(permission);
+        });
+    }
 
     // --- CORRECTION DU THÈME INCOGNITO ---
     // Au lieu de lire une variable globale, on demande directement à Electron son état réel
