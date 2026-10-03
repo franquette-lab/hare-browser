@@ -237,19 +237,25 @@ function updateSplitterTheme() {
     });
 }
 
-function getThemePreference() {
+async function getThemePreference() {
     try {
-        if (!fs.existsSync(themePath)) {
-            fs.writeFileSync(
-                themePath,
-                JSON.stringify({ darkMode: false }, null, 2)
-            );
+        const rawPreference = await fsPromises.readFile(themePath, "utf8");
+        const preference = JSON.parse(rawPreference);
+        return typeof preference.darkMode === "boolean" ? preference.darkMode : false;
+    } catch (error) {
+        if (error.code === "ENOENT") {
+            try {
+                await fsPromises.writeFile(
+                    themePath,
+                    JSON.stringify({ darkMode: false }, null, 2),
+                    "utf8"
+                );
+            } catch (writeError) {
+                console.error("Impossible de créer le fichier de thème :", writeError);
+            }
+        } else {
+            console.error("Impossible de lire les préférences de thème :", error);
         }
-
-        return JSON.parse(
-            fs.readFileSync(themePath, "utf8")
-        ).darkMode;
-    } catch {
         return false;
     }
 }
@@ -701,6 +707,14 @@ function updateActiveBorder(bounds, options) {
             }
         }
     });
+
+    if (!skipRaise) {
+        borderViews.forEach((bView) => {
+            if (bView && !bView.webContents.isDestroyed()) {
+                try { win.setTopBrowserView(bView); } catch (error) {}
+            }
+        });
+    }
 }
 
 let handleDraggedPanelId = null;
@@ -1458,7 +1472,10 @@ panel.view.webContents.on("will-navigate", (event, targetUrl) => {
             }
         }
 
-        if (panelChanged) updateActiveBorder(panel.bounds);
+        // Le panneau peut déjà être déclaré actif (ex. après l'ouverture de l'aide),
+        // alors que d'autres BrowserViews ont recouvert son liseré. Le réafficher
+        // à chaque focus garantit que le contour correspond toujours au panneau cliqué.
+        updateActiveBorder(panel.bounds);
     });
 
     panel.view.webContents.on("did-fail-load", (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
@@ -2043,8 +2060,6 @@ ipcMain.on("history-click", (event, url) => {
     }
 });
 
-isDarkModeForced = getThemePreference();
-
 ipcMain.on('toggle-dark-mode-request', (event, enable) => {
     isDarkModeForced = enable;
     nativeTheme.themeSource = enable ? 'dark' : 'light';
@@ -2485,9 +2500,9 @@ function createDefaultLayout() {
     updateNavigationButtons();
 }
 
-function createWindow() {
+async function createWindow() {
 
-    isDarkModeForced = getThemePreference();
+    isDarkModeForced = await getThemePreference();
 
     win = new BrowserWindow({
         width: 1200,
