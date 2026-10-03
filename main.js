@@ -1614,6 +1614,10 @@ function layoutNode(node, x, y, width, height) {
                 node.bounds = null;
                 if (node.view && !node.view.webContents.isDestroyed()) {
                     node.view.setBounds({ x: -2000, y: -2000, width: 0, height: 0 });
+                    
+                    // 🌟 Mettre la vue en sommeil complet pour économiser la RAM
+                    node.view.webContents.forceAtputSelection = false; 
+                    node.view.webContents.setAudioMuted(true); // Optionnel : coupe le son des tuiles masquées
                 }
                 
                 // CORRECTIF : On détruit immédiatement la poignée flottante associée
@@ -1866,24 +1870,45 @@ ipcMain.on("close-panel", (event, panelId) => {
     const node = findPanelNode(rootNode, panelId);
     if (!node) return;
 
-    // === AJOUT PROTECTION NAVIGATION PRIVÉE : NETTOYAGE CYBER-SÉCURITÉ ===
-    if (node.isPrivate && node.view && !node.view.webContents.isDestroyed()) {
-        const privateSession = node.view.webContents.session;
+    // === OPTIMISATION RAM & SÉCURITÉ : NETTOYAGE AGRESSIF ET DESTRUCTION PROCESSUS ===
+    if (node.view && !node.view.webContents.isDestroyed()) {
+        const viewToDestroy = node.view;
+        const targetSession = viewToDestroy.webContents.session;
+
+        // 1. On décroche proprement la vue de la fenêtre principale avant sa suppression
+        try { win.removeBrowserView(viewToDestroy); } catch(e) {}
+
+        // 2. Si c'est une tuile privée, exécution du nettoyage complet de la session incognito
+        if (node.isPrivate) {
+            console.log(`Fermeture d'une tuile privée : Nettoyage complet de la partition : ${targetSession.getStoragePath()}`);
+            
+            targetSession.clearStorageData({
+                storages: ['cookies', 'localstorage', 'caches', 'indexeddb', 'websql', 'serviceworkers', 'cachestorage'],
+                quotas: ['temporary', 'persistent', 'syncable']
+            }).then(() => {
+                console.log(`[Partition ${panelId}] Stockages et Cookies détruits avec succès.`);
+            }).catch(err => console.error("Erreur destruction storage privé :", err));
+            
+            targetSession.clearCache().catch(err => console.error("Erreur destruction cache privé :", err));
+        }
+
+        // 3. Suppression des écouteurs pour éviter les fuites de mémoire (Memory Leaks)
+        viewToDestroy.webContents.removeAllListeners();
         
-        console.log(`Fermeture d'une tuile privée : Nettoyage complet de la partition : ${privateSession.getStoragePath()}`);
-        
-        // 1. Effacement complet des données de stockage (Cookies, LocalStorage, Cache, IndexedDB...)
-        privateSession.clearStorageData({
-            storages: ['cookies', 'localstorage', 'caches', 'indexeddb', 'websql', 'serviceworkers', 'cachestorage'],
-            quotas: ['temporary', 'persistent', 'syncable']
-        }).then(() => {
-            console.log(`[Partition ${panelId}] Stockages et Cookies détruits avec succès.`);
-        }).catch(err => console.error("Erreur destruction storage privé :", err));
-        
-        // 2. Vidage du cache d'historique HTTP de Chromium en mémoire
-        privateSession.clearCache().catch(err => console.error("Erreur destruction cache privé :", err));
+        // 4. Chargement d'une page blanche pour purger instantanément le GPU et les arbres DOM de Chromium
+        viewToDestroy.webContents.loadURL("about:blank").then(() => {
+            // Une fois la page blanche chargée, on élimine définitivement le processus de rendu
+            setTimeout(() => {
+                if (!viewToDestroy.webContents.isDestroyed()) {
+                    viewToDestroy.webContents.destroy(); 
+                    console.log(`[RAM] Processus Chromium de la tuile ${panelId} libéré avec succès.`);
+                }
+            }, 50); // Micro-délai pour laisser Chromium vider ses structures géométriques
+        }).catch(() => {
+            if (!viewToDestroy.webContents.isDestroyed()) viewToDestroy.webContents.destroy();
+        });
     }
-    // ======================================================================
+    // ==================================================================================
 
     const parent = findParentNode(rootNode, panelId);
     if (!parent) return;
@@ -1901,7 +1926,6 @@ ipcMain.on("close-panel", (event, panelId) => {
 
     lastClosedPanel = { id: node.id, url: node.url, title: node.title || getDisplayText(node.url) };
     win.webContents.send("undo-available", true);        
-    win.removeBrowserView(node.view);
 
     const newActivePanel = findFirstPanel(sibling);
     activePanel = newActivePanel.id;
@@ -2300,9 +2324,15 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
     // Le simple fait de l'appeler 'incognito_panelX' crée une session isolée et volatile.
     const viewOptions = {
         webPreferences: {
-            partition: `incognito_${newPanelId}`,
+            partition: isPrivate ? `incognito_${newPanelId}` : undefined, // Votre logique incognito isolée
             contextIsolation: true,
-            nodeIntegration: false
+            nodeIntegration: false,
+            
+            // 🌟 NOUVELLES OPTIONS DE NETTOYAGE RAM :
+            backgroundThrottling: true,      // Force Chromium à couper le CPU de la tuile si elle est masquée (ex: en mode maximisé)
+            offscreen: false,                // Assure l'accélération matérielle standard
+            spellcheck: false,               // Désactive le correcteur synchrone (très lourd en RAM sur le multi-fenêtres)
+            enableWebSQL: false              // Coupe une base obsolète pour économiser l'allocation de départ
         }
     };
 
