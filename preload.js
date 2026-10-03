@@ -87,6 +87,9 @@ onActivePanelChanged: (callback) => {
             ipcRenderer.on("page-loading", (event, data) => callback(data));
         },
 
+        openHelp: () => ipcRenderer.invoke('open-help'),
+
+
         on: (channel, func) => {
             const validChannels = ["system-theme-changed", "ai-sidebar-geometry-update", "toggle-ai-sidebar-keyboard-force"];
             if (validChannels.includes(channel)) {

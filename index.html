@@ -507,14 +507,17 @@ html.dark .bookmark-item:hover {
     <!-- Scindage horizontal : Une barre horizontale simple -->
     <button id="split-horizontal" title="Scinder vers le bas (Ctrl+H)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; font-weight:bold; cursor:pointer;">&mdash;</button>   
 
-
     <!-- Dans index.html -> Dans la div #toolbar-buttons -->
     <button id="ai-sidebar-button" title="Demander à l'IA Ollama" style="width:28px; height:24px; background:#2d2d30; color:#4ade80; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer;">✨</button>
 
+    <!-- Bouton aidr -->
+    <button id="help-btn" title="Aide de Hare Browser (F1)" style=" width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; cursor:pointer;">❓</button>
+
     <!-- Bouton Undo d'annulation -->
     <button id="undo" title="Rouvrir le dernier panneau fermé (Ctrl+Z)" disabled style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#10554;</button>
-    
-    <button id="close-panel" title="Fermer le panneau actif (Ctrl+W)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; cursor:pointer;">X</button>
+
+    <!-- Bouton Fermeture du panneau -->
+    <button id="close-panel" title="Fermer le panneau actif (Ctrl+W)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; cursor:pointer;">✕</button>
 
     <div id="bookmarks-bar">
         <div id="bookmarks-list"></div>
@@ -767,8 +770,9 @@ function getDisplayUrl(url, fallbackQuery = "") {
         const parsedUrl = new URL(url);
         if (parsedUrl.protocol === "file:") {
             const localPage = parsedUrl.pathname.toLowerCase();
+            if (localPage.endsWith("/help.html")) return "Aide";
             if (localPage.endsWith("/home.html")) return "Accueil";
-            if (localPage.endsWith("/welcome.html")) return "Bienvenue  ";
+            if (localPage.endsWith("/welcome.html")) return "Bienvenue";
         }
         const searchQuery = isSearchResultsUrl(url)
             ? getSearchQueryFromUrl(url, fallbackQuery)
@@ -783,6 +787,17 @@ function getDisplayUrl(url, fallbackQuery = "") {
         return parsedUrl.hostname.replace(/^www\./, "");
     } catch {
         return url || "";
+    }
+}
+
+function isFavoriteAllowedUrl(url) {
+    try {
+        const parsedUrl = new URL(url);
+        if (parsedUrl.protocol !== "file:") return true;
+        const pageName = decodeURIComponent(parsedUrl.pathname).split("/").pop().toLowerCase();
+        return !["welcome.html", "home.html", "help.html"].includes(pageName);
+    } catch {
+        return true;
     }
 }
 
@@ -874,6 +889,10 @@ window.api.onPanelsUpdated((panelsList, zoomPanelId) => {
                 if (input.dataset.url !== url) input.dataset.url = url;
                 input.readOnly = !!panel.isPrivate || isSearchResultsUrl(url);
                 input.style.cursor = input.readOnly ? "default" : "text";
+                const starBtn = document.getElementById(`star-${panel.id}`);
+                if (starBtn) {
+                    starBtn.style.display = panel.isPrivate || !isFavoriteAllowedUrl(url) ? "none" : "flex";
+                }
                 if (input.readOnly || !wasUrlInput || document.activeElement !== input) {
                     const displayUrl = typeof getDisplayUrl === "function" ? getDisplayUrl(url, panel.searchQuery) : url;
                     if (input.value !== displayUrl) input.value = displayUrl;
@@ -1232,6 +1251,7 @@ addressGroup.appendChild(input);
         starBtn.style.color = "#6b7280";
         starBtn.style.marginLeft = "2px";
         starBtn.style.flex = "0 0 auto";
+        starBtn.style.display = panel.isPrivate || !isFavoriteAllowedUrl(panel.realUrl || panel.url || "") ? "none" : "flex";
 
         starBtn.addEventListener("mousedown", (e) => e.stopPropagation());
 
@@ -1239,6 +1259,7 @@ addressGroup.appendChild(input);
             starBtn.addEventListener("click", async (e) => {
                 e.stopPropagation();
                 const currentUrl = input.dataset.url || panel.url || "";
+            if (!isFavoriteAllowedUrl(currentUrl)) return;
                 const currentTitle = panel.title || input.value;
 
                 const isAdded = await window.api.toggleFavori({
@@ -2067,6 +2088,20 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+document.addEventListener('keydown', async (event) => {
+
+    if (event.key === 'F1') {
+
+        event.preventDefault();
+
+        try {
+            await window.api.openHelp();
+        } catch (err) {
+            console.error(err);
+        }
+    }
+});
+
 document.getElementById("split-private-vertical").addEventListener("click", () => {
     if (currentMaximizedId) return; // Sécurité : bloque l'action si zoom actif
     let targetPanelId = activePanel;
@@ -2145,6 +2180,18 @@ document.getElementById("ai-sidebar-button").addEventListener("click", () => {
         window.api.toggleAiSidebar(true);  // Invoque le redimensionnement natif
     }
 });
+
+document
+    .getElementById('help-btn')
+    .addEventListener('click', async () => {
+
+        try {
+            await window.api.openHelp();
+        } catch (err) {
+            console.error('Erreur ouverture aide :', err);
+        }
+
+    });
 
 document.getElementById("close-ai-sidebar").addEventListener("click", () => {
     aiSidebar.style.right = "-300px";

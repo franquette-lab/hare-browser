@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <title>Aide</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --page-bg: #f5f7fb;
+            --surface: #ffffff;
+            --surface-raised: #f3f4f6;
+            --text-primary: #1f2937;
+            --text-secondary: #475569;
+            --muted: #64748b;
+            --border: #d1d5db;
+            --heading: #1d4ed8;
+            --accent: #2563eb;
+            --code-bg: #e5e7eb;
+            --code-text: #92400e;
+            --pre-bg: #f1f5f9;
+            --pre-text: #0369a1;
+            --pre-border: #cbd5e1;
+        }
+
+        html.mw-theme-client-dark {
+            color-scheme: dark;
+            --page-bg: #202124;
+            --surface: #292a2d;
+            --surface-raised: #2d2d30;
+            --text-primary: #e8eaed;
+            --text-secondary: #cbd5e1;
+            --muted: #70757a;
+            --border: #3c4043;
+            --heading: #8ab4f8;
+            --accent: #8ab4f8;
+            --code-bg: #202124;
+            --code-text: #facc15;
+            --pre-bg: #111827;
+            --pre-text: #38bdf8;
+            --pre-border: #1e293b;
+        }
+
+        html.mw-theme-client-light {
+            color-scheme: light;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--page-bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+            margin: 0;
+            padding: 30px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: var(--heading);
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 10px;
+            font-size: 28px;
+        }
+        h2 {
+            color: var(--text-primary);
+            margin-top: 30px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 5px;
+            font-size: 22px;
+        }
+        h3 {
+            color: var(--accent);
+            font-size: 16px;
+            margin-top: 20px;
+        }
+        p, li {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        .info-box {
+            background-color: var(--surface-raised);
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .info-box p {
+            margin: 0;
+            font-weight: 500;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: var(--surface);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            font-size: 13px;
+        }
+        th {
+            background-color: var(--surface-raised);
+            color: var(--heading);
+            font-weight: 600;
+        }
+        tr {
+            border-bottom: 1px solid var(--border);
+        }
+        tr:last-child {
+            border-bottom: none;
+        }
+        td code {
+            background: var(--code-bg);
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: var(--code-text);
+            font-family: Consolas, Monaco, monospace;
+            font-weight: bold;
+        }
+        pre {
+            background: var(--pre-bg);
+            color: var(--pre-text);
+            font-family: Consolas, Monaco, monospace;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--pre-border);
+            font-size: 13px;
+            line-height: 1.4;
+            overflow-x: auto;
+        }
+        .footer {
+            margin-top: 5px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--muted);
+            border-top: 1px solid var(--border);
+            padding-top: 20px;
+        }
+		
+	.split-tip {
+		background: var(--surface-raised);
+		border: 1px solid var(--border);
+		border-radius: 8px;
+		padding: 15px;
+		margin: 15px 0;
+	}
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🐇 Centre d'aide</h1>
+    
+    <p>Bienvenue dans le centre d'aide officiel de <strong>Hare Browser</strong>. Ce navigateur web combine un environnement de navigation multi-panneaux avancé (mode mosaïque dynamique), un moteur de recherche SearXNG respectueux de la vie privée et un assistant d'intelligence artificielle locale propulsé par Ollama.</p>
+
+    <div class="info-box">
+        <p>🍏 Configuration macOS : Pour les utilisateurs d'Apple Mac, remplacez systématiquement la touche <code>Ctrl</code> par la touche <code>Cmd</code> (Commande) pour l'ensemble des raccourcis ci-dessous.</p>
+    </div>
+
+    <h2>🧱 Gestion des panneaux &amp; fonctionnement du fractionnement</h2>
+    <p>Le cœur de Hare Browser repose sur un arbre binaire de division (Split Nodes). Chaque panneau actif peut être subdivisé géométriquement à l'infini pour organiser votre espace de travail sans manipuler des dizaines d'onglets superposés traditionnels.</p>
+    
+    <h3>Schémas géométriques de fractionnement des tuiles :</h3>
+    
+    <p><strong>1. Scission Verticale Initiale (Ctrl&nbsp;+&nbsp;T) :</strong> Divise l'espace actif en deux colonnes égales et ouvre une nouvelle tuile indépendante sur le flanc droit.</p>
+    <pre>
+    ┌──────────────────────────────────────┐          ┌──────────────────┬──────────────────┐
+    │                                      │          │                  │                  │
+    │                                      │ Ctrl&nbsp;+&nbsp;T │                  │                  │
+    │            PANNEAU INITIAL           │ ───────> │  PANNEAU INITIAL │  NOUVELLE TUILE  │
+    │               (Actif)                │          │                  │     (À droite)   │
+    │                                      │          │                  │                  │
+    └──────────────────────────────────────┘          └──────────────────┴──────────────────┘
+                                                                 </pre>
+	
+    <p><strong>2. Scission Horizontale Subsidiaire (Ctrl + H) :</strong> Sélectionne un panneau spécifique et le fracture en deux rangées horizontales, créant une nouvelle tuile en contrebas.</p>
+    <pre>
+    ┌──────────────────┬───────────────────┐          ┌──────────────────┬──────────────────┐
+    │                  │      FOCUS        │          │                  │   TUILE DU HAUT  │
+    │                  │     (Actif)       │ Ctrl&nbsp;+&nbsp;H │                  ├──────────────────┤
+    │ PANNEAU INITIAL  ├───────────────────┤ ───────> │ PANNEAU INITIAL  │                  │
+    │                  │                   │          │                  │  NOUVELLE TUILE  │
+    │                  │                   │          │                  │     (En bas)     │
+    └──────────────────┴───────────────────┘          └──────────────────┴──────────────────┘
+                                                                 </pre>
+	<h3>➕ Scinder un panneau avec le bouton +</h3>
+
+		<p>
+		Vous pouvez créer rapidement un nouveau panneau sans utiliser le clavier.
+		Cliquez simplement sur le bouton <strong>+</strong> situé à droite de la barre
+		d'adresse du panneau actif.
+		</p>
+
+		<div class="info-box">
+			<p>
+				💡 Astuce : le bouton <strong>+</strong> effectue une scission verticale
+				du panneau sélectionné et ouvre immédiatement une nouvelle tuile à droite.
+			</p>
+		</div>
+
+		<pre>
+			
+				┌──────────────────────────────┐
+				│                          [+] │
+				│                              │
+				│      PANNEAU ACTIF           │
+				│                              │
+				│                              │
+				└──────────────────────────────┘
+						│
+						│  Clic sur +
+						▼
+				┌───────────────┬───────────────┐
+				│               │               │
+				│               │               │
+				│ PANNEAU ACTIF │   NOUVEAU     │
+				│               │   PANNEAU     │
+				│               │               │
+				└───────────────┴───────────────┘
+		</pre>
+
+		<p>
+		Le bouton <strong>+</strong> offre le même résultat que le raccourci
+		<code>Ctrl + T</code>, mais permet de fractionner l'espace de travail à la souris.
+		Cette méthode est particulièrement pratique pour construire rapidement une
+		mosaïque de plusieurs sites côte à côte.
+		</p>
+
+<h3>🖱️ Menu contextuel des panneaux</h3>
+
+<p>
+Chaque panneau de navigation dispose d'un menu contextuel accessible par
+<strong>clic droit</strong>. Ce menu regroupe les principales actions de gestion
+du contenu, les fonctions d'intelligence artificielle et les outils
+d'agencement de la mosaïque.
+</p>
+
+<div class="info-box">
+    <p>
+        💡 Astuce : un clic droit dans un panneau permet d'accéder rapidement
+        aux commandes les plus courantes sans utiliser les raccourcis clavier.
+    </p>
+</div>
+
+<h4>✏️ Édition</h4>
+
+<ul>
+    <li><strong>Couper</strong> (Ctrl + X)</li>
+    <li><strong>Copier</strong> (Ctrl + C)</li>
+    <li><strong>Coller</strong> (Ctrl + V)</li>
+    <li><strong>Supprimer</strong></li>
+    <li><strong>Sélectionner tout</strong> (Ctrl + A)</li>
+</ul>
+
+<h4>🤖 Actions IA (Assistant)</h4>
+
+<ul>
+    <li><strong>Résumer cette tuile web</strong> : génère un résumé rapide de la page affichée.</li>
+    <li><strong>Analyser les mots-clés de la page</strong> : extrait les principaux thèmes et mots importants du contenu.</li>
+</ul>
+
+<h4>🧱 Agencement de la mosaïque</h4>
+
+<ul>
+    <li><strong>Scinder verticalement</strong> (Ctrl + T) : crée un nouveau panneau à droite.</li>
+    <li><strong>Scinder horizontalement</strong> (Ctrl + H) : crée un nouveau panneau en dessous.</li>
+    <li><strong>Scinder en Navigation Privée</strong> (Ctrl + Shift + N) : ouvre un nouveau panneau privé isolé.</li>
+</ul>
+
+<h4>📌 Gestion du panneau</h4>
+
+<ul>
+    <li><strong>Maximiser cette tuile</strong> (Ctrl + M) : agrandit temporairement le panneau sélectionné.</li>
+    <li><strong>Imprimer le contenu de la page</strong> (Ctrl + P).</li>
+    <li><strong>Fermer cette tuile</strong> (Ctrl + W).</li>
+</ul>
+
+<div class="diagram">
+<pre>			    
+					         │ Clic droit sur un panneau
+					         │
+					         ▼
+				┌───────────────────────────────┐
+				│ ✏️ Édition			│
+				│ 🤖 Actions IA			│
+				│ 🧱 Agencement de la mosaïque	│
+				│ 📌 Gestion du panneau		│
+				└───────────────────────────────┘
+</pre>
+</div>
+
+<p>
+Le menu contextuel constitue le point d'accès central à la plupart des
+fonctionnalités de gestion des panneaux. Il permet notamment de construire
+rapidement un espace de travail en mosaïque, d'analyser une page avec
+l'assistant IA et de gérer le contenu affiché sans quitter le panneau actif.
+</p>
+
+    <h2>⌨️ Répertoire Exhaustif des Raccourcis Clavier</h2>
+    
+    <h3>🧱 Gestion des Panneaux &amp; Agencement</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Raccourci Clavier</th>
+                <th>Action Système &amp; Comportement Géométrique</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>Ctrl&nbsp;+&nbsp;T</code></td>
+                <td><strong>Scinder verticalement</strong> — Divise le panneau actif en deux verticalement et ouvre une nouvelle tuile à droite.</td>
+            </tr>
+            <tr>
+                <td><code>Ctrl&nbsp;+&nbsp;H</code></td>
+                <td><strong>Scinder horizontalement</strong> — Divise le panneau actif en deux horizontalement et ouvre une nouvelle tuile en bas.</td>
+            </tr>
+            <tr>
+                <td><code>Ctrl&nbsp;+&nbsp;W</code></td>
+                <td><strong>Fermer la tuile active</strong> — Ferme immédiatement le panneau sur lequel vous vous trouvez et réajuste les ratios des tuiles voisines. Si une seule tuile reste ouverte, ferme l'application.</td>
+            </tr>
+            <tr>
+                <td><code>Ctrl&nbsp;+&nbsp;Z</code></td>
+                <td><strong>Annuler la fermeture</strong> — Rouvre instantanément le tout dernier panneau fermé en restaurant son URL et son emplacement exact dans la mosaïque.</td>
+            </tr>
+            <tr>
+                <td><code>Cmd&nbsp;ou&nbsp;Ctrl&nbsp;+&nbsp;S</code></td>
+                <td><strong>Sauvegarder l'agencement</strong> — Exporte la structure actuelle de votre mosaïque de tuiles dans un fichier JSON pour la recharger plus tard.</td>
+            </tr>
+            <tr>
+                <td><code>Cmd&nbsp;ou&nbsp;Ctrl&nbsp;+&nbsp;O</code></td>
+                <td><strong>Charger un agencement</strong> — Importe un fichier de configuration JSON pour restaurer instantanément un espace de travail complet.</td>
+            </tr>
+        </tbody>
+    </table>
+
+
+
+    <h3>🔄 Réorganisation des Tuiles au Clavier</h3>
+    <p>Permet d'intervertir instantanément l'emplacement physique du panneau actif avec le panneau adjacent dans la direction ciblée, sans utiliser la poignée de glissement à la souris.</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Raccourci Clavier</th>
+                <th>Direction de la Permutation dans la Mosaïque</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>Alt&nbsp;+&nbsp;Shift&nbsp;+&nbsp;←</code></td>
+                <td><strong>Intervertir à gauche</strong> — Échange la position du panneau actif avec la tuile située immédiatement sur sa gauche.</td>
+            </tr>
+            <tr>
+                <td><code>Alt&nbsp;+&nbsp;Shift&nbsp;+&nbsp;→</code></td>
+                <td><strong>Intervertir à droite</strong> — Échange la position du panneau actif avec la tuile située immédiatement sur sa droite.</td>
+            </tr>
+            <tr>
+                <td><code>Alt&nbsp;+&nbsp;Shift&nbsp;+&nbsp;↑</code></td>
+                <td><strong>Intervertir au-dessus</strong> — Échange la position du panneau actif avec la tuile située immédiatement au-dessus.</td>
+            </tr>
+            <tr>
+                <td><code>Alt&nbsp;+&nbsp;Shift&nbsp;+&nbsp;↓</code></td>
+                <td><strong>Intervertir en dessous</strong> — Échange la position du panneau actif avec la tuile située immédiatement en dessous.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>🔍 Mode Agrandi &amp; Zoom Géométrique</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Raccourci Clavier</th>
+                <th>Effet sur la Zone d'Affichage utile</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>Ctrl&nbsp;+&nbsp;M</code></td>
+                <td><strong>Maximiser / Restaurer</strong> — Alterne entre le mode plein écran (100% de l'espace de la fenêtre) pour la tuile active et le mode mosaïque d'origine (les autres tuiles sont temporairement masquées).</td>
+            </tr>
+            <tr>
+                <td><code>Escape</code></td>
+                <td><strong>Quitter le mode agrandi / Masquer l'IA</strong> — Raccourci global pour quitter le mode plein écran d'une tuile, réafficher toute la mosaïque ou refermer le volet latéral de l'Assistant IA.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>🧭 Navigation entre les Tuiles (Focus clavier)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Raccourci Clavier</th>
+                <th>Déplacement du Focus Applicatif</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>Ctrl&nbsp;+&nbsp;Tab</code></td>
+                <td><strong>Tuile suivante</strong> — Alterne le focus et le liseré bleu vers le panneau suivant (dans le sens des aiguilles d'une montre).</td>
+            </tr>
+            <tr>
+                <td><code>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;Tab</code></td>
+                <td><strong>Tuile précédente</strong> — Alterne le focus et le liseré bleu vers le panneau précédent (sens inverse des aiguilles d'une montre).</td>
+            </tr>
+        </tbody>
+    </table>
+	    <h3>🌐 Navigation Web (Dans la tuile ayant le focus)</h3>
+    <p>Ces commandes s'appliquent directement au contenu internet affiché dans le panneau actif possédant le focus visuel (liseré bleu).</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Raccourci Clavier</th>
+                <th>Action de Navigation Internet &amp; Comportement</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>Ctrl&nbsp;+&nbsp;L</code></td>
+                <td><strong>Cibler la barre d'adresse</strong> — Donne instantanément le focus au champ de saisie d'URL du panneau actif et sélectionne l'intégralité du texte pour taper une nouvelle adresse.</td>
+            </tr>
+            <tr>
+                <td><code>Alt&nbsp;+&nbsp;←</code></td>
+                <td><strong>Page précédente</strong> — Recule d'un niveau dans l'historique de navigation de la page web active.</td>
+            </tr>
+            <tr>
+                <td><code>Alt&nbsp;+&nbsp;→</code></td>
+                <td><strong>Page suivante</strong> — Avance d'un niveau dans l'historique de navigation de la page web active.</td>
+            </tr>
+            <tr>
+                <td><code>F5</code>&nbsp;&nbsp;ou&nbsp;&nbsp;<code>Ctrl&nbsp;+&nbsp;R</code></td>
+                <td><strong>Actualiser la page</strong> — Recharge le contenu du site internet chargé dans la tuile active.</td>
+            </tr>
+            <tr>
+                <td><code>Ctrl&nbsp;+&nbsp;P</code></td>
+                <td><strong>Imprimer la tuile active</strong> — Ouvre la boîte de dialogue d'impression du système d'exploitation pour le document en cours de consultation.</td>
+            </tr>
+            <tr>
+                <td><code>F1</code></td>
+                <td><strong>Aide</strong> — Charge instantanément ce centre d'aide au sein du panneau actif.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>❌ Système &amp; Sécurité</h3>
+    <p>Commandes globales affectant l'interface générale de l'application, la gestion des données de navigation et la sécurité du cycle de vie du navigateur.</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Raccourci Clavier</th>
+                <th>Action Globale de l'Application &amp; Cycle de vie</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;N</code></td>
+                <td><strong>Nouvelle tuile privée</strong> — Crée une scission verticale isolée en mode de navigation privée. Les cookies et le cache sont détruits dès la fermeture de ce panneau.</td>
+            </tr>
+            <tr>
+                <td><code>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;B</code></td>
+                <td><strong>Masquer/Afficher les favoris</strong> — Alterne l'affichage de la barre de favoris supérieure et réajuste dynamiquement la géométrie de la mosaïque.</td>
+            </tr>
+            <tr>
+                <td><code>Ctrl&nbsp;+&nbsp;H</code>&nbsp;(global)</td>
+                <td><strong>Afficher l'historique</strong> — Ouvre et bascule le focus vers le volet latéral dédié à l'historique global de navigation.</td>
+            </tr>
+            <tr>
+                <td><code>Ctrl&nbsp;+&nbsp;Q</code></td>
+                <td><strong>Quitter l'application</strong> — Interrompt proprement les processus de Hare Browser. Une boîte de dialogue de confirmation de sécurité vous est présentée pour éviter la perte accidentelle de vos tuiles en cours.</td>
+            </tr>
+        </tbody>
+    </table>
+
+
+
+    <h2>✨ Fonctions Avancées</h2>
+    
+    <h3>🤖 Assistant IA Ollama Local</h3>
+    <p>Hare Browser embarque un agent conversationnel autonome connecté à votre instance locale d'Ollama. Il est capable d'analyser le contenu textuel de votre page web active pour générer des résumés concis en trois points clés ou en extraire des mots-clés spécifiques, garantissant une confidentialité totale (aucune donnée n'est transmise à un serveur tiers ou Cloud externe).</p>
+
+    <h3>🕵️ Cyber-Sécurité et Navigation Privée</h3>
+    <p>Lorsque vous ouvrez une tuile privée, le navigateur instancie une partition en mémoire pure volatile (session <code>incognito</code> isolée). Lors de la fermeture de cette tuile, un script détruit automatiquement toutes les traces locales résiduelles de manière irréversible : cookies, LocalStorage, bases IndexedDB, session et cache d'historique de rendu HTTP de Chromium.</p>
+
+    <h3>🔑 Gestionnaire de Mots de Passe Sécurisé</h3>
+    <p>Vos identifiants et mots de passe enregistrés sont protégés par chiffrement fort. En mode développement ou sur les systèmes cibles compatibles, le navigateur s'appuie sur le module <code>safeStorage</code> pour appliquer un chiffrement asymétrique interne (Alternative Encryption), bloquant toute lecture non autorisée du fichier de stockage par des applications tierces.</p>
+
+    <div class="footer">
+        Hare Browser • Bâti sur Electron • Moteur IA Ollama • Recherche SearXNG
+    </div>
+</div>
+
+</body>
+</html>

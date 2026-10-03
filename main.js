@@ -122,9 +122,9 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
             label: "✏️ Édition",
             enabled: false
         },
-        { role: "undo", label: "   ↩️ Annuler" },
-        { role: "redo", label: "   ↪️ Rétablir" },
-        { type: "separator" },
+//      { role: "undo", label: "   ↩️ Annuler" },
+//      { role: "redo", label: "   ↪️ Rétablir" },
+//      { type: "separator" },
         { role: "cut", label: "   ✂️ Couper" },
         { role: "copy", label: "   📋 Copier" },
         { role: "paste", label: "   📌 Coller" },
@@ -176,7 +176,11 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
         },
         { type: "separator" },
         {
-            label: maximizedPanelId === panelId ? "🗗 Restaurer la taille de la mosaïque (Échap)" : "🗖 Maximiser cette tuile (Ctrl+M)",
+            label: "📌 Gestion du panneau",
+            enabled: false
+        },
+        {
+            label: maximizedPanelId === panelId ? "   🗗 Restaurer la taille de la mosaïque (Échap)" : "    🗖 Maximiser cette tuile (Ctrl+M)",
             click: () => {
                 maximizedPanelId = maximizedPanelId === panelId ? null : panelId;
                 forceRebuildSplitters = true;
@@ -186,12 +190,11 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
             }
         },
         {
-            label: "🖨️ Imprimer le contenu de la page (Ctrl+P)",
+            label: "   🖨️ Imprimer le contenu de la page (Ctrl+P)",
             click: () => ipcMain.emit('print-panel', null, panelId)
         },
-        { type: "separator" },
         {
-            label: "❌ Fermer cette tuile (Ctrl+W)",
+            label: "   ❌ Fermer cette tuile (Ctrl+W)",
             click: () => ipcMain.emit('close-panel', null, panelId)
         }
     ];
@@ -212,21 +215,20 @@ function applyThemeToView(view) {
         );
     }
 
-    if (isDarkModeForced) {
+    const scriptToInject = `
+        (function() {
+            const themeClass = ${JSON.stringify(isDarkModeForced ? "mw-theme-client-dark" : "mw-theme-client-light")};
+            const otherThemeClass = ${JSON.stringify(isDarkModeForced ? "mw-theme-client-light" : "mw-theme-client-dark")};
+            document.documentElement.classList.add(themeClass);
+            document.documentElement.classList.remove(otherThemeClass);
+            if (document.body) {
+                document.body.classList.add(themeClass);
+                document.body.classList.remove(otherThemeClass);
+            }
+        })();
+    `;
 
-        const scriptToInject = `
-            (function() {
-                document.documentElement.classList.add('mw-theme-client-dark');
-
-                if (document.body) {
-                    document.body.classList.add('mw-theme-client-dark');
-                }
-            })();
-        `;
-
-        view.webContents.executeJavaScript(scriptToInject)
-            .catch(console.error);
-    }
+    view.webContents.executeJavaScript(scriptToInject).catch(console.error);
 }
 
 function updateSplitterTheme() {
@@ -1044,6 +1046,10 @@ function buildNavigationTarget(input) {
         return HOME_PAGE_URL;
     }
 
+    if (input.toLowerCase() === "hare://help") {
+        return pathToFileURL(path.join(__dirname, "help.html")).href;
+    }
+
     // 1. Si c'est une URL valide ou une page locale
     if (input.includes("://") || input.startsWith("data:") || input.startsWith("about:")) {
         return input;
@@ -1056,6 +1062,16 @@ function buildNavigationTarget(input) {
 
     // 3. Sinon, c'est une recherche de mots-clés sur Google
     return `http://129.151.254.175:8080/search?q=${encodeURIComponent(input)}`;
+}
+
+async function openHelpInPanel(panel = findPanelNode(rootNode, activePanel) || collectPanelNodes(rootNode)[0]) {
+    if (!panel?.view || panel.view.webContents.isDestroyed()) {
+        return false;
+    }
+
+    activePanel = panel.id;
+    await panel.view.webContents.loadFile(path.join(__dirname, "help.html"));
+    return true;
 }
 
 function findPanelByWebContents(webContents) {
@@ -1210,6 +1226,13 @@ function setupNavigationTracking(panel) {
 
     let initialLoadFinished = false;
 
+    panel.view.webContents.on("before-input-event", (event, input) => {
+        if (input.type === "keyDown" && input.key === "F1") {
+            event.preventDefault();
+            openHelpInPanel(panel).catch(console.error);
+        }
+    });
+
 panel.view.webContents.on("will-navigate", (event, targetUrl) => {
     try {
         const target = new URL(targetUrl);
@@ -1218,6 +1241,8 @@ panel.view.webContents.on("will-navigate", (event, targetUrl) => {
 
             if (target.hostname === "home") {
                 panel.view.webContents.loadURL(HOME_PAGE_URL);
+            } else if (target.hostname === "help") {
+                openHelpInPanel(panel).catch(console.error);
             } else if (target.hostname === "history") {
                 ipcMain.emit("open-history-window");
             } else if (target.hostname === "private") {
@@ -1582,9 +1607,9 @@ ipcMain.handle('pwd-find-for-url', (event, targetUrl) => {
 
 ipcMain.on("show-url-context-menu", (event) => {
     const menu = Menu.buildFromTemplate([
-        { role: "undo", label: "Annuler" },
-        { role: "redo", label: "Rétablir" },
-        { type: "separator" },
+//      { role: "undo", label: "Annuler" },
+//      { role: "redo", label: "Rétablir" },
+//      { type: "separator" },
         { role: "cut", label: "Couper" },
         { role: "copy", label: "Copier" },
         { role: "paste", label: "Coller" },
@@ -2079,7 +2104,9 @@ ipcMain.on('toggle-dark-mode-request', (event, enable) => {
             const scriptToInject = `
                 (function() {
                     document.documentElement.classList.add('mw-theme-client-dark');
+                    document.documentElement.classList.remove('mw-theme-client-light');
                     if (document.body) document.body.classList.add('mw-theme-client-dark');
+                    if (document.body) document.body.classList.remove('mw-theme-client-light');
                     if (!document.getElementById('hare-dark-fallback')) {
                         const style = document.createElement('style');
                         style.id = 'hare-dark-fallback';
@@ -2094,7 +2121,11 @@ ipcMain.on('toggle-dark-mode-request', (event, enable) => {
             const scriptToRemove = `
                 (function() {
                     document.documentElement.classList.remove('mw-theme-client-dark');
-                    if (document.body) document.body.classList.remove('mw-theme-client-dark');
+                    document.documentElement.classList.add('mw-theme-client-light');
+                    if (document.body) {
+                        document.body.classList.remove('mw-theme-client-dark');
+                        document.body.classList.add('mw-theme-client-light');
+                    }
                     const style = document.getElementById('hare-dark-fallback');
                     if (style) style.remove();
                 })();
@@ -2157,22 +2188,23 @@ app.on('web-contents-created', (event, webContents) => {
 
         updateNavigationButtons();
 
-        if (!isDarkModeForced || !win || win.isDestroyed()) return;
+        if (!win || win.isDestroyed()) return;
 
         const url = webContents.getURL();
         if (url.startsWith('data:text/html')) return;
 
-        // SCRIPT SPÉCIFIQUE WIKIPÉDIA & SITES MODERNES
-        // Il ajoute les classes "mw-theme-client-dark" et force les balises HTML globales
         const scriptToInject = `
             (function() {
-                // 1. Force la classe CSS native de Wikipédia pour le mode sombre
-                document.documentElement.classList.add('mw-theme-client-dark');
-                if (document.body) document.body.classList.add('mw-theme-client-dark');
-                
-                // 2. Pour les autres sites (comme Google), on applique un filtre CSS inversé 
-                // mais BEAUCOUP PLUS PROPRE qui cible uniquement les fonds de page sans détruire le reste
-                if (!window.location.hostname.includes('wikipedia.org')) {
+                const themeClass = ${JSON.stringify(isDarkModeForced ? "mw-theme-client-dark" : "mw-theme-client-light")};
+                const otherThemeClass = ${JSON.stringify(isDarkModeForced ? "mw-theme-client-light" : "mw-theme-client-dark")};
+                document.documentElement.classList.add(themeClass);
+                document.documentElement.classList.remove(otherThemeClass);
+                if (document.body) {
+                    document.body.classList.add(themeClass);
+                    document.body.classList.remove(otherThemeClass);
+                }
+
+                if (${JSON.stringify(isDarkModeForced)} && !window.location.hostname.includes('wikipedia.org') && !document.getElementById('hare-dark-fallback')) {
                     const style = document.createElement('style');
                     style.id = 'hare-dark-fallback';
                     style.innerHTML = \`
@@ -2372,10 +2404,11 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
         </html>
     `;
 
-    // 2. Attribution de l'URL par défaut lors du split de panneau
-    const defaultUrl = isPrivate 
-        ? "data:text/html;charset=utf-8," + encodeURIComponent(incognitoHomeHtml) // Charge la page HTML ci-dessus
-        : "https://bing.com"; // Mode public classique
+    // Les nouvelles tuiles publiques démarrent sur l'accueil Hare Browser,
+    // et non directement sur l'instance SearXNG.
+    const defaultUrl = isPrivate
+        ? "data:text/html;charset=utf-8," + encodeURIComponent(incognitoHomeHtml)
+        : HOME_PAGE_URL;
 
     newView.webContents.loadURL(defaultUrl);
 
@@ -2609,7 +2642,8 @@ function createWindow() {
                                         };
                                         const newView = new BrowserView(viewOptions);
                                         win.addBrowserView(newView);
-                                        newView.webContents.loadURL(node.realUrl || node.url || "https://bing.com");
+//                                      newView.webContents.loadURL(node.realUrl || node.url || "https://bing.com");
+                                        newView.webContents.loadURL(node.realUrl || node.url || "http://129.151.254.175:8080");
 
                                         const newNode = new PanelNode(node.id, newView, node.url, !!node.isPrivate);
                                         setupNavigationTracking(newNode);
@@ -3479,6 +3513,17 @@ ipcMain.handle('get-favoris', () => {
     return getFavoris();
 });
 
+
+ipcMain.handle('open-help', async () => {
+    try {
+        return await openHelpInPanel();
+    } catch (error) {
+        console.error("Erreur lors de l’ouverture de l’aide :", error);
+        return false;
+    }
+});
+
+
 // À ajouter dans main.js avec vos autres ipcMain.handle
 ipcMain.handle('clear-favoris', () => {
     try {
@@ -3567,7 +3612,8 @@ ipcMain.handle('load-config-from-file', async () => {
                     };
                     const newView = new BrowserView(viewOptions);
                     win.addBrowserView(newView);
-                    newView.webContents.loadURL(node.realUrl || node.url || "https://bing.com");
+//                  newView.webContents.loadURL(node.realUrl || node.url || "https://bing.com");
+                    newView.webContents.loadURL(node.realUrl || node.url || "http://129.151.254.175:8080");
 
                     const newNode = new PanelNode(node.id, newView, node.url, !!node.isPrivate);
                     setupNavigationTracking(newNode);
@@ -3802,6 +3848,17 @@ ipcMain.handle('delete-history-item', async (event, index) => {
     }
 });
 
+function isInternalFavoriteUrl(url) {
+    try {
+        const parsedUrl = new URL(url);
+        if (parsedUrl.protocol !== "file:") return false;
+        const filename = path.basename(decodeURIComponent(parsedUrl.pathname)).toLowerCase();
+        return ["welcome.html", "home.html", "help.html"].includes(filename);
+    } catch {
+        return false;
+    }
+}
+
 // Remplacement du gestionnaire d'ajout/suppression des favoris
 ipcMain.handle('toggle-favori', async (event, { url, title }) => {
     try {
@@ -3810,6 +3867,8 @@ ipcMain.handle('toggle-favori', async (event, { url, title }) => {
 
         if (index >= 0) {
             favoris.splice(index, 1);
+        } else if (isInternalFavoriteUrl(url)) {
+            return false;
         } else {
             favoris.push({ url, title: title || url });
         }
