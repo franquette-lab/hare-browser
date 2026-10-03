@@ -80,6 +80,10 @@ let isBookmarksBarVisible = true; // La barre est affichée par défaut
 
 let TOOLBAR_HEIGHT = 76;
 const TOOLBAR_MIN_HEIGHT = 77;
+const FULLSCREEN_COLLAPSED_TOOLBAR_HEIGHT = 8;
+let normalToolbarHeight = TOOLBAR_HEIGHT;
+let isFullscreenMode = false;
+let isFullscreenToolbarVisible = true;
 let lastAiSidebarTopPosition = TOOLBAR_HEIGHT;
 
 let history = [];
@@ -95,6 +99,28 @@ let isAiSidebarVisible = true; // Par défaut, le volet est ouvert désormais
 const https = require("https");
 
 let pwdWindow = null;
+
+function setNormalToolbarHeight(height) {
+    normalToolbarHeight = height;
+    if (!isFullscreenMode || isFullscreenToolbarVisible) {
+        TOOLBAR_HEIGHT = height;
+        forceRebuildSplitters = true;
+        resizeViews();
+    }
+}
+
+function setFullscreenToolbarVisible(visible) {
+    if (!isFullscreenMode || !win || win.isDestroyed()) return;
+
+    isFullscreenToolbarVisible = visible;
+    TOOLBAR_HEIGHT = visible ? normalToolbarHeight : FULLSCREEN_COLLAPSED_TOOLBAR_HEIGHT;
+    win.webContents.send("fullscreen-toolbar-state", {
+        fullscreen: true,
+        visible
+    });
+    forceRebuildSplitters = true;
+    resizeViews();
+}
 
 function updatePasswordWindowContent() {
     if (pwdWindow && !pwdWindow.isDestroyed()) {
@@ -1680,7 +1706,7 @@ ipcMain.on("toggle-bookmarks-bar-request", () => {
     isBookmarksBarVisible = false;
     
     // On force la hauteur minimale (77px) pour faire remonter les fenêtres
-    TOOLBAR_HEIGHT = TOOLBAR_MIN_HEIGHT; 
+    setNormalToolbarHeight(TOOLBAR_MIN_HEIGHT);
     
     // On prévient l'index.html de masquer la barre en CSS
     win.webContents.send("toggle-bookmarks-bar", false);
@@ -2918,6 +2944,17 @@ async function createWindow() {
                     accelerator: 'Alt+Shift+Down',
                     click: () => moveActivePanelKeyboard('Down')
                 },
+
+                {
+                    label: 'Basculer le plein écran global',
+                    accelerator: 'F11',
+                    click: () => {
+                        if (win && !win.isDestroyed()) {
+                            win.setFullScreen(!win.isFullScreen());
+                        }
+                    }
+                },
+
                 {
                     label: 'Quitter l\'application',
                     accelerator: 'CmdOrCtrl+Q',
@@ -2948,7 +2985,7 @@ async function createWindow() {
                         isBookmarksBarVisible = !isBookmarksBarVisible;
                         
                         // 2. On ajuste dynamiquement la hauteur de la zone d'outils
-                        TOOLBAR_HEIGHT = isBookmarksBarVisible ? 105 : TOOLBAR_MIN_HEIGHT;
+                        setNormalToolbarHeight(isBookmarksBarVisible ? 105 : TOOLBAR_MIN_HEIGHT);
 
                         // 3. On informe l'IHM (index.html) pour masquer la barre physiquement en CSS
                         win.webContents.send("toggle-bookmarks-bar", isBookmarksBarVisible);
@@ -3092,10 +3129,21 @@ async function createWindow() {
     });
 
     win.on("enter-full-screen", () => {
+        normalToolbarHeight = TOOLBAR_HEIGHT;
+        isFullscreenMode = true;
+        isFullscreenToolbarVisible = false;
+        TOOLBAR_HEIGHT = FULLSCREEN_COLLAPSED_TOOLBAR_HEIGHT;
+        win.webContents.send("fullscreen-toolbar-state", { fullscreen: true, visible: false });
+        forceRebuildSplitters = true;
         resizeViews();
     });
 
     win.on("leave-full-screen", () => {
+        isFullscreenMode = false;
+        isFullscreenToolbarVisible = true;
+        TOOLBAR_HEIGHT = normalToolbarHeight;
+        win.webContents.send("fullscreen-toolbar-state", { fullscreen: false, visible: true });
+        forceRebuildSplitters = true;
         resizeViews();
     });
 
@@ -3467,10 +3515,14 @@ function moveActivePanelKeyboard(direction) {
 
 ipcMain.on("toggle-bookmarks-bar-request", () => {
     isBookmarksBarVisible = false;
-    TOOLBAR_HEIGHT = TOOLBAR_MIN_HEIGHT;
+    setNormalToolbarHeight(TOOLBAR_MIN_HEIGHT);
     win.webContents.send("toggle-bookmarks-bar", false);
     forceRebuildSplitters = true;
     resizeViews();
+});
+
+ipcMain.on("fullscreen-toolbar-request", (event, visible) => {
+    setFullscreenToolbarVisible(visible === true);
 });
 
 // À insérer avec vos autres écouteurs "ipcMain.on"

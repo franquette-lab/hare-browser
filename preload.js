@@ -21,6 +21,13 @@ contextBridge.exposeInMainWorld(
             ipcRenderer.on("system-theme-changed", (_, isDark) => callback(isDark));
         },
 
+        onFullscreenToolbarState: (callback) => {
+            ipcRenderer.on("fullscreen-toolbar-state", (_event, state) => callback(state));
+        },
+        requestFullscreenToolbar: (visible) => {
+            ipcRenderer.send("fullscreen-toolbar-request", visible);
+        },
+
 
 
 

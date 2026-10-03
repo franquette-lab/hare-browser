@@ -95,6 +95,46 @@ body {
     box-sizing: border-box;
     z-index: 99999;
     -webkit-app-region: drag;
+    transition: transform .22s ease, opacity .22s ease;
+}
+
+#fullscreen-reveal-zone {
+    display: none;
+}
+
+body.fullscreen-toolbar-hidden #toolbar-buttons,
+body.fullscreen-toolbar-hidden #url-bar {
+    opacity: 0;
+    pointer-events: none;
+}
+
+body.fullscreen-toolbar-hidden #toolbar-buttons {
+    transform: translateY(-100%);
+}
+
+body.fullscreen-toolbar-hidden #url-bar {
+    transform: translateY(-200%);
+}
+
+body.fullscreen-toolbar-active #toolbar-buttons,
+body.fullscreen-toolbar-active #url-bar {
+    opacity: 1;
+    pointer-events: auto;
+    transition: transform .22s ease, opacity .22s ease;
+}
+
+body.fullscreen-toolbar-active #toolbar-buttons,
+body.fullscreen-toolbar-active #url-bar {
+    transform: translateY(0);
+}
+
+body.fullscreen-toolbar-hidden #fullscreen-reveal-zone {
+    display: block;
+    position: fixed;
+    inset: 0 0 auto;
+    height: 8px;
+    z-index: 2147483647;
+    -webkit-app-region: no-drag;
 }
 
 #toolbar-buttons button,
@@ -470,6 +510,8 @@ html.dark .bookmark-item:hover {
 </style>
 
 <body class="m-0 flex items-center justify-center bg-gray-100 dark:bg-zinc-900 min-h-screen">
+
+<div id="fullscreen-reveal-zone" aria-hidden="true"></div>
 
 
 <!-- ====== DANS INDEX.HTML -> BARRE D'OUTILS SÉCURISÉE AVEC ICÔNES COMPATIBLES ====== -->
@@ -2100,6 +2142,56 @@ document.addEventListener('keydown', async (event) => {
             console.error(err);
         }
     }
+});
+
+let fullscreenToolbarHideTimer = null;
+let fullscreenToolbarIsActive = false;
+
+function requestFullscreenToolbar(visible) {
+    if (!fullscreenToolbarIsActive) return;
+    if (fullscreenToolbarHideTimer) {
+        clearTimeout(fullscreenToolbarHideTimer);
+        fullscreenToolbarHideTimer = null;
+    }
+    window.api.requestFullscreenToolbar(visible);
+}
+
+function scheduleFullscreenToolbarHide() {
+    if (!fullscreenToolbarIsActive) return;
+    if (fullscreenToolbarHideTimer) clearTimeout(fullscreenToolbarHideTimer);
+
+    fullscreenToolbarHideTimer = setTimeout(() => {
+        const toolbarHovered = document.querySelector("#toolbar-buttons:hover, #url-bar:hover");
+        if (toolbarHovered) {
+            scheduleFullscreenToolbarHide();
+            return;
+        }
+        window.api.requestFullscreenToolbar(false);
+        fullscreenToolbarHideTimer = null;
+    }, 1400);
+}
+
+window.api.onFullscreenToolbarState((state) => {
+    fullscreenToolbarIsActive = !!state?.fullscreen;
+    document.body.classList.toggle("fullscreen-toolbar-hidden", fullscreenToolbarIsActive && !state.visible);
+    document.body.classList.toggle("fullscreen-toolbar-active", fullscreenToolbarIsActive && !!state.visible);
+
+    if (fullscreenToolbarHideTimer) {
+        clearTimeout(fullscreenToolbarHideTimer);
+        fullscreenToolbarHideTimer = null;
+    }
+});
+
+const fullscreenRevealZone = document.getElementById("fullscreen-reveal-zone");
+fullscreenRevealZone?.addEventListener("mouseenter", () => requestFullscreenToolbar(true));
+fullscreenRevealZone?.addEventListener("mouseleave", scheduleFullscreenToolbarHide);
+
+[document.getElementById("toolbar-buttons"), document.getElementById("url-bar")].forEach((bar) => {
+    bar?.addEventListener("mouseenter", () => {
+        if (fullscreenToolbarHideTimer) clearTimeout(fullscreenToolbarHideTimer);
+        fullscreenToolbarHideTimer = null;
+    });
+    bar?.addEventListener("mouseleave", scheduleFullscreenToolbarHide);
 });
 
 document.getElementById("split-private-vertical").addEventListener("click", () => {
