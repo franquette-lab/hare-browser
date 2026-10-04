@@ -24,6 +24,7 @@ function createSandboxedBrowserView(options = {}) {
         ...options,
         webPreferences: {
             ...webPreferences,
+            preload: webPreferences.preload || path.join(__dirname, 'preload-tile.js'),
             sandbox: true,
             contextIsolation: true,
             nodeIntegration: false
@@ -113,6 +114,8 @@ let forceRebuildSplitters = false;
 let dragTimer = null;
 let dragInProgress = false;
 let resizeTimer = null;
+const PANEL_IDLE_TIMEOUT = 15 * 60 * 1000;
+const panelIdleTimers = new Map();
 
 // En haut de main.js avec vos autres variables globales (ex: sous let handleViews = {})
 let activeDownloads = {}; 
@@ -1076,7 +1079,12 @@ function rebuildTreeFromSnapshot(snapshotNode, restoredView) {
 
 function createSnapshot(node) {
     if (node.type === "panel") {
-        return { type: "panel", id: node.id, url: node.url, realUrl: node.url };
+        const realUrl = node.isSleeping
+            ? (node.sleepingUrl || node.url)
+            : (node.view?.webContents && !node.view.webContents.isDestroyed()
+                ? node.view.webContents.getURL()
+                : node.url);
+        return { type: "panel", id: node.id, url: node.url, realUrl, isPrivate: node.isPrivate };
     }
 
     return {
@@ -1100,6 +1108,11 @@ class PanelNode {
         this.view = view;
         this.url = url;
         this.isPrivate = isPrivate; // Stocke l'état privé du panneau
+        this.session = view?.webContents && !view.webContents.isDestroyed()
+            ? view.webContents.session
+            : null;
+        this.isSleeping = false;
+        this.sleepingUrl = null;
     }
     toJSON() {
         return { type: this.type, id: this.id, url: this.url, isPrivate: this.isPrivate };
@@ -1177,6 +1190,109 @@ function findPanelByWebContents(webContents) {
 
     return walk(rootNode);
 }   
+
+function clearPanelIdleTimer(panelId) {
+    const timer = panelIdleTimers.get(panelId);
+    if (timer) clearTimeout(timer);
+    panelIdleTimers.delete(panelId);
+}
+
+function markPanelActivity(panelOrId) {
+    const panel = typeof panelOrId === 'string'
+        ? findPanelNode(rootNode, panelOrId)
+        : panelOrId;
+    if (!panel || panel.isSleeping) return;
+
+    clearPanelIdleTimer(panel.id);
+    panel.lastActivityAt = Date.now();
+    panelIdleTimers.set(panel.id, setTimeout(() => {
+        panelIdleTimers.delete(panel.id);
+        if (findPanelNode(rootNode, panel.id) === panel) sleepPanel(panel);
+    }, PANEL_IDLE_TIMEOUT));
+}
+
+function destroyPanelBrowserView(view) {
+    if (!view || !view.webContents || view.webContents.isDestroyed()) return;
+    try { if (win && !win.isDestroyed()) win.removeBrowserView(view); } catch (error) {}
+    try { view.webContents.stop(); } catch (error) {}
+    view.webContents.removeAllListeners();
+    try { view.webContents.destroy(); } catch (error) {}
+}
+
+function sleepPanel(panel) {
+    if (!panel || panel.isSleeping || !panel.view || !win || win.isDestroyed()) return;
+    if (activeDownloads[panel.id]) {
+        markPanelActivity(panel);
+        return;
+    }
+
+    const originalView = panel.view;
+    const contents = originalView.webContents;
+    if (!contents || contents.isDestroyed()) return;
+
+    const currentUrl = contents.getURL();
+    panel.sleepingUrl = currentUrl && currentUrl !== 'about:blank'
+        ? currentUrl
+        : (panel.url || getHomePageUrl());
+    panel.session = contents.session;
+    panel.isSleeping = true;
+
+    destroyPanelBrowserView(originalView);
+
+    const placeholder = createSandboxedBrowserView({
+        webPreferences: panel.session ? { session: panel.session } : {}
+    });
+    panel.view = placeholder;
+    win.addBrowserView(placeholder);
+    const sleepingHtml = `<!doctype html><html lang="fr"><meta charset="utf-8"><title>Tuile en veille</title>
+        <style>html,body{height:100%;margin:0}body{display:grid;place-items:center;background:#f3f4f6;color:#374151;font:15px 'Segoe UI',sans-serif}
+        html.mw-theme-client-dark body{background:#252526;color:#cfcfcf}
+        main{text-align:center;padding:24px}strong{display:block;margin-bottom:8px}small{color:#6b7280}</style>
+        <body><main><strong>Cette tuile est en veille</strong><small>Cliquez ici pour recharger la page</small></main></body></html>`;
+    placeholder.webContents.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(sleepingHtml));
+
+    if (panel.bounds) placeholder.setBounds(panel.bounds);
+    else placeholder.setBounds({ x: -2000, y: -2000, width: 0, height: 0 });
+    resizeViews();
+    if (handleViews[panel.id]) {
+        try { win.setTopBrowserView(handleViews[panel.id]); } catch (error) {}
+    }
+    if (panel.id === activePanel && panel.bounds) updateActiveBorder(panel.bounds);
+    console.log(`[Tab Sleeping] Tuile ${panel.id} mise en veille après 15 minutes d’inactivité.`);
+}
+
+function wakePanel(panel, targetUrl = null) {
+    if (!panel || !panel.isSleeping || !win || win.isDestroyed()) return panel?.view || null;
+
+    clearPanelIdleTimer(panel.id);
+    const originalUrl = targetUrl || panel.sleepingUrl || panel.url || getHomePageUrl();
+    const placeholder = panel.view;
+    panel.isSleeping = false;
+    panel.sleepingUrl = null;
+    destroyPanelBrowserView(placeholder);
+
+    const view = createSandboxedBrowserView({
+        webPreferences: panel.session ? { session: panel.session } : {}
+    });
+    panel.view = view;
+    win.addBrowserView(view);
+    setupNavigationTracking(panel);
+    markPanelActivity(panel);
+    activePanel = panel.id;
+
+    view.webContents.loadURL(originalUrl).catch((error) => {
+        console.error(`[Tab Sleeping] Échec du rechargement de la tuile ${panel.id} :`, error);
+    });
+    resizeViews();
+    if (handleViews[panel.id]) {
+        try { win.setTopBrowserView(handleViews[panel.id]); } catch (error) {}
+    }
+    if (panel.bounds) updateActiveBorder(panel.bounds);
+    view.webContents.focus();
+    win.webContents.send('active-panel-changed', { id: panel.id, bounds: panel.bounds });
+    win.webContents.send('panels-updated', collectPanels(rootNode), maximizedPanelId);
+    return view;
+}
 
 function findPanelByView(view) {
     function walk(node) {
@@ -1309,6 +1425,7 @@ function updateNavigationButtons() {
 function setupNavigationTracking(panel) {
 
     if (!panel || !panel.view) return;
+    markPanelActivity(panel);
 
     let initialLoadFinished = false;
 
@@ -1789,14 +1906,32 @@ ipcMain.on("toggle-ai-sidebar-request", (event, isVisible) => {
     }
 });
 
+ipcMain.on('tile-activity', (event, activityType) => {
+    const panel = findPanelByWebContents(event.sender);
+    if (!panel) return;
+
+    if (panel.isSleeping) {
+        if (activityType === 'click') wakePanel(panel);
+        return;
+    }
+
+    markPanelActivity(panel);
+});
+
 ipcMain.on("navigate", (event, panelId, input) => {
     const panel = findPanelNode(rootNode, panelId);
-    if (!panel || !panel.view)
-        return;
+    if (!panel) return;
 
-    panel.view.webContents.loadURL(
-        buildNavigationTarget(input)
-    );
+    const navigatePanel = () => {
+        if (!panel.view || panel.view.webContents.isDestroyed()) return;
+        markPanelActivity(panel);
+        panel.view.webContents.loadURL(buildNavigationTarget(input));
+    };
+    if (panel.isSleeping) {
+        wakePanel(panel, buildNavigationTarget(input));
+    } else {
+        navigatePanel();
+    }
 
     
 });
@@ -1954,17 +2089,8 @@ async function purgePrivateSession(targetSession, panelId) {
 
 ipcMain.on("close-panel", (event, panelId) => {
     // === VÉRIFICATION DU NOMBRE DE PANNEAUX RESTANTS ===
-    const allViews = win.getBrowserViews();
-
-    const realWebViews = allViews.filter(v => {
-        if (!v.webContents || v.webContents.isDestroyed()) return false;
-        const ua = v.webContents.getUserAgent();
-        const url = v.webContents.getURL();
-        return ua !== "InternalBorder" && !url.startsWith("data:text/html");
-    });
-
     // Si l'utilisateur clique sur la croix alors qu'il n'y a plus qu'un panneau ouvert
-    if (realWebViews.length <= 1) {
+    if (collectPanelNodes(rootNode).length <= 1) {
         app.quit(); // Déclenche la boîte de dialogue de confirmation de fermeture globale
         return;
     }
@@ -1972,6 +2098,7 @@ ipcMain.on("close-panel", (event, panelId) => {
     // --- COMPORTEMENT STANDARD DE FERMETURE DE TUILE EN MOSAÏQUE ---
     const node = findPanelNode(rootNode, panelId);
     if (!node) return;
+    clearPanelIdleTimer(panelId);
 
     // === OPTIMISATION RAM & SÉCURITÉ : NETTOYAGE AGRESSIF ET DESTRUCTION PROCESSUS ===
     if (node.view && !node.view.webContents.isDestroyed()) {
@@ -2385,7 +2512,7 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
 
     // --- CORRECTION DU THÈME INCOGNITO ---
     // Au lieu de lire une variable globale, on demande directement à Electron son état réel
-    const isDark = nativeTheme.shouldUseDarkColors; 
+    const isDark = isDarkModeForced;
     const themeClass = isDark ? "mw-theme-client-dark" : "mw-theme-client-light";
 
     // 1. Définition du code HTML / CSS de la page d'accueil privée mis à jour dynamiquement
@@ -2633,6 +2760,7 @@ async function createWindow() {
 
     await fsPromises.mkdir(appDataPath, { recursive: true });
     isDarkModeForced = await getThemePreference();
+    nativeTheme.themeSource = isDarkModeForced ? "dark" : "light";
 
     win = new BrowserWindow({
         width: 1200,
@@ -3589,7 +3717,8 @@ function resizeViews() {
         });
     });
 
-    win.webContents.send("splitters-updated", splitters);
+    const serializableSplitters = splitters.map(({ node, ...splitter }) => splitter);
+    win.webContents.send("splitters-updated", serializableSplitters);
 
     // 4. Mettre à jour la position des liserés bleus (Placé tout à la fin de resizeViews)
     if (activePanel) {
@@ -3640,7 +3769,7 @@ function resizeViews() {
 
     // === On force le rafraîchissement des poignées de déplacement ===
     updatePanelHandles();
-    win.webContents.send("splitters-updated", splitters);
+    win.webContents.send("splitters-updated", serializableSplitters);
     
     // === SÉCURITÉ : On renvoie l'état du zoom ici aussi ===
     win.webContents.send("zoom-changed", maximizedPanelId); 
@@ -3698,9 +3827,13 @@ ipcMain.on("set-active-panel", (event, panelId, options) => {
     const panel = findPanelNode(rootNode, panelId);
     if (!panel) return;
     if (!win || win.isDestroyed() || !win.webContents || win.webContents.isDestroyed()) return;
-    
-    activePanel = panelId;
     const keepChromeFocus = options && options.keepChromeFocus;
+    if (panel.isSleeping && !keepChromeFocus) {
+        wakePanel(panel);
+        return;
+    }
+
+    activePanel = panelId;
     
     // 1. Met à jour le liseré bleu autour du panneau actif
     win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
@@ -4028,12 +4161,53 @@ ipcMain.handle("get-theme-preference", () => {
 });
 
 ipcMain.handle("save-theme-preference", async (event, isDark) => { // 🌟 Déjà async dans votre code
-    isDarkModeForced = isDark;
+    isDarkModeForced = isDark === true;
 
     // 🌟 Remplacement synchrone par asynchrone sécurisé
-    await safeWriteJsonAsync(getThemePath(), { darkMode: isDark });
+    await safeWriteJsonAsync(getThemePath(), { darkMode: isDarkModeForced });
 
     return true;
+});
+
+ipcMain.on("toggle-dark-mode-request", (_event, enabled) => {
+    isDarkModeForced = enabled === true;
+    nativeTheme.themeSource = isDarkModeForced ? "dark" : "light";
+    const backgroundColor = isDarkModeForced ? "#252526" : "#f3f4f6";
+
+    if (win && !win.isDestroyed()) {
+        win.setBackgroundColor(backgroundColor);
+        if (typeof win.setTitleBarOverlay === "function") {
+            win.setTitleBarOverlay({
+                color: isDarkModeForced ? "#252526" : "#ffffff",
+                symbolColor: isDarkModeForced ? "#cfcfcf" : "#1f2937",
+                height: 38
+            });
+        }
+
+        collectPanelNodes(rootNode).forEach((panel) => {
+            if (!panel.view || panel.view.webContents.isDestroyed()) return;
+            if (typeof panel.view.webContents.setForceDarkModeEnabled === "function") {
+                panel.view.webContents.setForceDarkModeEnabled(isDarkModeForced);
+            }
+            applyThemeToView(panel.view);
+        });
+
+        Object.entries(handleViews).forEach(([panelId, handleView]) => {
+            try { win.removeBrowserView(handleView); } catch (error) {}
+            if (handleView.webContents && !handleView.webContents.isDestroyed()) {
+                try { handleView.webContents.destroy(); } catch (error) {}
+            }
+            delete handleViews[panelId];
+        });
+
+        forceRebuildSplitters = true;
+        resizeViews();
+        win.webContents.send("system-theme-changed", isDarkModeForced);
+        updateHistoryWindowContent();
+        updatePasswordWindowContent();
+    }
+
+    void safeWriteJsonAsync(getThemePath(), { darkMode: isDarkModeForced });
 });
 
 
