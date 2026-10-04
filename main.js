@@ -115,6 +115,7 @@ let dragTimer = null;
 let dragInProgress = false;
 let resizeTimer = null;
 const PANEL_IDLE_TIMEOUT = 15 * 60 * 1000;
+
 const panelIdleTimers = new Map();
 
 // En haut de main.js avec vos autres variables globales (ex: sous let handleViews = {})
@@ -1244,11 +1245,19 @@ function sleepPanel(panel) {
     });
     panel.view = placeholder;
     win.addBrowserView(placeholder);
-    const sleepingHtml = `<!doctype html><html lang="fr"><meta charset="utf-8"><title>Tuile en veille</title>
-        <style>html,body{height:100%;margin:0}body{display:grid;place-items:center;background:#f3f4f6;color:#374151;font:15px 'Segoe UI',sans-serif}
-        html.mw-theme-client-dark body{background:#252526;color:#cfcfcf}
-        main{text-align:center;padding:24px}strong{display:block;margin-bottom:8px}small{color:#6b7280}</style>
+
+    // 🌟 CORRECTIF THÈME : Déterminer dynamiquement la classe de thème active à injecter
+    const currentThemeClass = isDarkModeForced ? "mw-theme-client-dark" : "mw-theme-client-light";
+
+    const sleepingHtml = `<!doctype html><html lang="fr" class="${currentThemeClass}"><meta charset="utf-8"><title>Tuile en veille</title>
+        <style>
+        html,body{height:100%;margin:0}
+        body{display:grid;place-items:center;background:#f3f4f6;color:#374151;font:15px 'Segoe UI',sans-serif}
+        html.mw-theme-client-dark body{background:#1e1e1e;color:#cfcfcf}
+        main{text-align:center;padding:24px}strong{display:block;margin-bottom:8px}small{color:#6b7280}
+        </style>
         <body><main><strong>Cette tuile est en veille</strong><small>Cliquez ici pour recharger la page</small></main></body></html>`;
+        
     placeholder.webContents.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(sleepingHtml));
 
     if (panel.bounds) placeholder.setBounds(panel.bounds);
@@ -1260,6 +1269,7 @@ function sleepPanel(panel) {
     if (panel.id === activePanel && panel.bounds) updateActiveBorder(panel.bounds);
     console.log(`[Tab Sleeping] Tuile ${panel.id} mise en veille après 15 minutes d’inactivité.`);
 }
+
 
 function wakePanel(panel, targetUrl = null) {
     if (!panel || !panel.isSleeping || !win || win.isDestroyed()) return panel?.view || null;
