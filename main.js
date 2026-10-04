@@ -18,6 +18,19 @@ const {
     session
 } = require('electron');
 
+function createSandboxedBrowserView(options = {}) {
+    const webPreferences = options.webPreferences || {};
+    return new BrowserView({
+        ...options,
+        webPreferences: {
+            ...webPreferences,
+            sandbox: true,
+            contextIsolation: true,
+            nodeIntegration: false
+        }
+    });
+}
+
 
 // 🌟 CONFIGURATION LOGS CHROMIUM : Masque les alertes et erreurs de routage internes (Mojo/Blink)
 // '3' coupe les logs de niveau INFO, WARNING et ERROR natifs de Chromium, ne laissant que les crashs critiques.
@@ -416,8 +429,10 @@ ipcMain.on("open-password-manager-window", () => {
         alwaysOnTop: true,
         resizable: false,
         webPreferences: {
-            nodeIntegration: true, 
-            contextIsolation: false 
+            preload: path.join(__dirname, 'preload-passwords.js'),
+            sandbox: true,
+            nodeIntegration: false,
+            contextIsolation: true
         }
     });
 
@@ -737,7 +752,7 @@ function updateActiveBorder(bounds, options) {
     // Création des 4 bordures si elles n'existent pas
     if (borderViews.length === 0) {
         for (let i = 0; i < 4; i++) {
-            const bView = new BrowserView();
+            const bView = createSandboxedBrowserView();
             win.addBrowserView(bView);
             
             // === CORRECTIF CRUCIAL A : Empêche le liseré d'intercepter les clics ===
@@ -860,7 +875,7 @@ function updatePanelHandles() {
         }
 
         // Création initiale UNIQUE (S'exécute si handleViews[panel.id] n'existe pas ou vient d'être nettoyée)
-        const hView = new BrowserView();
+        const hView = createSandboxedBrowserView();
         win.addBrowserView(hView);
         
         const containerClass = isLastRemaining ? 'flex-1-btn' : (isMaximized ? 'flex-3-btns' : '');
@@ -2043,7 +2058,7 @@ ipcMain.on("undo", (event) => {
     const previousState = JSON.parse(previousStateString);
 
     // 3. On recrée une BrowserView toute neuve pour le panneau à restaurer
-    const restoredView = new BrowserView();
+    const restoredView = createSandboxedBrowserView();
     win.addBrowserView(restoredView);
     restoredView.webContents.loadURL(lastClosedPanel.url);
 
@@ -2140,7 +2155,8 @@ ipcMain.on("open-history-window", () => {
         webPreferences: {
             preload: path.join(__dirname, 'preload-history.js'), // <-- Charge le nouveau preload
             nodeIntegration: false,                              // <-- SÉCURITÉ : Désactivé
-            contextIsolation: true                               // <-- SÉCURITÉ : Activé
+            contextIsolation: true,                              // <-- SÉCURITÉ : Activé
+            sandbox: true
         }
     });
 
@@ -2435,7 +2451,7 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
         }
     };
 
-    const newView = new BrowserView(viewOptions);
+    const newView = createSandboxedBrowserView(viewOptions);
     win.addBrowserView(newView);
 
     if (isPrivate) {
@@ -2661,8 +2677,8 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
 async function createDefaultLayout() {
 
     // On instancie uniquement 2 vues de navigation au lieu de 3
-    leftView = new BrowserView();
-    centerView = new BrowserView();
+    leftView = createSandboxedBrowserView();
+    centerView = createSandboxedBrowserView();
 
     win.addBrowserView(leftView);
     win.addBrowserView(centerView);
@@ -2731,7 +2747,8 @@ async function createWindow() {
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
-            nodeIntegration: false
+            nodeIntegration: false,
+            sandbox: true
         }
     });
 
@@ -2878,7 +2895,7 @@ async function createWindow() {
                                                 nodeIntegration: false
                                             }
                                         };
-                                        const newView = new BrowserView(viewOptions);
+                                        const newView = createSandboxedBrowserView(viewOptions);
                                         win.addBrowserView(newView);
                                         newView.webContents.loadURL(node.realUrl || node.url || "http://129.151.254.175:8080");
 
@@ -3488,7 +3505,12 @@ function detachPanelToFullscreen(panelId) {
         width: 1280,
         height: 720,
         backgroundColor: "#111827",
-        autoHideMenuBar: true // Masque la barre de menu supérieure
+        autoHideMenuBar: true, // Masque la barre de menu supérieure
+        webPreferences: {
+            sandbox: true,
+            contextIsolation: true,
+            nodeIntegration: false
+        }
     });
 
     // 3. Maximiser immédiatement la nouvelle fenêtre
@@ -3615,7 +3637,7 @@ function resizeViews() {
         const handleDirection = splitter.direction === "vertical" ? "column" : "row";
 
 
-        const splitterView = new BrowserView();
+        const splitterView = createSandboxedBrowserView();
         win.addBrowserView(splitterView);
         splitterViews.push(splitterView);
 
@@ -3926,7 +3948,7 @@ ipcMain.handle('load-config-from-file', async () => {
                             nodeIntegration: false
                         }
                     };
-                    const newView = new BrowserView(viewOptions);
+                    const newView = createSandboxedBrowserView(viewOptions);
                     win.addBrowserView(newView);
 //                  newView.webContents.loadURL(node.realUrl || node.url || "https://bing.com");
                     newView.webContents.loadURL(node.realUrl || node.url || "http://129.151.254.175:8080");
