@@ -99,13 +99,28 @@ onActivePanelChanged: (callback) => {
 
         openHelp: () => ipcRenderer.invoke('open-help'),
 
-
+/*
         on: (channel, func) => {
             const validChannels = ["system-theme-changed", "ai-sidebar-geometry-update", "toggle-ai-sidebar-keyboard-force"];
             if (validChannels.includes(channel)) {
                 ipcRenderer.removeAllListeners(channel);
                 ipcRenderer.on(channel, (event, ...args) => func(...args));
             }
+        },
+*/
+
+        // Remplacement dans preload.js pour un durcissement total :
+        onSystemThemeChanged: (callback) => {
+            ipcRenderer.on("system-theme-changed", (_, isDark) => callback(isDark));
+        },
+        onAiSidebarGeometryUpdate: (callback) => {
+            ipcRenderer.on("ai-sidebar-geometry-update", (_, geometry) => callback(geometry));
+        },
+        onTriggerAiAction: (callback) => {
+            ipcRenderer.on("trigger-ai-action", (_, data) => callback(data));
+        },
+        onToggleAiSidebarKeyboardForce: (callback) => {
+            ipcRenderer.on("toggle-ai-sidebar-keyboard-force", (_, force) => callback(force));
         },
 
         // --- ASSISTANT IA ---

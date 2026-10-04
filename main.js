@@ -2735,7 +2735,7 @@ async function createWindow() {
         }
     });
 
-//  win.setMaxListeners(30);
+  //win.setMaxListeners(30);
     win.setMaxListeners(0);
 
     registerDownloadHandler(win.webContents.session);
@@ -2880,7 +2880,6 @@ async function createWindow() {
                                         };
                                         const newView = new BrowserView(viewOptions);
                                         win.addBrowserView(newView);
-//                                      newView.webContents.loadURL(node.realUrl || node.url || "https://bing.com");
                                         newView.webContents.loadURL(node.realUrl || node.url || "http://129.151.254.175:8080");
 
                                         const newNode = new PanelNode(node.id, newView, node.url, !!node.isPrivate);
@@ -3344,43 +3343,68 @@ async function createWindow() {
         resizeViews();
     });
 
-// Intercepte le clic sur la croix de fermeture de la fenêtre principale
-win.on('close', (e) => {
-    // Empêche la fermeture immédiate le temps de demander confirmation
-    e.preventDefault();
+    // À mettre à la fin de la fonction createWindow() dans main.js
+    app.on('web-contents-created', (event, contents) => {
+        
+        // 🔒 SÉCURITÉ A : Bloquer l'ouverture de nouvelles fenêtres non contrôlées
+        contents.setWindowOpenHandler(({ url }) => {
+            console.log(`[SÉCURITÉ GLOBALE] Ouverture de fenêtre bloquée pour l'URL : ${url}`);
+            
+            // Au lieu d'ouvrir une pop-up Electron instable, on force l'ouverture
+            // sécurisée dans le navigateur par défaut du système d'exploitation de l'utilisateur.
+            const { shell } = require('electron');
+            shell.openExternal(url).catch(err => console.error(err));
+            
+            return { action: 'deny' }; // Refuse la création de la fenêtre interne Electron
+        });
 
-    // 🌟 CORRECTIF CRUCIAL : On désactive temporairement le premier plan des fenêtres secondaires
-    if (historyWindow && !historyWindow.isDestroyed()) {
-        historyWindow.setAlwaysOnTop(false);
-    }
-    if (pwdWindow && !pwdWindow.isDestroyed()) {
-        pwdWindow.setAlwaysOnTop(false);
-    }
-
-    // On affiche la boîte de dialogue en la liant à la fenêtre principale 'win'
-    const response = dialog.showMessageBoxSync(win, {
-        type: 'question',
-        buttons: ['Oui, quitter', 'Annuler'],
-        defaultId: 1, 
-        cancelId: 1,  
-        title: 'Confirmation',
-        message: `Êtes-vous sûr de vouloir fermer ${APP_TITLE} ?`,
-        detail: 'Tous vos panneaux et onglets ouverts seront perdus.'
+        // 🔒 SÉCURITÉ B : Bloquer les changements de navigation non sollicités sur le cadre parent
+        contents.on('will-redirect', (navigationEvent, navigationUrl) => {
+            // Optionnel : Vous pouvez analyser l'URL ici pour bloquer les redirections vers des protocoles dangereux
+            if (navigationUrl.startsWith('file:') && !navigationUrl.includes(__dirname)) {
+                navigationEvent.preventDefault(); // Interdit l'accès aux fichiers locaux de l'OS depuis le web
+                console.warn(`[SÉCURITÉ GLOBALE] Tentative d'accès illégal aux fichiers locaux bloquée : ${navigationUrl}`);
+            }
+        });
     });
 
-    // Seul l'index 0 ("Oui, quitter") détruit la fenêtre
-    if (response === 0) {
-        win.destroy(); 
-    } else {
-        // 🌟 RESTAURATION : Si l'utilisateur annule, on remet le "Always on Top" pour garder le comportement d'origine
+    // Intercepte le clic sur la croix de fermeture de la fenêtre principale
+    win.on('close', (e) => {
+        // Empêche la fermeture immédiate le temps de demander confirmation
+        e.preventDefault();
+
+        // 🌟 CORRECTIF CRUCIAL : On désactive temporairement le premier plan des fenêtres secondaires
         if (historyWindow && !historyWindow.isDestroyed()) {
-            historyWindow.setAlwaysOnTop(true);
+            historyWindow.setAlwaysOnTop(false);
         }
         if (pwdWindow && !pwdWindow.isDestroyed()) {
-            pwdWindow.setAlwaysOnTop(true);
+            pwdWindow.setAlwaysOnTop(false);
         }
-    }
-});
+
+        // On affiche la boîte de dialogue en la liant à la fenêtre principale 'win'
+        const response = dialog.showMessageBoxSync(win, {
+            type: 'question',
+            buttons: ['Oui, quitter', 'Annuler'],
+            defaultId: 1, 
+            cancelId: 1,  
+            title: 'Confirmation',
+            message: `Êtes-vous sûr de vouloir fermer ${APP_TITLE} ?`,
+            detail: 'Tous vos panneaux et onglets ouverts seront perdus.'
+        });
+
+        // Seul l'index 0 ("Oui, quitter") détruit la fenêtre
+        if (response === 0) {
+            win.destroy(); 
+        } else {
+            // 🌟 RESTAURATION : Si l'utilisateur annule, on remet le "Always on Top" pour garder le comportement d'origine
+            if (historyWindow && !historyWindow.isDestroyed()) {
+                historyWindow.setAlwaysOnTop(true);
+            }
+            if (pwdWindow && !pwdWindow.isDestroyed()) {
+                pwdWindow.setAlwaysOnTop(true);
+            }
+        }
+    });
 
     // quand la fenêtre principale est détruite par l'utilisateur
     win.on('closed', () => {
@@ -3435,6 +3459,7 @@ win.on('close', (e) => {
     win.on('blur', () => {
         globalShortcut.unregister('Escape');
     });
+
 }
 
 

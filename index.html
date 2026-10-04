@@ -2035,6 +2035,11 @@ function applyAppTheme(isDark) {
     document.documentElement.classList.toggle("dark", isDark);
     document.body.classList.toggle("dark", isDark);
 
+    const aiSidebar = document.getElementById("ai-sidebar");
+    if (aiSidebar) {
+        aiSidebar.classList.toggle("dark-mode-active", isDark);
+    }
+
     const darkModeBtn =
     document.getElementById("dark-mode-button");
 
@@ -2399,7 +2404,7 @@ async function refreshPasswordList() {
     });
 }
 // Écouter les ordres lancés depuis le menu contextuel natif (clic droit)
-window.api.on("trigger-ai-action", (data) => {
+window.api.onTriggerAiAction((data) => {
     // On s'assure que la sidebar affiche bien le mode actif graphiquement
     const aiSidebar = document.getElementById("ai-sidebar");
     if (aiSidebar) aiSidebar.style.right = "0px";
@@ -2417,14 +2422,14 @@ window.api.on("trigger-ai-action", (data) => {
 const aiSidebarElement = document.getElementById("ai-sidebar");
 
 // Synchronisation de la hauteur de la barre d'outils
-window.api.on("ai-sidebar-geometry-update", (data) => {
+window.api.onAiSidebarGeometryUpdate((data) => {
     if (data && data.topPosition) {
         aiSidebarElement.style.top = data.topPosition + "px";
     }
 });
 
 // Écouter le signal de fermeture forcée de l'IA par le clavier (Touche Échap)
-window.api.on("toggle-ai-sidebar-keyboard-force", (isVisible) => {
+window.api.onToggleAiSidebarKeyboardForce((isVisible) => {
     const aiSidebar = document.getElementById("ai-sidebar");
     if (aiSidebar) {
         aiSidebar.style.right = "-300px"; // Range le volet hors de l'écran
@@ -2432,7 +2437,7 @@ window.api.on("toggle-ai-sidebar-keyboard-force", (isVisible) => {
 });
 
 // Synchronisation dynamique du thème Clair / Sombre
-window.api.on("system-theme-changed", (isDarkMode) => {
+window.api.onSystemThemeChanged((isDarkMode) => {
     if (isDarkMode) {
         aiSidebarElement.classList.add("dark-mode-active");
     } else {
@@ -2441,7 +2446,7 @@ window.api.on("system-theme-changed", (isDarkMode) => {
 });
 
 // Vérification de secours au démarrage (calée sur l'état de votre fonction setDarkMode de l'IHM)
-if (document.documentElement.classList.contains('mw-theme-client-dark') || typeof isDarkModeForced !== 'undefined' && isDarkModeForced) {
+if (document.documentElement.classList.contains("dark") || document.documentElement.classList.contains('mw-theme-client-dark') || typeof isDarkModeForced !== 'undefined' && isDarkModeForced) {
     aiSidebarElement.classList.add("dark-mode-active");
 } else {
     aiSidebarElement.classList.remove("dark-mode-active");
