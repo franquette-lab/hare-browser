@@ -2463,32 +2463,46 @@ app.on('web-contents-created', (event, webContents) => {
     });
 });
 
-// Dans main.js -> Recherchez ipcMain.on("split-panel", ...)
+
+
+
+
+
+
+
+
+
+
+
+// ====== DANS MAIN.JS -> ipcMain.on("split-panel", ...) ======
 ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
 
     const node = findPanelNode(rootNode, panelId);
     const parent = findParentNode(rootNode, panelId);    
 
-    // ====== DANS MAIN.JS -> ipcMain.on("split-panel", ...) ======
     const newPanelId = "panel" + nextPanelNumber++;
 
-    // Session dédiée en mémoire (sans "persist:") et sans cache HTTP.
-    const privatePartition = isPrivate ? `incognito_${newPanelId}` : undefined;
-    const privatePartitionSession = isPrivate
-        ? session.fromPartition(privatePartition, { cache: false })
-        : undefined;
+    // Configuration de la session : session dédiée si incognito, sinon session par défaut partagée
+    let targetSession;
+    if (isPrivate) {
+        const privatePartition = `incognito_${newPanelId}`;
+        targetSession = session.fromPartition(privatePartition, { cache: false });
+    } else {
+        // ✨ PARTAGE INTELLIGENT : Utilise explicitement la session racine globale
+      targetSession = session.defaultSession;
+    }
 
     const viewOptions = {
         webPreferences: {
-            ...(privatePartitionSession ? { session: privatePartitionSession } : {}),
+            session: targetSession, // ✨ Forcé pour toutes les tuiles publiques
             contextIsolation: true,
             nodeIntegration: false,
             
-            // 🌟 NOUVELLES OPTIONS DE NETTOYAGE RAM :
-            backgroundThrottling: true,      // Force Chromium à couper le CPU de la tuile si elle est masquée (ex: en mode maximisé)
-            offscreen: false,                // Assure l'accélération matérielle standard
-            spellcheck: false,               // Désactive le correcteur synchrone (très lourd en RAM sur le multi-fenêtres)
-            enableWebSQL: false,             // Coupe une base obsolète pour économiser l'allocation de départ
+            // OPTIONS DE NETTOYAGE RAM EXISTANTES :
+            backgroundThrottling: true,      
+            offscreen: false,                
+            spellcheck: false,               
+            enableWebSQL: false,             
             webSecurity: true,
             allowRunningInsecureContent: false
         }
@@ -3965,13 +3979,22 @@ ipcMain.handle('load-config-from-file', async () => {
 
             // Fonction récursive pour reconstruire à la fois les objets PanelNode/SplitNode 
             // ET instancier leurs nouvelles BrowserViews associées
+            // À l'intérieur de ipcMain.handle('load-config-from-file') ->
             function rebuildTreeFromImport(node) {
                 if (!node) return null;
 
                 if (node.type === "panel") {
+                    let targetSession;
+                    if (node.isPrivate) {
+                        targetSession = session.fromPartition(`incognito_panel_${Math.random()}`, { cache: false });
+                    } else {
+                        // ✨ PARTAGE INTELLIGENT : Utilise la session racine globale lors d'un import
+                          targetSession = session.defaultSession;
+                    }
+
                     const viewOptions = {
                         webPreferences: {
-                            partition: node.isPrivate ? `incognito_panel_${Math.random()}` : undefined,
+                            session: targetSession,
                             contextIsolation: true,
                             nodeIntegration: false
                         }
@@ -4317,4 +4340,14 @@ app.on('will-quit', () => {
     globalShortcut.unregisterAll();
 });
 
-app.whenReady().then(createWindow);
+//app.whenReady().then(createWindow);
+
+// ✨ LOG DE DIAGNOSTIC DE PROD : Afficher la RAM totale toutes les 10 secondes dans le terminal
+app.whenReady().then(() => {
+    setInterval(async () => {
+        if (!win || win.isDestroyed()) return;
+        const memory = await process.getProcessMemoryInfo();
+        console.log(`[DIAGNOSTIC RAM GLOBAL] Empreinte du processus principal : ${(memory.private / 1024 / 1024).toFixed(2)} Mo`);
+    }, 10000); // 10 secondes
+    createWindow(); 
+});
