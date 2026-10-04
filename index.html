@@ -2432,7 +2432,11 @@ window.api.onAiSidebarGeometryUpdate((data) => {
 window.api.onToggleAiSidebarKeyboardForce((isVisible) => {
     const aiSidebar = document.getElementById("ai-sidebar");
     if (aiSidebar) {
-        aiSidebar.style.right = "-300px"; // Range le volet hors de l'écran
+        aiSidebar.style.right = isVisible ? "0px" : "-300px";
+        if (isVisible) {
+            document.getElementById("history-sidebar")?.classList.remove("open");
+        }
+        window.api.toggleAiSidebar(isVisible);
     }
 });
 

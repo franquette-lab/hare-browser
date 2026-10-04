@@ -1865,6 +1865,7 @@ function swapPanelsInTree(idA, idB) {
     );
 
     win.webContents.send("active-panel-changed", { id: nodeA.id, bounds: nodeA.bounds });
+    updateActiveBorder(nodeA.bounds);
 }
 
 let panelBeingDragged = null;
@@ -2257,142 +2258,34 @@ ipcMain.on("history-click", (event, url) => {
     }
 });
 
-ipcMain.on('toggle-dark-mode-request', async (event, enable) => { // 🌟 Ajout de async
-    isDarkModeForced = enable;
-    nativeTheme.themeSource = enable ? 'dark' : 'light';
+// 3. CORRECTIF RADICAL pour la fenêtre de gestion des mots de passe
+if (pwdWindow && !pwdWindow.isDestroyed()) {
+    // Si elle est ouverte, on la ferme et on la réouvre instantanément au même endroit.
+    // Cela force Windows à recalculer les couleurs de la barre de titre et du cadre natif.
+    const bounds = pwdWindow.getBounds();
+    pwdWindow.close(); 
     
-    // 🌟 Remplacement synchrone par asynchrone sécurisé
-    await safeWriteJsonAsync(getThemePath(), { darkMode: enable });
-
-    // Mise à jour de la barre de titre Electron
-    if (win && !win.isDestroyed()) {
-        win.setTitleBarOverlay({
-            color: enable ? '#252526' : '#ffffff',
-            symbolColor: enable ? '#cfcfcf' : '#1f2937',
-            height: 38
-        });
-
-        win.setBackgroundColor(
-            enable ? '#252526' : '#f3f4f6'
-        );
-
-        // Notifier immédiatement l'interface propre à l'application. Les opérations
-        // de reconstruction des BrowserView ci-dessous ne doivent pas bloquer son thème.
-        win.webContents.send('system-theme-changed', enable);
-        win.webContents.executeJavaScript(
-            `window.applyAppTheme?.(${JSON.stringify(enable)});`
-        ).catch((error) => {
-            console.warn("Impossible d'appliquer le thème à l'interface principale :", error);
-        });
-    }    
-
-    // Force la recréation complète des poignées
-    Object.keys(handleViews).forEach(id => {
-        try {
-            win.removeBrowserView(handleViews[id]);
-            if (!handleViews[id].webContents.isDestroyed()) {
-                handleViews[id].webContents.destroy();
-            }
-        } catch (e) {}
-
-        delete handleViews[id];
-    });
-
-    updatePanelHandles();    
-
-    // 2. Traitement des tuiles web (BrowserViews)
-    const allViews = win.getBrowserViews();
-    allViews.forEach(v => {
-        if (!v.webContents || v.webContents.isDestroyed()) return;
-        const url = v.webContents.getURL();
-        
-        if (url.startsWith('data:text/html') || v.webContents.getUserAgent() === "InternalBorder") return;
-
-        // Désactive ou active le mode sombre natif de Chromium
-        if (typeof v.webContents.setForceDarkModeEnabled === 'function') {
-            v.webContents.setForceDarkModeEnabled(enable);
+    // Petite temporisation de 50ms pour laisser le système détruire l'ancienne bordure
+    setTimeout(() => {
+        ipcMain.emit('open-password-manager-window');
+        if (pwdWindow && !pwdWindow.isDestroyed()) {
+            pwdWindow.setBounds(bounds);
         }
+    }, 50);
+}
 
-        if (enable) {
-            // Mode Sombre : On injecte les styles
-            const scriptToInject = `
-                (function() {
-                    document.documentElement.classList.add('mw-theme-client-dark');
-                    document.documentElement.classList.remove('mw-theme-client-light');
-                    if (document.body) document.body.classList.add('mw-theme-client-dark');
-                    if (document.body) document.body.classList.remove('mw-theme-client-light');
-                    if (!document.getElementById('hare-dark-fallback')) {
-                        const style = document.createElement('style');
-                        style.id = 'hare-dark-fallback';
-                        style.innerHTML = \`html, body { background-color: #121212 !important; color: #e0e0e0 !important; } a { color: #8ab4f8 !important; }\`;
-                        document.head.appendChild(style);
-                    }
-                })();
-            `;
-            v.webContents.executeJavaScript(scriptToInject).catch(() => {});
-        } else {
-            // Mode Clair : On nettoie ET on force un rechargement léger pour vider le cache de rendu
-            const scriptToRemove = `
-                (function() {
-                    document.documentElement.classList.remove('mw-theme-client-dark');
-                    document.documentElement.classList.add('mw-theme-client-light');
-                    if (document.body) {
-                        document.body.classList.remove('mw-theme-client-dark');
-                        document.body.classList.add('mw-theme-client-light');
-                    }
-                    const style = document.getElementById('hare-dark-fallback');
-                    if (style) style.remove();
-                })();
-            `;
-            v.webContents.executeJavaScript(scriptToRemove).then(() => {
-                // Force Wikipédia et les autres pages à réadopter le thème clair natif
-                v.webContents.reloadIgnoringCache();
-            }).catch(() => {
-                v.webContents.reload();
-            });
-        }
-    });
+// === Rafraîchissement des éléments natifs ===
 
-    // 3. CORRECTIF RADICAL pour la fenêtre de gestion des mots de passe
-    if (pwdWindow && !pwdWindow.isDestroyed()) {
-        // Si elle est ouverte, on la ferme et on la réouvre instantanément au même endroit.
-        // Cela force Windows à recalculer les couleurs de la barre de titre et du cadre natif.
-        const bounds = pwdWindow.getBounds();
-        pwdWindow.close(); 
-        
-        // Petite temporisation de 50ms pour laisser le système détruire l'ancienne bordure
-        setTimeout(() => {
-            ipcMain.emit('open-password-manager-window');
-            if (pwdWindow && !pwdWindow.isDestroyed()) {
-                pwdWindow.setBounds(bounds);
-            }
-        }, 50);
-    }
+// Recrée les splitters avec les nouvelles couleurs
+updateSplitterTheme();
 
-    // === Rafraîchissement des éléments natifs ===
+forceRebuildSplitters = true;
 
-    // Recrée les splitters avec les nouvelles couleurs
-    updateSplitterTheme();
+// Recrée les poignées de déplacement
+updatePanelHandles();
 
-    forceRebuildSplitters = true;
-
-    // Recrée les poignées de déplacement
-    updatePanelHandles();
-
-    // Recharge la fenêtre d'historique pour éviter qu'un ancien rendu/CSS
-    // sombre reste affiché après le changement de thème.
-    const openHistoryWindow = historyWindow && !historyWindow.isDestroyed()
-        ? historyWindow
-        : global.historyWindow;
-    if (openHistoryWindow && !openHistoryWindow.isDestroyed()) {
-        openHistoryWindow.setBackgroundColor(enable ? "#1e1e1e" : "#f9fafb");
-        openHistoryWindow.webContents.reload();
-    }
-
-    // Recalcule la géométrie
-    resizeViews();
-
-});
+// Recalcul de la géométrie
+resizeViews();
 
 // Script d'injection magique : s'exécute AVANT que Wikipédia ne calcule ses styles
 app.on('web-contents-created', (event, webContents) => {
@@ -2422,8 +2315,7 @@ app.on('web-contents-created', (event, webContents) => {
                     const style = document.createElement('style');
                     style.id = 'hare-dark-fallback';
                     style.innerHTML = \`
-                        html, body { background-color: #121212 !important; color: #e0e0e0 !important; }
-                        a { color: #8ab4f8 !important; }
+                        html, body { background-color: #121212 !important; color: #e0e0e0 !important; } a { color: #8ab4f8 !important; }
                     \`;
                     document.head.appendChild(style);
                 }
@@ -2834,20 +2726,30 @@ async function createWindow() {
                 */
 
                 {
-                    label: 'Quitter le mode agrandi / Masquer l\'IA',
+                    label: 'Afficher / Masquer le volet de l\'assistant IA',
+                    accelerator: 'CmdOrCtrl+Shift+A',
+                    click: () => {
+                        if (!win || win.isDestroyed()) return;
+                        const nextVisible = !isAiSidebarVisible;
+                        ipcMain.emit("toggle-ai-sidebar-request", null, nextVisible);
+                        win.webContents.send("toggle-ai-sidebar-keyboard-force", nextVisible);
+                    }
+                },
+                {
+                    label: 'Quitter le mode agrandi',
                     accelerator: 'Escape',
                     click: () => {
-                        let geometryChanged = false;
+                        if (!win || win.isDestroyed()) return;
 
-                        // 1. Si le volet de l'assistant IA est visible, on le ferme
-                        if (isAiSidebarVisible) {
-                            isAiSidebarVisible = false;
-                            geometryChanged = true;
-                            // On prévient l'IHM (index.html) de ranger le volet en arrière-plan
-                            win.webContents.send("toggle-ai-sidebar-keyboard-force", false);
+                        // Escape doit sortir du mode plein écran avant de restaurer une tuile agrandie.
+                        if (win.isFullScreen()) {
+                            win.setFullScreen(false);
+                            return;
                         }
 
-                        // 2. Si un panneau est maximisé (votre logique d'origine), on le restaure
+                        let geometryChanged = false;
+
+                        // Escape ne sert plus à fermer le volet IA : il ne quitte que le mode agrandi.
                         if (maximizedPanelId) {
                             const panelIdToRestore = maximizedPanelId;
                             maximizedPanelId = null;
@@ -2861,7 +2763,6 @@ async function createWindow() {
                             }
                         }
 
-                        // 3. Si la géométrie globale a bougé, on force Electron à recalculer l'écran
                         if (geometryChanged) {
                             forceRebuildSplitters = true;
                             resizeViews();
@@ -3031,32 +2932,6 @@ async function createWindow() {
                 },
 
                 // === AJOUT : TOUCHE ÉCHAP POUR QUITTER LE MODE MAXIMISÉ ===
-                {
-                    label: 'Quitter le mode agrandi',
-                    accelerator: 'Escape',
-                    click: () => {
-                        // On n'agit que si un panneau est actuellement maximisé
-                        if (maximizedPanelId) {
-                            const panelIdToRestore = maximizedPanelId;
-                            maximizedPanelId = null; // Désactive le zoom
-
-                            // 1. Force le recalcul géométrique complet des vues pour afficher la mosaïque
-                            forceRebuildSplitters = true;
-                            resizeViews();
-
-                            // 2. Notifie l'IHM HTML pour réafficher toutes les barres d'URL
-                            win.webContents.send("zoom-changed", maximizedPanelId);
-
-                            // 3. Recrée la poignée flottante du panneau pour remettre son icône à jour (🗖)
-                            if (handleViews[panelIdToRestore]) {
-                                try { win.removeBrowserView(handleViews[panelIdToRestore]); } catch(e){}
-                                delete handleViews[panelIdToRestore];
-                            }
-                            updatePanelHandles();
-                        }
-                    }
-                },
-
                 // (Vos raccourcis précédents : Scinder, Fermer, Annuler...)
                 {
                     label: 'Annuler la fermeture',
@@ -3341,7 +3216,7 @@ async function createWindow() {
     win.on("resize", () => {
         if (resizeDebounceTimer) clearTimeout(resizeDebounceTimer);
         resizeDebounceTimer = setTimeout(() => {
-            if (win.isDestroyed()) return;
+            if (!win || win.isDestroyed()) return;
             resizeViews();
         }, 30); // Petit délai pour laisser Electron respirer
     });
@@ -3450,21 +3325,18 @@ async function createWindow() {
         }
     });
 
-    // Raccourci global ultra-puissant pour la touche Échap
+    // Escape ne sert qu'à quitter le mode agrandi / plein écran
     win.on('focus', () => {
         globalShortcut.register('Escape', () => {
             if (!win || win.isDestroyed()) return;
 
-            let geometryChanged = false;
-
-            // 1. Si le volet IA est ouvert, on le ferme
-            if (isAiSidebarVisible) {
-                isAiSidebarVisible = false;
-                geometryChanged = true;
-                win.webContents.send("toggle-ai-sidebar-keyboard-force", false);
+            if (win.isFullScreen()) {
+                win.setFullScreen(false);
+                return;
             }
 
-            // 2. Si une tuile est agrandie, on la restaure
+            let geometryChanged = false;
+
             if (maximizedPanelId) {
                 const panelIdToRestore = maximizedPanelId;
                 maximizedPanelId = null;
@@ -3477,7 +3349,6 @@ async function createWindow() {
                 }
             }
 
-            // 3. Si un changement a eu lieu, on recalcule l'écran
             if (geometryChanged) {
                 forceRebuildSplitters = true;
                 resizeViews();
@@ -3599,7 +3470,7 @@ function detachPanelToFullscreen(panelId) {
 
 
 function resizeViews() {
-    if (win.isDestroyed()) return;
+    if (!win || win.isDestroyed()) return;
     const bounds = win.getContentBounds();
     if (bounds.width <= 0 || bounds.height <= 0) return;
 
@@ -3964,7 +3835,6 @@ ipcMain.handle('load-config-from-file', async () => {
                     };
                     const newView = createSandboxedBrowserView(viewOptions);
                     win.addBrowserView(newView);
-//                  newView.webContents.loadURL(node.realUrl || node.url || "https://bing.com");
                     newView.webContents.loadURL(node.realUrl || node.url || "http://129.151.254.175:8080");
 
                     const newNode = new PanelNode(node.id, newView, node.url, !!node.isPrivate);
@@ -4100,33 +3970,35 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, { prompt, model = "qwen2.
                 headers: {
                     'Content-Type': 'application/json',
                     'Content-Length': Buffer.byteLength(postData)
-                },
-                timeout: 120000
+                }
             }, (res) => {
-                let body = '';
+                let responseBody = '';
                 res.setEncoding('utf8');
-                res.on('data', (chunk) => body += chunk);
+                res.on('data', (chunk) => {
+                    responseBody += chunk;
+                });
                 res.on('end', () => {
+                    if (res.statusCode < 200 || res.statusCode >= 300) {
+                        resolve(`Erreur Ollama (${res.statusCode}) : ${responseBody || res.statusMessage}`);
+                        return;
+                    }
+
                     try {
-                        const parsed = JSON.parse(body);
-                        console.log("[IA DIAGNOSTIC] Réponse reçue d'Ollama avec succès.");
-                        resolve(parsed.response || "L'IA a renvoyé une réponse vide.");
-                    } catch (e) {
-                        console.log("[IA DIAGNOSTIC] Échec de la lecture du JSON d'Ollama.");
-                        resolve("Erreur lors de l'analyse du format de la réponse renvoyée par Ollama.");
+                        const result = JSON.parse(responseBody);
+                        resolve(result.response || "L'IA locale a renvoyé une réponse vide.");
+                    } catch (error) {
+                        resolve(`Réponse Ollama invalide : ${error.message}`);
                     }
                 });
             });
 
-            req.on('error', (e) => {
-                console.log("[IA DIAGNOSTIC] ERREUR RÉSEAU OLLAMA :", e.message);
-                resolve(`Impossible de joindre l'IA locale. Vérifiez qu'Ollama est démarré en arrière-plan (${e.message}).`);
-            });
-
-            req.on('timeout', () => {
-                req.destroy();
+            req.setTimeout(120000, () => {
                 console.log("[IA DIAGNOSTIC] ERREUR : Temps d'attente dépassé (Timeout).");
-                resolve("L'IA locale a mis trop de temps à répondre (Délai d'attente dépassé).");
+                req.destroy(new Error('Délai d’attente dépassé'));
+            });
+            req.on('error', (error) => {
+                console.error("[IA DIAGNOSTIC] Erreur de requête Ollama :", error);
+                resolve(`Impossible de joindre Ollama : ${error.message}`);
             });
 
             req.write(postData);
