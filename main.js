@@ -2211,26 +2211,28 @@ ipcMain.on("history-click", (event, url) => {
     }
 });
 
-// 1. Supprimer un seul élément
-ipcMain.on('delete-single-history', (event, index) => {
+// A. Suppression d'une seule entrée d'historique
+ipcMain.on('delete-single-history', async (event, index) => { // 🌟 Ajout de async
     let historyList = getNavigationHistory();
     if (index >= 0 && index < historyList.length) {
         historyList.splice(index, 1);
-        fs.writeFileSync(getHistoryPath(), JSON.stringify(historyList, null, 2));
         
-        // On notifie la fenêtre d'historique et la fenêtre principale pour mettre à jour l'affichage
+        // 🌟 Remplacement synchrone par asynchrone sécurisé
+        await safeWriteJsonAsync(getHistoryPath(), historyList);
+        
         ipcMain.emit('history-data-changed');
         if (win && !win.isDestroyed()) win.webContents.send('history-updated', historyList);
     }
 });
 
-// 2. Tout effacer d'un coup
-ipcMain.on('clear-all-history', () => {
-    fs.writeFileSync(getHistoryPath(), JSON.stringify([]));
+// B. Effacer tout l'historique d'un coup
+ipcMain.on('clear-all-history', async () => { // 🌟 Ajout de async
+    // 🌟 Remplacement synchrone par asynchrone sécurisé
+    await safeWriteJsonAsync(getHistoryPath(), []);
+    
     ipcMain.emit('history-data-changed');
     if (win && !win.isDestroyed()) win.webContents.send('history-updated', []);
 });
-
 // Écouteur pour charger le site quand on clique sur un lien de l'historique
 ipcMain.on("history-click", (event, url) => {
     if (activePanel) {
@@ -2245,10 +2247,12 @@ ipcMain.on("history-click", (event, url) => {
     }
 });
 
-ipcMain.on('toggle-dark-mode-request', (event, enable) => {
+ipcMain.on('toggle-dark-mode-request', async (event, enable) => { // 🌟 Ajout de async
     isDarkModeForced = enable;
     nativeTheme.themeSource = enable ? 'dark' : 'light';
-    fs.writeFileSync(getThemePath(), JSON.stringify({ darkMode: enable }, null, 2));
+    
+    // 🌟 Remplacement synchrone par asynchrone sécurisé
+    await safeWriteJsonAsync(getThemePath(), { darkMode: enable });
 
     // Mise à jour de la barre de titre Electron
     if (win && !win.isDestroyed()) {
@@ -4141,17 +4145,15 @@ ipcMain.handle("get-theme-preference", () => {
     return getThemePreference();
 });
 
-ipcMain.handle("save-theme-preference", (event, isDark) => {
-
+ipcMain.handle("save-theme-preference", async (event, isDark) => { // 🌟 Déjà async dans votre code
     isDarkModeForced = isDark;
 
-    fs.writeFileSync(
-        getThemePath(),
-        JSON.stringify({ darkMode: isDark }, null, 2)
-    );
+    // 🌟 Remplacement synchrone par asynchrone sécurisé
+    await safeWriteJsonAsync(getThemePath(), { darkMode: isDark });
 
     return true;
 });
+
 
 // ====== AVEC LES AUTRES IPCMAIN (EX: SOUS LES ÉCOUTEURS DE FAVORIS) ======
 ipcMain.handle('get-history', () => {
