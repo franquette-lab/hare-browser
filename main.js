@@ -1319,45 +1319,55 @@ function setupNavigationTracking(panel) {
         }
     });
 
-panel.view.webContents.on("will-navigate", (event, targetUrl) => {
-    try {
-        const target = new URL(targetUrl);
-        if (target.protocol === "hare:") {
-            event.preventDefault(); // Stoppe la navigation Chromium pour éviter l'écran blanc ou l'erreur
+    panel.view.webContents.on("will-navigate", (event, targetUrl) => {
+        try {
+            const target = new URL(targetUrl);
 
-            if (target.hostname === "home") {
-                panel.view.webContents.loadURL(getHomePageUrl());
-            } else if (target.hostname === "help") {
-                openHelpInPanel(panel).catch(console.error);
-            } else if (target.hostname === "history") {
-                ipcMain.emit("open-history-window");
-            } else if (target.hostname === "private") {
-                activePanel = panel.id;
-                ipcMain.emit("split-panel", null, panel.id, "vertical", true);
-            } else if (target.hostname === "close-panel") {
-                ipcMain.emit("close-panel", null, panel.id);
-            } else if (target.hostname === "toggle-theme") {
-                // Déclenche instantanément votre fonction globale de changement de thème
-                // en lui transmettant l'inverse du mode actuel
-                ipcMain.emit('toggle-dark-mode-request', null, !isDarkModeForced);
+            // 1. 🔒 SÉCURITÉ : Liste blanche des protocoles autorisés pour la navigation web standard
+            const allowedProtocols = ['http:', 'https:', 'data:', 'about:'];
+
+            if (!allowedProtocols.includes(target.protocol) && target.protocol !== 'hare:') {
+                event.preventDefault(); // Bloque instantanément la navigation
+                console.warn(`[SÉCURITÉ] Protocole exotique bloqué à l'exécution : ${target.protocol}`);
+                return;
             }
-            return;
-        }
 
-        const isSearchEngineHome =
-            target.hostname === SEARCH_ENGINE_HOST &&
-            target.port === "8080" &&
-            target.pathname === "/" &&
-            !target.searchParams.has("q");
+            // 2. Gestion de vos protocoles internes existants (hare://)
+            if (target.protocol === "hare:") {
+                event.preventDefault(); // Stoppe la navigation Chromium pour éviter l'écran blanc
 
-        if (isSearchEngineHome) {
-            event.preventDefault();
-            panel.view.webContents.loadURL(getHomePageUrl());
+                if (target.hostname === "home") {
+                    panel.view.webContents.loadURL(getHomePageUrl());
+                } else if (target.hostname === "help") {
+                    openHelpInPanel(panel).catch(console.error);
+                } else if (target.hostname === "history") {
+                    ipcMain.emit("open-history-window");
+                } else if (target.hostname === "private") {
+                    activePanel = panel.id;
+                    ipcMain.emit("split-panel", null, panel.id, "vertical", true);
+                } else if (target.hostname === "close-panel") {
+                    ipcMain.emit("close-panel", null, panel.id);
+                } else if (target.hostname === "toggle-theme") {
+                    ipcMain.emit('toggle-dark-mode-request', null, !isDarkModeForced);
+                }
+                return;
+            }
+
+            // 3. Votre vérification d'origine pour le moteur de recherche
+            const isSearchEngineHome =
+                target.hostname === SEARCH_ENGINE_HOST &&
+                target.port === "8080" &&
+                target.pathname === "/" &&
+                !target.searchParams.has("q");
+
+            if (isSearchEngineHome) {
+                event.preventDefault();
+                panel.view.webContents.loadURL(getHomePageUrl());
+            }
+        } catch (error) {
+            console.debug("Impossible de vérifier l’URL d’accueil du moteur :", error);
         }
-    } catch (error) {
-        console.debug("Impossible de vérifier l’URL d’accueil du moteur :", error);
-    }
-});
+    });
 
     const syncSearchQueryFromPage = async () => {
         if (!panel.view || panel.view.webContents.isDestroyed()) return;
