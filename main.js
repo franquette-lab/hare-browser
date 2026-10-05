@@ -741,49 +741,49 @@ async function buildSearchPage(query) {
     `;
 }
 
+
 function updateActiveBorder(bounds, options) {
     if (!bounds || !win || win.isDestroyed()) return;
 
     const BORDER_THICKNESS = 2;
     const skipRaise = options && options.skipRaise;
 
+    // 1. Déterminer si le panneau actuellement actif est privé pour adapter la couleur
+    const currentActivePanelNode = findPanelNode(rootNode, activePanel);
+    const isPrivateMode = currentActivePanelNode ? currentActivePanelNode.isPrivate === true : false;
+    
+    // ✨ CHOIX DE LA COULEUR : Bleu électrique (#3b82f6) pour le public, Violet Incognito (#a855f7) pour le privé
+    const borderHexColor = isPrivateMode ? "#a855f7" : "#3b82f6";
+
     const borderLayouts = [
         { x: bounds.x, y: bounds.y, width: bounds.width, height: BORDER_THICKNESS }, // TOP
-        // Calque standard au ras du bas du panneau
         { x: bounds.x, y: bounds.y + bounds.height - BORDER_THICKNESS, width: bounds.width, height: BORDER_THICKNESS }, // BOTTOM
         { x: bounds.x, y: bounds.y, width: BORDER_THICKNESS, height: bounds.height }, // LEFT
         { x: bounds.x + bounds.width - BORDER_THICKNESS, y: bounds.y, width: BORDER_THICKNESS, height: bounds.height } // RIGHT
     ];
 
-    // Création des 4 bordures si elles n'existent pas
+    // 2. Création des 4 bordures si elles n'existent pas
     if (borderViews.length === 0) {
         for (let i = 0; i < 4; i++) {
             const bView = createSandboxedBrowserView();
             win.addBrowserView(bView);
             
-            // === CORRECTIF CRUCIAL A : Empêche le liseré d'intercepter les clics ===
             bView.webContents.setIgnoreMenuShortcuts(true);
             bView.webContents.userAgent = "InternalBorder";
-            
-            bView.webContents.loadURL("data:text/html," + encodeURIComponent(`
-                <html><body style="margin:0; padding:0; background:#3b82f6; overflow:hidden;"></body></html>
-            `));
             borderViews.push(bView);
         }
     }
 
+    // 3. Mise à jour de la position ET de la couleur en temps réel
     borderLayouts.forEach((layout, index) => {
         const bView = borderViews[index];
         if (bView && !bView.webContents.isDestroyed()) {
-            const current = bView.getBounds();
-            if (
-                current.x !== layout.x ||
-                current.y !== layout.y ||
-                current.width !== layout.width ||
-                current.height !== layout.height
-            ) {
-                bView.setBounds(layout);
-            }
+            bView.setBounds(layout);
+            
+            // ✨ INJECTION DYNAMIQUE : Recharge la couleur appropriée si elle change
+            bView.webContents.loadURL("data:text/html," + encodeURIComponent(`
+                <html><body style="margin:0; padding:0; background:${borderHexColor}; overflow:hidden;"></body></html>
+            `));
         }
     });
 
@@ -795,6 +795,7 @@ function updateActiveBorder(bounds, options) {
         });
     }
 }
+
 
 let handleDraggedPanelId = null;
 
