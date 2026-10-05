@@ -270,6 +270,12 @@ body.fullscreen-toolbar-hidden #fullscreen-reveal-zone {
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35), 0 -2px 0 rgba(59, 130, 246, 0.8) !important;
 }
 
+.url-tab.private-url-tab.active-url-tab {
+    border-color: #7e22ce !important;
+    border-top-color: #7e22ce !important;
+    box-shadow: 0 0 0 2px rgba(126, 34, 206, 0.35), 0 -2px 0 rgba(126, 34, 206, 0.8) !important;
+}
+
 .url-input {
     color: #111827;
     height: 18px !important;
@@ -749,12 +755,15 @@ function refreshTabBorders() {
         const isActiveTab = !!(activePanel && panelId === activePanel);
         const isPrivateTab = !!tabWrapper.querySelector(".incognito-badge");
         tabWrapper.classList.toggle("active-url-tab", isActiveTab);
+        tabWrapper.classList.toggle("private-url-tab", isPrivateTab);
 
         if (isPrivateTab) {
             tabWrapper.style.background = isDark
                 ? (isActiveTab ? "#2a193d" : "#1e112c")
                 : (isActiveTab ? "#ede9fe" : "#f5f3ff");
-            tabWrapper.style.borderColor = isDark ? "#4a2874" : "#c4b5fd";
+            tabWrapper.style.borderColor = isActiveTab
+                ? (isDark ? "#a855f7" : "#7e22ce")
+                : (isDark ? "#4a2874" : "#c4b5fd");
             tabWrapper.style.borderWidth = isActiveTab ? "2px" : "1px";
         } else if (isActiveTab) {
             tabWrapper.style.borderColor = "#3b82f6";
@@ -769,7 +778,9 @@ function refreshTabBorders() {
         }
 
         tabWrapper.style.boxShadow = isActiveTab
-            ? "0 0 0 2px rgba(59,130,246,0.5)"
+            ? (isPrivateTab
+                ? "0 0 0 2px rgba(126,34,206,0.35)"
+                : "0 0 0 2px rgba(59,130,246,0.5)")
             : "none";
 
 
@@ -1029,6 +1040,7 @@ function rebuildUrlBar(panels) {
 
         const tabWrapper = document.createElement("div");
         tabWrapper.className = "url-tab";
+        if (panel.isPrivate) tabWrapper.classList.add("private-url-tab");
 
         const isActive = activePanel === panel.id;
 
@@ -1066,9 +1078,14 @@ function rebuildUrlBar(panels) {
         }
 
         if (isActive) {
-            tabWrapper.style.borderTop = "3px solid #3b82f6";
-            tabWrapper.style.borderColor = "#3b82f6";
-            tabWrapper.style.boxShadow = "0 0 0 2px rgba(59,130,246,0.35), 0 -2px 0 rgba(59,130,246,0.8)";
+            const activeBorderColor = panel.isPrivate
+                ? (isDark ? "#a855f7" : "#7e22ce")
+                : "#3b82f6";
+            tabWrapper.style.borderTop = `3px solid ${activeBorderColor}`;
+            tabWrapper.style.borderColor = activeBorderColor;
+            tabWrapper.style.boxShadow = panel.isPrivate
+                ? "0 0 0 2px rgba(126,34,206,0.35), 0 -2px 0 rgba(126,34,206,0.8)"
+                : "0 0 0 2px rgba(59,130,246,0.35), 0 -2px 0 rgba(59,130,246,0.8)";
         }
 
         // ============================
@@ -1166,7 +1183,7 @@ tabWrapper.appendChild(loadingIndicator);
         addressGroup.style.gap = "4px";
         addressGroup.style.padding = "0 6px";
         addressGroup.style.border = panel.isPrivate
-            ? `1px solid ${isDark ? "#6b21a8" : "#d8b4fe"}`
+            ? `2px solid ${isDark ? "#a855f7" : "#7e22ce"}`
             : (isDark ? "1px solid #3c3c3c" : "1px solid #d1d5db");
         addressGroup.style.borderRadius = "5px";
         addressGroup.style.background = panel.isPrivate

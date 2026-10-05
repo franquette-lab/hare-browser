@@ -1342,15 +1342,17 @@ function findFirstPanel(node) {
     return findFirstPanel(node.first);
 }
 
+// 🛠️ Dans main.js -> Remplacez la fonction collectPanels par celle-ci :
 function collectPanels(node, panels = []) {
     if (!node) return panels;
     if (node.type === "panel") {
         panels.push({ 
             id: node.id,
             url: node.url,
-            realUrl: node.url,
+            realUrl: node.isPrivate && node.isSleeping ? (node.sleepingUrl || node.url) : node.url,
             title: node.title,
-            isPrivate: node.isPrivate,
+            // ✨ CRUCIAL : Assure la transmission exacte du mode privé pour la liste supérieure
+            isPrivate: node.isPrivate === true, 
             searchQuery: node.searchQuery || ""
         });
         return panels;
@@ -1359,6 +1361,7 @@ function collectPanels(node, panels = []) {
     collectPanels(node.second, panels);
     return panels;
 }
+
 
 function collectPanelNodes(node, panels = []) {
     if (!node) return panels;
@@ -1688,34 +1691,34 @@ function setupNavigationTracking(panel) {
     });
 
 
-    panel.view.webContents.on("focus", () => {
-        // Synchronise systématiquement l'onglet renderer lors du focus natif.
-        // Le processus principal et index.html peuvent avoir des états différents
-        // après un clic dans la barre d'adresse; ne pas court-circuiter l'IPC.
-        const panelChanged = activePanel !== panel.id;
-        activePanel = panel.id;
-        
-        if (win && !win.isDestroyed() && win.webContents && !win.webContents.isDestroyed()) {
-            win.webContents.send("active-panel-changed", {
-                id: panel.id,
-                bounds: panel.bounds,
-                selectUrl: false
+// 🛠️ Dans main.js -> À l'intérieur de setupNavigationTracking(), recherchez panel.view.webContents.on("focus", ...) :
+panel.view.webContents.on("focus", () => {
+    panel.lastActivityAt = Date.now();
+
+    const panelChanged = activePanel !== panel.id;
+    activePanel = panel.id;
+    
+    if (win && !win.isDestroyed() && win.webContents && !win.webContents.isDestroyed()) {
+        // ✨ MODIFICATION ICI AUSSI : On ajoute 'isPrivate'
+        win.webContents.send("active-panel-changed", {
+            id: panel.id,
+            bounds: panel.bounds,
+            selectUrl: false,
+            isPrivate: panel.isPrivate === true // 🌟 Transmettre l'état privé
+        });
+
+        if (panelChanged) {
+            win.webContents.send("navigation-state-changed", {
+                panelId: panel.id,
+                canGoBack: panel.view.webContents.navigationHistory.canGoBack(),
+                canGoForward: panel.view.webContents.navigationHistory.canGoForward()
             });
-
-            if (panelChanged) {
-                win.webContents.send("navigation-state-changed", {
-                    panelId: panel.id,
-                    canGoBack: panel.view.webContents.navigationHistory.canGoBack(),
-                    canGoForward: panel.view.webContents.navigationHistory.canGoForward()
-                });
-            }
         }
+    }
 
-        // Le panneau peut déjà être déclaré actif (ex. après l'ouverture de l'aide),
-        // alors que d'autres BrowserViews ont recouvert son liseré. Le réafficher
-        // à chaque focus garantit que le contour correspond toujours au panneau cliqué.
-        updateActiveBorder(panel.bounds);
-    });
+    updateActiveBorder(panel.bounds);
+});
+
 
     panel.view.webContents.on("did-fail-load", (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
         if (!isMainFrame) return;
@@ -3894,33 +3897,32 @@ ipcMain.on("print-panel", (event, panelId) => {
     }
 });
 
+// 🛠️ Dans main.js -> Recherchez l'écouteur "set-active-panel" :
 ipcMain.on("set-active-panel", (event, panelId, options) => {
     const panel = findPanelNode(rootNode, panelId);
     if (!panel) return;
-    if (!win || win.isDestroyed() || !win.webContents || win.webContents.isDestroyed()) return;
-    const keepChromeFocus = options && options.keepChromeFocus;
+    
     if (panel.isSleeping && !keepChromeFocus) {
         wakePanel(panel);
         return;
     }
 
     activePanel = panelId;
+    const keepChromeFocus = options && options.keepChromeFocus;
     
-    // 1. Met à jour le liseré bleu autour du panneau actif
-    win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
-    // Depuis la barre d'URL : déplacer le liseré sans setTopBrowserView
-    // (sinon focus tuile → panels-updated → clignotement de toutes les barres).
+    // ✨ MODIFICATION ICI : On ajoute 'isPrivate' dans le message envoyé à index.html
+    win.webContents.send("active-panel-changed", { 
+        id: panel.id, 
+        bounds: panel.bounds,
+        isPrivate: panel.isPrivate === true // 🌟 Transmettre l'état privé à l'IHM
+    });
+
     updateActiveBorder(panel.bounds, keepChromeFocus ? { skipRaise: true } : undefined);
     
-    // 2. CORRECTIF : Notifie index.html que la liste des panneaux a un nouvel actif
-    // (Cela permet à votre barre d'outils/onglets de savoir quel panneau est sélectionné)
     if (!keepChromeFocus) {
         win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
     }
     
-    // 3. Donne réellement le focus au contenu de la page web
-    // Sauf si le chrome (barre d'URL) demande à garder le focus : sinon
-    // webContents.focus() fait un blur immédiat de l'input (URL courte + pas de sélection).
     if (!keepChromeFocus && panel.view && !panel.view.webContents.isDestroyed()) {
         panel.view.webContents.focus();
     }
