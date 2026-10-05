@@ -516,6 +516,14 @@ l'assistant IA et de gérer le contenu affiché sans quitter le panneau actif.
     <h3>🕵️ Cyber-Sécurité et Navigation Privée</h3>
     <p>Lorsque vous ouvrez une tuile privée, le navigateur instancie une partition en mémoire pure volatile (session <code>incognito</code> isolée). Lors de la fermeture de cette tuile, un script détruit automatiquement toutes les traces locales résiduelles de manière irréversible : cookies, LocalStorage, bases IndexedDB, session et cache d'historique de rendu HTTP de Chromium.</p>
 
+    <h3>🚫 Bloqueur de Publicités & Trackers Intégré</h3>
+    <p>Chaque requête réseau émise par une tuile (qu'elle soit publique ou privée) est analysée à la volée par le processus principal de l'application via l'API <code>webRequest</code> d'Electron.</p>
+    <ul>
+        <li><strong>Vitesse accrue</strong> : Les scripts publicitaires lourds et les images intrusives sont annulés <strong>avant</strong> leur téléchargement.</li>
+        <li><strong>Respect total de la vie privée</strong> : Bloque nativement les mouchards de suivi comportementaux des régies publicitaires majeures.</li>
+        <li><strong>Protection Incognito</strong> : Le filtrage s'applique de manière hermétique sur vos partitions volatiles sans laisser de traces en mémoire.</li>
+    </ul>
+
     <h3>🔑 Gestionnaire de Mots de Passe Sécurisé</h3>
     <p>Vos identifiants et mots de passe enregistrés sont protégés par chiffrement fort. En mode développement ou sur les systèmes cibles compatibles, le navigateur s'appuie sur le module <code>safeStorage</code> pour appliquer un chiffrement asymétrique interne (Alternative Encryption), bloquant toute lecture non autorisée du fichier de stockage par des applications tierces.</p>
 
