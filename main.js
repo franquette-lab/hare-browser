@@ -1662,39 +1662,87 @@ function setupNavigationTracking(panel) {
     panel.view.webContents.on("did-finish-load", async () => {
         // ... (Votre code existant qui injecte le fichier injector.js) ...
 
-        // === CORRECTIF CRUCIAL DE L'AUTOFILL AUTOMATIQUE ===
-        if (!panel.isPrivate) { 
-            const currentUrl = panel.view.webContents.getURL();
+        // === AUTOFILL : choix du compte lorsque plusieurs identifiants existent ===
+        if (!panel.isPrivate) {
+            const targetWebContents = panel.view.webContents;
+            const currentUrl = targetWebContents.getURL();
             try {
-                // Appelle directement la fonction JavaScript locale sans passer par ipcMain.handlers
-                let hostname = "";
-                try {
-                    hostname = new URL(currentUrl).hostname.replace(/^www\./, "");
-                } catch (e) {
-                    hostname = "";
-                }
+                const normalizeHostname = (value) => {
+                    try {
+                        const url = value.includes("://") ? value : `https://${value}`;
+                        return new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+                    } catch {
+                        return "";
+                    }
+                };
 
+                const hostname = normalizeHostname(currentUrl);
                 if (hostname) {
-                    const list = getStoredPasswords(); // Récupère la liste décodée
-                    const matches = list.filter(p => p.url && p.url.includes(hostname));
+                    const matches = getStoredPasswords().filter((entry) =>
+                        entry.url && normalizeHostname(entry.url) === hostname
+                    );
 
-                    if (matches && matches.length > 0) {
-                        const bestMatch = matches[0]; // Prend le premier compte correspondant
-                        
-                        console.log(`[PWD AUTOFILL] Correspondance trouvée pour ${hostname} : ${bestMatch.username}`);
-                        
-                        // Exécute la méthode d'autofill injectée dans le DOM de la tuile web
-                        const fillScript = `
-                            if (window.NanobrowserExecutor && typeof window.NanobrowserExecutor.autofillCredentials === 'function') {
-                                window.NanobrowserExecutor.autofillCredentials("${bestMatch.username}", "${bestMatch.password}");
+                    if (matches.length > 0) {
+                        let selectedCredential = matches[0];
+
+                        if (matches.length > 1) {
+                            const accountLabels = matches.map((entry) =>
+                                entry.username || entry.url || "Compte sans identifiant"
+                            );
+                            const duplicateLabels = new Set(
+                                accountLabels.filter((label, index) => accountLabels.indexOf(label) !== index)
+                            );
+                            const buttons = matches.map((entry, index) =>
+                                duplicateLabels.has(accountLabels[index])
+                                    ? `${accountLabels[index]} · ${entry.url}`
+                                    : accountLabels[index]
+                            );
+                            buttons.push("Annuler");
+
+                            const options = {
+                                type: "question",
+                                title: "Choisir un compte",
+                                message: `Plusieurs identifiants sont enregistrés pour ${hostname}.`,
+                                detail: "Sélectionnez le compte à remplir dans le formulaire.",
+                                buttons,
+                                defaultId: 0,
+                                cancelId: matches.length,
+                                noLink: true
+                            };
+                            const result = win && !win.isDestroyed()
+                                ? await dialog.showMessageBox(win, options)
+                                : await dialog.showMessageBox(options);
+
+                            if (result.response < 0 || result.response >= matches.length) {
+                                selectedCredential = null;
+                            } else {
+                                selectedCredential = matches[result.response];
                             }
-                            void 0;
-                        `;
-                        panel.view.webContents.executeJavaScript(fillScript).catch(() => {});
+                        }
+
+                        // Ne pas remplir une page si elle a changé pendant l'affichage du choix.
+                        const panelIsStillCurrent =
+                            findPanelNode(rootNode, panel.id) === panel &&
+                            panel.view &&
+                            !targetWebContents.isDestroyed() &&
+                            panel.view.webContents === targetWebContents &&
+                            targetWebContents.getURL() === currentUrl;
+
+                        if (selectedCredential && panelIsStillCurrent) {
+                            const injectorPath = path.join(__dirname, "nanobrowser", "injector.js");
+                            if (fs.existsSync(injectorPath)) {
+                                const injectorCode = fs.readFileSync(injectorPath, "utf8");
+                                await targetWebContents.executeJavaScript(injectorCode + "; void 0;");
+                                await targetWebContents.executeJavaScript(
+                                    `window.NanobrowserExecutor?.autofillCredentials?.(${JSON.stringify(selectedCredential.username || "")}, ${JSON.stringify(selectedCredential.password || "")}); void 0;`
+                                );
+                                console.log(`[PWD AUTOFILL] Compte sélectionné pour ${hostname} : ${selectedCredential.username}`);
+                            }
+                        }
                     }
                 }
-            } catch (err) { 
-                console.error("Erreur Autofill résolue :", err); 
+            } catch (err) {
+                console.error("Erreur Autofill :", err);
             }
         }
 
