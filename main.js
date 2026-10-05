@@ -18,6 +18,8 @@ const {
     session
 } = require('electron');
 
+const { extractMainArticleContent } = require('./nanobrowser/readability-light.js');
+
 function createSandboxedBrowserView(options = {}) {
     const webPreferences = options.webPreferences || {};
     return new BrowserView({
@@ -2189,12 +2191,6 @@ ipcMain.on("close-panel", (event, panelId) => {
         maximizedPanelId
     );
 
-    // AJOUTEZ CE LOG DE DIAGNOSTIC À LA TOUTE FIN DE LA FONCTION :
-    setTimeout(async () => {
-        const memory = await process.getProcessMemoryInfo();
-        console.log(`[DIAGNOSTIC RAM] Après fermeture de ${panelId} - RAM du Main Process : ${(memory.private / 1024 / 1024).toFixed(2)} Mo`);
-    }, 1000);
-
 });
 
 ipcMain.on("undo", (event) => {
@@ -2489,7 +2485,7 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
         targetSession = session.fromPartition(privatePartition, { cache: false });
     } else {
         // ✨ PARTAGE INTELLIGENT : Utilise explicitement la session racine globale
-      targetSession = session.defaultSession;
+        targetSession = session.defaultSession;
     }
 
     const viewOptions = {
@@ -3989,12 +3985,12 @@ ipcMain.handle('load-config-from-file', async () => {
                         targetSession = session.fromPartition(`incognito_panel_${Math.random()}`, { cache: false });
                     } else {
                         // ✨ PARTAGE INTELLIGENT : Utilise la session racine globale lors d'un import
-                          targetSession = session.defaultSession;
+                        targetSession = session.defaultSession;
                     }
 
                     const viewOptions = {
                         webPreferences: {
-                            session: targetSession,
+                           session: targetSession,
                             contextIsolation: true,
                             nodeIntegration: false
                         }
@@ -4055,6 +4051,7 @@ ipcMain.handle("nanobrowser-get-context", async () => {
     }
 });
 
+/*
 ipcMain.handle("nanobrowser-ask-ollama", async (event, { prompt, model = "qwen2.5:1.5b" }) => {
     console.log("\n[IA DIAGNOSTIC] Déclenchement de la requête...");
     
@@ -4176,6 +4173,133 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, { prompt, model = "qwen2.
         }
     });
 });
+*/
+
+// Recherchez et remplacez le bloc "nanobrowser-ask-ollama" par cette version RAG Light :
+ipcMain.handle("nanobrowser-ask-ollama", async (event, { prompt, model = "qwen2.5:1.5b" }) => {
+    console.log("\n[IA RAG LIGHT] Déclenchement de la requête optimisée...");
+    
+    if (!activePanel) {
+        console.log("[IA DIAGNOSTIC] Requête rejetée : Aucun panneau n'a le focus.");
+        return "SELECT_PANEL_REQUIRED";
+    }
+    
+    const panel = findPanelNode(rootNode, activePanel);
+    if (!panel || !panel.view) return "Tuile introuvable.";
+
+    let cleanedTextContext = "";
+    let pageTitle = "";
+
+    try {
+        // 1. Déploiement et exécution de l'injecteur DOM
+        const injectorPath = path.join(__dirname, 'nanobrowser', 'injector.js');
+        if (fs.existsSync(injectorPath)) {
+            const scriptCode = fs.readFileSync(injectorPath, 'utf8');
+            await panel.view.webContents.executeJavaScript(scriptCode + "; void 0;");
+        }
+
+        await new Promise(r => setTimeout(r, 50));
+
+        // 2. Récupérer le titre de la page
+        pageTitle = await panel.view.webContents.executeJavaScript("document.title || ''");
+
+        // 3. ✨ EXTRACTION INTELLIGENTE : On exécute l'extraction directement via Chromium
+        // Nous sérialisons la logique de lisibilité pour qu'elle s'exécute dans le contexte de la page web
+        const extractionScript = `
+            (function() {
+                const selectorsToRemove = ['script', 'style', 'noscript', 'iframe', 'canvas', 'svg', 'nav', 'header', 'footer', 'form', 'aside', 'dialog', '.menu', '.sidebar', '.footer', '.header', '.nav', '.comments', '.advertising', '.ads'];
+                const bodyClone = document.body.cloneNode(true);
+                selectorsToRemove.forEach(s => bodyClone.querySelectorAll(s).forEach(el => el.remove()));
+                
+                const priority = bodyClone.querySelectorAll('article, [role="main"], main, .post-content, .entry-content, .article-content');
+                const root = priority.length > 0 ? priority[0] : bodyClone;
+                
+                const nodes = root.querySelectorAll('h1, h2, h3, h4, h5, h6, p, li');
+                let pieces = [];
+                nodes.forEach(n => {
+                    const t = n.innerText ? n.innerText.trim() : "";
+                    if (t.length > 15) pieces.push(t);
+                });
+                return pieces.join('\\n\\n');
+            })();
+        `;
+
+        cleanedTextContext = await panel.view.webContents.executeJavaScript(extractionScript);
+
+        if (!cleanedTextContext || cleanedTextContext.trim().length === 0) {
+            console.log("[IA RAG LIGHT] Extraction ciblée vide, repli sur le texte brut.");
+            cleanedTextContext = await panel.view.webContents.executeJavaScript("document.body.innerText || ''");
+        }
+
+        console.log(`[IA RAG LIGHT] Nettoyage réussi. Contexte épuré fourni au LLM : ${cleanedTextContext.length} caractères.`);
+
+    } catch (err) {
+        console.error("[IA RAG LIGHT] Erreur lors de l'extraction :", err);
+        return `Erreur lors de la lecture de la page web : ${err.message}`;
+    }
+
+    // 4. Traitement et envoi de la requête asynchrone à Ollama avec le contexte de l'article épuré
+    return new Promise((resolve) => {
+        try {
+            let systemInstruction = "";
+            // ✨ PROMPT ENRICHI : L'IA reçoit désormais un flux textuel parfaitement structuré sans bruits de code
+            if (prompt.toLowerCase().includes("résumé") || prompt.toLowerCase().includes("resume")) {
+                systemInstruction = `Tu es un assistant IA intégré au navigateur. Résume l'article suivant de façon claire et concise en 3 points clés, sous forme de tirets textuels.\nTitre de l'article : ${pageTitle}\n\nContenu propre de l'article :\n${cleanedTextContext.substring(0, 5000)}`;
+            } else {
+                systemInstruction = `Tu es un assistant IA intégré au navigateur. Réponds à la question de l'utilisateur en te basant exclusivement sur le contenu épuré de l'article ci-dessous.\nTitre de la page : ${pageTitle}\n\nContenu utile de la page :\n${cleanedTextContext.substring(0, 5000)}`;
+            }
+
+            const postData = JSON.stringify({
+                model: model,
+                prompt: prompt,
+                system: systemInstruction,
+                stream: false
+            });
+
+            console.log(`[IA RAG LIGHT] Envoi du contexte nettoyé à Ollama (${model})...`);
+            const http = getNodeModule("http");
+            
+            const req = http.request({
+                hostname: '127.0.0.1',
+                port: 11434,
+                path: '/api/generate',
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(postData)
+                }
+            }, (res) => {
+                let responseBody = '';
+                res.setEncoding('utf8');
+                res.on('data', (chunk) => responseBody += chunk);
+                res.on('end', () => {
+                    if (res.statusCode < 200 || res.statusCode >= 300) {
+                        resolve(`Erreur Ollama (${res.statusCode})`);
+                        return;
+                    }
+                    try {
+                        const result = JSON.parse(responseBody);
+                        resolve(result.response || "L'IA locale a renvoyé une réponse vide.");
+                    } catch (error) {
+                        resolve(`Réponse Ollama invalide.`);
+                    }
+                });
+            });
+
+            req.setTimeout(120000, () => {
+                req.destroy(new Error('Timeout'));
+            });
+            req.on('error', (error) => resolve(`Impossible de joindre l'IA locale.`));
+
+            req.write(postData);
+            req.end();
+
+        } catch (innerError) {
+            resolve(`Erreur interne : ${innerError.message}`);
+        }
+    });
+});
+
 
 // L'interface IA demande à exécuter une action (ex: cliquer sur un bouton)
 ipcMain.handle("nanobrowser-execute-action", async (event, { actionType, argument }) => {
@@ -4340,14 +4464,30 @@ app.on('will-quit', () => {
     globalShortcut.unregisterAll();
 });
 
-//app.whenReady().then(createWindow);
-
+/*
 // ✨ LOG DE DIAGNOSTIC DE PROD : Afficher la RAM totale toutes les 10 secondes dans le terminal
 app.whenReady().then(() => {
-    setInterval(async () => {
+
+    setInterval(() => {
+
         if (!win || win.isDestroyed()) return;
-        const memory = await process.getProcessMemoryInfo();
-        console.log(`[DIAGNOSTIC RAM GLOBAL] Empreinte du processus principal : ${(memory.private / 1024 / 1024).toFixed(2)} Mo`);
-    }, 10000); // 10 secondes
+
+        // 1. Récupérer les métriques de TOUS les processus actifs d'Electron
+        const metrics = app.getAppMetrics();
+        
+        // 2. Additionner la mémoire de chaque processus (convertie en Mo)
+        let totalWorkingSetMemory = 0;
+        metrics.forEach(proc => {
+            totalWorkingSetMemory += proc.memory.workingSetSize;
+        });
+        
+        const totalMemoryMo = (totalWorkingSetMemory / 1024).toFixed(2);
+        const activeProcessesCount = metrics.length;
+
+        console.log(`[DIAGNOSTIC RAM REEL] Total application : ${totalMemoryMo} Mo | Processus actifs : ${activeProcessesCount}`);
+    }, 10000); // Toutes les 10 secondes
+
     createWindow(); 
 });
+*/
+app.whenReady().then(createWindow);
