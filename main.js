@@ -146,6 +146,10 @@ function getThemePath() {
     return path.join(appDataPath, 'theme.json');
 }
 
+function getSessionLayoutPath() {
+    return path.join(appDataPath, 'last-session-layout.json');
+}
+
 // Stockage des 4 bordures bleues
 let borderViews = []; 
 
@@ -1158,6 +1162,153 @@ function createSnapshot(node) {
     };
 }
 
+function getPersistablePanelUrl(panel) {
+    if (!panel || panel.isPrivate) return getHomePageUrl();
+
+    const currentUrl = panel.isSleeping
+        ? (panel.sleepingUrl || panel.url)
+        : (panel.view?.webContents && !panel.view.webContents.isDestroyed()
+            ? panel.view.webContents.getURL()
+            : panel.url);
+
+    try {
+        const parsedUrl = new URL(currentUrl);
+        if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
+            parsedUrl.username = "";
+            parsedUrl.password = "";
+            return parsedUrl.href;
+        }
+        if (parsedUrl.protocol === "file:") {
+            const filePath = getNodeModule("url").fileURLToPath(parsedUrl);
+            const relativePath = path.relative(__dirname, filePath);
+            if (relativePath && !relativePath.startsWith(`..${path.sep}`) && relativePath !== ".." && !path.isAbsolute(relativePath)) {
+                return parsedUrl.href;
+            }
+            if (filePath === __filename) return parsedUrl.href;
+        }
+        if (parsedUrl.protocol === "about:" && parsedUrl.href === "about:blank") return "about:blank";
+    } catch {}
+
+    // Ne jamais conserver les pages data:, qui peuvent contenir des données de formulaire.
+    return getHomePageUrl();
+}
+
+function createPersistedSessionSnapshot(node) {
+    if (!node) return null;
+    if (node.type === "panel") {
+        return {
+            type: "panel",
+            id: node.id,
+            url: getPersistablePanelUrl(node),
+            isPrivate: false
+        };
+    }
+    return {
+        type: "split",
+        direction: node.direction,
+        ratio: node.ratio,
+        first: createPersistedSessionSnapshot(node.first),
+        second: createPersistedSessionSnapshot(node.second)
+    };
+}
+
+let sessionSaveTimer = null;
+
+function persistSessionLayout() {
+    if (!rootNode) return;
+    try {
+        const snapshot = {
+            version: 1,
+            activePanelId: activePanel,
+            tree: createPersistedSessionSnapshot(rootNode)
+        };
+        fs.writeFileSync(getSessionLayoutPath(), JSON.stringify(snapshot, null, 2), "utf-8");
+    } catch (error) {
+        console.error("Erreur de sauvegarde automatique de la disposition :", error);
+    }
+}
+
+function scheduleSessionLayoutSave() {
+    if (sessionSaveTimer) clearTimeout(sessionSaveTimer);
+    sessionSaveTimer = setTimeout(() => {
+        sessionSaveTimer = null;
+        persistSessionLayout();
+    }, 400);
+}
+
+function validatePersistedTree(node, depth = 0, panelCounter = { count: 0 }) {
+    if (!node || depth > 32) return false;
+    if (node.type === "panel") {
+        panelCounter.count += 1;
+        if (panelCounter.count > 32 || typeof node.id !== "string" || !/^panel\d+$/.test(node.id)) return false;
+        panelCounter.ids ||= new Set();
+        if (panelCounter.ids.has(node.id)) return false;
+        panelCounter.ids.add(node.id);
+        return true;
+    }
+    return node.type === "split" &&
+        (node.direction === "vertical" || node.direction === "horizontal") &&
+        Number.isFinite(node.ratio) && node.ratio >= 0.1 && node.ratio <= 0.9 &&
+        validatePersistedTree(node.first, depth + 1, panelCounter) &&
+        validatePersistedTree(node.second, depth + 1, panelCounter);
+}
+
+async function restorePersistedSession() {
+    let storedSession;
+    try {
+        storedSession = JSON.parse(await fsPromises.readFile(getSessionLayoutPath(), "utf-8"));
+    } catch {
+        return false;
+    }
+    if (storedSession?.version !== 1 || !validatePersistedTree(storedSession.tree)) return false;
+
+    let maxPanelNumber = 0;
+    const restoreNode = async (savedNode) => {
+        if (savedNode.type === "panel") {
+            const id = /^panel\d+$/.test(savedNode.id) ? savedNode.id : `panel${++maxPanelNumber}`;
+            const idNumber = Number(id.slice(5));
+            if (Number.isFinite(idNumber)) maxPanelNumber = Math.max(maxPanelNumber, idNumber);
+            const view = createSandboxedBrowserView({
+                webPreferences: { session: session.defaultSession }
+            });
+            win.addBrowserView(view);
+            const restoreUrl = getPersistablePanelUrl({ url: savedNode.url, isPrivate: false });
+            const panel = new PanelNode(id, view, restoreUrl, false);
+            setupNavigationTracking(panel);
+            try {
+                await view.webContents.loadURL(panel.url);
+                applyThemeToView(view);
+            } catch (error) {
+                console.error(`Échec de restauration du panneau ${id} :`, error);
+                panel.url = getHomePageUrl();
+                await view.webContents.loadURL(panel.url).catch(() => {});
+            }
+            return panel;
+        }
+
+        const split = new SplitNode(savedNode.direction);
+        split.ratio = savedNode.ratio;
+        split.first = await restoreNode(savedNode.first);
+        split.second = await restoreNode(savedNode.second);
+        return split;
+    };
+
+    try {
+        rootNode = await restoreNode(storedSession.tree);
+        nextPanelNumber = Math.max(nextPanelNumber, maxPanelNumber + 1);
+        maximizedPanelId = null;
+        const savedActivePanel = findPanelNode(rootNode, storedSession.activePanelId);
+        activePanel = savedActivePanel ? savedActivePanel.id : findFirstPanel(rootNode).id;
+        forceRebuildSplitters = true;
+        resizeViews();
+        updateNavigationButtons();
+        return true;
+    } catch (error) {
+        console.error("Erreur de restauration de la dernière session :", error);
+        return false;
+    }
+}
+
 function saveState() {
     history.push(JSON.stringify(createSnapshot(rootNode)));
     if (history.length > 20) history.shift();
@@ -1465,6 +1616,7 @@ function updatePanelUrl(panel, url) {
     if (previousUrl === nextUrl) return;
 
     win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
+    scheduleSessionLayoutSave();
 }
 
 function updateNavigationButtons() {
@@ -1803,6 +1955,7 @@ panel.view.webContents.on("focus", () => {
 
     const panelChanged = activePanel !== panel.id;
     activePanel = panel.id;
+    if (panelChanged) scheduleSessionLayoutSave();
     
     if (win && !win.isDestroyed() && win.webContents && !win.webContents.isDestroyed()) {
         // ✨ MODIFICATION ICI AUSSI : On ajoute 'isPrivate'
@@ -2948,7 +3101,9 @@ async function createWindow() {
         win.webContents.send("app-title", APP_TITLE);
     });
 
-    await createDefaultLayout();
+    if (!(await restorePersistedSession())) {
+        await createDefaultLayout();
+    }
 
     collectPanelNodes(rootNode).forEach(panel => {
         if (
@@ -3343,7 +3498,7 @@ async function createWindow() {
                             cancelId: 1,
                             title: 'Confirmation',
                             message: `Êtes-vous sûr de vouloir fermer ${APP_TITLE} ?`, // === DYNAMIQUE ICI ===
-                            detail: 'Tous vos panneaux et onglets ouverts seront perdus.'
+                            detail: 'La disposition sera sauvegardée automatiquement pour la prochaine ouverture.'
                         });
                         if (response === 0) {
                             app.exit(0); 
@@ -3570,11 +3725,16 @@ async function createWindow() {
             cancelId: 1,  
             title: 'Confirmation',
             message: `Êtes-vous sûr de vouloir fermer ${APP_TITLE} ?`,
-            detail: 'Tous vos panneaux et onglets ouverts seront perdus.'
+            detail: 'La disposition sera sauvegardée automatiquement pour la prochaine ouverture.'
         });
 
         // Seul l'index 0 ("Oui, quitter") détruit la fenêtre
         if (response === 0) {
+            if (sessionSaveTimer) {
+                clearTimeout(sessionSaveTimer);
+                sessionSaveTimer = null;
+            }
+            persistSessionLayout();
             win.destroy(); 
         } else {
             // 🌟 RESTAURATION : Si l'utilisateur annule, on remet le "Always on Top" pour garder le comportement d'origine
@@ -3968,6 +4128,7 @@ function resizeViews() {
     updatePanelHandles();
     win.webContents.send("splitters-updated", serializableSplitters);
     win.webContents.send("zoom-changed", maximizedPanelId); 
+    scheduleSessionLayoutSave();
 }
 
 
@@ -4031,6 +4192,7 @@ ipcMain.on("set-active-panel", (event, panelId, options) => {
     }
 
     activePanel = panelId;
+    scheduleSessionLayoutSave();
     const keepChromeFocus = options && options.keepChromeFocus;
     
     // ✨ MODIFICATION ICI : On ajoute 'isPrivate' dans le message envoyé à index.html
@@ -4056,6 +4218,7 @@ ipcMain.on("set-active-panel-from-handle", (event, panelId) => {
     const panel = findPanelNode(rootNode, panelId);
     if (!panel) return;
     activePanel = panelId;
+    scheduleSessionLayoutSave();
     win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
     updateActiveBorder(panel.bounds);
 });
@@ -4637,6 +4800,11 @@ ipcMain.handle("refresh", (event, panelId) => {
 });
 
 app.on('will-quit', () => {
+    if (sessionSaveTimer) {
+        clearTimeout(sessionSaveTimer);
+        sessionSaveTimer = null;
+    }
+    persistSessionLayout();
     globalShortcut.unregisterAll();
 });
 
