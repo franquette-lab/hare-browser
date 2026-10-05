@@ -20,6 +20,35 @@ const {
 
 const { extractMainArticleContent } = require('./nanobrowser/readability-light.js');
 
+
+/**
+ * Active le filtre publicitaire sur une session Electron spécifique.
+ * @param {Session} targetSession - La session d'un panneau public ou privé.
+ */
+function enableAdBlockerForSession(targetSession) {
+    if (!targetSession || !targetSession.webRequest) return;
+
+    // Filtre toutes les requêtes initiées par les protocoles HTTP/HTTPS
+    const filter = { urls: ['http://*/*', 'https://*/*'] };
+
+    targetSession.webRequest.onBeforeRequest(filter, (details, callback) => {
+        const url = details.url.toLowerCase();
+        
+        // Vérifie si l'URL contient l'un des filtres de la liste noire
+        const shouldBlock = AD_BLOCKLIST.some(pattern => url.includes(pattern));
+
+        if (shouldBlock) {
+            console.log(`[ADBLOCK] Requête bloquée avec succès : ${details.url}`);
+            // Annule le chargement de la ressource publicitaire avant son départ
+            callback({ cancel: true });
+        } else {
+            // Laisse passer la requête légitime
+            callback({ cancel: false });
+        }
+    });
+}
+
+
 function createSandboxedBrowserView(options = {}) {
     const webPreferences = options.webPreferences || {};
     return new BrowserView({
@@ -47,9 +76,25 @@ if (typeof safeStorage.setUseAlternativeEncryption === 'function') {
     safeStorage.setUseAlternativeEncryption(true);
 }
 
-// En haut de main.js avec vos autres variables globales
 const APP_TITLE = "Hare Browser";
 const SEARCH_ENGINE_HOST = "129.151.254.175";
+
+// === CONFIGURATION DU BLOQUEUR DE PUBLICITÉS (ADBLOCKER) ===
+// Liste de blocage simplifiée (Hôtes et mots-clés de trackers/pubs connus)
+const AD_BLOCKLIST = [
+    'googlesyndication.com',
+    'google-analytics.com',
+    'doubleclick.net',
+    'adservice.google',
+    '://twitter.com',
+    'connect.facebook.net',
+    'scorecardresearch.com',
+    '/ads/',
+    '/adserver/',
+    'tracking'
+];
+
+
 
 // Les modules Node sont chargés au premier accès, puis conservés en cache.
 const nodeModuleCache = new Map();
@@ -363,11 +408,24 @@ function getPasswordsPath() {
 }
 
 // Forçage de l'encryption alternative (à placer juste avant app.whenReady())
+/*
 app.on('ready', () => {
     if (safeStorage && typeof safeStorage.setUseAlternativeEncryption === 'function') {
         safeStorage.setUseAlternativeEncryption(true);
     }
 });
+*/
+// Forçage de l'encryption alternative et initialisation de l'adblocker global
+app.on('ready', () => {
+    if (safeStorage && typeof safeStorage.setUseAlternativeEncryption === 'function') {
+        safeStorage.setUseAlternativeEncryption(true);
+    }
+    
+    // 🔥 Activation du bloqueur sur la session par défaut (tuiles classiques)
+    enableAdBlockerForSession(session.defaultSession);
+});
+
+
 
 function getStoredPasswords() {
     try {
@@ -2471,9 +2529,6 @@ app.on('web-contents-created', (event, webContents) => {
 
 
 
-
-
-
 // ====== DANS MAIN.JS -> ipcMain.on("split-panel", ...) ======
 ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
 
@@ -2482,16 +2537,20 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
 
     const newPanelId = "panel" + nextPanelNumber++;
 
-    // Configuration de la session : session dédiée si incognito, sinon session par défaut partagée
+
+
+
     let targetSession;
     if (isPrivate) {
         const privatePartition = `incognito_${newPanelId}`;
         targetSession = session.fromPartition(privatePartition, { cache: false });
+        
+        // 🔥 Activation du bloqueur sur cette nouvelle session privée
+        enableAdBlockerForSession(targetSession);
     } else {
-        // ✨ PARTAGE INTELLIGENT : Utilise explicitement la session racine globale
         targetSession = session.defaultSession;
     }
-
+	
     const viewOptions = {
         webPreferences: {
             session: targetSession, // ✨ Forcé pour toutes les tuiles publiques
@@ -2730,6 +2789,22 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
     win.webContents.send("active-panel-changed", { id: newPanel.id, bounds: newPanel.bounds });
     updateActiveBorder(newPanel.bounds);
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 async function createDefaultLayout() {
 
