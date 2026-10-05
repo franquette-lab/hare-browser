@@ -3617,6 +3617,9 @@ function detachPanelToFullscreen(panelId) {
 
 
 
+
+
+
 function resizeViews() {
     if (!win || win.isDestroyed()) return;
     const bounds = win.getContentBounds();
@@ -3647,7 +3650,6 @@ function resizeViews() {
         width = width - SIDEBAR_WIDTH;
     }
 
-    // Le reste de votre fonction reste STRICTEMENT identique...
     layoutNode(rootNode, 0, TOOLBAR_HEIGHT, width, height - TOOLBAR_HEIGHT);
 
     while (splitterViews.length > splitters.length) {
@@ -3661,27 +3663,80 @@ function resizeViews() {
 
     // 3. Positionnement des splitters
     splitters.forEach((splitter, index) => {
-        if (splitterViews[index]) {
-            splitterViews[index].setBounds({ x: splitter.x, y: splitter.y, width: splitter.width, height: splitter.height });
-            return;
-        }
-
         const cursor = splitter.direction === "vertical" ? "col-resize" : "row-resize";
         const handleDirection = splitter.direction === "vertical" ? "column" : "row";
 
+        let splitterView;
 
-        const splitterView = createSandboxedBrowserView();
+        // Si la BrowserView du splitter existe déjà à cet index, on réutilise et met à jour ses dimensions
+        if (splitterViews[index]) {
+            splitterView = splitterViews[index];
+            splitterView.setBounds({ x: splitter.x, y: splitter.y, width: splitter.width, height: splitter.height });
+            return;
+        }
+
+        // Sinon, on instancie une nouvelle BrowserView sandboxée
+        splitterView = createSandboxedBrowserView();
         win.addBrowserView(splitterView);
         splitterViews.push(splitterView);
 
         splitterView.setBounds({ x: splitter.x, y: splitter.y, width: splitter.width, height: splitter.height });
         splitterView.webContents.loadURL("data:text/html," + encodeURIComponent(`
             <html><head><style>
-            html, body { margin: 0; padding: 0; overflow: hidden !important; }
-            body { box-sizing: border-box; background: ${splitterBg}; display: flex; align-items: center; justify-content: center; cursor: ${cursor}; }
-            #handle { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: ${handleDirection}; gap: 2px; }  
-            body:hover { background: ${splitterHover}; }
-            .dot { display: block; width: 3px; height: 3px; background: ${splitterDots}; border-radius: 50%; }
+            html, body { margin: 0; padding: 0; overflow: hidden !important; width: 100%; height: 100%; }
+            
+            body { 
+                box-sizing: border-box; 
+                background: ${splitterBg}; 
+                display: flex; 
+                align-items: center; 
+                justify-content: center; 
+                cursor: ${cursor}; 
+                /* ✨ TRANSITION FLUIDE : Anime la couleur de fond du splitter */
+                transition: background 0.22s ease-in-out;
+            }
+            
+            /* ✨ EFFET SURVOL DU SPLITTER : Changement de couleur fluide */
+            body:hover { 
+                background: ${splitterHover}; 
+            }
+            
+            #handle { 
+                position: absolute; 
+                top: 50%; 
+                left: 50%; 
+                transform: translate(-50%, -50%); 
+                display: flex; 
+                flex-direction: ${handleDirection}; 
+                gap: 2.5px; 
+                padding: 4px;
+                border-radius: 4px;
+                background: transparent;
+                /* ✨ TRANSITION : Prépare l'élargissement visuel de la zone des points */
+                transition: background 0.2s ease-in-out;
+            }
+            
+            /* ✨ ÉPAISSISSEMENT VISUEL AU SURVOL : Donne une sensation d'accroche */
+            body:hover #handle {
+                background: ${isDarkModeForced ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)"};
+            }
+
+            .dot { 
+                display: block; 
+                width: 3px; 
+                height: 3px; 
+                background: ${splitterDots}; 
+                border-radius: 50%; 
+                /* ✨ TRANSITION UNIDIRECTIONNELLE : Permet un grossissement fluide */
+                transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s;
+            }
+            
+            /* ✨ ANIMATION MAGIQUE : Fait grossir les 3 points de 40% au survol */
+            body:hover .dot { 
+                transform: scale(1.4);
+                background: ${isDarkModeForced ? "#ffffff" : "#4b5563"};
+            }
+            
             </style></head><body>
             <div id="handle"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
             <script>
@@ -3740,13 +3795,12 @@ function resizeViews() {
     const serializableSplitters = splitters.map(({ node, ...splitter }) => splitter);
     win.webContents.send("splitters-updated", serializableSplitters);
 
-    // 4. Mettre à jour la position des liserés bleus (Placé tout à la fin de resizeViews)
+    // 4. Mettre à jour la position des liserés bleus
     if (activePanel) {
         const activeNode = findPanelNode(rootNode, activePanel);
         if (activeNode) {
             let targetBounds = null;
 
-            // === REMPLACER PAR CE CODE CORRECTIF ===
             if (maximizedPanelId) {
                 if (activePanel === maximizedPanelId) {
                     const bounds = win.getContentBounds();
@@ -3758,7 +3812,6 @@ function resizeViews() {
                     };
                 }
             } else if (activeNode && activeNode.bounds) {
-                // Mode mosaïque standard : On aligne le liseré EXACTEMENT sur les dimensions calculées pour le panneau
                 targetBounds = {
                     x: activeNode.bounds.x,
                     y: activeNode.bounds.y,
@@ -3769,9 +3822,7 @@ function resizeViews() {
 
             if (targetBounds) {
                 updateActiveBorder(targetBounds);
-                
             } else {
-                // Cache les liserés si le panneau actif fait partie des panneaux masqués
                 borderViews.forEach(bView => {
                     if (bView && !bView.webContents.isDestroyed()) {
                         bView.setBounds({ x: -100, y: -100, width: 0, height: 0 });
@@ -3787,13 +3838,12 @@ function resizeViews() {
         });
     }
 
-    // === On force le rafraîchissement des poignées de déplacement ===
     updatePanelHandles();
     win.webContents.send("splitters-updated", serializableSplitters);
-    
-    // === SÉCURITÉ : On renvoie l'état du zoom ici aussi ===
     win.webContents.send("zoom-changed", maximizedPanelId); 
 }
+
+
 
 function moveActivePanelKeyboard(direction) {
     if (!activePanel || maximizedPanelId) return; // Désactivé si un panneau est zoomé
