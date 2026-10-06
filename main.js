@@ -278,31 +278,41 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
                 }
             }
         },
+
+
+
+
         { type: "separator" },
-        {
-            label: isZoomActive ? "🧱 Agencement (Désactivé en mode Zoom)" : "🧱 Agencement de la mosaïque",
-            enabled: false
-        },
-        {
-            label: "   ✂️ Scinder verticalement (Ctrl+T)",
-            enabled: !isZoomActive, // NOUVEAU : Grisé si zoom actif
-            click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', false)
-        },
-        {
-            label: "   ⚍ Scinder horizontalement (Ctrl+H)",
-            enabled: !isZoomActive, // NOUVEAU : Grisé si zoom actif
-            click: () => ipcMain.emit('split-panel', null, panelId, 'horizontal', false)
-        },
-        {
-            label: isPrivate ? "   🕵️ Ouvrir une tuile publique classique" : "   🕵️ Scinder en Navigation Privée (Ctrl+Shift+N)",
-            enabled: !isZoomActive, // NOUVEAU : Grisé si zoom actif
-            click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', !isPrivate)
-        },
-        { type: "separator" },
-        {
-            label: "📌 Gestion du panneau",
-            enabled: false
-        },
+
+
+
+
+// ... [dans le tableau menuTemplate de afficherMenuContextuelPanneau] ...
+{
+    label: isPrivate ? "   🕵️ Ouvrir une tuile publique classique" : "   🕵️ Scinder en Navigation Privée (Ctrl+Shift+N)",
+    enabled: !isZoomActive,
+    click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', !isPrivate)
+},
+{
+    label: "   📐 Égaliser les dimensions des tuiles (Ctrl+Shift+R)",
+    enabled: !isZoomActive, // Grisé si le mode zoom/maximisé est actif
+    click: () => {
+        if (!rootNode) return;
+        saveState(); // Permet d'annuler avec Ctrl+Z
+        resetTreeRatiosEqual(rootNode); // Applique les ratios 0.5
+        forceRebuildSplitters = true;
+        resizeViews(); // Recalcule la mosaïque
+    }
+},
+{ type: "separator" },
+{
+    label: "📌 Gestion du panneau",
+    enabled: false
+},
+
+
+
+
         {
             label: maximizedPanelId === panelId ? "   🗗 Restaurer la taille de la mosaïque (Échap)" : "    🗖 Maximiser cette tuile (Ctrl+M)",
             click: () => {
@@ -2149,6 +2159,26 @@ ipcMain.handle('pwd-find-for-url', (event, targetUrl) => {
     }
 });
 
+
+// Écouteur pour intercepter le clic sur le bouton 📐 de l'IHM
+ipcMain.on("equalize-mosaic-request", () => {
+    if (!rootNode) return;
+
+    // 1. Sauvegarde l'état actuel dans le système d'historique (permet Ctrl+Z)
+    saveState();
+
+    // 2. Parcourt l'arbre binaire et applique le ratio 0.5 partout
+    resetTreeRatiosEqual(rootNode); 
+
+    // 3. Force Electron à reconstruire les séparateurs et rafraîchir l'affichage
+    forceRebuildSplitters = true;
+    resizeViews();
+
+    console.log("[Mosaïque] Ratios égalisés via le bouton de la barre d'outils.");
+});
+
+
+
 ipcMain.on("show-url-context-menu", (event) => {
     const menu = Menu.buildFromTemplate([
 //      { role: "undo", label: "Annuler" },
@@ -3156,6 +3186,27 @@ async function createWindow() {
                 */
 
                 {
+                    label: 'Réinitialiser la mosaïque à tailles égales',
+                    accelerator: 'CmdOrCtrl+Shift+R',
+                    click: () => {
+                        if (!rootNode) return;
+
+                        // 1. Sauvegarde l'état actuel dans l'historique pour permettre un Ctrl+Z
+                        saveState();
+
+                        // 2. Parcourt l'arbre et égalise tous les ratios
+                        resetTreeRatiosEqual(rootNode);
+
+                        // 3. Force Electron à recalculer et ré-afficher les vues web instantanément
+                        forceRebuildSplitters = true;
+                        resizeViews();
+
+                        console.log("[Mosaïque] Ratios réinitialisés à parts égales.");
+                    }
+                },
+
+
+                {
                     label: 'Afficher / Masquer le volet de l\'assistant IA',
                     accelerator: 'CmdOrCtrl+Shift+A',
                     click: () => {
@@ -3901,6 +3952,21 @@ function detachPanelToFullscreen(panelId) {
 
 
 
+/**
+ * Parcourt récursivement l'arbre binaire des fractionnements
+ * et réinitialise tous les ratios à 0.5 (tailles égales).
+ * @param {Object} node - Le nœud actuel de l'arbre (SplitNode ou PanelNode)
+ */
+function resetTreeRatiosEqual(node) {
+    if (!node || node.type !== "split") return;
+
+    // Réinitialise le ratio actuel au centre parfait (50/50)
+    node.ratio = 0.5;
+
+    // Continue le parcours récursif sur les enfants gauches/droits ou hauts/bas
+    resetTreeRatiosEqual(node.first);
+    resetTreeRatiosEqual(node.second);
+}
 
 
 

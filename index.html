@@ -568,6 +568,9 @@ html.dark #pwd-modal {
     <!-- Remplacement dans la barre d'outils de index.html -->
     <button id="split-private-vertical" title="Ouvrir une tuile privée à droite  (Ctrl+Shift+N)" style="width:28px; height:24px; background:#2d2d30; color:#c084fc; border:1px solid #3c3c3c; font-size:13px; cursor:pointer;">🕵️</button>
 
+    <!-- Ajoutez le bouton dans votre conteneur de boutons existant -->
+    <button id="btn-equalize-mosaic" title="Égaliser les dimensions des tuiles (Ctrl+Shift+R)">📐</button>
+
     <!-- Scindage vertical : Deux barres verticales simples -->
     <button id="split-vertical" title="Scinder à droite (Ctrl+T)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; font-weight:bold; cursor:pointer;">|</button>
     
@@ -716,6 +719,12 @@ let darkModeEnabled = false;
                 });
             }
         });
+
+
+document.getElementById('btn-equalize-mosaic').addEventListener('click', () => {
+    // Appelle la fonction exposée par le preload
+    window.api.equalizeMosaic(); 
+});
 
 
 

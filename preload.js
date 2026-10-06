@@ -109,6 +109,8 @@ onActivePanelChanged: (callback) => {
         },
 */
 
+        equalizeMosaic: () => ipcRenderer.send("equalize-mosaic-request"),
+
         // Remplacement dans preload.js pour un durcissement total :
         onSystemThemeChanged: (callback) => {
             ipcRenderer.on("system-theme-changed", (_, isDark) => callback(isDark));
