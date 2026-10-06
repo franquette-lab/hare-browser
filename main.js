@@ -4463,147 +4463,28 @@ ipcMain.handle("nanobrowser-get-context", async () => {
     }
 });
 
-/*
-ipcMain.handle("nanobrowser-ask-ollama", async (event, { prompt, model = "qwen2.5:1.5b" }) => {
-    console.log("\n[IA DIAGNOSTIC] Déclenchement de la requête...");
-    
-    if (!activePanel) {
-        console.log("[IA DIAGNOSTIC] Requête rejetée : Aucun panneau n'a le focus.");
-        return "SELECT_PANEL_REQUIRED";
-    }
-    
-    console.log("[IA DIAGNOSTIC] Tuile active ciblée :", activePanel);
-    const panel = findPanelNode(rootNode, activePanel);
-    if (!panel || !panel.view) return "Tuile introuvable.";
 
-    // Déclaration de la variable en dehors de la Promesse pour y avoir accès partout
-    let pageContent = null;
-
-    try {
-        // 1. Déploiement et exécution de l'injecteur DOM
-        const injectorPath = path.join(__dirname, 'nanobrowser', 'injector.js');
-        if (fs.existsSync(injectorPath)) {
-            const scriptCode = fs.readFileSync(injectorPath, 'utf8');
-            await panel.view.webContents.executeJavaScript(scriptCode + "; void 0;");
-            console.log("[IA DIAGNOSTIC] Injecteur de texte déployé.");
-        }
-
-        // Un micro-délai pour laisser le moteur Chromium enregistrer l'objet dans le scope window
-        await new Promise(r => setTimeout(r, 50));
-
-        // 2. Récupération sécurisée du contenu textuel du DOM
-        pageContent = await panel.view.webContents.executeJavaScript(`
-            (function() {
-                if (window.NanobrowserExecutor && typeof window.NanobrowserExecutor.getPageContent === 'function') {
-                    return window.NanobrowserExecutor.getPageContent();
-                }
-                // Secours direct si l'objet window a sauté ou n'est pas prêt :
-                return {
-                    text: document.body.innerText || "",
-                    url: window.location.href || "",
-                    title: document.title || ""
-                };
-            })();
-        `);
-
-        if (!pageContent || !pageContent.text) {
-            console.log("[IA DIAGNOSTIC] Échec de l'extraction du texte.");
-            return "Impossible de lire le texte de la page courante.";
-        }
-        console.log("[IA DIAGNOSTIC] Contenu capturé avec succès (Longueur :", pageContent.text.length, "caractères).");
-
-    } catch (err) {
-        console.error("[IA DIAGNOSTIC] Erreur lors de l'extraction de la page :", err);
-        return `Erreur lors de la lecture de la page web : ${err.message}`;
-    }
-
-    // 3. Traitement et envoi de la requête asynchrone à Ollama
-    return new Promise((resolve) => {
-        try {
-            let systemInstruction = "";
-            if (prompt.toLowerCase().includes("résumé") || prompt.toLowerCase().includes("resume")) {
-                systemInstruction = `Tu es un assistant IA. Résume la page web suivante de façon concise en 3 points clés.\nTitre : ${pageContent.title}\nContenu : ${pageContent.text.substring(0, 5000)}`;
-            } else {
-                systemInstruction = `Tu es un assistant IA intégré au navigateur. Réponds à la question de l'utilisateur en utilisant les informations de la page web courante si nécessaire.\nTitre de la page : ${pageContent.title}\nContenu de la page : ${pageContent.text.substring(0, 5000)}`;
-            }
-
-            const postData = JSON.stringify({
-                model: model,
-                prompt: prompt,
-                system: systemInstruction,
-                stream: false
-            });
-
-            console.log(`[IA DIAGNOSTIC] Envoi de la requête HTTP à Ollama avec le modèle ${model}...`);
-            const http = getNodeModule("http");
-            
-            const req = http.request({
-                hostname: '127.0.0.1',
-                port: 11434,
-                path: '/api/generate',
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Content-Length': Buffer.byteLength(postData)
-                }
-            }, (res) => {
-                let responseBody = '';
-                res.setEncoding('utf8');
-                res.on('data', (chunk) => {
-                    responseBody += chunk;
-                });
-                res.on('end', () => {
-                    if (res.statusCode < 200 || res.statusCode >= 300) {
-                        resolve(`Erreur Ollama (${res.statusCode}) : ${responseBody || res.statusMessage}`);
-                        return;
-                    }
-
-                    try {
-                        const result = JSON.parse(responseBody);
-                        resolve(result.response || "L'IA locale a renvoyé une réponse vide.");
-                    } catch (error) {
-                        resolve(`Réponse Ollama invalide : ${error.message}`);
-                    }
-                });
-            });
-
-            req.setTimeout(120000, () => {
-                console.log("[IA DIAGNOSTIC] ERREUR : Temps d'attente dépassé (Timeout).");
-                req.destroy(new Error('Délai d’attente dépassé'));
-            });
-            req.on('error', (error) => {
-                console.error("[IA DIAGNOSTIC] Erreur de requête Ollama :", error);
-                resolve(`Impossible de joindre Ollama : ${error.message}`);
-            });
-
-            req.write(postData);
-            req.end();
-
-        } catch (innerError) {
-            console.error("[IA DIAGNOSTIC] Erreur interne dans la promesse Ollama :", innerError);
-            resolve(`Erreur interne de traitement : ${innerError.message}`);
-        }
-    });
-});
-*/
-
-// Recherchez et remplacez le bloc "nanobrowser-ask-ollama" par cette version RAG Light :
 ipcMain.handle("nanobrowser-ask-ollama", async (event, { prompt, model = "qwen2.5:1.5b" }) => {
     console.log("\n[IA RAG LIGHT] Déclenchement de la requête optimisée...");
     
     if (!activePanel) {
-        console.log("[IA DIAGNOSTIC] Requête rejetée : Aucun panneau n'a le focus.");
         return "SELECT_PANEL_REQUIRED";
     }
     
     const panel = findPanelNode(rootNode, activePanel);
     if (!panel || !panel.view) return "Tuile introuvable.";
 
-    let cleanedTextContext = "";
-    let pageTitle = "";
+    // 1. Activer immédiatement l'indicateur de chargement natif et de l'IHM
+    if (win && !win.isDestroyed()) {
+        win.setProgressBar(2, { mode: 'indeterminate' }); 
+        win.webContents.send("ai-loading-state", true);
+    }
 
     try {
-        // 1. Déploiement et exécution de l'injecteur DOM
+        let cleanedTextContext = "";
+        let pageTitle = "";
+
+        // Déploiement et exécution de l'injecteur DOM
         const injectorPath = path.join(__dirname, 'nanobrowser', 'injector.js');
         if (fs.existsSync(injectorPath)) {
             const scriptCode = fs.readFileSync(injectorPath, 'utf8');
@@ -4611,21 +4492,16 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, { prompt, model = "qwen2.
         }
 
         await new Promise(r => setTimeout(r, 50));
-
-        // 2. Récupérer le titre de la page
         pageTitle = await panel.view.webContents.executeJavaScript("document.title || ''");
 
-        // 3. ✨ EXTRACTION INTELLIGENTE : On exécute l'extraction directement via Chromium
-        // Nous sérialisons la logique de lisibilité pour qu'elle s'exécute dans le contexte de la page web
+        // Extraction intelligente du contenu
         const extractionScript = `
             (function() {
                 const selectorsToRemove = ['script', 'style', 'noscript', 'iframe', 'canvas', 'svg', 'nav', 'header', 'footer', 'form', 'aside', 'dialog', '.menu', '.sidebar', '.footer', '.header', '.nav', '.comments', '.advertising', '.ads'];
                 const bodyClone = document.body.cloneNode(true);
                 selectorsToRemove.forEach(s => bodyClone.querySelectorAll(s).forEach(el => el.remove()));
-                
                 const priority = bodyClone.querySelectorAll('article, [role="main"], main, .post-content, .entry-content, .article-content');
                 const root = priority.length > 0 ? priority[0] : bodyClone;
-                
                 const nodes = root.querySelectorAll('h1, h2, h3, h4, h5, h6, p, li');
                 let pieces = [];
                 nodes.forEach(n => {
@@ -4639,79 +4515,78 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, { prompt, model = "qwen2.
         cleanedTextContext = await panel.view.webContents.executeJavaScript(extractionScript);
 
         if (!cleanedTextContext || cleanedTextContext.trim().length === 0) {
-            console.log("[IA RAG LIGHT] Extraction ciblée vide, repli sur le texte brut.");
             cleanedTextContext = await panel.view.webContents.executeJavaScript("document.body.innerText || ''");
         }
 
-        console.log(`[IA RAG LIGHT] Nettoyage réussi. Contexte épuré fourni au LLM : ${cleanedTextContext.length} caractères.`);
+        // Envoi et attente de la réponse de la requête HTTP vers Ollama
+        const resultOllama = await new Promise((resolve, reject) => {
+            try {
+                let systemInstruction = "";
+                if (prompt.toLowerCase().includes("résumé") || prompt.toLowerCase().includes("resume")) {
+                    systemInstruction = `Tu es un assistant IA intégré au navigateur. Résume l'article suivant de façon claire et concise en 3 points clés, sous forme de tirets textuels.\nTitre de l'article : ${pageTitle}\n\nContenu propre de l'article :\n${cleanedTextContext.substring(0, 5000)}`;
+                } else {
+                    systemInstruction = `Tu es un assistant IA intégré au navigateur. Réponds à la question de l'utilisateur en te basant exclusivement sur le contenu épuré de l'article ci-dessous.\nTitre de la page : ${pageTitle}\n\nContenu utile de la page :\n${cleanedTextContext.substring(0, 5000)}`;
+                }
+
+                const postData = JSON.stringify({
+                    model: model,
+                    prompt: prompt,
+                    system: systemInstruction,
+                    stream: false
+                });
+
+                const http = getNodeModule("http");
+                const req = http.request({
+                    hostname: '127.0.0.1',
+                    port: 11434,
+                    path: '/api/generate',
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Content-Length': Buffer.byteLength(postData)
+                    }
+                }, (res) => {
+                    let responseBody = '';
+                    res.setEncoding('utf8');
+                    res.on('data', (chunk) => responseBody += chunk);
+                    res.on('end', () => {
+                        if (res.statusCode < 200 || res.statusCode >= 300) {
+                            resolve(`Erreur Ollama (${res.statusCode})`);
+                            return;
+                        }
+                        try {
+                            const result = JSON.parse(responseBody);
+                            resolve(result.response || "L'IA locale a renvoyé une réponse vide.");
+                        } catch (error) {
+                            resolve(`Réponse Ollama invalide.`);
+                        }
+                    });
+                });
+
+                req.setTimeout(120000, () => req.destroy(new Error('Timeout')));
+                req.on('error', (error) => resolve(`Impossible de joindre l'IA locale.`));
+
+                req.write(postData);
+                req.end();
+
+            } catch (innerError) {
+                reject(innerError);
+            }
+        });
+
+        return resultOllama;
 
     } catch (err) {
-        console.error("[IA RAG LIGHT] Erreur lors de l'extraction :", err);
-        return `Erreur lors de la lecture de la page web : ${err.message}`;
-    }
-
-    // 4. Traitement et envoi de la requête asynchrone à Ollama avec le contexte de l'article épuré
-    return new Promise((resolve) => {
-        try {
-            let systemInstruction = "";
-            // ✨ PROMPT ENRICHI : L'IA reçoit désormais un flux textuel parfaitement structuré sans bruits de code
-            if (prompt.toLowerCase().includes("résumé") || prompt.toLowerCase().includes("resume")) {
-                systemInstruction = `Tu es un assistant IA intégré au navigateur. Résume l'article suivant de façon claire et concise en 3 points clés, sous forme de tirets textuels.\nTitre de l'article : ${pageTitle}\n\nContenu propre de l'article :\n${cleanedTextContext.substring(0, 5000)}`;
-            } else {
-                systemInstruction = `Tu es un assistant IA intégré au navigateur. Réponds à la question de l'utilisateur en te basant exclusivement sur le contenu épuré de l'article ci-dessous.\nTitre de la page : ${pageTitle}\n\nContenu utile de la page :\n${cleanedTextContext.substring(0, 5000)}`;
-            }
-
-            const postData = JSON.stringify({
-                model: model,
-                prompt: prompt,
-                system: systemInstruction,
-                stream: false
-            });
-
-            console.log(`[IA RAG LIGHT] Envoi du contexte nettoyé à Ollama (${model})...`);
-            const http = getNodeModule("http");
-            
-            const req = http.request({
-                hostname: '127.0.0.1',
-                port: 11434,
-                path: '/api/generate',
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Content-Length': Buffer.byteLength(postData)
-                }
-            }, (res) => {
-                let responseBody = '';
-                res.setEncoding('utf8');
-                res.on('data', (chunk) => responseBody += chunk);
-                res.on('end', () => {
-                    if (res.statusCode < 200 || res.statusCode >= 300) {
-                        resolve(`Erreur Ollama (${res.statusCode})`);
-                        return;
-                    }
-                    try {
-                        const result = JSON.parse(responseBody);
-                        resolve(result.response || "L'IA locale a renvoyé une réponse vide.");
-                    } catch (error) {
-                        resolve(`Réponse Ollama invalide.`);
-                    }
-                });
-            });
-
-            req.setTimeout(120000, () => {
-                req.destroy(new Error('Timeout'));
-            });
-            req.on('error', (error) => resolve(`Impossible de joindre l'IA locale.`));
-
-            req.write(postData);
-            req.end();
-
-        } catch (innerError) {
-            resolve(`Erreur interne : ${innerError.message}`);
+        console.error("[IA RAG LIGHT] Erreur générale :", err);
+        return `Erreur interne : ${err.message}`;
+    } finally {
+        // 2. Nettoyage et arrêt SYSTEMATIQUE de la barre de progression (Succès OU Échec)
+        if (win && !win.isDestroyed()) {
+            win.setProgressBar(-1); 
+            win.webContents.send("ai-loading-state", false);
         }
-    });
+    }
 });
-
 
 // L'interface IA demande à exécuter une action (ex: cliquer sur un bouton)
 ipcMain.handle("nanobrowser-execute-action", async (event, { actionType, argument }) => {

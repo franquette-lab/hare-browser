@@ -127,6 +127,7 @@ onActivePanelChanged: (callback) => {
 
         // --- ASSISTANT IA ---
         toggleAiSidebar: (isVisible) => ipcRenderer.send("toggle-ai-sidebar-request", isVisible),
+        onAiLoadingState: (callback) => ipcRenderer.on("ai-loading-state", (_, isLoading) => callback(isLoading)),
         
         nanobrowser: {
             getContext: () => ipcRenderer.invoke("nanobrowser-get-context"),

@@ -473,8 +473,44 @@ html.dark #pwd-modal {
 /* DESIGN DE L'ASSISTANT IA DYNAMIQUE CLAIR / SOMBRE  */
 /* =================================================== */
 
+
+/* Classe de chargement asynchrone pour le bouton Résumer */
+.btn-analyzing {
+    pointer-events: none !important; /* Évite les clics multiples */
+    cursor: not-allowed !important;
+    background-color: #166534 !important; /* Vert foncé de verrouillage */
+    animation: pulse-loading 1.2s infinite ease-in-out !important;
+    will-change: transform, opacity, box-shadow;
+}
+
+@keyframes quick-fade {
+    0%   { opacity: 1.0; }
+    50%  { opacity: 0.4; }
+    100% { opacity: 1.0; }
+}
+
+
+/* Définition de l'animation de pulsation fluide */
+@keyframes pulse-loading {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(21, 128, 61, 0.4);
+    }
+    50% {
+        transform: scale(0.97);
+        opacity: 0.7;
+        box-shadow: 0 0 10px 4px rgba(21, 128, 61, 0.2);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(21, 128, 61, 0);
+    }
+}
+
+
 /* 1. Thème CLAIR par défaut (Textes bien foncés) */
-/* 1. Thème CLAIR par défaut - FORÇAGE DES CONTRASTES */
 .ai-sidebar-native {
     background: #f3f4f6 !important;
     color: #111827 !important; /* Texte de base très foncé */
@@ -1039,6 +1075,24 @@ window.api.onPanelsUpdated((panelsList, zoomPanelId) => {
 });
 
 
+
+
+window.api.onAiLoadingState?.((isLoading) => {
+    const resumeBtn = document.getElementById('votre-id-bouton-resumer') 
+                      || document.querySelector('button[style*="background-color: rgb(21, 128, 61)"]');
+    
+    if (resumeBtn) {
+        if (isLoading) {
+            resumeBtn.innerText = "⏳ Analyse...";
+            resumeBtn.style.backgroundColor = "#166534"; // Vert plus foncé pour indiquer le verrouillage
+            resumeBtn.disabled = true;
+        } else {
+            resumeBtn.innerText = "Résumer";
+            resumeBtn.style.backgroundColor = "#22c55e"; // Restaure la couleur d'origine
+            resumeBtn.disabled = false;
+        }
+    }
+});
 
 
 
@@ -2394,7 +2448,7 @@ aiUserPrompt.addEventListener("keydown", (e) => {
 
 // 1. Bouton VERT : Résumer la page (Envoie une consigne fixe)
 document.getElementById("ai-summary-btn").addEventListener("click", () => {
-    envoyerRequeteIA("Fais-moi un résumé concis des 3 points clés de cet article.");
+    envoyerRequeteIA("Fais-moi un résumé concis des 3 points clés de cet article.", true);
 });
 
 // 2. Bouton BLEU : Poser la question (Prend le texte écrit dans l'input par l'utilisateur)
@@ -2473,7 +2527,7 @@ window.api.onTriggerAiAction((data) => {
     if (aiSidebar) aiSidebar.style.right = "0px";
 
     if (data.action === "resume") {
-        envoyerRequeteIA("Fais-moi un résumé concis des 3 points clés de cet article.");
+        envoyerRequeteIA("Fais-moi un résumé concis des 3 points clés de cet article.", true);
     }
     
     if (data.action === "keywords") {
@@ -2519,12 +2573,20 @@ if (document.documentElement.classList.contains("dark") || document.documentElem
     aiSidebarElement.classList.remove("dark-mode-active");
 }
 
-async function envoyerRequeteIA(questionUser) {
+async function envoyerRequeteIA(questionUser, isSummary = false) {
     const modeleChoisi = "qwen2.5:1.5b";
     const aiSidebar = document.getElementById("ai-sidebar");
+    const resumeBtn = document.getElementById("ai-summary-btn");
+    const originalSummaryLabel = resumeBtn ? resumeBtn.textContent : "Résumer";
     
     // Force l'ouverture visuelle immédiate du volet
     if (aiSidebar) aiSidebar.style.right = "0px";
+
+    if (isSummary && resumeBtn) {
+        resumeBtn.disabled = true;
+        resumeBtn.classList.add("btn-analyzing");
+        resumeBtn.textContent = "⏳ Analyse...";
+    }
     
     // Affiche le message d'attente à l'utilisateur
     aiResponseContainer.innerHTML = '<span style="color: #a1a1aa; font-style: italic; font-size: 12px;">⏳ L\'IA analyse le contenu de la tuile active... Veuillez patienter.</span>';
@@ -2559,6 +2621,12 @@ async function envoyerRequeteIA(questionUser) {
             console.error("Erreur IHM Assistant :", error);
             if (aiResponseContainer) {
                 aiResponseContainer.innerHTML = `<span style="color: #f87171; font-size: 12px;">❌ Impossible de joindre le pont IPC (${error.message})</span>`;
+            }
+        } finally {
+            if (isSummary && resumeBtn) {
+                resumeBtn.disabled = false;
+                resumeBtn.classList.remove("btn-analyzing");
+                resumeBtn.textContent = originalSummaryLabel;
             }
         }
 }
