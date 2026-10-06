@@ -683,15 +683,19 @@ html.dark #pwd-modal {
 
     <!-- Zone de saisie et Commandes -->
     <!-- Dans index.html -> Dans la div #ai-sidebar, remplacez la ligne de l'encadré du bas par celle-ci : -->
-    <div class="ai-footer-box" style="display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 8px;">
- 
-        <input type="text" id="ai-user-prompt" placeholder="Poser une question sur une page web..." style="width: 100%; height: 32px; background: #2d2d30; border: 1px solid #3c3c3c; color: white; border-radius: 6px; padding: 0 10px; font-size: 12px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#3c3c3c'">
+<div class="ai-footer-box" style="display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 8px;">
+
+    <input type="text" id="ai-user-prompt" placeholder="Poser une question sur une page web..." style="width: 100%; height: 32px; background: #2d2d30; border: 1px solid #3c3c3c; color: white; border-radius: 6px; padding: 0 10px; font-size: 12px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#3c3c3c'">
+    
+    <div style="display: flex; gap: 8px;">
+        <button id="ai-submit-btn" style="flex: 1; height: 30px; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; transition: background 0.2s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Poser la question</button>
+        <button id="ai-summary-btn" style="height: 30px; background: #16a34a; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; padding: 0 12px; transition: background 0.2s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">Résumer</button>
         
-        <div style="display: flex; gap: 8px;">
-            <button id="ai-submit-btn" style="flex: 1; height: 30px; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; transition: background 0.2s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Poser la question</button>
-            <button id="ai-summary-btn" style="height: 30px; background: #16a34a; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; padding: 0 12px; transition: background 0.2s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">Résumer</button>
-        </div>
+        <!-- ✨ NOUVEAU : Bouton Effacer ajouté à la suite -->
+        <button id="ai-clear-btn" title="Effacer l'historique de l'assistant" style="height: 30px; background: #4b5563; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; padding: 0 12px; transition: background 0.2s;" onmouseover="this.style.background='#374151'" onmouseout="this.style.background='#4b5563'">🗑️</button>
     </div>
+</div>
+    
 </div>
 
 
@@ -2458,6 +2462,22 @@ document.getElementById("ai-submit-btn").addEventListener("click", () => {
         envoyerRequeteIA(customPrompt); // Envoie votre question ("Qui a composé...")
         document.getElementById("ai-user-prompt").value = ""; // Vide le champ après l'envoi
     }
+});
+
+
+// Écouteur pour vider l'historique et le champ de saisie de l'Assistant IA
+document.getElementById("ai-clear-btn").addEventListener("click", () => {
+    // 1. Vide l'intégralité du conteneur des réponses affichées par l'IA
+    if (aiResponseContainer) {
+        aiResponseContainer.innerHTML = "";
+    }
+
+    // 2. Réinitialise le champ de saisie de texte à blanc
+    if (aiUserPrompt) {
+        aiUserPrompt.value = "";
+    }
+
+    console.log("[Assistant IA] Écran et champ de saisie réinitialisés à zéro.");
 });
 
 // 3. Optionnel : Permettre de valider en appuyant sur la touche Entrée dans l'input
