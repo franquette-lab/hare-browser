@@ -936,6 +936,23 @@ window.api.onPanelsUpdated((panelsList, zoomPanelId) => {
     // 1. Log d'IHM sécurisé
     console.log("Mise à jour des panneaux reçue par l'IHM.");
     
+    // ✨ AJOUT : Griser ou activer le bouton de la barre de navigation
+    const equalizeBtn = document.getElementById('btn-equalize-mosaic');
+    if (equalizeBtn) {
+        if (panelsList && panelsList.length <= 1) {
+            // S'il n'y a qu'une tuile (ou moins), on applique l'attribut HTML "disabled"
+            equalizeBtn.disabled = true;
+            equalizeBtn.style.opacity = "0.4"; // Optionnel : retour visuel semi-transparent
+            equalizeBtn.style.cursor = "not-allowed";
+        } else {
+            // Dès qu'un deuxième panneau s'ouvre, on réactive le bouton
+            equalizeBtn.disabled = false;
+            equalizeBtn.style.opacity = "1";
+            equalizeBtn.style.cursor = "pointer";
+        }
+    }
+
+
     // 2. Assignation sécurisée aux variables globales sans jamais écrire le mot "panel" au singulier
     currentPanels = Array.isArray(panelsList) ? panelsList : [];
     currentMaximizedId = zoomPanelId || null;

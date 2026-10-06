@@ -293,22 +293,29 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
     enabled: !isZoomActive,
     click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', !isPrivate)
 },
-{
-    label: "   📐 Égaliser les dimensions des tuiles (Ctrl+Shift+R)",
-    enabled: !isZoomActive, // Grisé si le mode zoom/maximisé est actif
-    click: () => {
-        if (!rootNode) return;
-        saveState(); // Permet d'annuler avec Ctrl+Z
-        resetTreeRatiosEqual(rootNode); // Applique les ratios 0.5
-        forceRebuildSplitters = true;
-        resizeViews(); // Recalcule la mosaïque
-    }
-},
-{ type: "separator" },
-{
-    label: "📌 Gestion du panneau",
-    enabled: false
-},
+
+
+
+        {
+            label: "   📐 Égaliser les dimensions des tuiles (Ctrl+Shift+R)",
+            // Calcul direct et sécurisé : désactivé si zoom actif OU s'il y a 1 tuile ou moins
+            enabled: !(maximizedPanelId !== null || collectPanelNodes(rootNode).length <= 1),
+            click: () => {
+                if (!rootNode) return;
+                saveState(); // Permet d'annuler avec Ctrl+Z
+                resetTreeRatiosEqual(rootNode); // Réinitialise les ratios à 0.5
+                forceRebuildSplitters = true;
+                resizeViews(); // Relance le calcul géométrique
+            }
+        },
+
+
+
+        { type: "separator" },
+        {
+            label: "📌 Gestion du panneau",
+            enabled: false
+        },
 
 
 
