@@ -255,36 +255,23 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
         { role: "delete", label: "   🗑️ Supprimer" },
         { type: "separator" },
         { role: "selectAll", label: "   Sélectionner tout" },
-        { type: "separator" },
-        {
-            label: `✨ Actions IA (Assistant)`,
-            enabled: false
-        },
-        {
-            label: "   📝 Résumer cette tuile web",
-            click: () => {
-                if (win && !win.isDestroyed()) {
-                    if (!isAiSidebarVisible) ipcMain.emit("toggle-ai-sidebar-request", null, true);
-                    win.webContents.send("trigger-ai-action", { action: "resume" });
-                }
-            }
-        },
-        {
-            label: "   🔍 Analyser les mots-clés de la page",
-            click: () => {
-                if (win && !win.isDestroyed()) {
-                    if (!isAiSidebarVisible) ipcMain.emit("toggle-ai-sidebar-request", null, true);
-                    win.webContents.send("trigger-ai-action", { action: "keywords" });
-                }
-            }
-        },
+
 
 
 
 
         { type: "separator" },
 
-
+        {
+            label: "   ✂️ Scinder verticalement (Ctrl+T)",
+            enabled: !isZoomActive, // Grisé si zoom actif
+            click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', false)
+        },
+        {
+            label: "   ⚍ Scinder horizontalement (Ctrl+H)",
+            enabled: !isZoomActive, // Grisé si zoom actif
+            click: () => ipcMain.emit('split-panel', null, panelId, 'horizontal', false)
+        },
 
 
 // ... [dans le tableau menuTemplate de afficherMenuContextuelPanneau] ...
@@ -309,6 +296,29 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
             }
         },
 
+        { type: "separator" },
+        {
+            label: `✨ Actions IA (Assistant)`,
+            enabled: false
+        },
+        {
+            label: "   📝 Résumer cette tuile web",
+            click: () => {
+                if (win && !win.isDestroyed()) {
+                    if (!isAiSidebarVisible) ipcMain.emit("toggle-ai-sidebar-request", null, true);
+                    win.webContents.send("trigger-ai-action", { action: "resume" });
+                }
+            }
+        },
+        {
+            label: "   🔍 Analyser les mots-clés de la page",
+            click: () => {
+                if (win && !win.isDestroyed()) {
+                    if (!isAiSidebarVisible) ipcMain.emit("toggle-ai-sidebar-request", null, true);
+                    win.webContents.send("trigger-ai-action", { action: "keywords" });
+                }
+            }
+        },
 
 
         { type: "separator" },

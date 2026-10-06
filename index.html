@@ -478,7 +478,6 @@ html.dark #pwd-modal {
 .btn-analyzing {
     pointer-events: none !important; /* Évite les clics multiples */
     cursor: not-allowed !important;
-    background-color: #166534 !important; /* Vert foncé de verrouillage */
     animation: pulse-loading 1.2s infinite ease-in-out !important;
     will-change: transform, opacity, box-shadow;
 }
@@ -2459,8 +2458,7 @@ document.getElementById("ai-summary-btn").addEventListener("click", () => {
 document.getElementById("ai-submit-btn").addEventListener("click", () => {
     const customPrompt = document.getElementById("ai-user-prompt").value.trim();
     if (customPrompt) {
-        envoyerRequeteIA(customPrompt); // Envoie votre question ("Qui a composé...")
-        document.getElementById("ai-user-prompt").value = ""; // Vide le champ après l'envoi
+        envoyerRequeteIA(customPrompt, false, true); // Envoie la question en conservant le texte dans le champ
     }
 });
 
@@ -2478,13 +2476,6 @@ document.getElementById("ai-clear-btn").addEventListener("click", () => {
     }
 
     console.log("[Assistant IA] Écran et champ de saisie réinitialisés à zéro.");
-});
-
-// 3. Optionnel : Permettre de valider en appuyant sur la touche Entrée dans l'input
-document.getElementById("ai-user-prompt").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-        document.getElementById("ai-submit-btn").click();
-    }
 });
 
 // DANS INDEX.HTML -> Remplacer l'écouteur du bouton de gestion des mots de passe
@@ -2593,19 +2584,21 @@ if (document.documentElement.classList.contains("dark") || document.documentElem
     aiSidebarElement.classList.remove("dark-mode-active");
 }
 
-async function envoyerRequeteIA(questionUser, isSummary = false) {
+async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = false) {
     const modeleChoisi = "qwen2.5:1.5b";
     const aiSidebar = document.getElementById("ai-sidebar");
-    const resumeBtn = document.getElementById("ai-summary-btn");
-    const originalSummaryLabel = resumeBtn ? resumeBtn.textContent : "Résumer";
+    const loadingBtn = isSummary
+        ? document.getElementById("ai-summary-btn")
+        : isQuestion ? document.getElementById("ai-submit-btn") : null;
+    const originalButtonLabel = loadingBtn ? loadingBtn.textContent : "";
     
     // Force l'ouverture visuelle immédiate du volet
     if (aiSidebar) aiSidebar.style.right = "0px";
 
-    if (isSummary && resumeBtn) {
-        resumeBtn.disabled = true;
-        resumeBtn.classList.add("btn-analyzing");
-        resumeBtn.textContent = "⏳ Analyse...";
+    if (loadingBtn) {
+        loadingBtn.disabled = true;
+        loadingBtn.classList.add("btn-analyzing");
+        loadingBtn.textContent = "⏳ Analyse...";
     }
     
     // Affiche le message d'attente à l'utilisateur
@@ -2643,10 +2636,10 @@ async function envoyerRequeteIA(questionUser, isSummary = false) {
                 aiResponseContainer.innerHTML = `<span style="color: #f87171; font-size: 12px;">❌ Impossible de joindre le pont IPC (${error.message})</span>`;
             }
         } finally {
-            if (isSummary && resumeBtn) {
-                resumeBtn.disabled = false;
-                resumeBtn.classList.remove("btn-analyzing");
-                resumeBtn.textContent = originalSummaryLabel;
+            if (loadingBtn) {
+                loadingBtn.disabled = false;
+                loadingBtn.classList.remove("btn-analyzing");
+                loadingBtn.textContent = originalButtonLabel;
             }
         }
 }
