@@ -1028,6 +1028,12 @@ window.api.onPanelsUpdated((panelsList, zoomPanelId) => {
                 if (input.dataset.url !== url) input.dataset.url = url;
                 input.readOnly = !!panel.isPrivate || isSearchResultsUrl(url);
                 input.style.cursor = input.readOnly ? "default" : "text";
+                const adBlockButton = input.parentElement.querySelector(".adblock-toggle");
+                if (adBlockButton) {
+                    const host = getAdBlockHost(url);
+                    adBlockButton.dataset.host = host;
+                    adBlockButton.style.display = host ? "inline-flex" : "none";
+                }
                 const starBtn = document.getElementById(`star-${panel.id}`);
                 if (starBtn) {
                     starBtn.style.display = panel.isPrivate || !isFavoriteAllowedUrl(url) ? "none" : "flex";
@@ -1043,6 +1049,7 @@ window.api.onPanelsUpdated((panelsList, zoomPanelId) => {
                     if (icon.textContent !== iconText) icon.textContent = iconText;
                 }
             });
+            updateAdblockButtons();
             if (typeof refreshTabBorders === "function") refreshTabBorders();
         }
     } catch (err) {
@@ -1103,6 +1110,49 @@ window.api.onAiLoadingState?.((isLoading) => {
 
 
 
+
+let adBlockExceptions = new Set();
+
+function getAdBlockHost(value) {
+    try {
+        const url = new URL(value);
+        if (url.protocol !== "http:" && url.protocol !== "https:") return "";
+        return url.hostname.toLowerCase().replace(/\.$/, "").replace(/^www\./, "");
+    } catch {
+        return "";
+    }
+}
+
+function isAdBlockHostExcepted(hostname) {
+    return Array.from(adBlockExceptions).some((exception) =>
+        hostname === exception || hostname.endsWith(`.${exception}`)
+    );
+}
+
+function updateAdblockButtons() {
+    document.querySelectorAll(".adblock-toggle").forEach((button) => {
+        const host = button.dataset.host || "";
+        const isExcepted = host && isAdBlockHostExcepted(host);
+        button.style.color = isExcepted ? "#16a34a" : (applicationDarkMode ? "#cfcfcf" : "#4b5563");
+        button.style.background = isExcepted
+            ? (applicationDarkMode ? "#16351f" : "#dcfce7")
+            : "transparent";
+        button.title = isExcepted
+            ? `Réactiver le bloqueur sur ${host}`
+            : `Désactiver le bloqueur sur ${host}`;
+        button.setAttribute("aria-label", button.title);
+    });
+}
+
+window.api.adblock?.getExceptions().then((exceptions) => {
+    adBlockExceptions = new Set(Array.isArray(exceptions) ? exceptions : []);
+    updateAdblockButtons();
+}).catch((error) => console.error("Impossible de charger les exceptions du bloqueur :", error));
+
+window.api.adblock?.onExceptionsUpdated((exceptions) => {
+    adBlockExceptions = new Set(Array.isArray(exceptions) ? exceptions : []);
+    updateAdblockButtons();
+});
 
 function rebuildUrlBar(panels) {
     // 1. Ciblage de votre élément conteneur d'origine
@@ -1391,6 +1441,50 @@ input.addEventListener("blur", () => {
 });
 
 addressGroup.appendChild(input);
+
+
+        // ============================
+        // EXCEPTION DU BLOQUEUR PAR SITE
+        // ============================
+        const adBlockHost = getAdBlockHost(panel.realUrl || panel.url || "");
+        const adBlockBtn = document.createElement("button");
+        adBlockBtn.type = "button";
+        adBlockBtn.className = "adblock-toggle";
+        adBlockBtn.textContent = "🛡️";
+        adBlockBtn.dataset.host = adBlockHost;
+        adBlockBtn.style.display = adBlockHost ? "inline-flex" : "none";
+        adBlockBtn.style.alignItems = "center";
+        adBlockBtn.style.justifyContent = "center";
+        adBlockBtn.style.flex = "0 0 auto";
+        adBlockBtn.style.width = "24px";
+        adBlockBtn.style.height = "24px";
+        adBlockBtn.style.padding = "0";
+        adBlockBtn.style.border = "none";
+        adBlockBtn.style.borderRadius = "4px";
+        adBlockBtn.style.cursor = "pointer";
+        adBlockBtn.style.fontSize = "14px";
+        adBlockBtn.addEventListener("mousedown", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            tabWrapper.setAttribute("draggable", "false");
+        });
+        adBlockBtn.addEventListener("click", async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const currentHost = adBlockBtn.dataset.host || "";
+            if (!currentHost || !window.api.adblock) return;
+
+            try {
+                const exceptions = await window.api.adblock.toggleException(currentHost);
+                adBlockExceptions = new Set(Array.isArray(exceptions) ? exceptions : []);
+                updateAdblockButtons();
+                window.api.refresh(panel.id);
+            } catch (error) {
+                console.error("Impossible de modifier l'exception du bloqueur :", error);
+            }
+        });
+        addressGroup.appendChild(adBlockBtn);
+        updateAdblockButtons();
 
 
 

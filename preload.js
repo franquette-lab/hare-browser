@@ -73,6 +73,13 @@ onActivePanelChanged: (callback) => {
             ipcRenderer.on("splitters-updated", (event, splitters) => callback(splitters));
         },
 
+        // À insérer à l'intérieur de la configuration de contextBridge.exposeInMainWorld('api', { ... })
+        adblock: {
+            getExceptions: () => ipcRenderer.invoke('adblock-get-exceptions'),
+            toggleException: (host) => ipcRenderer.invoke('adblock-toggle-exception', host),
+            onExceptionsUpdated: (callback) => ipcRenderer.on('adblock-exceptions-updated', (event, data) => callback(data))
+        },
+
         // --- NAVIGATION ET ADRESSES ---
         navigate: (panelId, url) => ipcRenderer.send('navigate', panelId, url),
         goBack: (panelId) => ipcRenderer.invoke("go-back", panelId),

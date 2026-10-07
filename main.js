@@ -14,6 +14,7 @@ const {
     globalShortcut,
     shell,
     screen,
+    webContents,
     safeStorage, // <-- Assurez-vous que safeStorage est bien présent dans vos imports Electron
     session
 } = require('electron');
@@ -33,6 +34,11 @@ function enableAdBlockerForSession(targetSession) {
 
     targetSession.webRequest.onBeforeRequest(filter, (details, callback) => {
         const url = details.url.toLowerCase();
+
+        if (isAdBlockExceptionRequest(details)) {
+            callback({ cancel: false });
+            return;
+        }
         
         // Vérifie si l'URL contient l'un des filtres de la liste noire
         const shouldBlock = AD_BLOCKLIST.some(pattern => url.includes(pattern));
@@ -46,6 +52,57 @@ function enableAdBlockerForSession(targetSession) {
             callback({ cancel: false });
         }
     });
+}
+
+function normalizeAdBlockHost(value) {
+    if (typeof value !== "string" || !value.trim()) return "";
+    try {
+        const input = value.trim();
+        return new URL(input.includes("://") ? input : `https://${input}`).hostname
+            .toLowerCase()
+            .replace(/\.$/, "")
+            .replace(/^www\./, "");
+    } catch {
+        return "";
+    }
+}
+
+function isAdBlockExceptionHost(hostname) {
+    const host = normalizeAdBlockHost(hostname);
+    if (!host) return false;
+    return Array.from(adBlockExceptions).some((exception) =>
+        host === exception || host.endsWith(`.${exception}`)
+    );
+}
+
+function isAdBlockExceptionRequest(details) {
+    let requestHost = "";
+    try {
+        requestHost = new URL(details.url).hostname;
+    } catch {}
+
+    // N'autorise la destination directement que pour une navigation principale;
+    // les ressources tierces ne sont autorisées que si leur page initiatrice l'est.
+    if (details.resourceType === "mainFrame" && isAdBlockExceptionHost(requestHost)) {
+        return true;
+    }
+
+    let initiatorHost = "";
+    try {
+        initiatorHost = new URL(details.initiator).hostname;
+    } catch {}
+    if (isAdBlockExceptionHost(initiatorHost)) return true;
+
+    // Certains types de requêtes Chromium ne fournissent pas d'initiateur.
+    if (!details.initiator && details.resourceType !== "mainFrame" && Number.isInteger(details.webContentsId)) {
+        const sourceContents = webContents.fromId(details.webContentsId);
+        if (sourceContents && !sourceContents.isDestroyed()) {
+            try {
+                return isAdBlockExceptionHost(new URL(sourceContents.getURL()).hostname);
+            } catch {}
+        }
+    }
+    return false;
 }
 
 
@@ -94,6 +151,8 @@ const AD_BLOCKLIST = [
     'tracking'
 ];
 
+let adBlockExceptions = new Set();
+
 
 
 // Les modules Node sont chargés au premier accès, puis conservés en cache.
@@ -140,6 +199,10 @@ function getHistoryPath() {
 // Chemin vers le fichier de stockage des favoris
 function getFavorisPath() {
     return path.join(appDataPath, 'favoris.json');
+}
+
+function getAdBlockExceptionsPath() {
+    return path.join(appDataPath, 'adblock-exceptions.json');
 }
 
 function getThemePath() {
@@ -452,11 +515,60 @@ app.on('ready', () => {
         safeStorage.setUseAlternativeEncryption(true);
     }
     
+    // Charge les exceptions avant d'attacher le filtre aux sessions Electron.
+    try {
+        fs.mkdirSync(appDataPath, { recursive: true });
+        const rawExceptions = fs.readFileSync(getAdBlockExceptionsPath(), 'utf-8');
+        const parsedExceptions = JSON.parse(rawExceptions);
+        if (Array.isArray(parsedExceptions)) {
+            adBlockExceptions = new Set(parsedExceptions.map(normalizeAdBlockHost).filter(Boolean));
+        } else {
+            throw new Error('Le fichier des exceptions doit contenir un tableau JSON.');
+        }
+    } catch (error) {
+        if (error.code !== 'ENOENT') {
+            console.error('[ADBLOCK] Impossible de lire les exceptions :', error);
+        }
+        adBlockExceptions = new Set();
+        try {
+            fs.writeFileSync(getAdBlockExceptionsPath(), JSON.stringify([], null, 2), 'utf-8');
+        } catch (writeError) {
+            console.error('[ADBLOCK] Impossible de créer le fichier des exceptions :', writeError);
+        }
+    }
+
     // 🔥 Activation du bloqueur sur la session par défaut (tuiles classiques)
     enableAdBlockerForSession(session.defaultSession);
 });
 
 
+
+ipcMain.handle('adblock-get-exceptions', (event) => {
+    if (!win || win.isDestroyed() || event.sender !== win.webContents) return [];
+    return Array.from(adBlockExceptions);
+});
+
+ipcMain.handle('adblock-toggle-exception', async (event, requestedHost) => {
+    if (!win || win.isDestroyed() || event.sender !== win.webContents) {
+        return Array.from(adBlockExceptions);
+    }
+
+    const host = normalizeAdBlockHost(requestedHost);
+    if (!host) return Array.from(adBlockExceptions);
+
+    if (adBlockExceptions.has(host)) {
+        adBlockExceptions.delete(host);
+    } else {
+        adBlockExceptions.add(host);
+    }
+
+    const updatedExceptions = Array.from(adBlockExceptions).sort();
+    await safeWriteJsonAsync(getAdBlockExceptionsPath(), updatedExceptions);
+    if (win && !win.isDestroyed()) {
+        win.webContents.send('adblock-exceptions-updated', updatedExceptions);
+    }
+    return updatedExceptions;
+});
 
 function getStoredPasswords() {
     try {
