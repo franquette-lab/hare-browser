@@ -151,7 +151,8 @@ onActivePanelChanged: (callback) => {
         nanobrowser: {
             getContext: () => ipcRenderer.invoke("nanobrowser-get-context"),
             executeAction: (actionType, argument) => ipcRenderer.invoke("nanobrowser-execute-action", { actionType, argument }),
-            askOllama: (prompt, model) => ipcRenderer.invoke("nanobrowser-ask-ollama", { prompt, model })
+            askOllama: (prompt, model, compareVisiblePanels = false) =>
+                ipcRenderer.invoke("nanobrowser-ask-ollama", { prompt, model, compareVisiblePanels })
         },
 
         // --- HISTORIQUE ---

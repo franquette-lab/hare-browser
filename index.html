@@ -749,7 +749,7 @@ html.dark #pwd-modal {
     </div>
     
     <!-- Zone d'affichage des réponses (Conteneur de texte) -->
-    <div id="ai-response-container" style="flex: 1; overflow-y: auto; font-size: 12.5px; line-height: 1.6; padding-right: 4px; white-space: pre-wrap; margin-bottom: 16px; text-align: left; color: #e2e8f0;">Cliquez sur le bouton ci-dessous ou posez une question pour analyser une page web...</div>
+    <div id="ai-response-container" style="flex: 1; overflow-y: auto; font-size: 12.5px; line-height: 1.6; padding-right: 4px; white-space: pre-wrap; margin-bottom: 16px; text-align: left; color: #e2e8f0;">Posez une question ou cliquez sur « Résumer » pour analyser la tuile active. Utilisez « Comparer les tuiles » pour demander une analyse croisée des pages visibles.</div>
 
     <!-- Zone de saisie et Commandes -->
     <!-- Dans index.html -> Dans la div #ai-sidebar, remplacez la ligne de l'encadré du bas par celle-ci : -->
@@ -764,6 +764,7 @@ html.dark #pwd-modal {
         <!-- ✨ NOUVEAU : Bouton Effacer ajouté à la suite -->
         <button id="ai-clear-btn" title="Effacer l'historique de l'assistant" style="height: 30px; background: #4b5563; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; padding: 0 12px; transition: background 0.2s;" onmouseover="this.style.background='#374151'" onmouseout="this.style.background='#4b5563'">🗑️</button>
     </div>
+    <button id="ai-compare-panels-btn" type="button" title="Comparer le contenu de toutes les tuiles visibles" style="width:100%; height:30px; background:#7c3aed; color:white; border:none; border-radius:6px; font-size:11.5px; cursor:pointer; font-weight:600;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">⇄ Comparer les tuiles visibles</button>
 </div>
     
 </div>
@@ -2761,6 +2762,12 @@ document.getElementById("ai-submit-btn").addEventListener("click", () => {
     }
 });
 
+document.getElementById("ai-compare-panels-btn")?.addEventListener("click", () => {
+    const customPrompt = document.getElementById("ai-user-prompt").value.trim();
+    const comparePrompt = customPrompt || "Fais-moi un tableau comparatif des informations importantes présentes dans mes tuiles visibles.";
+    envoyerRequeteIA(comparePrompt, false, false, true);
+});
+
 
 // Écouteur pour vider l'historique et le champ de saisie de l'Assistant IA
 document.getElementById("ai-clear-btn").addEventListener("click", () => {
@@ -2881,12 +2888,14 @@ if (document.documentElement.classList.contains("dark") || document.documentElem
     aiSidebarElement.classList.remove("dark-mode-active");
 }
 
-async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = false) {
+async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = false, compareVisiblePanels = false) {
     const modeleChoisi = "qwen2.5:1.5b";
     const aiSidebar = document.getElementById("ai-sidebar");
     const loadingBtn = isSummary
         ? document.getElementById("ai-summary-btn")
-        : isQuestion ? document.getElementById("ai-submit-btn") : null;
+        : isQuestion
+            ? document.getElementById("ai-submit-btn")
+            : compareVisiblePanels ? document.getElementById("ai-compare-panels-btn") : null;
     const originalButtonLabel = loadingBtn ? loadingBtn.textContent : "";
     
     // Force l'ouverture visuelle immédiate du volet
@@ -2899,13 +2908,15 @@ async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = fa
     }
     
     // Affiche le message d'attente à l'utilisateur
-    aiResponseContainer.innerHTML = '<span style="color: #a1a1aa; font-style: italic; font-size: 12px;">⏳ L\'IA analyse le contenu de la tuile active... Veuillez patienter.</span>';
+    aiResponseContainer.innerHTML = compareVisiblePanels
+        ? '<span style="color: #a1a1aa; font-style: italic; font-size: 12px;">⏳ L\'IA analyse les tuiles visibles pour préparer la comparaison...</span>'
+        : '<span style="color: #a1a1aa; font-style: italic; font-size: 12px;">⏳ L\'IA analyse le contenu de la tuile active...</span>';
     
     console.log("[IHM DIAGNOSTIC] Envoi de la demande d'IA au processus principal pour :", questionUser);
     
     try {
         // Utilise l'API exposée par le preload pour appeler le gestionnaire IPC Ollama.
-        const reponse = await window.api.nanobrowser.askOllama(questionUser, modeleChoisi);
+        const reponse = await window.api.nanobrowser.askOllama(questionUser, modeleChoisi, compareVisiblePanels);
         
         console.log("[IHM DIAGNOSTIC] Réponse reçue du processus principal :", reponse);
 
@@ -2915,7 +2926,7 @@ async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = fa
                 <div class="ai-alert-badge" style="display: flex; flex-direction: row; align-items: center; justify-content: center; height: 38px; line-height: 38px; margin-bottom: 16px; border-radius: 6px; font-weight: 600; font-size: 12.5px; box-sizing: border-box; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #f87171;">
                     <span style="display: inline-flex; align-items: center; justify-content: center; height: 100%; line-height: 1;">⚠️ Action impossible</span>
                 </div>
-                <span style="font-size: 12px;">Veuillez d'abord cliquer au centre de la tuile web que vous souhaitez analyser pour lui donner le focus, puis réessayez.</span>
+                <span style="font-size: 12px;">Veuillez d'abord activer une tuile web avant de lancer l'analyse.</span>
                 </div>
             `;
             return;

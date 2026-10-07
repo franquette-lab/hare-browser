@@ -4882,6 +4882,78 @@ ipcMain.handle('load-config-from-file', async () => {
 });
 
 // L'interface IA demande à récupérer le texte de la page active pour son LLM
+async function extractVisiblePanelContext(panel) {
+    if (!panel || panel.isSleeping || !panel.bounds ||
+        panel.bounds.width <= 0 || panel.bounds.height <= 0 ||
+        !panel.view?.webContents || panel.view.webContents.isDestroyed()) {
+        return null;
+    }
+
+    const contents = panel.view.webContents;
+    try {
+        const page = await contents.executeJavaScript(`
+            (() => {
+                const clone = document.body ? document.body.cloneNode(true) : null;
+                if (!clone) return { title: document.title || "", url: location.href || "", text: "" };
+
+                clone.querySelectorAll(
+                    'script, style, noscript, iframe, canvas, svg, nav, header, footer, form, aside, dialog, [aria-hidden="true"]'
+                ).forEach((element) => element.remove());
+
+                const preferred = clone.querySelector(
+                    'article, [role="main"], main, .post-content, .entry-content, .article-content'
+                );
+                const root = preferred || clone;
+                const sections = Array.from(root.querySelectorAll('h1, h2, h3, h4, h5, h6, p, li, tr'))
+                    .map((element) => (element.innerText || element.textContent || "").trim())
+                    .filter((text) => text.length > 15);
+                const text = sections.length
+                    ? sections.join("\\n\\n")
+                    : (root.innerText || root.textContent || "").trim();
+
+                return {
+                    title: document.title || "Sans titre",
+                    url: location.href || "",
+                    text
+                };
+            })();
+        `);
+
+        const text = typeof page?.text === "string" ? page.text.trim() : "";
+        if (!text) return null;
+        let safeUrl = page.url || contents.getURL();
+        try {
+            const parsedUrl = new URL(safeUrl);
+            parsedUrl.username = "";
+            parsedUrl.password = "";
+            parsedUrl.search = "";
+            parsedUrl.hash = "";
+            safeUrl = parsedUrl.href;
+        } catch {}
+
+        return {
+            panelId: panel.id,
+            title: page.title || panel.title || "Sans titre",
+            url: safeUrl,
+            text: text.slice(0, 5000)
+        };
+    } catch (error) {
+        console.warn(`[RAG] Extraction impossible pour la tuile ${panel.id} :`, error.message);
+        return null;
+    }
+}
+
+async function collectVisiblePanelsContext() {
+    const visiblePanels = collectPanelNodes(rootNode).filter((panel) =>
+        !panel.isSleeping && panel.bounds &&
+        panel.bounds.width > 0 && panel.bounds.height > 0 &&
+        panel.view?.webContents && !panel.view.webContents.isDestroyed()
+    );
+
+    const contexts = await Promise.all(visiblePanels.map(extractVisiblePanelContext));
+    return contexts.filter(Boolean);
+}
+
 ipcMain.handle("nanobrowser-get-context", async () => {
     if (!activePanel) return null;
     const panel = findPanelNode(rootNode, activePanel);
@@ -4895,15 +4967,19 @@ ipcMain.handle("nanobrowser-get-context", async () => {
 });
 
 
-ipcMain.handle("nanobrowser-ask-ollama", async (event, { prompt, model = "qwen2.5:1.5b" }) => {
+ipcMain.handle("nanobrowser-ask-ollama", async (event, {
+    prompt,
+    model = "qwen2.5:1.5b",
+    compareVisiblePanels = false
+} = {}) => {
     console.log("\n[IA RAG LIGHT] Déclenchement de la requête optimisée...");
     
-    if (!activePanel) {
+    if (!compareVisiblePanels && !activePanel) {
         return "SELECT_PANEL_REQUIRED";
     }
-    
-    const panel = findPanelNode(rootNode, activePanel);
-    if (!panel || !panel.view) return "Tuile introuvable.";
+
+    const panel = activePanel ? findPanelNode(rootNode, activePanel) : null;
+    if (!compareVisiblePanels && (!panel || !panel.view)) return "Tuile introuvable.";
 
     // 1. Activer immédiatement l'indicateur de chargement natif et de l'IHM
     if (win && !win.isDestroyed()) {
@@ -4912,51 +4988,42 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, { prompt, model = "qwen2.
     }
 
     try {
-        let cleanedTextContext = "";
-        let pageTitle = "";
-
-        // Déploiement et exécution de l'injecteur DOM
-        const injectorPath = path.join(__dirname, 'nanobrowser', 'injector.js');
-        if (fs.existsSync(injectorPath)) {
-            const scriptCode = fs.readFileSync(injectorPath, 'utf8');
-            await panel.view.webContents.executeJavaScript(scriptCode + "; void 0;");
+        const pageContexts = compareVisiblePanels
+            ? await collectVisiblePanelsContext()
+            : [await extractVisiblePanelContext(panel)].filter(Boolean);
+        if (pageContexts.length === 0) {
+            return compareVisiblePanels
+                ? "Aucune tuile visible ne contient de texte exploitable."
+                : "La tuile active ne contient pas de texte exploitable.";
         }
 
-        await new Promise(r => setTimeout(r, 50));
-        pageTitle = await panel.view.webContents.executeJavaScript("document.title || ''");
+        const contextBudget = 15000;
+        let remainingContext = contextBudget;
+        const formattedContexts = pageContexts.map((page) => {
+            const header = `Tuile ${page.panelId} — ${page.title} — ${page.url}`;
+            const availableTextLength = Math.max(0, remainingContext - header.length - 100);
+            const text = page.text.slice(0, Math.min(5000, availableTextLength));
+            remainingContext -= header.length + text.length + 100;
+            return `${header}\n${text}`;
+        });
 
-        // Extraction intelligente du contenu
-        const extractionScript = `
-            (function() {
-                const selectorsToRemove = ['script', 'style', 'noscript', 'iframe', 'canvas', 'svg', 'nav', 'header', 'footer', 'form', 'aside', 'dialog', '.menu', '.sidebar', '.footer', '.header', '.nav', '.comments', '.advertising', '.ads'];
-                const bodyClone = document.body.cloneNode(true);
-                selectorsToRemove.forEach(s => bodyClone.querySelectorAll(s).forEach(el => el.remove()));
-                const priority = bodyClone.querySelectorAll('article, [role="main"], main, .post-content, .entry-content, .article-content');
-                const root = priority.length > 0 ? priority[0] : bodyClone;
-                const nodes = root.querySelectorAll('h1, h2, h3, h4, h5, h6, p, li');
-                let pieces = [];
-                nodes.forEach(n => {
-                    const t = n.innerText ? n.innerText.trim() : "";
-                    if (t.length > 15) pieces.push(t);
-                });
-                return pieces.join('\\n\\n');
-            })();
-        `;
-
-        cleanedTextContext = await panel.view.webContents.executeJavaScript(extractionScript);
-
-        if (!cleanedTextContext || cleanedTextContext.trim().length === 0) {
-            cleanedTextContext = await panel.view.webContents.executeJavaScript("document.body.innerText || ''");
-        }
+        const combinedContext = formattedContexts.join("\n\n--- CONTEXTE DE LA TUILE SUIVANTE ---\n\n");
+        const panelContextSummary = pageContexts
+            .map((page) => `- Tuile ${page.panelId} : ${page.title} (${page.url})`)
+            .join("\n");
 
         // Envoi et attente de la réponse de la requête HTTP vers Ollama
         const resultOllama = await new Promise((resolve, reject) => {
             try {
                 let systemInstruction = "";
                 if (prompt.toLowerCase().includes("résumé") || prompt.toLowerCase().includes("resume")) {
-                    systemInstruction = `Tu es un assistant IA intégré au navigateur. Résume l'article suivant de façon claire et concise en 3 points clés, sous forme de tirets textuels.\nTitre de l'article : ${pageTitle}\n\nContenu propre de l'article :\n${cleanedTextContext.substring(0, 5000)}`;
+                    systemInstruction = compareVisiblePanels
+                        ? `Tu es un assistant IA intégré au navigateur. Réponds en français, de façon claire et concise. Résume les informations pertinentes des tuiles visibles, en séparant les sources lorsque c'est utile. N'invente aucune donnée absente des extraits.\n\nTuiles fournies :\n${panelContextSummary}\n\nContenu extrait :\n${combinedContext}`
+                        : `Tu es un assistant IA intégré au navigateur. Réponds en français de façon claire et concise en résumant uniquement la page active ci-dessous. N'invente aucune donnée absente de l'extrait.\n\nPage active :\n${panelContextSummary}\n\nContenu extrait :\n${combinedContext}`;
                 } else {
-                    systemInstruction = `Tu es un assistant IA intégré au navigateur. Réponds à la question de l'utilisateur en te basant exclusivement sur le contenu épuré de l'article ci-dessous.\nTitre de la page : ${pageTitle}\n\nContenu utile de la page :\n${cleanedTextContext.substring(0, 5000)}`;
+                    systemInstruction = compareVisiblePanels
+                        ? `Tu es un assistant IA intégré au navigateur. Réponds en français à la demande en te basant exclusivement sur le contenu des tuiles visibles. Compare leurs sources et construis un tableau comparatif si cela répond à la demande. N'invente aucune donnée absente des extraits et précise lorsqu'une information manque.\n\nTuiles fournies :\n${panelContextSummary}\n\nContenu extrait de chaque tuile :\n${combinedContext}`
+                        : `Tu es un assistant IA intégré au navigateur. Réponds en français à la demande en te basant exclusivement sur le contenu de la page active ci-dessous. N'invente aucune donnée absente de l'extrait et précise lorsqu'une information manque.\n\nPage active :\n${panelContextSummary}\n\nContenu extrait :\n${combinedContext}`;
                 }
 
                 const postData = JSON.stringify({
