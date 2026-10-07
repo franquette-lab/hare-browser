@@ -75,6 +75,24 @@ function isAdBlockExceptionHost(hostname) {
     );
 }
 
+async function toggleAdBlockException(hostname) {
+    const host = normalizeAdBlockHost(hostname);
+    if (!host) return Array.from(adBlockExceptions);
+
+    if (adBlockExceptions.has(host)) {
+        adBlockExceptions.delete(host);
+    } else {
+        adBlockExceptions.add(host);
+    }
+
+    const updatedExceptions = Array.from(adBlockExceptions).sort();
+    await safeWriteJsonAsync(getAdBlockExceptionsPath(), updatedExceptions);
+    if (win && !win.isDestroyed()) {
+        win.webContents.send('adblock-exceptions-updated', updatedExceptions);
+    }
+    return updatedExceptions;
+}
+
 function isAdBlockExceptionRequest(details) {
     let requestHost = "";
     try {
@@ -300,6 +318,15 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
 
     const targetPanel = findPanelNode(rootNode, panelId);
     const isPrivate = targetPanel ? targetPanel.isPrivate : false;
+    let currentSiteHost = "";
+    try {
+        const currentUrl = targetPanel?.view?.webContents?.getURL() || "";
+        const parsedUrl = new URL(currentUrl);
+        if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
+            currentSiteHost = normalizeAdBlockHost(parsedUrl.hostname);
+        }
+    } catch {}
+    const siteHasAdBlockException = currentSiteHost && isAdBlockExceptionHost(currentSiteHost);
 
     // NOUVEAU : Détecter si le mode zoom/maximisé est actif sur le navigateur
     const isZoomActive = maximizedPanelId !== null;
@@ -318,6 +345,19 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
         { role: "delete", label: "   🗑️ Supprimer" },
         { type: "separator" },
         { role: "selectAll", label: "   Sélectionner tout" },
+        ...(currentSiteHost ? [
+            { type: "separator" },
+            {
+                label: `   🛡️ ${siteHasAdBlockException ? "Réactiver" : "Désactiver"} le bloqueur sur ${currentSiteHost}`,
+                click: async () => {
+                    await toggleAdBlockException(currentSiteHost);
+                    const panelToReload = findPanelNode(rootNode, panelId);
+                    if (panelToReload?.view && !panelToReload.view.webContents.isDestroyed()) {
+                        panelToReload.view.webContents.reload();
+                    }
+                }
+            }
+        ] : []),
 
 
 
