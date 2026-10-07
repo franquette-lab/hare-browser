@@ -227,6 +227,10 @@ function getThemePath() {
     return path.join(appDataPath, 'theme.json');
 }
 
+function getAutoSleepPath() {
+    return path.join(appDataPath, 'autosleep.json');
+}
+
 function getSessionLayoutPath() {
     return path.join(appDataPath, 'last-session-layout.json');
 }
@@ -246,9 +250,43 @@ let forceRebuildSplitters = false;
 let dragTimer = null;
 let dragInProgress = false;
 let resizeTimer = null;
+
+
+// ==========================================
+// ✨ PLACEZ LES DEUX LIGNES ICI TOUT EN HAUT
+// ==========================================
 const PANEL_IDLE_TIMEOUT = 15 * 60 * 1000;
+let isAutoSleepEnabled = true; 
+
 
 const panelIdleTimers = new Map();
+
+
+let autoSleepEnabled = true;
+
+
+function loadAutoSleepPreference() {
+    try {
+        const settings = JSON.parse(fs.readFileSync(getAutoSleepPath(), "utf-8"));
+        autoSleepEnabled = typeof settings.enabled === "boolean" ? settings.enabled : true;
+    } catch (error) {
+        autoSleepEnabled = true;
+        if (error.code !== "ENOENT") {
+            console.error("Impossible de lire la préférence de veille automatique :", error);
+        }
+        saveAutoSleepPreference();
+    }
+    return autoSleepEnabled;
+}
+
+function saveAutoSleepPreference() {
+    try {
+        fs.mkdirSync(appDataPath, { recursive: true });
+        fs.writeFileSync(getAutoSleepPath(), JSON.stringify({ enabled: autoSleepEnabled }, null, 2), "utf-8");
+    } catch (error) {
+        console.error("Impossible d’enregistrer la préférence de veille automatique :", error);
+    }
+}
 
 // En haut de main.js avec vos autres variables globales (ex: sous let handleViews = {})
 let activeDownloads = {}; 
@@ -337,9 +375,6 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
             label: "✏️ Édition",
             enabled: false
         },
-//      { role: "undo", label: "   ↩️ Annuler" },
-//      { role: "redo", label: "   ↪️ Rétablir" },
-//      { type: "separator" },
         { role: "cut", label: "   ✂️ Couper" },
         { role: "copy", label: "   📋 Copier" },
         { role: "paste", label: "   📌 Coller" },
@@ -400,6 +435,49 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
             }
         },
 
+
+        { type: "separator" },
+
+        // =========================================================================
+        // ✨ NOUVEAU : ENTRÉE DYNAMIQUE POUR L'AUTO-VEILLE DANS LE MENU CONTEXTUEL
+        // =========================================================================
+        // =========================================================================
+        // ✨ VERSION CORRIGÉE : ÉVITE LE CRASH IPC EN MODIFIANT DIRECTEMENT L'ÉTAT
+        // =========================================================================
+        {
+            label: isAutoSleepEnabled 
+                ? "   💤 Désactiver la veille automatique (15 min)" 
+                : "   💤 Activer la veille automatique (15 min)",
+            type: "checkbox",
+            checked: isAutoSleepEnabled,
+            click: () => {
+                isAutoSleepEnabled = !isAutoSleepEnabled;
+                console.log(`[Auto-Sleep Menu] Mode changé : ${isAutoSleepEnabled ? "ACTIVÉ" : "DÉSACTIVÉ"}`);
+
+                if (!isAutoSleepEnabled) {
+                    // Si désactivé, on nettoie immédiatement tous les minuteurs actifs
+                    panelIdleTimers.forEach((timer) => clearTimeout(timer));
+                    panelIdleTimers.clear();
+                } else {
+                    // Si réactivé, on replanifie la veille pour toutes les tuiles actives
+                    const activePanels = collectPanelNodes(rootNode);
+                    activePanels.forEach(panel => {
+                        if (!panel.isSleeping) markPanelActivity(panel);
+                    });
+                }
+
+                // 1. Informe l'IHM (index.html) pour synchroniser l'icône de la barre d'outils
+                if (win && !win.isDestroyed()) {
+                    win.webContents.send('autosleep-state-changed', isAutoSleepEnabled);
+                }
+
+                // 2. Sauvegarde immédiate dans theme.json
+                safeWriteJsonAsync(getThemePath(), { 
+                    darkMode: isDarkModeForced, 
+                    autoSleep: isAutoSleepEnabled 
+                });
+            }
+        },
 
         { type: "separator" },
 
@@ -1617,11 +1695,28 @@ function markPanelActivity(panelOrId) {
     if (!panel || panel.isSleeping) return;
 
     clearPanelIdleTimer(panel.id);
+    if (!autoSleepEnabled) return;
+
     panel.lastActivityAt = Date.now();
     panelIdleTimers.set(panel.id, setTimeout(() => {
         panelIdleTimers.delete(panel.id);
-        if (findPanelNode(rootNode, panel.id) === panel) sleepPanel(panel);
+        if (autoSleepEnabled && findPanelNode(rootNode, panel.id) === panel) sleepPanel(panel);
     }, PANEL_IDLE_TIMEOUT));
+}
+
+function setAutoSleepEnabled(enabled) {
+    autoSleepEnabled = enabled === true;
+    panelIdleTimers.forEach((timer) => clearTimeout(timer));
+    panelIdleTimers.clear();
+
+    if (autoSleepEnabled) {
+        collectPanelNodes(rootNode).forEach((panel) => {
+            if (!panel.isSleeping) markPanelActivity(panel);
+        });
+    }
+
+    saveAutoSleepPreference();
+    return autoSleepEnabled;
 }
 
 function destroyPanelBrowserView(view) {
@@ -2432,6 +2527,17 @@ ipcMain.on('tile-activity', (event, activityType) => {
     }
 
     markPanelActivity(panel);
+});
+
+ipcMain.handle("get-autosleep-preference", (event) => {
+    if (!win || win.isDestroyed() || event.sender !== win.webContents) return true;
+    return autoSleepEnabled;
+});
+
+ipcMain.on("toggle-autosleep-request", (event, enabled) => {
+    if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
+    const nextState = setAutoSleepEnabled(enabled);
+    win.webContents.send("autosleep-state-changed", nextState);
 });
 
 ipcMain.on("navigate", (event, panelId, input) => {
@@ -3372,6 +3478,7 @@ async function createDefaultLayout() {
 async function createWindow() {
 
     await fsPromises.mkdir(appDataPath, { recursive: true });
+    loadAutoSleepPreference();
     isDarkModeForced = await getThemePreference();
     nativeTheme.themeSource = isDarkModeForced ? "dark" : "light";
 
@@ -4078,6 +4185,7 @@ async function createWindow() {
                 clearTimeout(sessionSaveTimer);
                 sessionSaveTimer = null;
             }
+            saveAutoSleepPreference();
             persistSessionLayout();
             win.destroy(); 
         } else {
@@ -5079,6 +5187,7 @@ app.on('will-quit', () => {
         clearTimeout(sessionSaveTimer);
         sessionSaveTimer = null;
     }
+    saveAutoSleepPreference();
     persistSessionLayout();
     globalShortcut.unregisterAll();
 });
