@@ -231,6 +231,10 @@ function getAutoSleepPath() {
     return path.join(appDataPath, 'autosleep.json');
 }
 
+function getAiSidebarPath() {
+    return path.join(appDataPath, 'ai-sidebar.json');
+}
+
 function getSessionLayoutPath() {
     return path.join(appDataPath, 'last-session-layout.json');
 }
@@ -314,6 +318,43 @@ let leftView, centerView, rightView;
 let isDarkModeForced = false;
 
 let isAiSidebarVisible = true; // Par défaut, le volet est ouvert désormais
+
+function loadAiSidebarPreference() {
+    try {
+        const preference = JSON.parse(fs.readFileSync(getAiSidebarPath(), "utf-8"));
+        isAiSidebarVisible = typeof preference.visible === "boolean" ? preference.visible : true;
+    } catch (error) {
+        isAiSidebarVisible = true;
+        if (error.code !== "ENOENT") {
+            console.error("Impossible de lire la préférence du volet IA :", error);
+        }
+        saveAiSidebarPreference();
+    }
+    return isAiSidebarVisible;
+}
+
+function saveAiSidebarPreference() {
+    try {
+        fs.mkdirSync(appDataPath, { recursive: true });
+        fs.writeFileSync(getAiSidebarPath(), JSON.stringify({ visible: isAiSidebarVisible }, null, 2), "utf-8");
+    } catch (error) {
+        console.error("Impossible d’enregistrer la préférence du volet IA :", error);
+    }
+}
+
+function setAiSidebarVisible(visible) {
+    isAiSidebarVisible = visible === true;
+    saveAiSidebarPreference();
+
+    forceRebuildSplitters = true;
+    resizeViews();
+
+    if (win && !win.isDestroyed()) {
+        win.webContents.send("ai-sidebar-visibility-changed", isAiSidebarVisible);
+        win.webContents.send("ai-sidebar-geometry-update", { topPosition: TOOLBAR_HEIGHT });
+    }
+    return isAiSidebarVisible;
+}
 
 let pwdWindow = null;
 const findInPageRequests = new Map();
@@ -504,7 +545,7 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
             label: "   📝 Résumer cette tuile web",
             click: () => {
                 if (win && !win.isDestroyed()) {
-                    if (!isAiSidebarVisible) ipcMain.emit("toggle-ai-sidebar-request", null, true);
+                    if (!isAiSidebarVisible) setAiSidebarVisible(true);
                     win.webContents.send("trigger-ai-action", { action: "resume" });
                 }
             }
@@ -513,7 +554,7 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
             label: "   🔍 Analyser les mots-clés de la page",
             click: () => {
                 if (win && !win.isDestroyed()) {
-                    if (!isAiSidebarVisible) ipcMain.emit("toggle-ai-sidebar-request", null, true);
+                    if (!isAiSidebarVisible) setAiSidebarVisible(true);
                     win.webContents.send("trigger-ai-action", { action: "keywords" });
                 }
             }
@@ -2505,16 +2546,13 @@ ipcMain.on("show-url-context-menu", (event) => {
 
 // Dans main.js -> Écouteur pour modifier l'état et forcer le rafraîchissement géométrique
 ipcMain.on("toggle-ai-sidebar-request", (event, isVisible) => {
-    isAiSidebarVisible = isVisible;
-    forceRebuildSplitters = true;
-    resizeViews(); // Recalcule l'affichage des tuiles
-    
-    // NOUVEAU : On informe l'IHM de la hauteur exacte de la barre d'outils (TOOLBAR_HEIGHT)
-    if (win && !win.isDestroyed()) {
-        win.webContents.send("ai-sidebar-geometry-update", {
-            topPosition: TOOLBAR_HEIGHT
-        });
-    }
+    if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
+    setAiSidebarVisible(isVisible);
+});
+
+ipcMain.handle("get-ai-sidebar-preference", (event) => {
+    if (!win || win.isDestroyed() || event.sender !== win.webContents) return true;
+    return isAiSidebarVisible;
 });
 
 ipcMain.on('tile-activity', (event, activityType) => {
@@ -3478,7 +3516,8 @@ async function createDefaultLayout() {
 async function createWindow() {
 
     await fsPromises.mkdir(appDataPath, { recursive: true });
-    loadAutoSleepPreference();
+    loadAutoSleepPreference();  
+    loadAiSidebarPreference();
     isDarkModeForced = await getThemePreference();
     nativeTheme.themeSource = isDarkModeForced ? "dark" : "light";
 
@@ -3601,9 +3640,7 @@ async function createWindow() {
                     accelerator: 'CmdOrCtrl+Shift+A',
                     click: () => {
                         if (!win || win.isDestroyed()) return;
-                        const nextVisible = !isAiSidebarVisible;
-                        ipcMain.emit("toggle-ai-sidebar-request", null, nextVisible);
-                        win.webContents.send("toggle-ai-sidebar-keyboard-force", nextVisible);
+                        setAiSidebarVisible(!isAiSidebarVisible);
                     }
                 },
                 {

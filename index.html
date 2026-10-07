@@ -2713,15 +2713,14 @@ aiSidebar.addEventListener("contextmenu", (event) => {
 
 // Ouvrir / Fermer le volet IA
 // Dans index.html -> Modifier l'écouteur existant du bouton de l'IA
+function setAiSidebarUiVisible(isVisible) {
+    if (!aiSidebar) return;
+    aiSidebar.style.right = isVisible ? "0px" : "-300px";
+    if (isVisible) document.getElementById("history-sidebar")?.classList.remove("open");
+}
+
 document.getElementById("ai-sidebar-button").addEventListener("click", () => {
-    if (aiSidebar.style.right === "0px") {
-        aiSidebar.style.right = "-300px";
-        window.api.toggleAiSidebar(false); // Invoque le redimensionnement natif
-    } else {
-        aiSidebar.style.right = "0px";
-        document.getElementById("history-sidebar")?.classList.remove("open");
-        window.api.toggleAiSidebar(true);  // Invoque le redimensionnement natif
-    }
+    window.api.toggleAiSidebar(aiSidebar.style.right !== "0px");
 });
 
 document
@@ -2737,7 +2736,6 @@ document
     });
 
 document.getElementById("close-ai-sidebar").addEventListener("click", () => {
-    aiSidebar.style.right = "-300px";
     window.api.toggleAiSidebar(false);
 });
 
@@ -2857,16 +2855,14 @@ window.api.onAiSidebarGeometryUpdate((data) => {
     }
 });
 
-// Écouter le signal de fermeture forcée de l'IA par le clavier (Touche Échap)
+window.api.onAiSidebarVisibilityChanged?.(setAiSidebarUiVisible);
+window.api.getAiSidebarPreference?.()
+    .then(setAiSidebarUiVisible)
+    .catch((error) => console.error("Impossible de restaurer l’état du volet IA :", error));
+
+// Compatibilité avec les commandes clavier existantes.
 window.api.onToggleAiSidebarKeyboardForce((isVisible) => {
-    const aiSidebar = document.getElementById("ai-sidebar");
-    if (aiSidebar) {
-        aiSidebar.style.right = isVisible ? "0px" : "-300px";
-        if (isVisible) {
-            document.getElementById("history-sidebar")?.classList.remove("open");
-        }
-        window.api.toggleAiSidebar(isVisible);
-    }
+    window.api.toggleAiSidebar(isVisible);
 });
 
 // Synchronisation dynamique du thème Clair / Sombre
