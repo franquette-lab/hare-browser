@@ -4899,7 +4899,7 @@ ipcMain.handle('load-config-from-file', async () => {
 });
 
 // L'interface IA demande à récupérer le texte de la page active pour son LLM
-async function extractVisiblePanelContext(panel) {
+async function extractVisiblePanelContext(panel, fullMode = false) {
     if (!panel || panel.isSleeping || !panel.bounds ||
         panel.bounds.width <= 0 || panel.bounds.height <= 0 ||
         !panel.view?.webContents || panel.view.webContents.isDestroyed()) {
@@ -4913,6 +4913,26 @@ async function extractVisiblePanelContext(panel) {
                 const clone = document.body ? document.body.cloneNode(true) : null;
                 if (!clone) return { title: document.title || "", url: location.href || "", text: "" };
 
+                // Prix fiable issu des données structurées (JSON-LD / microdata), évite de confondre avec éco-part ou mensualités
+                const structured = [];
+                const collectOffers = (node) => {
+                    if (!node || typeof node !== "object") return;
+                    if (Array.isArray(node)) { node.forEach(collectOffers); return; }
+                    const type = [].concat(node["@type"] || []).join(",");
+                    if (/Product/i.test(type) && node.name) structured.push("Produit : " + node.name);
+                    if (/Offer/i.test(type)) {
+                        const price = node.price ?? node.lowPrice;
+                        if (price !== undefined) structured.push("Prix actuel du produit : " + price + " " + (node.priceCurrency || ""));
+                    }
+                    Object.values(node).forEach((value) => { if (value && typeof value === "object") collectOffers(value); });
+                };
+                document.querySelectorAll('script[type="application/ld+json"]').forEach((script) => {
+                    try { collectOffers(JSON.parse(script.textContent)); } catch (e) {}
+                });
+                const metaPrice = document.querySelector('meta[property="product:price:amount"], meta[itemprop="price"], [itemprop="price"][content]');
+                if (metaPrice && metaPrice.getAttribute("content")) structured.push("Prix actuel du produit : " + metaPrice.getAttribute("content"));
+                const structuredText = Array.from(new Set(structured)).slice(0, 6).join("\\n");
+
                 clone.querySelectorAll(
                     'script, style, noscript, iframe, canvas, svg, nav, header, footer, form, aside, dialog, [aria-hidden="true"]'
                 ).forEach((element) => element.remove());
@@ -4924,9 +4944,11 @@ async function extractVisiblePanelContext(panel) {
                 const sections = Array.from(root.querySelectorAll('h1, h2, h3, h4, h5, h6, p, li, tr'))
                     .map((element) => (element.innerText || element.textContent || "").trim())
                     .filter((text) => text.length > 15);
-                const text = sections.length
+                const text = (structuredText ? structuredText + "\\n\\n" : "") + (${fullMode ? "true" : "false"}
+                    ? (document.body.innerText || "").trim()
+                    : sections.length
                     ? sections.join("\\n\\n")
-                    : (root.innerText || root.textContent || "").trim();
+                    : (root.innerText || root.textContent || "").trim());
 
                 return {
                     title: document.title || "Sans titre",
@@ -4948,11 +4970,15 @@ async function extractVisiblePanelContext(panel) {
             safeUrl = parsedUrl.href;
         } catch {}
 
+        let siteName = panel.title || "Site";
+        try { siteName = new URL(safeUrl).hostname.replace(/^www\./, ""); } catch {}
+
         return {
             panelId: panel.id,
+            siteName,
             title: page.title || panel.title || "Sans titre",
             url: safeUrl,
-            text: text.slice(0, 5000)
+            text: text.slice(0, fullMode ? 20000 : 5000)
         };
     } catch (error) {
         console.warn(`[RAG] Extraction impossible pour la tuile ${panel.id} :`, error.message);
@@ -4985,14 +5011,14 @@ function selectPanelsByPrompt(panels, prompt) {
     return sorted.slice(0, count);
 }
 
-async function collectVisiblePanelsContext(prompt = "") {
+async function collectVisiblePanelsContext(prompt = "", fullMode = false) {
     const visiblePanels = selectPanelsByPrompt(collectPanelNodes(rootNode).filter((panel) =>
         !panel.isSleeping && panel.bounds &&
         panel.bounds.width > 0 && panel.bounds.height > 0 &&
         panel.view?.webContents && !panel.view.webContents.isDestroyed()
     ), prompt);
 
-    const contexts = await Promise.all(visiblePanels.map(extractVisiblePanelContext));
+    const contexts = await Promise.all(visiblePanels.map((panel) => extractVisiblePanelContext(panel, fullMode)));
     return contexts.filter(Boolean);
 }
 
@@ -5012,10 +5038,11 @@ ipcMain.handle("nanobrowser-get-context", async () => {
 ipcMain.handle("nanobrowser-ask-ollama", async (event, {
     prompt,
     model = "qwen2.5:1.5b",
-    compareVisiblePanels: compareVisiblePanelsArg = false
+    compareVisiblePanels: compareVisiblePanelsArg = false,
+    fullMode = false
 } = {}) => {
     let compareVisiblePanels = compareVisiblePanelsArg;
-    console.log("\n[IA RAG LIGHT] Déclenchement de la requête optimisée...");
+    console.log(`\n[IA RAG ${fullMode ? "COMPLET" : "LIGHT"}] Déclenchement de la requête...`);
     compareVisiblePanels = compareVisiblePanels || isMultiTilePrompt(prompt);
     
     if (!compareVisiblePanels && !activePanel) {
@@ -5033,27 +5060,27 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, {
 
     try {
         const pageContexts = compareVisiblePanels
-            ? await collectVisiblePanelsContext(prompt)
-            : [await extractVisiblePanelContext(panel)].filter(Boolean);
+            ? await collectVisiblePanelsContext(prompt, fullMode)
+            : [await extractVisiblePanelContext(panel, fullMode)].filter(Boolean);
         if (pageContexts.length === 0) {
             return compareVisiblePanels
                 ? "Aucune tuile visible ne contient de texte exploitable."
                 : "La tuile active ne contient pas de texte exploitable.";
         }
 
-        const contextBudget = 15000;
+        const contextBudget = fullMode ? 48000 : 15000;
         let remainingContext = contextBudget;
         const formattedContexts = pageContexts.map((page) => {
-            const header = `Tuile ${page.panelId} — ${page.title} — ${page.url}`;
+            const header = `Source ${page.siteName} — ${page.title} — ${page.url}`;
             const availableTextLength = Math.max(0, remainingContext - header.length - 100);
-            const text = page.text.slice(0, Math.min(5000, availableTextLength));
+            const text = page.text.slice(0, Math.min(fullMode ? 20000 : 5000, availableTextLength));
             remainingContext -= header.length + text.length + 100;
             return `${header}\n${text}`;
         });
 
-        const combinedContext = formattedContexts.join("\n\n--- CONTEXTE DE LA TUILE SUIVANTE ---\n\n");
+        const combinedContext = formattedContexts.join("\n\n--- CONTEXTE DE LA SOURCE SUIVANTE ---\n\n");
         const panelContextSummary = pageContexts
-            .map((page) => `- Tuile ${page.panelId} : ${page.title} (${page.url})`)
+            .map((page) => `- ${page.siteName} : ${page.title} (${page.url})`)
             .join("\n");
 
         // Envoi et attente de la réponse de la requête HTTP vers Ollama
@@ -5066,7 +5093,7 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, {
                         : `Tu es un assistant IA intégré au navigateur. Réponds en français de façon claire et concise en résumant uniquement la page active ci-dessous. N'invente aucune donnée absente de l'extrait.\n\nPage active :\n${panelContextSummary}\n\nContenu extrait :\n${combinedContext}`;
                 } else {
                     systemInstruction = compareVisiblePanels
-                        ? `Tu es un assistant IA intégré au navigateur. Réponds en français à la demande en te basant exclusivement sur le contenu des tuiles visibles. Compare leurs sources et construis un seul tableau Markdown : une colonne par produit/tuile, une ligne par caractéristique (prix, autonomie, poids, garantie...), sans répéter une même caractéristique sur plusieurs lignes. N'invente aucune donnée absente des extraits et précise lorsqu'une information manque.\n\nTuiles fournies :\n${panelContextSummary}\n\nContenu extrait de chaque tuile :\n${combinedContext}`
+                        ? `Tu es un assistant IA intégré au navigateur. Réponds en français à la demande en te basant exclusivement sur le contenu des tuiles visibles. Compare leurs sources et construis un seul tableau Markdown : une colonne par produit/tuile, nomm\u00e9e d'apr\u00e8s le site ou le produit (jamais un identifiant de tuile), une ligne par caractéristique (prix, autonomie, poids, garantie...), sans répéter une même caractéristique sur plusieurs lignes. Pour le prix, utilise en priorité la ligne « Prix actuel du produit » de chaque source ; ignore éco-participation, mensualités et anciens prix. N'invente aucune donnée absente des extraits et précise lorsqu'une information manque.\n\nTuiles fournies :\n${panelContextSummary}\n\nContenu extrait de chaque tuile :\n${combinedContext}`
                         : `Tu es un assistant IA intégré au navigateur. Réponds en français à la demande en te basant exclusivement sur le contenu de la page active ci-dessous. N'invente aucune donnée absente de l'extrait et précise lorsqu'une information manque.\n\nPage active :\n${panelContextSummary}\n\nContenu extrait :\n${combinedContext}`;
                 }
 
@@ -5074,7 +5101,8 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, {
                     model: model,
                     prompt: prompt,
                     system: systemInstruction,
-                    stream: false
+                    stream: false,
+                    ...(fullMode ? { options: { num_ctx: 16384 } } : {})
                 });
 
                 const http = getNodeModule("http");
