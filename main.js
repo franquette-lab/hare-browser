@@ -377,13 +377,30 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
         },
 
 
-// ... [dans le tableau menuTemplate de afficherMenuContextuelPanneau] ...
-{
-    label: isPrivate ? "   🕵️ Ouvrir une tuile publique classique" : "   🕵️ Scinder en Navigation Privée (Ctrl+Shift+N)",
-    enabled: !isZoomActive,
-    click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', !isPrivate)
-},
 
+
+
+        {
+            label: isPrivate ? "   🕵️ Ouvrir une tuile publique classique" : "   🕵️ Scinder en Navigation Privée (Ctrl+Shift+N)",
+            enabled: !isZoomActive,
+            click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', !isPrivate)
+        },
+        
+        // === AJOUT : DUPLICATION DE TUILE À LA VOLÉE ===
+        {
+            label: "   📋 Dupliquer cette tuile",
+            enabled: !isZoomActive,
+            click: () => {
+                if (webContents && !webContents.isDestroyed()) {
+                    const currentUrl = webContents.getURL();
+                    // On transmet l'ID du panneau cible, l'URL à cloner, et le statut privé
+                    ipcMain.emit('duplicate-panel', panelId, currentUrl, isPrivate);
+                }
+            }
+        },
+
+
+        { type: "separator" },
 
 
         {
@@ -659,6 +676,9 @@ async function savePasswordsSecurely(passwordList) {
         return false;
     }
 }
+
+
+
 
 ipcMain.on("open-password-manager-window", () => {
     if (pwdWindow && !pwdWindow.isDestroyed()) {
@@ -2921,13 +2941,88 @@ app.on('web-contents-created', (event, webContents) => {
     });
 });
 
+// ====== ÉCOUTEUR : DUPLICATION DE TUILE ======
+ipcMain.on("duplicate-panel", (panelId, urlToClone, isPrivate) => {
+    const node = findPanelNode(rootNode, panelId);
+    const parent = findParentNode(rootNode, panelId);    
+    if (!node) return;
 
+    const newPanelId = "panel" + nextPanelNumber++;
 
+    // Configuration de la session (publique globale ou privée volatile isolée)
+    let targetSession;
+    if (isPrivate) {
+        const privatePartition = `incognito_${newPanelId}`;
+        targetSession = session.fromPartition(privatePartition, { cache: false });
+        enableAdBlockerForSession(targetSession);
+    } else {
+        targetSession = session.defaultSession;
+    }
+	
+    const viewOptions = {
+        webPreferences: {
+            session: targetSession,
+            contextIsolation: true,
+            nodeIntegration: false,
+            backgroundThrottling: true,      
+            offscreen: false,                
+            spellcheck: false,               
+            enableWebSQL: false,             
+            webSecurity: true,
+            allowRunningInsecureContent: false
+        }
+    };
 
+    const newView = createSandboxedBrowserView(viewOptions);
+    win.addBrowserView(newView);
 
+    // Duplication des restrictions de permissions si la tuile d'origine est privée
+    if (isPrivate) {
+        const privateSession = newView.webContents.session;
+        const deniedPermissions = ['geolocation', 'geolocation-approximate', 'media', 'notifications', 'midiSysex', 'sensors'];
+        privateSession.setPermissionRequestHandler((webContents, permission, callback) => {
+            if (deniedPermissions.includes(permission)) return callback(false);
+            callback(true);
+        });
+        privateSession.setPermissionCheckHandler((_webContents, permission) => {
+            return !deniedPermissions.includes(permission);
+        });
+    }
 
+    // Chargement de l'URL clonée
+    newView.webContents.loadURL(urlToClone || getHomePageUrl());
 
+    // Création du nouveau PanelNode
+    const newPanel = new PanelNode(newPanelId, newView, urlToClone, isPrivate);
+    setupNavigationTracking(newPanel);            
 
+    // Par défaut, on duplique via un split vertical à parts égales (0.5)
+    const newSplit = new SplitNode("vertical");
+    newSplit.ratio = 0.5;
+
+    // Insertion du nouveau split dans l'arbre binaire
+    if (!parent) {
+        newSplit.first = node;
+        newSplit.second = newPanel;
+        rootNode = newSplit;
+    } else {
+        if (parent.first === node) parent.first = newSplit;
+        else parent.second = newSplit;
+        newSplit.first = node;
+        newSplit.second = newPanel;
+    }
+
+    // Sauvegarde de l'état (permet Ctrl+Z), focus et rafraîchissement géométrique
+    saveState();
+    activePanel = newPanelId;
+    forceRebuildSplitters = true;
+    resizeViews();
+    
+    // Notification générale à l'interface
+    win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
+    win.webContents.send("active-panel-changed", { id: newPanel.id, bounds: newPanel.bounds });
+    updateActiveBorder(newPanel.bounds);
+});
 
 // ====== DANS MAIN.JS -> ipcMain.on("split-panel", ...) ======
 ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
@@ -2936,9 +3031,6 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
     const parent = findParentNode(rootNode, panelId);    
 
     const newPanelId = "panel" + nextPanelNumber++;
-
-
-
 
     let targetSession;
     if (isPrivate) {
