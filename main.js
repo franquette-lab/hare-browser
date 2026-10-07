@@ -318,6 +318,19 @@ let leftView, centerView, rightView;
 let isDarkModeForced = false;
 
 let isAiSidebarVisible = true; // Par défaut, le volet est ouvert désormais
+let isAiSidebarWide = false;
+let lastAiSidebarWidth = 300;
+
+function getAiSidebarWidth(windowWidth) {
+    return isAiSidebarWide ? Math.max(300, Math.min(760, Math.round(windowWidth * 0.6))) : 300;
+}
+
+ipcMain.on("set-ai-sidebar-wide", (_event, wide) => {
+    const next = wide === true;
+    if (next === isAiSidebarWide) return;
+    isAiSidebarWide = next;
+    resizeViews();
+});
 
 function loadAiSidebarPreference() {
     try {
@@ -4435,10 +4448,14 @@ function resizeViews() {
         forceRebuildSplitters = false;
     }
 
-    // L'assistant IA est rendu dans index.html ; on réserve simplement sa largeur.
+    // L'assistant IA est rendu dans index.html ; on réserve sa largeur (élargie pour les comparaisons).
     if (isAiSidebarVisible) {
-        const SIDEBAR_WIDTH = 300;
-        width = width - SIDEBAR_WIDTH;
+        const sidebarWidth = getAiSidebarWidth(bounds.width);
+        if (sidebarWidth !== lastAiSidebarWidth) {
+            lastAiSidebarWidth = sidebarWidth;
+            win.webContents.send("ai-sidebar-width-changed", sidebarWidth);
+        }
+        width = width - sidebarWidth;
     }
 
     layoutNode(rootNode, 0, TOOLBAR_HEIGHT, width, height - TOOLBAR_HEIGHT);
@@ -4943,12 +4960,37 @@ async function extractVisiblePanelContext(panel) {
     }
 }
 
-async function collectVisiblePanelsContext() {
-    const visiblePanels = collectPanelNodes(rootNode).filter((panel) =>
+const TILE_COUNT_WORDS = { un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6 };
+
+// Détecte les demandes multi-tuiles ("mes 3 tuiles de gauche", "toutes les tuiles"...)
+function isMultiTilePrompt(prompt) {
+    return /\btuiles\b|\bonglets visibles\b|\bpages affich/i.test(prompt || "");
+}
+
+// Restreint et ordonne les tuiles selon "N tuiles de gauche/droite/haut/bas"
+function selectPanelsByPrompt(panels, prompt) {
+    const text = (prompt || "").toLowerCase();
+    const match = text.match(/(?:(\d+|un|une|deux|trois|quatre|cinq|six)\s+)?(?:premi[eè]res?\s+|derni[eè]res?\s+)?tuiles?\s+(?:de |du |à |a |situées? (?:à |a )?)?(?:la |l')?(gauche|droite|haut|bas)/);
+    const byX = (a, b) => a.bounds.x - b.bounds.x || a.bounds.y - b.bounds.y;
+    const byY = (a, b) => a.bounds.y - b.bounds.y || a.bounds.x - b.bounds.x;
+    if (!match) return [...panels].sort(byX);
+
+    const count = match[1] ? (Number(match[1]) || TILE_COUNT_WORDS[match[1]]) : panels.length;
+    const sorted = [...panels].sort({
+        gauche: byX,
+        droite: (a, b) => byX(b, a),
+        haut: byY,
+        bas: (a, b) => byY(b, a)
+    }[match[2]]);
+    return sorted.slice(0, count);
+}
+
+async function collectVisiblePanelsContext(prompt = "") {
+    const visiblePanels = selectPanelsByPrompt(collectPanelNodes(rootNode).filter((panel) =>
         !panel.isSleeping && panel.bounds &&
         panel.bounds.width > 0 && panel.bounds.height > 0 &&
         panel.view?.webContents && !panel.view.webContents.isDestroyed()
-    );
+    ), prompt);
 
     const contexts = await Promise.all(visiblePanels.map(extractVisiblePanelContext));
     return contexts.filter(Boolean);
@@ -4970,9 +5012,11 @@ ipcMain.handle("nanobrowser-get-context", async () => {
 ipcMain.handle("nanobrowser-ask-ollama", async (event, {
     prompt,
     model = "qwen2.5:1.5b",
-    compareVisiblePanels = false
+    compareVisiblePanels: compareVisiblePanelsArg = false
 } = {}) => {
+    let compareVisiblePanels = compareVisiblePanelsArg;
     console.log("\n[IA RAG LIGHT] Déclenchement de la requête optimisée...");
+    compareVisiblePanels = compareVisiblePanels || isMultiTilePrompt(prompt);
     
     if (!compareVisiblePanels && !activePanel) {
         return "SELECT_PANEL_REQUIRED";
@@ -4989,7 +5033,7 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, {
 
     try {
         const pageContexts = compareVisiblePanels
-            ? await collectVisiblePanelsContext()
+            ? await collectVisiblePanelsContext(prompt)
             : [await extractVisiblePanelContext(panel)].filter(Boolean);
         if (pageContexts.length === 0) {
             return compareVisiblePanels
@@ -5022,7 +5066,7 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, {
                         : `Tu es un assistant IA intégré au navigateur. Réponds en français de façon claire et concise en résumant uniquement la page active ci-dessous. N'invente aucune donnée absente de l'extrait.\n\nPage active :\n${panelContextSummary}\n\nContenu extrait :\n${combinedContext}`;
                 } else {
                     systemInstruction = compareVisiblePanels
-                        ? `Tu es un assistant IA intégré au navigateur. Réponds en français à la demande en te basant exclusivement sur le contenu des tuiles visibles. Compare leurs sources et construis un tableau comparatif si cela répond à la demande. N'invente aucune donnée absente des extraits et précise lorsqu'une information manque.\n\nTuiles fournies :\n${panelContextSummary}\n\nContenu extrait de chaque tuile :\n${combinedContext}`
+                        ? `Tu es un assistant IA intégré au navigateur. Réponds en français à la demande en te basant exclusivement sur le contenu des tuiles visibles. Compare leurs sources et construis un seul tableau Markdown : une colonne par produit/tuile, une ligne par caractéristique (prix, autonomie, poids, garantie...), sans répéter une même caractéristique sur plusieurs lignes. N'invente aucune donnée absente des extraits et précise lorsqu'une information manque.\n\nTuiles fournies :\n${panelContextSummary}\n\nContenu extrait de chaque tuile :\n${combinedContext}`
                         : `Tu es un assistant IA intégré au navigateur. Réponds en français à la demande en te basant exclusivement sur le contenu de la page active ci-dessous. N'invente aucune donnée absente de l'extrait et précise lorsqu'une information manque.\n\nPage active :\n${panelContextSummary}\n\nContenu extrait :\n${combinedContext}`;
                 }
 

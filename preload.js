@@ -148,6 +148,9 @@ onActivePanelChanged: (callback) => {
         toggleAiSidebar: (isVisible) => ipcRenderer.send("toggle-ai-sidebar-request", isVisible),
         onAiLoadingState: (callback) => ipcRenderer.on("ai-loading-state", (_, isLoading) => callback(isLoading)),
         
+        setAiSidebarWide: (wide) => ipcRenderer.send("set-ai-sidebar-wide", wide),
+        onAiSidebarWidthChanged: (callback) => ipcRenderer.on("ai-sidebar-width-changed", (event, width) => callback(width)),
+
         nanobrowser: {
             getContext: () => ipcRenderer.invoke("nanobrowser-get-context"),
             executeAction: (actionType, argument) => ipcRenderer.invoke("nanobrowser-execute-action", { actionType, argument }),

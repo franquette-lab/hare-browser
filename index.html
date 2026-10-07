@@ -755,7 +755,7 @@ html.dark #pwd-modal {
     <!-- Dans index.html -> Dans la div #ai-sidebar, remplacez la ligne de l'encadré du bas par celle-ci : -->
 <div class="ai-footer-box" style="display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 8px;">
 
-    <input type="text" id="ai-user-prompt" placeholder="Poser une question sur une page web..." style="width: 100%; height: 32px; background: #2d2d30; border: 1px solid #3c3c3c; color: white; border-radius: 6px; padding: 0 10px; font-size: 12px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#3c3c3c'">
+    <input type="text" id="ai-user-prompt" placeholder="Question sur une page ou sur vos tuiles (ex: comparer mes 3 tuiles de gauche)" style="width: 100%; height: 32px; background: #2d2d30; border: 1px solid #3c3c3c; color: white; border-radius: 6px; padding: 0 10px; font-size: 12px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#3c3c3c'">
     
     <div style="display: flex; gap: 8px;">
         <button id="ai-submit-btn" style="flex: 1; height: 30px; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; transition: background 0.2s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Poser la question</button>
@@ -764,7 +764,7 @@ html.dark #pwd-modal {
         <!-- ✨ NOUVEAU : Bouton Effacer ajouté à la suite -->
         <button id="ai-clear-btn" title="Effacer l'historique de l'assistant" style="height: 30px; background: #4b5563; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; padding: 0 12px; transition: background 0.2s;" onmouseover="this.style.background='#374151'" onmouseout="this.style.background='#4b5563'">🗑️</button>
     </div>
-    <button id="ai-compare-panels-btn" type="button" title="Comparer le contenu de toutes les tuiles visibles" style="width:100%; height:30px; background:#7c3aed; color:white; border:none; border-radius:6px; font-size:11.5px; cursor:pointer; font-weight:600;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">⇄ Comparer les tuiles visibles</button>
+    <button id="ai-compare-panels-btn" type="button" title="Comparer le contenu de toutes les tuiles visibles" style="width:100%; height:30px; background:#7c3aed; color:white; border:none; border-radius:6px; font-size:11.5px; cursor:pointer; font-weight:600;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">Comparer les tuiles</button>
 </div>
     
 </div>
@@ -2716,7 +2716,7 @@ aiSidebar.addEventListener("contextmenu", (event) => {
 // Dans index.html -> Modifier l'écouteur existant du bouton de l'IA
 function setAiSidebarUiVisible(isVisible) {
     if (!aiSidebar) return;
-    aiSidebar.style.right = isVisible ? "0px" : "-300px";
+    aiSidebar.style.right = isVisible ? "0px" : `-${aiSidebar.offsetWidth + 1}px`;
     if (isVisible) document.getElementById("history-sidebar")?.classList.remove("open");
 }
 
@@ -2782,6 +2782,7 @@ document.getElementById("ai-clear-btn").addEventListener("click", () => {
     }
 
     console.log("[Assistant IA] Écran et champ de saisie réinitialisés à zéro.");
+    window.api.setAiSidebarWide(false);
 });
 
 // DANS INDEX.HTML -> Remplacer l'écouteur du bouton de gestion des mots de passe
@@ -2863,6 +2864,11 @@ window.api.onAiSidebarGeometryUpdate((data) => {
 });
 
 window.api.onAiSidebarVisibilityChanged?.(setAiSidebarUiVisible);
+window.api.onAiSidebarWidthChanged?.((width) => {
+    const hidden = aiSidebarElement.style.right !== "0px";
+    aiSidebarElement.style.width = width + "px";
+    if (hidden) aiSidebarElement.style.right = `-${width + 1}px`;
+});
 window.api.getAiSidebarPreference?.()
     .then(setAiSidebarUiVisible)
     .catch((error) => console.error("Impossible de restaurer l’état du volet IA :", error));
@@ -2888,6 +2894,43 @@ if (document.documentElement.classList.contains("dark") || document.documentElem
     aiSidebarElement.classList.remove("dark-mode-active");
 }
 
+// Rendu minimal et sûr (HTML échappé) : tableaux Markdown, gras et retours à la ligne.
+function renderAiMarkdown(markdown) {
+    const escapeHtml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    const inline = (s) => escapeHtml(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    const isTableLine = (l) => l.trim().startsWith("|");
+    const isSeparator = (l) => /^\|?[\s:|-]+\|?$/.test(l.trim()) && l.includes("-");
+    const splitCells = (l) => l.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+
+    const lines = String(markdown).split("\n");
+    let html = "";
+    let textBuffer = [];
+    const flushText = () => {
+        if (textBuffer.length) html += `<div style="white-space:pre-wrap;margin:6px 0;">${inline(textBuffer.join("\n").trim())}</div>`;
+        textBuffer = [];
+    };
+
+    for (let i = 0; i < lines.length;) {
+        if (!isTableLine(lines[i])) { textBuffer.push(lines[i++]); continue; }
+        flushText();
+        const rows = [];
+        while (i < lines.length && isTableLine(lines[i])) {
+            if (!isSeparator(lines[i])) rows.push(splitCells(lines[i]));
+            i++;
+        }
+        const cellStyle = "border:1px solid #3c3c3c;padding:4px 6px;text-align:left;vertical-align:top;word-break:normal;overflow-wrap:break-word;min-width:48px;";
+        html += '<div style="overflow-x:auto;margin:8px 0;"><table style="border-collapse:collapse;width:100%;font-size:11px;white-space:normal;">';
+        rows.forEach((cells, rowIndex) => {
+            const tag = rowIndex === 0 ? "th" : "td";
+            const bg = rowIndex === 0 ? "background:#2d2d30;" : "";
+            html += "<tr>" + cells.map((c) => `<${tag} style="${cellStyle}${bg}">${inline(c)}</${tag}>`).join("") + "</tr>";
+        });
+        html += "</table></div>";
+    }
+    flushText();
+    return html;
+}
+
 async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = false, compareVisiblePanels = false) {
     const modeleChoisi = "qwen2.5:1.5b";
     const aiSidebar = document.getElementById("ai-sidebar");
@@ -2898,6 +2941,9 @@ async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = fa
             : compareVisiblePanels ? document.getElementById("ai-compare-panels-btn") : null;
     const originalButtonLabel = loadingBtn ? loadingBtn.textContent : "";
     
+    // Pré-élargit le volet pour afficher le tableau
+    if (compareVisiblePanels) window.api.setAiSidebarWide(true);
+
     // Force l'ouverture visuelle immédiate du volet
     if (aiSidebar) aiSidebar.style.right = "0px";
 
@@ -2933,7 +2979,9 @@ async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = fa
         }
         
         if (reponse) {
-            aiResponseContainer.innerText = reponse;
+            const hasTable = /^\s*\|.+\|\s*$/m.test(reponse);
+            window.api.setAiSidebarWide(hasTable);
+            aiResponseContainer.innerHTML = renderAiMarkdown(reponse);
         } else {
             aiResponseContainer.innerHTML = '<span style="color: #f87171; font-size: 12px;">❌ L\'IA a renvoyé une réponse vide.</span>';
         }
