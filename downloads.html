@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+    <title>Téléchargements</title>
+    <style>
+        body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; padding: 12px; user-select: none; background: #f9fafb; color: #1f2937; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 10px; position: sticky; top: 0; background: inherit; }
+        h2 { margin: 0; font-size: 14px; }
+        button { font: inherit; font-size: 11px; padding: 3px 8px; border-radius: 4px; cursor: pointer; border: 1px solid #d1d5db; background: #fff; color: #374151; }
+        button:hover { background: #e5e7eb; }
+        .item { border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; }
+        .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .name { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .meta { font-size: 11px; color: #6b7280; margin-top: 2px; }
+        .meta.error { color: #dc2626; }
+        .bar { height: 5px; background: #e5e7eb; border-radius: 3px; margin-top: 6px; overflow: hidden; }
+        .bar > div { height: 100%; background: #3b82f6; }
+        .actions { display: flex; gap: 6px; flex: 0 0 auto; }
+        #empty { color: #6b7280; font-size: 12px; text-align: center; margin-top: 40px; }
+        body.dark { background: #1e1e1e; color: #cfcfcf; }
+        body.dark .header, body.dark .item { border-color: #3c3c3c; }
+        body.dark button { background: #2d2d30; color: #cfcfcf; border-color: #3c3c3c; }
+        body.dark button:hover { background: #3f3f46; }
+        body.dark .meta { color: #9ca3af; }
+        body.dark .meta.error { color: #f87171; }
+        body.dark .bar { background: #3c3c3c; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>⬇️ Téléchargements</h2>
+        <button id="clear-btn" style="display:none">Effacer la liste</button>
+    </div>
+    <div id="list"></div>
+
+<script>
+function formatSize(bytes) {
+    if (!bytes || bytes < 0) return "";
+    const units = ["o", "Ko", "Mo", "Go"];
+    let value = bytes, unit = 0;
+    while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit++; }
+    return value.toFixed(unit === 0 ? 0 : 1) + " " + units[unit];
+}
+
+function makeButton(label, onClick) {
+    const button = document.createElement("button");
+    button.textContent = label;
+    button.addEventListener("click", onClick);
+    return button;
+}
+
+function statusText(entry) {
+    const size = formatSize(entry.total || entry.received);
+    const source = entry.source ? " · " + entry.source : "";
+    if (entry.state === "progressing") {
+        const percent = entry.total > 0 ? Math.round(entry.received / entry.total * 100) + " %" : formatSize(entry.received);
+        return { text: "En cours — " + percent + source, error: false };
+    }
+    if (entry.state === "completed") {
+        return entry.fileExists
+            ? { text: size + source, error: false }
+            : { text: "Fichier introuvable (déplacé ou supprimé)" + source, error: true };
+    }
+    if (entry.state === "cancelled") return { text: "Annulé" + source, error: true };
+    return { text: "Interrompu" + source, error: true };
+}
+
+window.downloadsApi.onRender(({ list, isDarkMode }) => {
+    document.body.classList.toggle("dark", isDarkMode === true);
+    const container = document.getElementById("list");
+    container.textContent = "";
+
+    document.getElementById("clear-btn").style.display = list.some((e) => e.state !== "progressing") ? "" : "none";
+
+    if (list.length === 0) {
+        const empty = document.createElement("div");
+        empty.id = "empty";
+        empty.textContent = "Aucun téléchargement.";
+        container.appendChild(empty);
+        return;
+    }
+
+    list.forEach((entry) => {
+        const item = document.createElement("div");
+        item.className = "item";
+
+        const row = document.createElement("div");
+        row.className = "row";
+
+        const info = document.createElement("div");
+        info.style.minWidth = "0";
+        const name = document.createElement("div");
+        name.className = "name";
+        name.textContent = entry.filename;
+        name.title = entry.filename;
+        const status = statusText(entry);
+        const meta = document.createElement("div");
+        meta.className = "meta" + (status.error ? " error" : "");
+        meta.textContent = status.text;
+        info.append(name, meta);
+
+        const actions = document.createElement("div");
+        actions.className = "actions";
+        if (entry.state === "progressing") {
+            actions.appendChild(makeButton("Annuler", () => window.downloadsApi.cancel(entry.id)));
+        } else {
+            if (entry.path) actions.appendChild(makeButton("Ouvrir le dossier", () => window.downloadsApi.openFolder(entry.id)));
+            actions.appendChild(makeButton("✕", () => window.downloadsApi.remove(entry.id)));
+        }
+
+        row.append(info, actions);
+        item.appendChild(row);
+
+        if (entry.state === "progressing") {
+            const bar = document.createElement("div");
+            bar.className = "bar";
+            const fill = document.createElement("div");
+            fill.style.width = (entry.total > 0 ? Math.min(100, entry.received / entry.total * 100) : 0) + "%";
+            bar.appendChild(fill);
+            item.appendChild(bar);
+        }
+        container.appendChild(item);
+    });
+});
+
+document.getElementById("clear-btn").addEventListener("click", () => window.downloadsApi.clear());
+</script>
+</body>
+</html>

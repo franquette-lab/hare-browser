@@ -501,6 +501,10 @@ l'assistant IA et de gérer le contenu affiché sans quitter le panneau actif.
                 <td><strong>Nouvelle tuile privée</strong> — Crée une scission verticale isolée en mode de navigation privée. Les cookies et le cache sont détruits dès la fermeture de ce panneau.</td>
             </tr>
             <tr>
+                <td><code>Ctrl&nbsp;+&nbsp;J</code></td>
+                <td><strong>Téléchargements</strong> — Ouvre la fenêtre du gestionnaire de téléchargements (bouton ⬇️ de la barre d'outils).</td>
+            </tr>
+            <tr>
                 <td><code>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;D</code></td>
                 <td><strong>Dupliquer la tuile active</strong> — Ouvre une copie du panneau actif à sa droite, sur la même adresse. La copie d'une tuile privée reste privée.</td>
             </tr>
@@ -528,7 +532,13 @@ l'assistant IA et de gérer le contenu affiché sans quitter le panneau actif.
 
     <h3>🕵️ Cyber-Sécurité et Navigation Privée</h3>
     <p>Lorsque vous ouvrez une tuile privée, le navigateur instancie une partition en mémoire pure volatile (session <code>incognito</code> isolée). Lors de la fermeture de cette tuile, un script détruit automatiquement toutes les traces locales résiduelles de manière irréversible : cookies, LocalStorage, bases IndexedDB, session et cache d'historique de rendu HTTP de Chromium.</p>
-
+    <h3>⬇️ Gestionnaire de Téléchargements</h3>
+    <p>Le bouton ⬇️ de la barre d'outils (ou <code>Ctrl + J</code>) ouvre une fenêtre qui liste vos téléchargements en cours et passés, avec le nom du fichier, la taille et le site d'origine.</p>
+    <ul>
+        <li><strong>En cours</strong> : une barre de progression est affichée et le bouton « Annuler » interrompt le téléchargement.</li>
+        <li><strong>Terminés</strong> : le bouton « Ouvrir le dossier » affiche le fichier dans l'Explorateur. Si le fichier a été déplacé ou supprimé, la ligne l'indique.</li>
+        <li><strong>Liste</strong> : ✕ retire une ligne, « Effacer la liste » retire tous les téléchargements terminés (les fichiers ne sont jamais supprimés). L'historique est conservé entre les lancements, sauf pour les tuiles privées : leurs téléchargements ne sont jamais enregistrés sur disque.</li>
+    </ul>
     <h3>️ Tuiles Conteneurs (Multi-Comptes)</h3>
     <p>Chaque conteneur dispose de sa propre partition persistante : cookies, LocalStorage et sessions y sont isolés des autres conteneurs et de la session par défaut. Vous pouvez ainsi ouvrir deux tuiles côte à côte et vous connecter à deux comptes Google ou Outlook différents en même temps. Contrairement à la navigation privée, les connexions sont conservées entre les lancements.</p>
     <ul>

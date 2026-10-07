@@ -319,10 +319,24 @@ body.fullscreen-toolbar-hidden #fullscreen-reveal-zone {
 #find-in-page-bar button:hover { background: var(--button-hover); }
 
 .url-tab {
+    position: relative;
     padding: 0px 6px !important; /* Supprime le padding vertical (haut/bas) pour aplatir l'onglet */
     height: 30px !important;
     box-sizing: border-box;
     border: 1px solid transparent;
+}
+
+/* Barre de progression de téléchargement au bas de l'onglet */
+.download-progress-bar {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 3px;
+    width: 0;
+    background: #f97316;
+    border-radius: 0 2px 2px 0;
+    transition: width .25s linear;
+    pointer-events: none;
 }
 
 .url-tab.active-url-tab {
@@ -649,6 +663,8 @@ html.dark #pwd-modal {
 
     <!-- L'attribut onclick appelle directement notre nouveau pont preload de manière brute -->
     <button id="history-button" title="Historique (Ctrl+H)" onclick="window.api.openHistoryWindow()" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer; position:relative; z-index:999999 !important;">🕒</button>
+
+    <button id="downloads-button" title="Téléchargements (Ctrl+J)" onclick="window.api.openDownloadsWindow()" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">⬇️</button>
 
     <!-- Bouton Gestionnaire de mots de passe -->
     <button id="pwd-manager-btn" title="Gestionnaire de mots de passe" style="width:28px; height:24px; background:#2d2d30; color:#fbbf24; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🔑</button>
@@ -2151,7 +2167,8 @@ window.api.onDownloadProgress((data) => {
         cancelBtn.style.display = "flex";
     }
     if (input && document.activeElement !== input) {
-        input.value = `📥 (${data.percent}%) ${data.filename}`;
+        input.value = `${data.percent} % · ${data.filename}`;
+        input.title = `Téléchargement : ${data.filename} (${data.percent} %)`;
         input.style.color = "#f97316"; 
     }
 });
@@ -2173,6 +2190,7 @@ window.api.onDownloadDone((data) => {
         if (input && panelData) {
             input.value = getDisplayUrl(panelData.realUrl || panelData.url || "", panelData.searchQuery);
             input.style.color = "#d4d4d4";
+            input.title = "";
         }
     }
 

@@ -148,6 +148,7 @@ onActivePanelChanged: (callback) => {
         toggleAiSidebar: (isVisible) => ipcRenderer.send("toggle-ai-sidebar-request", isVisible),
         onAiLoadingState: (callback) => ipcRenderer.on("ai-loading-state", (_, isLoading) => callback(isLoading)),
         
+        openDownloadsWindow: () => ipcRenderer.send("open-downloads-window"),
         duplicatePanel: (panelId) => ipcRenderer.send("duplicate-panel-request", panelId),
         showContainerMenu: (panelId) => ipcRenderer.send("show-container-menu", panelId),
         setAiSidebarWide: (wide) => ipcRenderer.send("set-ai-sidebar-wide", wide),

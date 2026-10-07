@@ -28,6 +28,7 @@ const { extractMainArticleContent } = require('./nanobrowser/readability-light.j
  */
 function enableAdBlockerForSession(targetSession) {
     if (!targetSession || !targetSession.webRequest) return;
+    registerDownloadHandler(targetSession);
 
     // Filtre toutes les requêtes initiées par les protocoles HTTP/HTTPS
     const filter = { urls: ['http://*/*', 'https://*/*'] };
@@ -1021,8 +1022,137 @@ function getFavoris() {
     }
 }
 
+const registeredDownloadSessions = new WeakSet();
+const MAX_DOWNLOAD_ENTRIES = 100;
+let downloadsList = [];
+let nextDownloadId = 1;
+let downloadsWindow = null;
+let downloadsNotifyTimer = null;
+const liveDownloadItems = new Map();
+
+function getDownloadsPath() {
+    return path.join(appDataPath, 'downloads.json');
+}
+
+function loadDownloadsList() {
+    try {
+        const stored = JSON.parse(fs.readFileSync(getDownloadsPath(), 'utf-8'));
+        if (!Array.isArray(stored)) return;
+        downloadsList = stored
+            .filter((entry) => entry && typeof entry.filename === 'string')
+            .slice(0, MAX_DOWNLOAD_ENTRIES)
+            .map((entry) => ({
+                id: nextDownloadId++,
+                filename: entry.filename,
+                path: typeof entry.path === 'string' ? entry.path : '',
+                source: typeof entry.source === 'string' ? entry.source : '',
+                state: entry.state === 'completed' || entry.state === 'cancelled' ? entry.state : 'interrupted',
+                received: Number(entry.received) || 0,
+                total: Number(entry.total) || 0,
+                startedAt: Number(entry.startedAt) || 0,
+                isPrivate: false
+            }));
+    } catch (error) {
+        if (error.code !== 'ENOENT') console.error('Impossible de lire la liste des téléchargements :', error);
+    }
+}
+
+// Les téléchargements des tuiles privées ne sont jamais écrits sur disque.
+function saveDownloadsList() {
+    void safeWriteJsonAsync(getDownloadsPath(), downloadsList.filter((entry) => !entry.isPrivate && entry.state !== 'progressing'));
+}
+
+function updateDownloadsWindowContent() {
+    if (!downloadsWindow || downloadsWindow.isDestroyed()) return;
+    const list = downloadsList.map((entry) => ({
+        ...entry,
+        fileExists: entry.state === 'completed' && !!entry.path && fs.existsSync(entry.path)
+    }));
+    downloadsWindow.setBackgroundColor(isDarkModeForced ? '#1e1e1e' : '#f9fafb');
+    downloadsWindow.webContents.send('render-downloads', { list, isDarkMode: isDarkModeForced });
+}
+
+function notifyDownloadsChanged(immediate = false) {
+    if (immediate) {
+        if (downloadsNotifyTimer) clearTimeout(downloadsNotifyTimer);
+        downloadsNotifyTimer = null;
+        updateDownloadsWindowContent();
+        return;
+    }
+    if (downloadsNotifyTimer) return;
+    downloadsNotifyTimer = setTimeout(() => {
+        downloadsNotifyTimer = null;
+        updateDownloadsWindowContent();
+    }, 250);
+}
+
+function findDownloadEntry(id) {
+    return downloadsList.find((entry) => entry.id === Number(id));
+}
+
+ipcMain.on('open-downloads-window', () => {
+    if (downloadsWindow && !downloadsWindow.isDestroyed()) {
+        downloadsWindow.focus();
+        updateDownloadsWindowContent();
+        return;
+    }
+
+    downloadsWindow = new BrowserWindow({
+        width: 520,
+        height: 560,
+        title: 'Téléchargements',
+        backgroundColor: isDarkModeForced ? '#1e1e1e' : '#f9fafb',
+        autoHideMenuBar: true,
+        webPreferences: {
+            preload: path.join(__dirname, 'preload-downloads.js'),
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: true
+        }
+    });
+    const thisWindow = downloadsWindow;
+    thisWindow.loadFile(path.join(__dirname, 'downloads.html'));
+    thisWindow.webContents.on('did-finish-load', updateDownloadsWindowContent);
+    thisWindow.on('closed', () => {
+        if (downloadsWindow === thisWindow) downloadsWindow = null;
+    });
+});
+
+function isFromDownloadsWindow(event) {
+    return downloadsWindow && !downloadsWindow.isDestroyed() && event.sender === downloadsWindow.webContents;
+}
+
+ipcMain.on('downloads-open-folder', (event, id) => {
+    if (!isFromDownloadsWindow(event)) return;
+    const entry = findDownloadEntry(id);
+    if (entry && entry.path) shell.showItemInFolder(entry.path);
+});
+
+ipcMain.on('downloads-cancel', (event, id) => {
+    if (!isFromDownloadsWindow(event)) return;
+    const item = liveDownloadItems.get(Number(id));
+    if (item) item.cancel();
+});
+
+ipcMain.on('downloads-remove', (event, id) => {
+    if (!isFromDownloadsWindow(event)) return;
+    const item = liveDownloadItems.get(Number(id));
+    if (item) item.cancel();
+    downloadsList = downloadsList.filter((entry) => entry.id !== Number(id));
+    saveDownloadsList();
+    notifyDownloadsChanged(true);
+});
+
+ipcMain.on('downloads-clear', (event) => {
+    if (!isFromDownloadsWindow(event)) return;
+    downloadsList = downloadsList.filter((entry) => entry.state === 'progressing');
+    saveDownloadsList();
+    notifyDownloadsChanged(true);
+});
+
 function registerDownloadHandler(session) {
-    if (!session) return;
+    if (!session || registeredDownloadSessions.has(session)) return;
+    registeredDownloadSessions.add(session);
 
     session.on('will-download', (event, item, webContents) => {
         const filename = item.getFilename();
@@ -1032,6 +1162,48 @@ function registerDownloadHandler(session) {
 
         // On enregistre l'objet de téléchargement pour ce panneau
         activeDownloads[panelId] = item;
+
+        let source = '';
+        try { source = new URL(item.getURL()).hostname.replace(/^www\./, ''); } catch {}
+        const entry = {
+            id: nextDownloadId++,
+            filename,
+            path: '',
+            source,
+            state: 'progressing',
+            received: 0,
+            total: item.getTotalBytes(),
+            startedAt: Date.now(),
+            isPrivate: panelNode?.isPrivate === true
+        };
+        downloadsList.unshift(entry);
+        while (downloadsList.length > MAX_DOWNLOAD_ENTRIES) {
+            const oldestIndex = downloadsList.map((e) => e.state).lastIndexOf('completed');
+            downloadsList.splice(oldestIndex >= 0 ? oldestIndex : downloadsList.length - 1, 1);
+        }
+        liveDownloadItems.set(entry.id, item);
+        notifyDownloadsChanged(true);
+
+        item.on('updated', (_event, state) => {
+            entry.received = item.getReceivedBytes();
+            entry.total = item.getTotalBytes();
+            entry.path = item.getSavePath() || entry.path;
+            if (state === 'interrupted') entry.state = 'interrupted';
+            notifyDownloadsChanged();
+        });
+
+        item.once('done', (_event, state) => {
+            entry.state = state === 'completed' ? 'completed' : (state === 'cancelled' ? 'cancelled' : 'interrupted');
+            entry.path = item.getSavePath() || entry.path;
+            entry.received = item.getReceivedBytes();
+            liveDownloadItems.delete(entry.id);
+            saveDownloadsList();
+            notifyDownloadsChanged(true);
+            // Une fen\u00eatre d\u00e9j\u00e0 ouverte est seulement rafra\u00eechie, sans voler le focus.
+            if (entry.state === 'completed' && (!downloadsWindow || downloadsWindow.isDestroyed())) {
+                ipcMain.emit('open-downloads-window');
+            }
+        });
 
         item.on('updated', (event, state) => {
             if (state === 'progressing' && !item.isPaused()) {
@@ -3588,6 +3760,7 @@ async function createWindow() {
     await fsPromises.mkdir(appDataPath, { recursive: true });
     loadAutoSleepPreference();  
     loadAiSidebarPreference();
+    loadDownloadsList();
     isDarkModeForced = await getThemePreference();
     nativeTheme.themeSource = isDarkModeForced ? "dark" : "light";
 
@@ -4095,6 +4268,12 @@ async function createWindow() {
                         win.webContents.send('focus-url-bar', activePanel); // astuce pour redonner le focus à l'IHM
                         win.webContents.executeJavaScript("toggleHistorySidebar()");
                     }
+                },
+
+                {
+                    label: 'Afficher les téléchargements',
+                    accelerator: 'CmdOrCtrl+J',
+                    click: () => ipcMain.emit('open-downloads-window')
                 },
 
                 {
@@ -5284,6 +5463,7 @@ ipcMain.on("toggle-dark-mode-request", (_event, enabled) => {
         resizeViews();
         win.webContents.send("system-theme-changed", isDarkModeForced);
         updateHistoryWindowContent();
+        updateDownloadsWindowContent();
         updatePasswordWindowContent();
     }
 
