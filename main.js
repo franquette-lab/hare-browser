@@ -139,6 +139,29 @@ function createSandboxedBrowserView(options = {}) {
 }
 
 
+// Conteneurs de tuiles : une partition persistante par conteneur (cookies/stockage isolés, conservés entre les lancements).
+const TILE_CONTAINERS = {
+    perso: { label: "Personnel", color: "#3b82f6" },
+    travail: { label: "Travail", color: "#f97316" },
+    compte2: { label: "Compte 2", color: "#10b981" },
+    compte3: { label: "Compte 3", color: "#ec4899" }
+};
+const configuredContainerSessions = new Set();
+
+function isValidContainerId(containerId) {
+    return typeof containerId === "string" && Object.prototype.hasOwnProperty.call(TILE_CONTAINERS, containerId);
+}
+
+function getContainerSession(containerId) {
+    const containerSession = session.fromPartition(`persist:container_${containerId}`);
+    if (!configuredContainerSessions.has(containerId)) {
+        configuredContainerSessions.add(containerId);
+        enableAdBlockerForSession(containerSession);
+    }
+    return containerSession;
+}
+
+
 // 🌟 CONFIGURATION LOGS CHROMIUM : Masque les alertes et erreurs de routage internes (Mojo/Blink)
 // '3' coupe les logs de niveau INFO, WARNING et ERROR natifs de Chromium, ne laissant que les crashs critiques.
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
@@ -474,6 +497,14 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
             label: isPrivate ? "   🕵️ Ouvrir une tuile publique classique" : "   🕵️ Scinder en Navigation Privée (Ctrl+Shift+N)",
             enabled: !isZoomActive,
             click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', !isPrivate)
+        },
+        {
+            label: "   🗂️ Scinder dans un conteneur isolé (comptes multiples)",
+            enabled: !isZoomActive && !isPrivate,
+            submenu: Object.entries(TILE_CONTAINERS).map(([id, container]) => ({
+                label: container.label,
+                click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', false, id)
+            }))
         },
         
         // === AJOUT : DUPLICATION DE TUILE À LA VOLÉE ===
@@ -1463,7 +1494,7 @@ function rebuildTreeFromSnapshot(snapshotNode, restoredView) {
         } else {
             // Sinon, on cherche le panneau déjà existant à l'écran pour récupérer sa vue actuelle
             const existingPanel = findPanelNode(rootNode, snapshotNode.id);
-            return new PanelNode(snapshotNode.id, existingPanel ? existingPanel.view : null, snapshotNode.url);
+            return new PanelNode(snapshotNode.id, existingPanel ? existingPanel.view : null, snapshotNode.url, existingPanel?.isPrivate === true, existingPanel?.containerId || null);
         }
     }
 
@@ -1482,7 +1513,7 @@ function createSnapshot(node) {
             : (node.view?.webContents && !node.view.webContents.isDestroyed()
                 ? node.view.webContents.getURL()
                 : node.url);
-        return { type: "panel", id: node.id, url: node.url, realUrl, isPrivate: node.isPrivate };
+        return { type: "panel", id: node.id, url: node.url, realUrl, isPrivate: node.isPrivate, containerId: node.containerId || null };
     }
 
     return {
@@ -1532,7 +1563,8 @@ function createPersistedSessionSnapshot(node) {
             type: "panel",
             id: node.id,
             url: getPersistablePanelUrl(node),
-            isPrivate: false
+            isPrivate: false,
+            containerId: node.containerId || null
         };
     }
     return {
@@ -1600,12 +1632,13 @@ async function restorePersistedSession() {
             const id = /^panel\d+$/.test(savedNode.id) ? savedNode.id : `panel${++maxPanelNumber}`;
             const idNumber = Number(id.slice(5));
             if (Number.isFinite(idNumber)) maxPanelNumber = Math.max(maxPanelNumber, idNumber);
+            const containerId = isValidContainerId(savedNode.containerId) ? savedNode.containerId : null;
             const view = createSandboxedBrowserView({
-                webPreferences: { session: session.defaultSession }
+                webPreferences: { session: containerId ? getContainerSession(containerId) : session.defaultSession }
             });
             win.addBrowserView(view);
             const restoreUrl = getPersistablePanelUrl({ url: savedNode.url, isPrivate: false });
-            const panel = new PanelNode(id, view, restoreUrl, false);
+            const panel = new PanelNode(id, view, restoreUrl, false, containerId);
             setupNavigationTracking(panel);
             try {
                 await view.webContents.loadURL(panel.url);
@@ -1647,12 +1680,13 @@ function saveState() {
 }
 
 class PanelNode {
-    constructor(id, view, url = "", isPrivate = false) {
+    constructor(id, view, url = "", isPrivate = false, containerId = null) {
         this.type = "panel";
         this.id = id;
         this.view = view;
         this.url = url;
         this.isPrivate = isPrivate; // Stocke l'état privé du panneau
+        this.containerId = isValidContainerId(containerId) ? containerId : null;
         this.session = view?.webContents && !view.webContents.isDestroyed()
             ? view.webContents.session
             : null;
@@ -1660,7 +1694,7 @@ class PanelNode {
         this.sleepingUrl = null;
     }
     toJSON() {
-        return { type: this.type, id: this.id, url: this.url, isPrivate: this.isPrivate };
+        return { type: this.type, id: this.id, url: this.url, isPrivate: this.isPrivate, containerId: this.containerId };
     }
 }
 
@@ -1911,6 +1945,9 @@ function collectPanels(node, panels = []) {
             title: node.title,
             // ✨ CRUCIAL : Assure la transmission exacte du mode privé pour la liste supérieure
             isPrivate: node.isPrivate === true, 
+            containerId: node.containerId || null,
+            containerLabel: node.containerId ? TILE_CONTAINERS[node.containerId].label : "",
+            containerColor: node.containerId ? TILE_CONTAINERS[node.containerId].color : "",
             searchQuery: node.searchQuery || ""
         });
         return panels;
@@ -3203,13 +3240,25 @@ ipcMain.on("duplicate-panel", (panelId, urlToClone, isPrivate) => {
     updateActiveBorder(newPanel.bounds);
 });
 
+ipcMain.on("show-container-menu", (event, panelId) => {
+    if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
+    const panel = findPanelNode(rootNode, panelId);
+    if (!panel || panel.isPrivate || maximizedPanelId !== null) return;
+
+    Menu.buildFromTemplate(Object.entries(TILE_CONTAINERS).map(([id, container]) => ({
+        label: container.label,
+        click: () => ipcMain.emit("split-panel", null, panelId, "vertical", false, id)
+    }))).popup({ window: win });
+});
+
 // ====== DANS MAIN.JS -> ipcMain.on("split-panel", ...) ======
-ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
+ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false, containerId = null) => {
 
     const node = findPanelNode(rootNode, panelId);
     const parent = findParentNode(rootNode, panelId);    
 
     const newPanelId = "panel" + nextPanelNumber++;
+    if (isPrivate || !isValidContainerId(containerId)) containerId = null;
 
     let targetSession;
     if (isPrivate) {
@@ -3219,7 +3268,7 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
         // 🔥 Activation du bloqueur sur cette nouvelle session privée
         enableAdBlockerForSession(targetSession);
     } else {
-        targetSession = session.defaultSession;
+        targetSession = containerId ? getContainerSession(containerId) : session.defaultSession;
     }
 	
     const viewOptions = {
@@ -3434,7 +3483,7 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false) => {
     newView.webContents.loadURL(defaultUrl);
 
     // Passer le paramètre isPrivate au constructeur
-    const newPanel = new PanelNode(newPanelId, newView, defaultUrl, isPrivate);
+    const newPanel = new PanelNode(newPanelId, newView, defaultUrl, isPrivate, containerId);
     setupNavigationTracking(newPanel);            
 
     const newSplit = new SplitNode(direction);
@@ -4841,16 +4890,17 @@ ipcMain.handle('load-config-from-file', async () => {
 
                 if (node.type === "panel") {
                     let targetSession;
+                    const importedContainerId = isValidContainerId(node.containerId) && !node.isPrivate ? node.containerId : null;
                     if (node.isPrivate) {
                         targetSession = session.fromPartition(`incognito_panel_${Math.random()}`, { cache: false });
                     } else {
                         // ✨ PARTAGE INTELLIGENT : Utilise la session racine globale lors d'un import
-                        targetSession = session.defaultSession;
+                        targetSession = importedContainerId ? getContainerSession(importedContainerId) : session.defaultSession;
                     }
 
                     const viewOptions = {
                         webPreferences: {
-                           session: targetSession,
+                            session: targetSession,
                             contextIsolation: true,
                             nodeIntegration: false
                         }
@@ -4859,7 +4909,7 @@ ipcMain.handle('load-config-from-file', async () => {
                     win.addBrowserView(newView);
                     newView.webContents.loadURL(node.realUrl || node.url || "http://129.151.254.175:8080");
 
-                    const newNode = new PanelNode(node.id, newView, node.url, !!node.isPrivate);
+                    const newNode = new PanelNode(node.id, newView, node.url, !!node.isPrivate, importedContainerId);
                     setupNavigationTracking(newNode);
                     return newNode;
                 }

@@ -148,6 +148,7 @@ onActivePanelChanged: (callback) => {
         toggleAiSidebar: (isVisible) => ipcRenderer.send("toggle-ai-sidebar-request", isVisible),
         onAiLoadingState: (callback) => ipcRenderer.on("ai-loading-state", (_, isLoading) => callback(isLoading)),
         
+        showContainerMenu: (panelId) => ipcRenderer.send("show-container-menu", panelId),
         setAiSidebarWide: (wide) => ipcRenderer.send("set-ai-sidebar-wide", wide),
         onAiSidebarWidthChanged: (callback) => ipcRenderer.on("ai-sidebar-width-changed", (event, width) => callback(width)),
 

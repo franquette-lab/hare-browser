@@ -664,6 +664,8 @@ html.dark #pwd-modal {
     <!-- Remplacement dans la barre d'outils de index.html -->
     <button id="split-private-vertical" title="Ouvrir une tuile privée à droite  (Ctrl+Shift+N)" style="width:28px; height:24px; background:#2d2d30; color:#c084fc; border:1px solid #3c3c3c; font-size:13px; cursor:pointer;">🕵️</button>
 
+    <button id="split-container" title="Scinder dans un conteneur isolé (comptes multiples)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:13px; cursor:pointer;">🗂️</button>
+
     <!-- Ajoutez le bouton dans votre conteneur de boutons existant -->
     <button id="btn-equalize-mosaic" title="Égaliser les dimensions des tuiles (Ctrl+Shift+R)">📐</button>
 
@@ -1280,6 +1282,10 @@ function rebuildUrlBar(panels) {
         const tabWrapper = document.createElement("div");
         tabWrapper.className = "url-tab";
         if (panel.isPrivate) tabWrapper.classList.add("private-url-tab");
+        if (panel.containerId) {
+            tabWrapper.style.borderTop = `3px solid ${panel.containerColor}`;
+            tabWrapper.title = `Conteneur : ${panel.containerLabel}`;
+        }
 
         const isActive = activePanel === panel.id;
 
@@ -2652,6 +2658,13 @@ document.getElementById("split-private-vertical").addEventListener("click", () =
     if (targetPanelId) {
         window.api.splitPanel(targetPanelId, "vertical", true);
     }
+});
+
+document.getElementById("split-container").addEventListener("click", () => {
+    if (currentMaximizedId) return;
+    let targetPanelId = activePanel;
+    if (!targetPanelId && currentPanels.length > 0) targetPanelId = currentPanels[0].id;
+    if (targetPanelId) window.api.showContainerMenu(targetPanelId);
 });
 
 document.getElementById("print-button").addEventListener("click", () => {

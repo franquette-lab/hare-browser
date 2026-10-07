@@ -276,6 +276,7 @@ d'agencement de la mosaïque.
     <li><strong>Scinder verticalement</strong> (Ctrl + T) : crée un nouveau panneau à droite.</li>
     <li><strong>Scinder horizontalement</strong> (Ctrl + H) : crée un nouveau panneau en dessous.</li>
     <li><strong>Scinder en Navigation Privée</strong> (Ctrl + Shift + N) : ouvre un nouveau panneau privé isolé.</li>
+    <li><strong>Scinder dans un conteneur isolé</strong> (🗂️ dans la barre d'outils) : ouvre un nouveau panneau dans un conteneur (Personnel, Travail, Compte 2, Compte 3) pour se connecter à plusieurs comptes simultanément.</li>
 </ul>
 
 <h4>📌 Gestion du panneau</h4>
@@ -523,12 +524,21 @@ l'assistant IA et de gérer le contenu affiché sans quitter le panneau actif.
     <h3>🕵️ Cyber-Sécurité et Navigation Privée</h3>
     <p>Lorsque vous ouvrez une tuile privée, le navigateur instancie une partition en mémoire pure volatile (session <code>incognito</code> isolée). Lors de la fermeture de cette tuile, un script détruit automatiquement toutes les traces locales résiduelles de manière irréversible : cookies, LocalStorage, bases IndexedDB, session et cache d'historique de rendu HTTP de Chromium.</p>
 
+    <h3>️ Tuiles Conteneurs (Multi-Comptes)</h3>
+    <p>Chaque conteneur dispose de sa propre partition persistante : cookies, LocalStorage et sessions y sont isolés des autres conteneurs et de la session par défaut. Vous pouvez ainsi ouvrir deux tuiles côte à côte et vous connecter à deux comptes Google ou Outlook différents en même temps. Contrairement à la navigation privée, les connexions sont conservées entre les lancements.</p>
+    <ul>
+        <li><strong>Ouverture</strong> : bouton 🗂️ de la barre d'outils, ou clic droit sur une tuile puis « Scinder dans un conteneur isolé (comptes multiples) », puis choix du conteneur.</li>
+        <li><strong>Repérage</strong> : l'onglet d'une tuile conteneur est surmonté d'un liseré coloré ; le nom du conteneur s'affiche au survol.</li>
+        <li><strong>Limites</strong> : indisponible depuis une tuile privée ou en mode agrandi. « Dupliquer cette tuile » crée la copie dans la session par défaut, pas dans le même conteneur.</li>
+    </ul>
+
     <h3>🚫 Bloqueur de Publicités & Trackers Intégré</h3>
     <p>Chaque requête réseau émise par une tuile (qu'elle soit publique ou privée) est analysée à la volée par le processus principal de l'application via l'API <code>webRequest</code> d'Electron.</p>
     <ul>
         <li><strong>Vitesse accrue</strong> : Les scripts publicitaires lourds et les images intrusives sont annulés <strong>avant</strong> leur téléchargement.</li>
         <li><strong>Respect total de la vie privée</strong> : Bloque nativement les mouchards de suivi comportementaux des régies publicitaires majeures.</li>
         <li><strong>Protection Incognito</strong> : Le filtrage s'applique de manière hermétique sur vos partitions volatiles sans laisser de traces en mémoire.</li>
+        <li><strong>Désactiver le bloqueur sur un site</strong> : si un site fonctionne mal, cliquez sur l'icône 🛡️ de sa barre d'adresse, ou faites un clic droit sur la tuile puis « Désactiver le bloqueur sur <em>nom-du-site</em> ». La page est rechargée sans filtrage. L'icône devient verte pour indiquer l'exception ; un nouveau clic réactive le bloqueur. Les exceptions sont enregistrées par site et conservées entre les lancements.</li>
     </ul>
 
     <h3>🔑 Gestionnaire de Mots de Passe Sécurisé</h3>
