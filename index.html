@@ -671,6 +671,8 @@ html.dark #pwd-modal {
 
     <button id="auto-sleep-toggle" type="button" aria-pressed="true" title="Veille automatique activée : les tuiles inactives sont mises en veille après 15 minutes">💤</button>
 
+    <button id="duplicate-panel" title="Dupliquer cette tuile (Ctrl+Shift+D)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:13px; cursor:pointer;">📋</button>
+
     <!-- Scindage vertical : Deux barres verticales simples -->
     <button id="split-vertical" title="Scinder à droite (Ctrl+T)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; font-weight:bold; cursor:pointer;">|</button>
     
@@ -751,7 +753,7 @@ html.dark #pwd-modal {
     </div>
     
     <!-- Zone d'affichage des réponses (Conteneur de texte) -->
-    <div id="ai-response-container" style="flex: 1; overflow-y: auto; font-size: 12.5px; line-height: 1.6; padding-right: 4px; white-space: pre-wrap; margin-bottom: 16px; text-align: left; color: #e2e8f0;">Posez une question ou cliquez sur « Résumer » pour analyser la tuile active. Utilisez « Comparer les tuiles » pour demander une analyse croisée des pages visibles.</div>
+    <div id="ai-response-container" style="flex: 1; overflow-y: auto; font-size: 12.5px; line-height: 1.6; padding-right: 4px; white-space: pre-wrap; margin-bottom: 16px; text-align: left; color: #e2e8f0;">Posez une question ou cliquez sur «&nbsp;Résumer&nbsp;» pour analyser la tuile active. Utilisez «&nbsp;Comparer les tuiles&nbsp;» pour demander une analyse croisée des pages visibles.</div>
 
     <!-- Zone de saisie et Commandes -->
     <!-- Dans index.html -> Dans la div #ai-sidebar, remplacez la ligne de l'encadré du bas par celle-ci : -->
@@ -2665,6 +2667,13 @@ document.getElementById("split-container").addEventListener("click", () => {
     let targetPanelId = activePanel;
     if (!targetPanelId && currentPanels.length > 0) targetPanelId = currentPanels[0].id;
     if (targetPanelId) window.api.showContainerMenu(targetPanelId);
+});
+
+document.getElementById("duplicate-panel").addEventListener("click", () => {
+    if (currentMaximizedId) return;
+    let targetPanelId = activePanel;
+    if (!targetPanelId && currentPanels.length > 0) targetPanelId = currentPanels[0].id;
+    if (targetPanelId) window.api.duplicatePanel(targetPanelId);
 });
 
 document.getElementById("print-button").addEventListener("click", () => {

@@ -509,7 +509,7 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
         
         // === AJOUT : DUPLICATION DE TUILE À LA VOLÉE ===
         {
-            label: "   📋 Dupliquer cette tuile",
+            label: "   📋 Dupliquer cette tuile (Ctrl+Shift+D)",
             enabled: !isZoomActive,
             click: () => {
                 if (webContents && !webContents.isDestroyed()) {
@@ -3240,6 +3240,14 @@ ipcMain.on("duplicate-panel", (panelId, urlToClone, isPrivate) => {
     updateActiveBorder(newPanel.bounds);
 });
 
+ipcMain.on("duplicate-panel-request", (event, panelId) => {
+    if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
+    const panel = findPanelNode(rootNode, panelId);
+    if (!panel || maximizedPanelId !== null) return;
+    const url = panel.isSleeping ? (panel.sleepingUrl || panel.url) : panel.view?.webContents?.getURL();
+    ipcMain.emit("duplicate-panel", panelId, url, panel.isPrivate === true);
+});
+
 ipcMain.on("show-container-menu", (event, panelId) => {
     if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
     const panel = findPanelNode(rootNode, panelId);
@@ -4086,6 +4094,14 @@ async function createWindow() {
                         // Envoie une demande à index.html pour exécuter toggleHistorySidebar()
                         win.webContents.send('focus-url-bar', activePanel); // astuce pour redonner le focus à l'IHM
                         win.webContents.executeJavaScript("toggleHistorySidebar()");
+                    }
+                },
+
+                {
+                    label: 'Dupliquer la tuile active',
+                    accelerator: 'CmdOrCtrl+Shift+D',
+                    click: () => {
+                        if (activePanel) ipcMain.emit('duplicate-panel-request', { sender: win.webContents }, activePanel);
                     }
                 },
 
