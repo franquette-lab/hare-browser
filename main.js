@@ -278,6 +278,7 @@ let isDarkModeForced = false;
 let isAiSidebarVisible = true; // Par défaut, le volet est ouvert désormais
 
 let pwdWindow = null;
+const findInPageRequests = new Map();
 
 function setNormalToolbarHeight(height) {
     normalToolbarHeight = height;
@@ -1859,6 +1860,27 @@ function setupNavigationTracking(panel) {
             event.preventDefault();
             openHelpInPanel(panel).catch(console.error);
         }
+        if (input.type === "keyDown" && (input.control || input.meta) && input.key.toLowerCase() === "f") {
+            event.preventDefault();
+            activePanel = panel.id;
+            if (win && !win.isDestroyed()) {
+                win.webContents.focus();
+                win.webContents.send("open-find-bar", panel.id);
+            }
+        }
+    });
+
+    panel.view.webContents.on("found-in-page", (_event, result) => {
+        if (!win || win.isDestroyed()) return;
+        const currentFind = findInPageRequests.get(panel.id);
+        if (!currentFind || result.requestId !== currentFind.requestId) return;
+        win.webContents.send("find-in-page-result", {
+            panelId: panel.id,
+            requestId: result.requestId,
+            activeMatchOrdinal: result.activeMatchOrdinal,
+            matches: result.matches,
+            finalUpdate: result.finalUpdate
+        });
     });
 
     panel.view.webContents.on("will-navigate", (event, targetUrl) => {
@@ -3711,6 +3733,16 @@ async function createWindow() {
                     }
                 },
 
+                {
+                    label: 'Rechercher dans la page',
+                    accelerator: 'CmdOrCtrl+F',
+                    click: () => {
+                        if (!win || win.isDestroyed() || !activePanel) return;
+                        win.webContents.focus();
+                        win.webContents.send('open-find-bar', activePanel);
+                    }
+                },
+
                 // (Vos raccourcis précédents : Scinder, Fermer, Précédent, Suivant, Ctrl+L...)
                 {
                     label: 'Cibler la barre d\'adresse',
@@ -4999,6 +5031,47 @@ ipcMain.handle("go-forward", (event, panelId) => {
 ipcMain.handle("refresh", (event, panelId) => {
     const panel = findPanelNode(rootNode, panelId);
     if (panel && panel.view) panel.view.webContents.reload();
+});
+
+ipcMain.handle("find-in-page", (event, { panelId, text, action = "start" } = {}) => {
+    if (!win || win.isDestroyed() || event.sender !== win.webContents) return null;
+    if (!panelId || panelId !== activePanel) return null;
+
+    const panel = findPanelNode(rootNode, panelId);
+    const contents = panel?.view?.webContents;
+    if (!contents || contents.isDestroyed()) return null;
+
+    if (action === "focus") {
+        contents.focus();
+        return { panelId, requestId: null };
+    }
+
+    if (action === "stop") {
+        contents.stopFindInPage("clearSelection");
+        findInPageRequests.delete(panelId);
+        return null;
+    }
+
+    const searchText = typeof text === "string" ? text.trim().slice(0, 500) : "";
+    if (!searchText) {
+        contents.stopFindInPage("clearSelection");
+        findInPageRequests.delete(panelId);
+        win.webContents.send("find-in-page-result", {
+            panelId,
+            activeMatchOrdinal: 0,
+            matches: 0,
+            finalUpdate: true
+        });
+        return null;
+    }
+
+    const requestId = contents.findInPage(searchText, {
+        forward: action !== "previous",
+        findNext: action === "next" || action === "previous",
+        matchCase: false
+    });
+    findInPageRequests.set(panelId, { requestId, text: searchText });
+    return { panelId, requestId };
 });
 
 app.on('will-quit', () => {

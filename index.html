@@ -105,7 +105,8 @@ body {
 }
 
 body.fullscreen-toolbar-hidden #toolbar-buttons,
-body.fullscreen-toolbar-hidden #url-bar {
+body.fullscreen-toolbar-hidden #url-bar,
+body.fullscreen-toolbar-hidden #find-in-page-bar {
     opacity: 0;
     pointer-events: none;
 }
@@ -119,7 +120,8 @@ body.fullscreen-toolbar-hidden #url-bar {
 }
 
 body.fullscreen-toolbar-active #toolbar-buttons,
-body.fullscreen-toolbar-active #url-bar {
+body.fullscreen-toolbar-active #url-bar,
+body.fullscreen-toolbar-active #find-in-page-bar {
     opacity: 1;
     pointer-events: auto;
     transition: transform .22s ease, opacity .22s ease;
@@ -129,6 +131,9 @@ body.fullscreen-toolbar-active #toolbar-buttons,
 body.fullscreen-toolbar-active #url-bar {
     transform: translateY(0);
 }
+
+body.fullscreen-toolbar-hidden #find-in-page-bar { transform: translateY(-200%); }
+body.fullscreen-toolbar-active #find-in-page-bar { transform: translateY(0); }
 
 body.fullscreen-toolbar-hidden #fullscreen-reveal-zone {
     display: block;
@@ -256,6 +261,62 @@ body.fullscreen-toolbar-hidden #fullscreen-reveal-zone {
     background: linear-gradient(90deg, #ff4d4d 0%, #f59e0b 22%, #3b82f6 50%, #10b981 75%, #8b5cf6 100%);
     box-shadow: 0 0 6px rgba(59, 130, 246, 0.6);
 }
+
+#find-in-page-bar {
+    position: fixed;
+    top: 42px;
+    right: 12px;
+    z-index: 2147483646;
+    display: none;
+    align-items: center;
+    gap: 5px;
+    width: 330px;
+    height: 32px;
+    padding: 3px 5px;
+    box-sizing: border-box;
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, .25);
+    -webkit-app-region: no-drag;
+}
+
+#find-in-page-bar.open { display: flex; }
+
+#find-in-page-input {
+    flex: 1;
+    min-width: 0;
+    height: 22px;
+    padding: 0 5px;
+    color: var(--text-primary);
+    background: transparent;
+    border: 0;
+    outline: 0;
+    font: 12px "Segoe UI", sans-serif;
+}
+
+#find-in-page-count {
+    min-width: 38px;
+    color: var(--text-secondary);
+    text-align: center;
+    font: 11px "Segoe UI", sans-serif;
+    white-space: nowrap;
+}
+
+#find-in-page-bar button {
+    width: 24px;
+    height: 23px;
+    padding: 0;
+    color: var(--text-primary);
+    background: var(--button-bg);
+    border: 1px solid var(--button-border);
+    border-radius: 4px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+#find-in-page-bar button:hover { background: var(--button-hover); }
 
 .url-tab {
     padding: 0px 6px !important; /* Supprime le padding vertical (haut/bas) pour aplatir l'onglet */
@@ -642,6 +703,14 @@ html.dark #pwd-modal {
 
 <!-- Dans votre boucle qui génère chaque en-tête de tuile -->
 <div id="url-bar" style="position: fixed; top: 38px; left: 0; right: 0; z-index: 50;"></div>
+
+<div id="find-in-page-bar" role="search" aria-label="Rechercher dans la page">
+    <input id="find-in-page-input" type="search" placeholder="Rechercher dans cette tuile" autocomplete="off">
+    <span id="find-in-page-count" aria-live="polite">0/0</span>
+    <button id="find-in-page-previous" type="button" title="Résultat précédent (Maj+Entrée)" aria-label="Résultat précédent">↑</button>
+    <button id="find-in-page-next" type="button" title="Résultat suivant (Entrée)" aria-label="Résultat suivant">↓</button>
+    <button id="find-in-page-close" type="button" title="Fermer (Échap)" aria-label="Fermer">×</button>
+</div>
 
 <div id="active-panel-frame"></div>
 
@@ -1590,6 +1659,91 @@ addressGroup.appendChild(input);
     const fullscreenToggleButton = document.getElementById("fullscreen-toggle-button");
     fullscreenToggleButton?.addEventListener("click", () => window.api.toggleFullscreen());
 
+const findBar = document.getElementById("find-in-page-bar");
+const findInput = document.getElementById("find-in-page-input");
+const findCount = document.getElementById("find-in-page-count");
+let findPanelId = null;
+let findDebounceTimer = null;
+let lastFindText = "";
+
+function requestFindInPage(action = "start") {
+    const panelId = findPanelId || activePanel;
+    if (!panelId || !findInput || !window.api.findInPage) return;
+    findPanelId = panelId;
+    const text = findInput.value.trim();
+    if ((action === "next" || action === "previous") && text !== lastFindText) {
+        action = "start";
+    }
+    lastFindText = text;
+    window.api.findInPage(panelId, text, action).catch((error) => {
+        console.error("Erreur de recherche dans la page :", error);
+        if (findCount) findCount.textContent = "Erreur";
+    });
+}
+
+function openFindBar(panelId = activePanel) {
+    if (!panelId || !findBar || !findInput) return;
+    findPanelId = panelId;
+    findBar.classList.add("open");
+    findInput.focus({ preventScroll: true });
+    findInput.select();
+    if (findInput.value.trim()) requestFindInPage("start");
+}
+
+function closeFindBar() {
+    if (findDebounceTimer) clearTimeout(findDebounceTimer);
+    findDebounceTimer = null;
+    const panelIdToRestore = findPanelId;
+    if (panelIdToRestore && window.api.findInPage) {
+        window.api.findInPage(panelIdToRestore, "", "stop").catch(() => {});
+    }
+    findBar?.classList.remove("open");
+    if (findCount) findCount.textContent = "0/0";
+    findPanelId = null;
+    if (panelIdToRestore && window.api.findInPage) {
+        window.api.findInPage(panelIdToRestore, "", "focus").catch(() => {});
+    }
+}
+
+findInput?.addEventListener("input", () => {
+    if (findDebounceTimer) clearTimeout(findDebounceTimer);
+    if (findCount) findCount.textContent = findInput.value.trim() ? "…" : "0/0";
+    findDebounceTimer = setTimeout(() => {
+        findDebounceTimer = null;
+        requestFindInPage("start");
+    }, 120);
+});
+
+findInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+        event.preventDefault();
+        if (findDebounceTimer) clearTimeout(findDebounceTimer);
+        findDebounceTimer = null;
+        requestFindInPage(event.shiftKey ? "previous" : "next");
+    } else if (event.key === "Escape") {
+        event.preventDefault();
+        closeFindBar();
+    }
+});
+
+document.getElementById("find-in-page-previous")?.addEventListener("click", () => {
+    requestFindInPage("previous");
+    findInput?.focus({ preventScroll: true });
+});
+document.getElementById("find-in-page-next")?.addEventListener("click", () => {
+    requestFindInPage("next");
+    findInput?.focus({ preventScroll: true });
+});
+document.getElementById("find-in-page-close")?.addEventListener("click", closeFindBar);
+
+window.api.onOpenFindBar?.((panelId) => openFindBar(panelId || activePanel));
+window.api.onFindInPageResult?.((result) => {
+    if (!result || !findBar?.classList.contains("open") || result.panelId !== findPanelId) return;
+    const matches = Number(result.matches) || 0;
+    const activeMatch = Number(result.activeMatchOrdinal) || 0;
+    if (findCount) findCount.textContent = matches ? `${activeMatch}/${matches}` : "0/0";
+});
+
     window.api.onFullscreenToolbarState((state) => {
         if (!fullscreenToggleButton) return;
 
@@ -1728,7 +1882,17 @@ window.api.onActivePanelChanged((data) => {
 
     if (!data || !data.id) return;
 
+    const previousFindPanelId = findPanelId;
     activePanel = data.id;
+
+    if (findBar?.classList.contains("open") && previousFindPanelId !== data.id) {
+        if (previousFindPanelId && window.api.findInPage) {
+            window.api.findInPage(previousFindPanelId, "", "stop").catch(() => {});
+        }
+        findPanelId = data.id;
+        if (findInput?.value.trim()) requestFindInPage("start");
+        else if (findCount) findCount.textContent = "0/0";
+    }
 
 
     if (typeof refreshTabBorders === "function") {
@@ -2158,11 +2322,22 @@ window.api.onHistoryUpdated?.((updatedHistory) => {
 
 document.addEventListener("keydown", (e) => {
 
+    if (e.key === "Escape" && findBar?.classList.contains("open")) {
+        closeFindBar();
+        return;
+    }
+
 if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "h") {
 e.preventDefault();
 window.api.openHistoryWindow();
 return;
 }
+
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        openFindBar(activePanel);
+        return;
+    }
 
     if (e.ctrlKey && e.key.toLowerCase() === "s") {
         e.preventDefault();
@@ -2398,7 +2573,7 @@ function scheduleFullscreenToolbarHide() {
     if (fullscreenToolbarHideTimer) clearTimeout(fullscreenToolbarHideTimer);
 
     fullscreenToolbarHideTimer = setTimeout(() => {
-        const toolbarHovered = document.querySelector("#toolbar-buttons:hover, #url-bar:hover");
+        const toolbarHovered = document.querySelector("#toolbar-buttons:hover, #url-bar:hover, #find-in-page-bar:hover");
         if (toolbarHovered) {
             scheduleFullscreenToolbarHide();
             return;
@@ -2423,7 +2598,7 @@ const fullscreenRevealZone = document.getElementById("fullscreen-reveal-zone");
 fullscreenRevealZone?.addEventListener("mouseenter", () => requestFullscreenToolbar(true));
 fullscreenRevealZone?.addEventListener("mouseleave", scheduleFullscreenToolbarHide);
 
-[document.getElementById("toolbar-buttons"), document.getElementById("url-bar")].forEach((bar) => {
+[document.getElementById("toolbar-buttons"), document.getElementById("url-bar"), document.getElementById("find-in-page-bar")].forEach((bar) => {
     bar?.addEventListener("mouseenter", () => {
         if (fullscreenToolbarHideTimer) clearTimeout(fullscreenToolbarHideTimer);
         fullscreenToolbarHideTimer = null;

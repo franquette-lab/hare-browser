@@ -85,6 +85,9 @@ onActivePanelChanged: (callback) => {
         goBack: (panelId) => ipcRenderer.invoke("go-back", panelId),
         goForward: (panelId) => ipcRenderer.invoke("go-forward", panelId),
         refresh: (panelId) => ipcRenderer.invoke("refresh", panelId),
+        findInPage: (panelId, text, action) => ipcRenderer.invoke("find-in-page", { panelId, text, action }),
+        onOpenFindBar: (callback) => ipcRenderer.on("open-find-bar", (_event, panelId) => callback(panelId)),
+        onFindInPageResult: (callback) => ipcRenderer.on("find-in-page-result", (_event, result) => callback(result)),
         movePanel: (draggedPanelId, targetPanelId) => ipcRenderer.send('move-panel', draggedPanelId, targetPanelId),
         showUrlContextMenu: () => ipcRenderer.send("show-url-context-menu"),
         
@@ -115,6 +118,10 @@ onActivePanelChanged: (callback) => {
             }
         },
 */
+
+        // --- GESTION DE LA MISE EN VEILLE AUTOMATIQUE ---
+        getAutoSleepPreference: () => ipcRenderer.invoke("get-autosleep-preference"),
+        toggleAutoSleep: (enable) => ipcRenderer.send('toggle-autosleep-request', enable),
 
         equalizeMosaic: () => ipcRenderer.send("equalize-mosaic-request"),
 
