@@ -3835,6 +3835,8 @@ async function createWindow() {
         // MODIFICATION ICI : Fond dynamique au démarrage pour éviter la ligne noire
         backgroundColor: isDarkModeForced ? '#252526' : '#f3f4f6', 
 
+        // ✨ AJOUTEZ CETTE LIGNE POUR L'ICÔNE DE LA FENÊTRE
+        icon: path.join(__dirname, 'build', 'icon.ico'),
 
         titleBarOverlay: {
             color: isDarkModeForced ? '#252526' : '#ffffff',

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        :root {
+            --bg-sidebar: #ffffff;
+            --text-main: #1f2937;
+            --chat-bubble-user: #e9d5ff;
+            --chat-bubble-ai: #f3f4f6;
+            --purple-accent: #6b21a8;
+            --border-color: #e5e7eb;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-sidebar: #1e1229;
+                --text-main: #e2e8f0;
+                --chat-bubble-user: #4c1d95;
+                --chat-bubble-ai: #2e1065;
+                --purple-accent: #c084fc;
+                --border-color: #4c1d95;
+            }
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg-sidebar);
+            color: var(--text-main);
+            margin: 0;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-right: 4px;
+        }
+        .bubble {
+            padding: 10px 14px;
+            border-radius: 12px;
+            max-width: 85%;
+            font-size: 13.5px;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+        .bubble.user {
+            background-color: var(--chat-bubble-user);
+            align-self: flex-end;
+        }
+        .bubble.ai {
+            background-color: var(--chat-bubble-ai);
+            align-self: flex-start;
+            border: 1px solid var(--border-color);
+        }
+        .controls-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 12px;
+        }
+        .options-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+        .input-row {
+            display: flex;
+            gap: 8px;
+        }
+        textarea {
+            flex: 1;
+            resize: none;
+            height: 38px;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: transparent;
+            color: inherit;
+            font-family: inherit;
+            font-size: 13px;
+        }
+        textarea:focus { outline: 1px solid var(--purple-accent); }
+        button {
+            background-color: var(--purple-accent);
+            color: white;
+            border: none;
+            padding: 0 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 13px;
+        }
+        button:hover { opacity: 0.9; }
+        .loading-spinner {
+            display: none;
+            align-self: flex-start;
+            font-size: 12px;
+            color: #94a3b8;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="chat-container" id="chat">
+        <div class="bubble ai">✨ Assistant IA local prêt. Posez-moi une question sur vos tuiles ou demandez un résumé adaptatif.</div>
+    </div>
+
+    <div class="loading-spinner" id="spinner">⏳ L'IA locale réfléchit (Analyse RAG en cours)...</div>
+
+    <div class="controls-container">
+        <div class="options-row">
+            <label>
+                <input type="checkbox" id="compare-mode"> Comparer les tuiles visibles
+            </label>
+            <label>
+                <input type="checkbox" id="full-mode"> Mode complet (Lent)
+            </label>
+        </div>
+        <div class="input-row">
+            <textarea id="prompt" placeholder="Posez une question sur cette page..."></textarea>
+            <button id="send-btn">Envoyer</button>
+        </div>
+    </div>
+
+    <script>
+        const chat = document.getElementById('chat');
+        const promptInput = document.getElementById('prompt');
+        const sendBtn = document.getElementById('send-btn');
+        const spinner = document.getElementById('spinner');
+        const compareMode = document.getElementById('compare-mode');
+        const fullMode = document.getElementById('full-mode');
+
+        // Écoute les actions automatiques déclenchées depuis le menu clic droit du main.js
+        window.api?.onTriggerAiAction((data) => {
+            if (data.action === 'resume') {
+                executeAiQuery("Fais-moi un résumé concis en trois points clés de cette page.");
+            } else if (data.action === 'keywords') {
+                executeAiQuery("Extrais les mots-clés et les thèmes principaux de ce texte sous forme de liste.");
+            }
+        });
+
+        // Gestion du statut de chargement natif de la barre de progression Electron
+        window.api?.onAiLoadingState((isLoading) => {
+            spinner.style.display = isLoading ? 'block' : 'none';
+            sendBtn.disabled = isLoading;
+            if (isLoading) chat.scrollTop = chat.scrollHeight;
+        });
+
+        async function executeAiQuery(forcedPrompt = null) {
+            const text = forcedPrompt || promptInput.value.trim();
+            if (!text) return;
+
+            if (!forcedPrompt) promptInput.value = '';
+
+            // Ajout de la bulle utilisateur
+            appendBubble(text, 'user');
+
+            try {
+                // Appel RAG asynchrone vers Ollama via le pont preload du main.js
+                const response = await window.api.nanobrowser.askOllama(
+                    text, 
+                    "qwen2.5:1.5b", // Modèle par défaut ultra-léger et rapide
+                    compareMode.checked, 
+                    fullMode.checked
+                );
+
+                if (response === "SELECT_PANEL_REQUIRED") {
+                    appendBubble("⚠️ Veuillez d'abord cliquer sur une tuile active pour l'analyser.", 'ai');
+                } else {
+                    appendBubble(response, 'ai');
+                }
+            } catch (err) {
+                appendBubble("❌ Impossible de joindre l'instance Ollama locale. Vérifiez qu'Ollama est démarré sur le port 11434.", 'ai');
+            }
+        }
+
+        function appendBubble(text, sender) {
+            const bubble = document.createElement('div');
+            bubble.className = `bubble ${sender}`;
+            // Remplacement basique pour préserver les sauts de lignes du Markdown Ollama
+            bubble.innerHTML = text.replace(/\n/g, '<br>');
+            chat.appendChild(bubble);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        sendBtn.addEventListener('click', () => executeAiQuery());
+        promptInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                executeAiQuery();
+            }
+        });
+    </script>
+</body>
+</html>

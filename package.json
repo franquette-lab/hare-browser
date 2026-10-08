@@ -18,26 +18,27 @@
     "typescript": "^5.9.2"
   },
   "devDependencies": {
-    "electron": "^44.0.0",
+    "electron": "^44.7.0",
     "electron-builder": "^26.15.3"
   },
   "build": {
     "appId": "com.harebrowser.app",
     "productName": "Hare Browser",
     "win": {
-        "target": "nsis"
+      "target": "nsis",
+      "icon": "icon.ico"
     },
     "nsis": {
-        "oneClick": false,
-        "allowToChangeInstallationDirectory": true,
-        "createDesktopShortcut": true,
-        "createStartMenuShortcut": true,
-        "shortcutName": "Hare Browser"
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Hare Browser"
     },
     "files": [
-        "**/*",
-        "!out/**/*",
-        "!dist/**/*"
+      "**/*",
+      "!out/**/*",
+      "!dist/**/*"
     ]
   }
 }
