@@ -626,9 +626,19 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
             }
         },
         {
+            label: "   👓 Mode lecture",
+            click: async () => {
+                const status = await toggleReaderModeForPanel(panelId);
+                if (win && !win.isDestroyed()) win.webContents.send('reader-mode-result', { panelId, status });
+            }
+        },
+        {
             label: "   🖨️ Imprimer le contenu de la page (Ctrl+P)",
             click: () => ipcMain.emit('print-panel', null, panelId)
         },
+
+        { type: "separator" },
+
         {
             label: "   ❌ Fermer cette tuile (Ctrl+W)",
             click: () => ipcMain.emit('close-panel', null, panelId)
@@ -1089,6 +1099,27 @@ function notifyDownloadsChanged(immediate = false) {
 function findDownloadEntry(id) {
     return downloadsList.find((entry) => entry.id === Number(id));
 }
+
+async function toggleReaderModeForPanel(panelId) {
+    const panel = findPanelNode(rootNode, panelId);
+    const contents = panel?.view?.webContents;
+    if (!panel || panel.isSleeping || !contents || contents.isDestroyed()) return 'unavailable';
+
+    try {
+        const protocol = new URL(contents.getURL()).protocol;
+        if (protocol !== 'http:' && protocol !== 'https:' && protocol !== 'file:') return 'unavailable';
+        const script = await fsPromises.readFile(path.join(__dirname, 'nanobrowser', 'reader.js'), 'utf8');
+        return await contents.executeJavaScript(`window.__hareReaderDark = ${isDarkModeForced};\n${script}`);
+    } catch (error) {
+        console.warn('[LECTURE] Impossible de basculer le mode lecture :', error.message);
+        return 'error';
+    }
+}
+
+ipcMain.handle('toggle-reader-mode', async (event, panelId) => {
+    if (!win || win.isDestroyed() || event.sender !== win.webContents) return 'error';
+    return toggleReaderModeForPanel(panelId);
+});
 
 ipcMain.on('open-downloads-window', () => {
     if (downloadsWindow && !downloadsWindow.isDestroyed()) {
@@ -2178,6 +2209,10 @@ function updatePanelUrl(panel, url) {
 }
 
 function updateNavigationButtons() {
+    // 🌟 CORRECTIF SECURITÉ : Si la fenêtre principale est détruite (fermeture), on stoppe tout immédiatement.
+    if (!win || win.isDestroyed() || !win.webContents || win.webContents.isDestroyed()) {
+        return;
+    }
 
     if (!activePanel) {
         win.webContents.send("navigation-state", {
@@ -2190,7 +2225,7 @@ function updateNavigationButtons() {
 
     const panel = findPanelNode(rootNode, activePanel);
 
-    if (!panel || !panel.view) {
+    if (!panel || !panel.view || !panel.view.webContents || panel.view.webContents.isDestroyed()) {
         win.webContents.send("navigation-state", {
             canGoBack: false,
             canGoForward: false,
@@ -2205,6 +2240,7 @@ function updateNavigationButtons() {
         hasActivePanel: true
     });
 }
+
 
 function setupNavigationTracking(panel) {
 

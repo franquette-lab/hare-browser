@@ -666,6 +666,8 @@ html.dark #pwd-modal {
 
     <button id="downloads-button" title="Téléchargements (Ctrl+J)" onclick="window.api.openDownloadsWindow()" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">⬇️</button>
 
+    <button id="reader-mode-button" title="Mode lecture : affiche la page sans distractions" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">👓</button>
+
     <!-- Bouton Gestionnaire de mots de passe -->
     <button id="pwd-manager-btn" title="Gestionnaire de mots de passe" style="width:28px; height:24px; background:#2d2d30; color:#fbbf24; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🔑</button>
 
@@ -1280,6 +1282,29 @@ window.api.adblock?.onExceptionsUpdated((exceptions) => {
     updateAdblockButtons();
 });
 
+// Signale brièvement un échec du mode lecture sur les boutons concernés.
+function flashReaderResult(panelId, status) {
+    if (status !== "empty" && status !== "unavailable" && status !== "error") return;
+    const message = status === "empty"
+        ? "Pas assez de texte à afficher en mode lecture sur cette page"
+        : "Mode lecture indisponible sur cette page";
+    [document.getElementById(`reader-${panelId}`), document.getElementById("reader-mode-button")].forEach((button) => {
+        if (!button || button.dataset.flashing) return;
+        const label = button.textContent;
+        const title = button.title;
+        button.dataset.flashing = "1";
+        button.textContent = "⚠️";
+        button.title = message;
+        setTimeout(() => {
+            button.textContent = label;
+            button.title = title;
+            delete button.dataset.flashing;
+        }, 2500);
+    });
+}
+
+window.api.onReaderModeResult?.(({ panelId, status }) => flashReaderResult(panelId, status));
+
 function rebuildUrlBar(panels) {
     // 1. Ciblage de votre élément conteneur d'origine
     const urlBar = document.getElementById("url-bar");
@@ -1690,6 +1715,26 @@ addressGroup.appendChild(input);
             activePanel = panel.id;
             window.api.splitPanel(panel.id, "vertical");
         });
+
+        const btnReader = document.createElement("div");
+        btnReader.className = "btn-split";
+        btnReader.textContent = "👓";
+        btnReader.title = "Mode lecture (nettoie la page pour lire sans distractions)";
+        btnReader.style.cursor = "pointer";
+        btnReader.style.fontSize = "14px";
+        btnReader.style.display = "flex";
+        btnReader.style.alignItems = "center";
+        btnReader.style.justifyContent = "center";
+        btnReader.style.width = "18px";
+        btnReader.style.marginLeft = "3px";
+        btnReader.style.flex = "0 0 auto";
+        btnReader.addEventListener("mousedown", (e) => e.stopPropagation());
+        btnReader.id = `reader-${panel.id}`;
+        btnReader.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            flashReaderResult(panel.id, await window.api.toggleReaderMode(panel.id));
+        });
+        tabWrapper.appendChild(btnReader);
 
         tabWrapper.appendChild(btnSplit);
 
@@ -2692,6 +2737,11 @@ document.getElementById("duplicate-panel").addEventListener("click", () => {
     let targetPanelId = activePanel;
     if (!targetPanelId && currentPanels.length > 0) targetPanelId = currentPanels[0].id;
     if (targetPanelId) window.api.duplicatePanel(targetPanelId);
+});
+
+document.getElementById("reader-mode-button").addEventListener("click", async () => {
+    const targetPanelId = activePanel || currentPanels[0]?.id;
+    if (targetPanelId) flashReaderResult(targetPanelId, await window.api.toggleReaderMode(targetPanelId));
 });
 
 document.getElementById("print-button").addEventListener("click", () => {
