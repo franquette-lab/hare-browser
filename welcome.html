@@ -67,24 +67,22 @@ body {
 
 .badge {
     display: inline-block;
-    position: relative;
-    top: 12px;
     padding: 8px 16px;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 999px;
     box-shadow: 0 4px 12px var(--shadow);
+    top: 4px;
+    margin-top: 10px !important;
 }
 
 .cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 15px;
-    margin-top: 40px;
-
-    /* Descend uniquement les cartes */
+    margin-top: 10px;
     position: relative;
-    top: 30px;
+    top: 0;
 }
 
 .card {

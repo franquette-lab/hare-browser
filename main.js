@@ -294,7 +294,8 @@ let isAutoSleepEnabled = true;
 const panelIdleTimers = new Map();
 
 
-let autoSleepEnabled = true;
+//let autoSleepEnabled = true;
+  let autoSleepEnabled = false;
 
 
 function loadAutoSleepPreference() {
@@ -345,9 +346,10 @@ const SPLITTER_SIZE = 10;
 let leftView, centerView, rightView;
 let isDarkModeForced = false;
 
-let isAiSidebarVisible = true; // Par défaut, le volet est ouvert désormais
-let isAiSidebarWide = false;
-let lastAiSidebarWidth = 300;
+//let isAiSidebarVisible = true; // Par défaut, le volet est ouvert
+  let isAiSidebarVisible = false; // Par défaut, le volet est désormais fermé
+  let isAiSidebarWide = false;
+  let lastAiSidebarWidth = 300;
 
 function getAiSidebarWidth(windowWidth) {
     return isAiSidebarWide ? Math.max(300, Math.min(760, Math.round(windowWidth * 0.6))) : 300;
@@ -363,9 +365,9 @@ ipcMain.on("set-ai-sidebar-wide", (_event, wide) => {
 function loadAiSidebarPreference() {
     try {
         const preference = JSON.parse(fs.readFileSync(getAiSidebarPath(), "utf-8"));
-        isAiSidebarVisible = typeof preference.visible === "boolean" ? preference.visible : true;
+        isAiSidebarVisible = typeof preference.visible === "boolean" ? preference.visible : false; // <-- Changez true par false ici
     } catch (error) {
-        isAiSidebarVisible = true;
+        isAiSidebarVisible = false; // <-- Changez true par false ici pour le premier lancement
         if (error.code !== "ENOENT") {
             console.error("Impossible de lire la préférence du volet IA :", error);
         }
@@ -373,6 +375,7 @@ function loadAiSidebarPreference() {
     }
     return isAiSidebarVisible;
 }
+
 
 function saveAiSidebarPreference() {
     try {
@@ -1427,11 +1430,14 @@ function updateActiveBorder(bounds, options) {
         const bView = borderViews[index];
         if (bView && !bView.webContents.isDestroyed()) {
             bView.setBounds(layout);
-            
-            // ✨ INJECTION DYNAMIQUE : Recharge la couleur appropriée si elle change
-            bView.webContents.loadURL("data:text/html," + encodeURIComponent(`
+            try { bView.setBackgroundColor(borderHexColor); } catch (error) {}
+
+            if (bView.borderColor !== borderHexColor) {
+                bView.borderColor = borderHexColor;
+                bView.webContents.loadURL("data:text/html," + encodeURIComponent(`
                 <html><body style="margin:0; padding:0; background:${borderHexColor}; overflow:hidden;"></body></html>
             `));
+            }
         }
     });
 
@@ -3830,9 +3836,9 @@ async function createWindow() {
     isDarkModeForced = await getThemePreference(); //
     nativeTheme.themeSource = isDarkModeForced ? "dark" : "light"; //
 
-    // ========================================================
+    // ===================================================
     // ✨ STEP 1 : CRÉATION ET AFFICHAGE DU SPLASH SCREEN
-    // ========================================================
+    // ===================================================
     splash = new BrowserWindow({
         width: 420,
         height: 340,
@@ -3849,9 +3855,9 @@ async function createWindow() {
     
     splash.loadFile('splash.html');
 
-    // ========================================================
+    // ==========================================================
     // ✨ STEP 2 : INITIALISATION DE LA FENÊTRE PRINCIPALE CACHÉE
-    // ========================================================
+    // ===========================================================
     win = new BrowserWindow({
         width: 1200, //
         height: 800, //
@@ -3859,6 +3865,7 @@ async function createWindow() {
         titleBarStyle: 'hidden', //
         show: false, // 🌟 TRÈS IMPORTANT : Reste masqué pendant la construction de la mosaïque
         backgroundColor: isDarkModeForced ? '#252526' : '#f3f4f6', //
+        icon: path.join(__dirname, 'build', 'icon.ico'),
         titleBarOverlay: {
             color: isDarkModeForced ? '#252526' : '#ffffff', //
             symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937', //
@@ -3875,16 +3882,9 @@ async function createWindow() {
     win.setMaxListeners(0); //
     registerDownloadHandler(win.webContents.session); //
 
-    // Restauration de session ou création de la disposition mosaïque par défaut
-    if (!(await restorePersistedSession())) { //
-        await createDefaultLayout(); //
-    }
-
-    win.loadFile('index.html'); //
-
-    // ========================================================
+    // ===================================================
     // ✨ STEP 3 : TRANSITION ET FONDU FLUIDE AU DÉMARRAGE
-    // ========================================================
+    // ===================================================
     // L'événement 'ready-to-show' est déclenché par Chromium quand le premier rendu graphique
     // est totalement calculé en mémoire, évitant ainsi le flash blanc.
     win.once('ready-to-show', () => {
@@ -3909,37 +3909,6 @@ async function createWindow() {
     loadDownloadsList();
     isDarkModeForced = await getThemePreference();
     nativeTheme.themeSource = isDarkModeForced ? "dark" : "light";
-
-    win = new BrowserWindow({
-        width: 1200,
-        height: 800,
-        frame: false,
-        titleBarStyle: 'hidden',
-        
-        // MODIFICATION ICI : Fond dynamique au démarrage pour éviter la ligne noire
-        backgroundColor: isDarkModeForced ? '#252526' : '#f3f4f6', 
-
-        // ✨ AJOUTEZ CETTE LIGNE POUR L'ICÔNE DE LA FENÊTRE
-        icon: path.join(__dirname, 'build', 'icon.ico'),
-
-        titleBarOverlay: {
-            color: isDarkModeForced ? '#252526' : '#ffffff',
-            symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937',
-            height: 38
-        },
-        
-        webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
-            contextIsolation: true,
-            nodeIntegration: false,
-            sandbox: true
-        }
-    });
-
-  //win.setMaxListeners(30);
-    win.setMaxListeners(0);
-
-    registerDownloadHandler(win.webContents.session);
 
     process.on("warning", (warning) => {
         console.log("WARNING NAME:", warning.name);
@@ -5156,6 +5125,8 @@ ipcMain.on("set-active-panel", (event, panelId, options) => {
     const panel = findPanelNode(rootNode, panelId);
     if (!panel) return;
     
+    const keepChromeFocus = options && options.keepChromeFocus;
+
     if (panel.isSleeping && !keepChromeFocus) {
         wakePanel(panel);
         return;
@@ -5163,7 +5134,6 @@ ipcMain.on("set-active-panel", (event, panelId, options) => {
 
     activePanel = panelId;
     scheduleSessionLayoutSave();
-    const keepChromeFocus = options && options.keepChromeFocus;
     
     // ✨ MODIFICATION ICI : On ajoute 'isPrivate' dans le message envoyé à index.html
     win.webContents.send("active-panel-changed", { 

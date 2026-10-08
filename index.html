@@ -771,11 +771,15 @@ html.dark #pwd-modal {
     </div>
     
     <!-- Zone d'affichage des réponses (Conteneur de texte) -->
-    <div id="ai-response-container" style="flex: 1; overflow-y: auto; font-size: 12.5px; line-height: 1.6; padding-right: 4px; white-space: pre-wrap; margin-bottom: 16px; text-align: left; color: #e2e8f0;">Posez une question ou cliquez sur «&nbsp;Résumer&nbsp;» pour analyser la tuile active.<BR>Utilisez «&nbsp;Comparer les tuiles&nbsp;» pour demander une analyse croisée des pages visibles.</div>
+    <div id="ai-response-container"
+        style="flex: 1; overflow-y: auto; font-size: 12.5px; line-height: 1.6; padding-right: 4px; white-space: pre-wrap; margin-bottom: 16px; text-align: left; color: #e2e8f0;">
+    Posez une question ou cliquez sur «&nbsp;Résumer&nbsp;» pour analyser la tuile active.<br>
+    Utilisez «&nbsp;Comparer les tuiles&nbsp;» pour demander une analyse croisée des pages visibles.
+    </div>
 
-    <!-- Zone de saisie et Commandes -->
-    <!-- Dans index.html -> Dans la div #ai-sidebar, remplacez la ligne de l'encadré du bas par celle-ci : -->
-<div class="ai-footer-box" style="display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 8px;">
+        <!-- Zone de saisie et Commandes -->
+        <!-- Dans index.html -> Dans la div #ai-sidebar, remplacez la ligne de l'encadré du bas par celle-ci : -->
+    <div class="ai-footer-box" style="display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 8px;">
 
     <input type="text" id="ai-user-prompt" placeholder="Question sur une page ou sur vos tuiles" style="width: 100%; height: 32px; background: #2d2d30; border: 1px solid #3c3c3c; color: white; border-radius: 6px; padding: 0 10px; font-size: 12px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#3c3c3c'">
     
@@ -2311,7 +2315,7 @@ async function rebuildBookmarksBar() {
         const emptyText = document.createElement("span");
         emptyText.style.color = isDark ? "#6b7280" : "#9ca3af";
         emptyText.style.fontSize = "11px";
-        emptyText.innerText = "Aucun favori : cliquez sur l'étoile.";
+        emptyText.innerText = "Aucun favori (⭐)";
         listContainer.appendChild(emptyText);
         return;
     }
