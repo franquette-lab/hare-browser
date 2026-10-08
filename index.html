@@ -764,14 +764,14 @@ html.dark #pwd-modal {
         <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-size: 14px;">✨</span>
 
-            <span class="ai-title-text" style="font-weight: bold; font-size: 13px;">Assistant IA (Ollama)</span>
+            <span class="ai-title-text" style="font-weight: bold; font-size: 13px;">Assistant IA</span>
 
         </div>
         <span id="close-ai-sidebar" style="cursor: pointer; color: #9ca3af; font-weight: bold; font-size: 16px; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#9ca3af'">×</span>
     </div>
     
     <!-- Zone d'affichage des réponses (Conteneur de texte) -->
-    <div id="ai-response-container" style="flex: 1; overflow-y: auto; font-size: 12.5px; line-height: 1.6; padding-right: 4px; white-space: pre-wrap; margin-bottom: 16px; text-align: left; color: #e2e8f0;">Posez une question ou cliquez sur «&nbsp;Résumer&nbsp;» pour analyser la tuile active. Utilisez «&nbsp;Comparer les tuiles&nbsp;» pour demander une analyse croisée des pages visibles.</div>
+    <div id="ai-response-container" style="flex: 1; overflow-y: auto; font-size: 12.5px; line-height: 1.6; padding-right: 4px; white-space: pre-wrap; margin-bottom: 16px; text-align: left; color: #e2e8f0;">Posez une question ou cliquez sur «&nbsp;Résumer&nbsp;» pour analyser la tuile active.<BR>Utilisez «&nbsp;Comparer les tuiles&nbsp;» pour demander une analyse croisée des pages visibles.</div>
 
     <!-- Zone de saisie et Commandes -->
     <!-- Dans index.html -> Dans la div #ai-sidebar, remplacez la ligne de l'encadré du bas par celle-ci : -->
@@ -2311,7 +2311,7 @@ async function rebuildBookmarksBar() {
         const emptyText = document.createElement("span");
         emptyText.style.color = isDark ? "#6b7280" : "#9ca3af";
         emptyText.style.fontSize = "11px";
-        emptyText.innerText = "Aucun favori enregistré. Cliquez sur l'étoile pour en ajouter.";
+        emptyText.innerText = "Aucun favori : cliquez sur l'étoile.";
         listContainer.appendChild(emptyText);
         return;
     }

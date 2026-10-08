@@ -19,6 +19,10 @@ const {
     session
 } = require('electron');
 
+
+let splash = null; // ✨ AJOUT : Variable globale pour le Splash Screen
+
+
 const { extractMainArticleContent } = require('./nanobrowser/readability-light.js');
 
 
@@ -3819,6 +3823,86 @@ async function createDefaultLayout() {
 
 async function createWindow() {
 
+
+        await fsPromises.mkdir(appDataPath, { recursive: true }); //
+    
+    // Récupération des préférences de thème
+    isDarkModeForced = await getThemePreference(); //
+    nativeTheme.themeSource = isDarkModeForced ? "dark" : "light"; //
+
+    // ========================================================
+    // ✨ STEP 1 : CRÉATION ET AFFICHAGE DU SPLASH SCREEN
+    // ========================================================
+    splash = new BrowserWindow({
+        width: 420,
+        height: 340,
+        transparent: true, // Permet d'avoir des coins arrondis si le HTML le gère
+        frame: false,      // Supprime les bordures OS d'agrandissement et fermeture
+        alwaysOnTop: true, // Évite qu'une autre application ne vienne masquer le chargement
+        resizable: false,
+        center: true,
+        icon: path.join(__dirname, 'build', 'icon.ico'), //
+        webPreferences: {
+            sandbox: true
+        }
+    });
+    
+    splash.loadFile('splash.html');
+
+    // ========================================================
+    // ✨ STEP 2 : INITIALISATION DE LA FENÊTRE PRINCIPALE CACHÉE
+    // ========================================================
+    win = new BrowserWindow({
+        width: 1200, //
+        height: 800, //
+        frame: false, //
+        titleBarStyle: 'hidden', //
+        show: false, // 🌟 TRÈS IMPORTANT : Reste masqué pendant la construction de la mosaïque
+        backgroundColor: isDarkModeForced ? '#252526' : '#f3f4f6', //
+        titleBarOverlay: {
+            color: isDarkModeForced ? '#252526' : '#ffffff', //
+            symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937', //
+            height: 38 //
+        },
+        webPreferences: {
+            preload: path.join(__dirname, 'preload.js'), //
+            contextIsolation: true, //
+            nodeIntegration: false, //
+            sandbox: true //
+        }
+    });
+
+    win.setMaxListeners(0); //
+    registerDownloadHandler(win.webContents.session); //
+
+    // Restauration de session ou création de la disposition mosaïque par défaut
+    if (!(await restorePersistedSession())) { //
+        await createDefaultLayout(); //
+    }
+
+    win.loadFile('index.html'); //
+
+    // ========================================================
+    // ✨ STEP 3 : TRANSITION ET FONDU FLUIDE AU DÉMARRAGE
+    // ========================================================
+    // L'événement 'ready-to-show' est déclenché par Chromium quand le premier rendu graphique
+    // est totalement calculé en mémoire, évitant ainsi le flash blanc.
+    win.once('ready-to-show', () => {
+        // Optionnel : Ajout d'une petite latence de 500ms si le chargement est trop rapide instantané,
+        // pour laisser le temps à l'utilisateur d'apprécier le splash screen.
+        setTimeout(() => {
+            if (splash && !splash.isDestroyed()) {
+                splash.close(); // Ferme et détruit le splash screen
+                splash = null;
+            }
+            
+            if (win && !win.isDestroyed()) {
+                win.show();  // Affiche la fenêtre principale proprement stabilisée
+                win.focus(); // Donne le focus au navigateur
+            }
+        }, 600); 
+    });
+
     await fsPromises.mkdir(appDataPath, { recursive: true });
     loadAutoSleepPreference();  
     loadAiSidebarPreference();
@@ -4513,6 +4597,8 @@ async function createWindow() {
         });
     });
 
+
+/*    
     // Intercepte le clic sur la croix de fermeture de la fenêtre principale
     win.on('close', (e) => {
         // Empêche la fermeture immédiate le temps de demander confirmation
@@ -4556,7 +4642,62 @@ async function createWindow() {
             }
         }
     });
+*/
+// main.js
 
+// ... (votre code existant) ...
+
+// Intercepte le clic sur la croix de fermeture de la fenêtre principale
+win.on('close', (e) => {
+    // Empêche la fermeture immédiate le temps de demander confirmation
+    e.preventDefault(); //
+
+    // 🌟 CORRECTIF CRUCIAL : On désactive temporairement le premier plan des fenêtres secondaires
+    if (historyWindow && !historyWindow.isDestroyed()) { //
+        historyWindow.setAlwaysOnTop(false); //
+    }
+    if (pwdWindow && !pwdWindow.isDestroyed()) { //
+        pwdWindow.setAlwaysOnTop(false); //
+    }
+
+    // ✨ 1. CHARGEMENT DE L'ICÔNE DE L'APPLICATION AVEC NATIVEIMAGE
+    // nativeImage permet à Electron de décoder et redimensionner proprement le fichier .ico
+    const appIcon = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.ico'));
+
+    // 2. Affichage de la boîte de dialogue liée à la fenêtre principale 'win'
+    dialog.showMessageBox(win, {
+        type: 'none', // 🌟 TRÈS IMPORTANT : On passe le type à 'none' pour masquer l'icône "i" système
+        icon: appIcon, // ✨ ON INJECTE NOTRE ICÔNE PERSONNALISÉE ICI
+        buttons: ['Oui, quitter', 'Annuler'], //
+        defaultId: 1, //
+        cancelId: 1, //
+        title: 'Confirmation', //
+        message: `Êtes-vous sûr de vouloir fermer ${APP_TITLE} ?`, //
+        detail: 'La disposition sera sauvegardée automatiquement pour la prochaine ouverture.' //
+    }).then((response) => {
+        // Seul l'index 0 ("Oui, quitter") détruit la fenêtre
+        if (response.response === 0) {
+            if (sessionSaveTimer) { //
+                clearTimeout(sessionSaveTimer); //
+                sessionSaveTimer = null; //
+            }
+            saveAutoSleepPreference(); //
+            persistSessionLayout(); //
+            win.destroy(); //
+        } else {
+            // 🌟 RESTAURATION : Si l'utilisateur annule, on remet le "Always on Top"
+            if (historyWindow && !historyWindow.isDestroyed()) { //
+                historyWindow.setAlwaysOnTop(true); //
+            }
+            if (pwdWindow && !pwdWindow.isDestroyed()) { //
+                pwdWindow.setAlwaysOnTop(true); //
+            }
+        }
+    });
+});
+
+
+    
     // quand la fenêtre principale est détruite par l'utilisateur
     win.on('closed', () => {
         // Ferme la fenêtre d'historique si elle existe
