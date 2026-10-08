@@ -149,6 +149,7 @@ onActivePanelChanged: (callback) => {
         onAiLoadingState: (callback) => ipcRenderer.on("ai-loading-state", (_, isLoading) => callback(isLoading)),
         
         onReaderModeResult: (callback) => ipcRenderer.on("reader-mode-result", (event, data) => callback(data)),
+        onReaderModeStateChanged: (callback) => ipcRenderer.on("reader-mode-state-changed", (_event, data) => callback(data)),
         toggleReaderMode: (panelId) => ipcRenderer.invoke("toggle-reader-mode", panelId),
         openDownloadsWindow: () => ipcRenderer.send("open-downloads-window"),
         duplicatePanel: (panelId) => ipcRenderer.send("duplicate-panel-request", panelId),

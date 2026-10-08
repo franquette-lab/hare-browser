@@ -1109,10 +1109,26 @@ async function toggleReaderModeForPanel(panelId) {
         const protocol = new URL(contents.getURL()).protocol;
         if (protocol !== 'http:' && protocol !== 'https:' && protocol !== 'file:') return 'unavailable';
         const script = await fsPromises.readFile(path.join(__dirname, 'nanobrowser', 'reader.js'), 'utf8');
-        return await contents.executeJavaScript(`window.__hareReaderDark = ${isDarkModeForced};\n${script}`);
+        const status = await contents.executeJavaScript(`window.__hareReaderDark = ${isDarkModeForced};\n${script}`);
+        if (status === 'opened' || status === 'closed') {
+            setReaderModeState(panel, status === 'opened');
+        }
+        return status;
     } catch (error) {
         console.warn('[LECTURE] Impossible de basculer le mode lecture :', error.message);
         return 'error';
+    }
+}
+
+function setReaderModeState(panel, active) {
+    if (!panel) return;
+    panel.readerModeActive = active === true;
+    if (win && !win.isDestroyed()) {
+        win.webContents.send('reader-mode-state-changed', {
+            panelId: panel.id,
+            active: panel.readerModeActive
+        });
+        win.webContents.send('panels-updated', collectPanels(rootNode), maximizedPanelId);
     }
 }
 
@@ -1895,6 +1911,7 @@ class PanelNode {
             : null;
         this.isSleeping = false;
         this.sleepingUrl = null;
+        this.readerModeActive = false;
     }
     toJSON() {
         return { type: this.type, id: this.id, url: this.url, isPrivate: this.isPrivate, containerId: this.containerId };
@@ -2151,7 +2168,8 @@ function collectPanels(node, panels = []) {
             containerId: node.containerId || null,
             containerLabel: node.containerId ? TILE_CONTAINERS[node.containerId].label : "",
             containerColor: node.containerId ? TILE_CONTAINERS[node.containerId].color : "",
-            searchQuery: node.searchQuery || ""
+            searchQuery: node.searchQuery || "",
+            readerModeActive: node.readerModeActive === true
         });
         return panels;
     }
@@ -2403,6 +2421,8 @@ function setupNavigationTracking(panel) {
         if (!initialLoadFinished) {
         return;
         }
+
+        if (panel.readerModeActive) setReaderModeState(panel, false);
 
 
         if (win && !win.isDestroyed()) {
@@ -2823,6 +2843,12 @@ ipcMain.on('tile-activity', (event, activityType) => {
     }
 
     markPanelActivity(panel);
+});
+
+ipcMain.on('reader-mode-state-from-tile', (event, active) => {
+    const panel = findPanelByWebContents(event.sender);
+    if (!panel || typeof active !== 'boolean') return;
+    setReaderModeState(panel, active);
 });
 
 ipcMain.handle("get-autosleep-preference", (event) => {

@@ -12,3 +12,7 @@ function reportActivity(type) {
 document.addEventListener('pointermove', () => reportActivity('hover'), { capture: true, passive: true });
 document.addEventListener('pointerover', () => reportActivity('hover'), { capture: true, passive: true });
 document.addEventListener('pointerdown', () => reportActivity('click'), { capture: true, passive: true });
+
+document.addEventListener('hare-reader-mode-state', (event) => {
+    if (event.detail === false) ipcRenderer.send('reader-mode-state-from-tile', false);
+});

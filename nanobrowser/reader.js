@@ -172,6 +172,7 @@
     close.addEventListener("click", function () {
         host.remove();
         document.documentElement.style.overflow = window.__hareReaderPrevOverflow || "";
+        document.dispatchEvent(new CustomEvent("hare-reader-mode-state", { detail: false }));
     });
 
     window.__hareReaderPrevOverflow = document.documentElement.style.overflow;

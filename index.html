@@ -1123,6 +1123,7 @@ window.api.onPanelsUpdated((panelsList, zoomPanelId) => {
     // 2. Assignation sécurisée aux variables globales sans jamais écrire le mot "panel" au singulier
     currentPanels = Array.isArray(panelsList) ? panelsList : [];
     currentMaximizedId = zoomPanelId || null;
+    updateReaderModeButtons();
 
     // 3. Exécution compartimentée pour isoler et identifier les bugs
     // Ne pas reconstruire la barre si l'utilisateur édite une URL : set-active-panel
@@ -1271,6 +1272,33 @@ function updateAdblockButtons() {
         button.setAttribute("aria-label", button.title);
     });
 }
+
+function updateReaderModeButtons() {
+    const isReaderActive = (panelId) =>
+        currentPanels.some((panel) => panel.id === panelId && panel.readerModeActive === true);
+    const applyState = (button, active, isToolbarButton = false) => {
+        if (!button) return;
+        button.setAttribute("aria-pressed", active ? "true" : "false");
+        button.dataset.active = active ? "true" : "false";
+        button.style.backgroundColor = active ? "#2563eb" : (isToolbarButton ? "#2d2d30" : "transparent");
+        button.style.color = active ? "#ffffff" : (isToolbarButton ? "#cfcfcf" : (applicationDarkMode ? "#cfcfcf" : "#475569"));
+        button.style.borderColor = active ? "#93c5fd" : (isToolbarButton ? "#3c3c3c" : "transparent");
+        button.title = active
+            ? "Mode lecture activé — cliquer pour revenir à la page"
+            : "Mode lecture désactivé — cliquer pour lire sans distractions";
+    };
+
+    currentPanels.forEach((panel) => {
+        applyState(document.getElementById(`reader-${panel.id}`), isReaderActive(panel.id));
+    });
+    applyState(document.getElementById("reader-mode-button"), isReaderActive(activePanel), true);
+}
+
+window.api.onReaderModeStateChanged?.(({ panelId, active }) => {
+    const panel = currentPanels.find((item) => item.id === panelId);
+    if (panel) panel.readerModeActive = active === true;
+    updateReaderModeButtons();
+});
 
 window.api.adblock?.getExceptions().then((exceptions) => {
     adBlockExceptions = new Set(Array.isArray(exceptions) ? exceptions : []);
@@ -1728,6 +1756,7 @@ addressGroup.appendChild(input);
         btnReader.style.width = "18px";
         btnReader.style.marginLeft = "3px";
         btnReader.style.flex = "0 0 auto";
+        btnReader.setAttribute("aria-pressed", panel.readerModeActive ? "true" : "false");
         btnReader.addEventListener("mousedown", (e) => e.stopPropagation());
         btnReader.id = `reader-${panel.id}`;
         btnReader.addEventListener("click", async (e) => {
@@ -1754,6 +1783,7 @@ addressGroup.appendChild(input);
             attachUrlHandler(panel.id);
         }
     });
+    updateReaderModeButtons();
 }
 
 
@@ -1990,6 +2020,7 @@ window.api.onActivePanelChanged((data) => {
 
     const previousFindPanelId = findPanelId;
     activePanel = data.id;
+    updateReaderModeButtons();
 
     if (findBar?.classList.contains("open") && previousFindPanelId !== data.id) {
         if (previousFindPanelId && window.api.findInPage) {
