@@ -199,8 +199,6 @@ const AD_BLOCKLIST = [
 
 let adBlockExceptions = new Set();
 
-
-
 // Les modules Node sont chargés au premier accès, puis conservés en cache.
 const nodeModuleCache = new Map();
 function getNodeModule(moduleName) {
@@ -283,27 +281,25 @@ let dragTimer = null;
 let dragInProgress = false;
 let resizeTimer = null;
 
-
 // ==========================================
 // ✨ PLACEZ LES DEUX LIGNES ICI TOUT EN HAUT
 // ==========================================
-const PANEL_IDLE_TIMEOUT = 15 * 60 * 1000;
-let isAutoSleepEnabled = true; 
 
+//const PANEL_IDLE_TIMEOUT = 15 * 60 * 1000;
+  const PANEL_IDLE_TIMEOUT = 15 * 60;
 
-const panelIdleTimers = new Map();
-
+  const panelIdleTimers = new Map();
 
 //let autoSleepEnabled = true;
   let autoSleepEnabled = false;
 
-
 function loadAutoSleepPreference() {
     try {
         const settings = JSON.parse(fs.readFileSync(getAutoSleepPath(), "utf-8"));
-        autoSleepEnabled = typeof settings.enabled === "boolean" ? settings.enabled : true;
+        // Remplacez le fallback ": true" par ": false"
+        autoSleepEnabled = typeof settings.enabled === "boolean" ? settings.enabled : false;
     } catch (error) {
-        autoSleepEnabled = true;
+        autoSleepEnabled = false; // <-- Changez true par false ici
         if (error.code !== "ENOENT") {
             console.error("Impossible de lire la préférence de veille automatique :", error);
         }
@@ -532,43 +528,36 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
         { type: "separator" },
 
         // =========================================================================
-        // ✨ NOUVEAU : ENTRÉE DYNAMIQUE POUR L'AUTO-VEILLE DANS LE MENU CONTEXTUEL
-        // =========================================================================
-        // =========================================================================
         // ✨ VERSION CORRIGÉE : ÉVITE LE CRASH IPC EN MODIFIANT DIRECTEMENT L'ÉTAT
         // =========================================================================
         {
-            label: isAutoSleepEnabled 
+            label: autoSleepEnabled 
                 ? "   💤 Désactiver la veille automatique (15 min)" 
                 : "   💤 Activer la veille automatique (15 min)",
             type: "checkbox",
-            checked: isAutoSleepEnabled,
+            checked: autoSleepEnabled,
             click: () => {
-                isAutoSleepEnabled = !isAutoSleepEnabled;
-                console.log(`[Auto-Sleep Menu] Mode changé : ${isAutoSleepEnabled ? "ACTIVÉ" : "DÉSACTIVÉ"}`);
+                // Modifie la bonne variable globale
+                autoSleepEnabled = !autoSleepEnabled;
+                console.log(`[Auto-Sleep Menu] Mode changé : ${autoSleepEnabled ? "ACTIVÉ" : "DÉSACTIVÉ"}`);
 
-                if (!isAutoSleepEnabled) {
-                    // Si désactivé, on nettoie immédiatement tous les minuteurs actifs
+                if (!autoSleepEnabled) {
                     panelIdleTimers.forEach((timer) => clearTimeout(timer));
                     panelIdleTimers.clear();
                 } else {
-                    // Si réactivé, on replanifie la veille pour toutes les tuiles actives
                     const activePanels = collectPanelNodes(rootNode);
                     activePanels.forEach(panel => {
                         if (!panel.isSleeping) markPanelActivity(panel);
                     });
                 }
 
-                // 1. Informe l'IHM (index.html) pour synchroniser l'icône de la barre d'outils
+                // Informe l'IHM
                 if (win && !win.isDestroyed()) {
-                    win.webContents.send('autosleep-state-changed', isAutoSleepEnabled);
+                    win.webContents.send('autosleep-state-changed', autoSleepEnabled);
                 }
 
-                // 2. Sauvegarde immédiate dans theme.json
-                safeWriteJsonAsync(getThemePath(), { 
-                    darkMode: isDarkModeForced, 
-                    autoSleep: isAutoSleepEnabled 
-                });
+                // SAUVEGARDE DANS LE BON FICHIER (autosleep.json)
+                saveAutoSleepPreference();
             }
         },
 
@@ -2013,7 +2002,7 @@ function markPanelActivity(panelOrId) {
     if (!panel || panel.isSleeping) return;
 
     clearPanelIdleTimer(panel.id);
-    if (!autoSleepEnabled) return;
+    if (!autoSleepEnabled) return; // Si false, on s'arrête immédiatement ici
 
     panel.lastActivityAt = Date.now();
     panelIdleTimers.set(panel.id, setTimeout(() => {
@@ -2021,6 +2010,7 @@ function markPanelActivity(panelOrId) {
         if (autoSleepEnabled && findPanelNode(rootNode, panel.id) === panel) sleepPanel(panel);
     }, PANEL_IDLE_TIMEOUT));
 }
+
 
 function setAutoSleepEnabled(enabled) {
     autoSleepEnabled = enabled === true;
@@ -3794,8 +3784,11 @@ async function createDefaultLayout() {
     rootNode = new SplitNode("vertical");
     rootNode.ratio = 0.5; // Division parfaite au milieu de l'écran utile
 
-    rootNode.first = new PanelNode("panel1", leftView, homePageUrl);
-    rootNode.second = new PanelNode("panel2", centerView, welcomePageUrl);
+//  rootNode.first = new PanelNode("panel1", leftView, homePageUrl);
+//  rootNode.second = new PanelNode("panel2", centerView, welcomePageUrl);
+
+    rootNode.first = new PanelNode("panel1", centerView, welcomePageUrl);
+    rootNode.second = new PanelNode("panel2", leftView, homePageUrl);
 
     // Initialisation des écouteurs de navigation sur nos deux panneaux actifs
     collectPanelNodes(rootNode).forEach((panel) => {
@@ -3824,6 +3817,7 @@ async function createDefaultLayout() {
         console.error("Erreur de chargement de la tuile de bienvenue :", error);
     }
 
+    if (!activePanel) activePanel = "panel1";
     updateNavigationButtons();
 }
 
@@ -4487,6 +4481,12 @@ async function createWindow() {
             maximizedPanelId
         );
 
+        // Le renderer peut charger après le focus initial : on réémet le panneau actif.
+        const startupActive = activePanel && findPanelNode(rootNode, activePanel);
+        if (startupActive) {
+            win.webContents.send("active-panel-changed", { id: startupActive.id, bounds: startupActive.bounds });
+        }
+
         win.webContents.send("app-title-changed", APP_TITLE);
 
         win.setTitle(APP_TITLE);
@@ -4631,7 +4631,8 @@ win.on('close', (e) => {
 
     // ✨ 1. CHARGEMENT DE L'ICÔNE DE L'APPLICATION AVEC NATIVEIMAGE
     // nativeImage permet à Electron de décoder et redimensionner proprement le fichier .ico
-    const appIcon = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.ico'));
+//  const appIcon = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.ico'));
+    const appIcon = nativeImage.createFromPath(path.join(__dirname, 'resources', 'icon.ico'));
 
     // 2. Affichage de la boîte de dialogue liée à la fenêtre principale 'win'
     dialog.showMessageBox(win, {
