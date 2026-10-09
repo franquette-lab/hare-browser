@@ -281,6 +281,65 @@ let dragTimer = null;
 let dragInProgress = false;
 let resizeTimer = null;
 
+
+// À placer avec vos imports ou initialisations de modules en haut de main.js
+const { spawn } = require('child_process');
+let ollamaProcess = null;
+
+/**
+ * Démarre le serveur Ollama embarqué en arrière-plan
+ */
+function startEmbeddedOllama() {
+    const isPackaged = app.isPackaged;
+    let ollamaPath = "";
+
+    // Détermination du chemin du binaire selon l'environnement
+    if (isPackaged) {
+        // En production, le fichier se trouve dans le dossier 'resources' d'Electron
+        const binaireName = process.platform === 'win32' ? 'ollama.exe' : 'ollama';
+        ollamaPath = path.join(process.resourcesPath, 'ollama-bin', binaireName);
+    } else {
+        // En développement, utilisez votre chemin local ou l'Ollama global installé
+        ollamaPath = process.platform === 'win32' ? 'ollama' : 'ollama'; 
+    }
+
+    console.log(`[OLLAMA] Tentative de lancement depuis : ${ollamaPath}`);
+
+    // Configuration des variables d'environnement indispensables pour la production
+    const env = {
+        ...process.env,
+        "OLLAMA_ORIGINS": "*", // Évite les blocages CORS dans Chromium/Electron
+        "OLLAMA_HOST": "127.0.0.1:11434" // Force l'écoute sur la boucle locale
+    };
+
+    try {
+        // Lancement du serveur en tâche de fond (child_process)
+        ollamaProcess = spawn(ollamaPath, ['serve'], { env });
+
+        ollamaProcess.stdout.on('data', (data) => {
+            console.log(`[OLLAMA STDOUT]: ${data}`);
+        });
+
+        ollamaProcess.stderr.on('data', (data) => {
+            console.error(`[OLLAMA STDERR]: ${data}`);
+        });
+
+        ollamaProcess.on('close', (code) => {
+            console.log(`[OLLAMA] Le processus s'est arrêté avec le code : ${code}`);
+            ollamaProcess = null;
+        });
+
+        ollamaProcess.on('error', (err) => {
+            console.error(`[OLLAMA] Échec critique du démarrage du processus :`, err);
+        });
+
+    } catch (error) {
+        console.error("[OLLAMA] Erreur lors de l'initialisation du spawn :", error);
+    }
+}
+
+
+
 // ==========================================
 // ✨ PLACEZ LES DEUX LIGNES ICI TOUT EN HAUT
 // ==========================================
@@ -5780,6 +5839,7 @@ ipcMain.handle("find-in-page", (event, { panelId, text, action = "start" } = {})
     return { panelId, requestId };
 });
 
+// Modifiez votre écouteur existant app.on('will-quit')
 app.on('will-quit', () => {
     if (sessionSaveTimer) {
         clearTimeout(sessionSaveTimer);
@@ -5788,32 +5848,21 @@ app.on('will-quit', () => {
     saveAutoSleepPreference();
     persistSessionLayout();
     globalShortcut.unregisterAll();
+
+    // 🔥 ARRÊT D'OLLAMA : Tue le processus enfant pour ne pas le laisser tourner en zombie sur l'OS de l'utilisateur
+    if (ollamaProcess) {
+        console.log("[OLLAMA] Fermeture forcée du serveur Ollama enfant...");
+        ollamaProcess.kill('SIGINT'); // Envoie un signal d'arrêt propre
+    }
 });
 
-/*
-// ✨ LOG DE DIAGNOSTIC DE PROD : Afficher la RAM totale toutes les 10 secondes dans le terminal
+
+// app.whenReady().then(createWindow);
 app.whenReady().then(() => {
-
-    setInterval(() => {
-
-        if (!win || win.isDestroyed()) return;
-
-        // 1. Récupérer les métriques de TOUS les processus actifs d'Electron
-        const metrics = app.getAppMetrics();
-        
-        // 2. Additionner la mémoire de chaque processus (convertie en Mo)
-        let totalWorkingSetMemory = 0;
-        metrics.forEach(proc => {
-            totalWorkingSetMemory += proc.memory.workingSetSize;
-        });
-        
-        const totalMemoryMo = (totalWorkingSetMemory / 1024).toFixed(2);
-        const activeProcessesCount = metrics.length;
-
-        console.log(`[DIAGNOSTIC RAM REEL] Total application : ${totalMemoryMo} Mo | Processus actifs : ${activeProcessesCount}`);
-    }, 10000); // Toutes les 10 secondes
-
+    // 1. Lance Ollama en arrière-plan
+    startEmbeddedOllama();
+    
+    // 2. Initialise votre fenêtre principale
     createWindow(); 
 });
-*/
-app.whenReady().then(createWindow);
+
