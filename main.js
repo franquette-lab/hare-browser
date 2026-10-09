@@ -20,11 +20,91 @@ const {
 } = require('electron');
 
 
+const fs = require("fs");
+const fsPromises = require("fs/promises");
+const os = require("os");
+const path = require("path");
+const https = require("https");
+const { spawn } = require("child_process");
+
+const ollamaPath = path.join(
+    process.env.LOCALAPPDATA || "",
+    "Programs",
+    "Ollama",
+    "ollama.exe"
+);
+
+
+
+async function installOllamaIfNeeded() {
+
+    const ollamaExe = path.join(
+        process.env.LOCALAPPDATA || "",
+        "Programs",
+        "Ollama",
+        "ollama.exe"
+    );
+
+    if (fs.existsSync(ollamaExe)) {
+        console.log("[OLLAMA] Déjà installé");
+        return ollamaExe;
+    }
+
+    console.log("[OLLAMA] Installation en cours...");
+
+    const installerPath = path.join(
+        os.tmpdir(),
+        "OllamaSetup.exe"
+    );
+
+    await downloadFile(
+        "https://ollama.com/download/OllamaSetup.exe",
+        installerPath
+    );
+
+    await runInstaller(installerPath);
+
+    return ollamaExe;
+}
+
+
+function startEmbeddedOllama() {
+
+    const ollamaPath = path.join(
+        process.env.LOCALAPPDATA || "",
+        "Programs",
+        "Ollama",
+        "ollama.exe"
+    );
+
+    if (!fs.existsSync(ollamaPath)) {
+        console.error("[OLLAMA] ollama.exe introuvable");
+        return;
+    }
+
+    console.log(`[OLLAMA] Démarrage : ${ollamaPath}`);
+
+    ollamaProcess = spawn(
+        ollamaPath,
+        ["serve"],
+        {
+            env: {
+                ...process.env,
+                OLLAMA_ORIGINS: "*",
+                OLLAMA_HOST: "127.0.0.1:11434"
+            }
+        }
+    );
+
+    ollamaProcess.on("error", err => {
+        console.error("[OLLAMA] Erreur :", err);
+    });
+}
+
+
 let splash = null; // ✨ AJOUT : Variable globale pour le Splash Screen
 
-
 const { extractMainArticleContent } = require('./nanobrowser/readability-light.js');
-
 
 /**
  * Active le filtre publicitaire sur une session Electron spécifique.
@@ -144,6 +224,52 @@ function createSandboxedBrowserView(options = {}) {
 }
 
 
+function downloadFile(url, destination) {
+    return new Promise((resolve, reject) => {
+
+        const file = fs.createWriteStream(destination);
+
+        https.get(url, response => {
+
+            response.pipe(file);
+
+            file.on("finish", () => {
+                file.close(resolve);
+            });
+
+        }).on("error", err => {
+            reject(err);
+        });
+
+    });
+}
+
+function runInstaller(installerPath) {
+
+    return new Promise((resolve, reject) => {
+
+        const p = spawn(installerPath, ["/S"], {
+            detached: false,
+            stdio: "inherit"
+        });
+
+        p.on("close", code => {
+
+            if (code === 0) {
+                resolve();
+            } else {
+                reject(
+                    new Error(
+                        `Installation Ollama échouée (${code})`
+                    )
+                );
+            }
+        });
+
+    });
+}
+
+
 // Conteneurs de tuiles : une partition persistante par conteneur (cookies/stockage isolés, conservés entre les lancements).
 const TILE_CONTAINERS = {
     perso: { label: "Personnel", color: "#3b82f6" },
@@ -218,9 +344,7 @@ function lazyNodeModule(moduleName) {
     });
 }
 
-const fs = lazyNodeModule("fs");
-const fsPromises = lazyNodeModule("fs/promises");
-const path = lazyNodeModule("path");
+
 
 function getPathToFileURL(filePath) {
     return getNodeModule("url").pathToFileURL(filePath);
@@ -282,70 +406,12 @@ let dragInProgress = false;
 let resizeTimer = null;
 
 
-// À placer avec vos imports ou initialisations de modules en haut de main.js
-const { spawn } = require('child_process');
-let ollamaProcess = null;
-
-/**
- * Démarre le serveur Ollama embarqué en arrière-plan
- */
-function startEmbeddedOllama() {
-    const isPackaged = app.isPackaged;
-    let ollamaPath = "";
-
-    // Détermination du chemin du binaire selon l'environnement
-    if (isPackaged) {
-        // En production, le fichier se trouve dans le dossier 'resources' d'Electron
-        const binaireName = process.platform === 'win32' ? 'ollama.exe' : 'ollama';
-        ollamaPath = path.join(process.resourcesPath, 'ollama-bin', binaireName);
-    } else {
-        // En développement, utilisez votre chemin local ou l'Ollama global installé
-        ollamaPath = process.platform === 'win32' ? 'ollama' : 'ollama'; 
-    }
-
-    console.log(`[OLLAMA] Tentative de lancement depuis : ${ollamaPath}`);
-
-    // Configuration des variables d'environnement indispensables pour la production
-    const env = {
-        ...process.env,
-        "OLLAMA_ORIGINS": "*", // Évite les blocages CORS dans Chromium/Electron
-        "OLLAMA_HOST": "127.0.0.1:11434" // Force l'écoute sur la boucle locale
-    };
-
-    try {
-        // Lancement du serveur en tâche de fond (child_process)
-        ollamaProcess = spawn(ollamaPath, ['serve'], { env });
-
-        ollamaProcess.stdout.on('data', (data) => {
-            console.log(`[OLLAMA STDOUT]: ${data}`);
-        });
-
-        ollamaProcess.stderr.on('data', (data) => {
-            console.error(`[OLLAMA STDERR]: ${data}`);
-        });
-
-        ollamaProcess.on('close', (code) => {
-            console.log(`[OLLAMA] Le processus s'est arrêté avec le code : ${code}`);
-            ollamaProcess = null;
-        });
-
-        ollamaProcess.on('error', (err) => {
-            console.error(`[OLLAMA] Échec critique du démarrage du processus :`, err);
-        });
-
-    } catch (error) {
-        console.error("[OLLAMA] Erreur lors de l'initialisation du spawn :", error);
-    }
-}
-
-
-
 // ==========================================
 // ✨ PLACEZ LES DEUX LIGNES ICI TOUT EN HAUT
 // ==========================================
 
-//const PANEL_IDLE_TIMEOUT = 15 * 60 * 1000;
-  const PANEL_IDLE_TIMEOUT = 15 * 60;
+  const PANEL_IDLE_TIMEOUT = 15 * 60 * 1000;
+//const PANEL_IDLE_TIMEOUT = 15 * 60;
 
   const panelIdleTimers = new Map();
 
@@ -405,6 +471,35 @@ let isDarkModeForced = false;
   let isAiSidebarVisible = false; // Par défaut, le volet est désormais fermé
   let isAiSidebarWide = false;
   let lastAiSidebarWidth = 300;
+
+
+async function ensureOllamaInstalled() {
+
+    const ollamaPath = path.join(
+        process.env.LOCALAPPDATA || "",
+        "Programs",
+        "Ollama",
+        "ollama.exe"
+    );
+
+    if (fs.existsSync(ollamaPath)) {
+        return true;
+    }
+
+    await shell.openExternal(
+        "https://ollama.com/download"
+    );
+
+    await dialog.showMessageBox({
+        type: "info",
+        title: "Ollama requis",
+        message:
+            "Ollama doit être installé pour utiliser l'assistant IA."
+    });
+
+    return false;
+}
+
 
 function getAiSidebarWidth(windowWidth) {
     return isAiSidebarWide ? Math.max(300, Math.min(760, Math.round(windowWidth * 0.6))) : 300;
@@ -641,15 +736,28 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
             label: `✨ Actions IA (Assistant)`,
             enabled: false
         },
+
         {
-            label: "   📝 Résumer cette tuile web",
-            click: () => {
+            label: "📝 Résumer cette tuile web",
+            click: async () => {
+
+                if (!(await ensureOllamaInstalled())) {
+                    return;
+                }
+
                 if (win && !win.isDestroyed()) {
-                    if (!isAiSidebarVisible) setAiSidebarVisible(true);
-                    win.webContents.send("trigger-ai-action", { action: "resume" });
+                    if (!isAiSidebarVisible) {
+                        setAiSidebarVisible(true);
+                    }
+
+                    win.webContents.send(
+                        "trigger-ai-action",
+                        { action: "resume" }
+                    );
                 }
             }
         },
+
         {
             label: "   🔍 Analyser les mots-clés de la page",
             click: () => {
@@ -5515,33 +5623,62 @@ ipcMain.handle("nanobrowser-get-context", async () => {
 });
 
 
+
+
 ipcMain.handle("nanobrowser-ask-ollama", async (event, {
     prompt,
     model = "qwen2.5:1.5b",
     compareVisiblePanels: compareVisiblePanelsArg = false,
     fullMode = false
 } = {}) => {
+
+    console.log("\n==============================");
+    console.log("[OLLAMA IPC] Appel reçu");
+    console.log({
+        prompt,
+        model,
+        compareVisiblePanels: compareVisiblePanelsArg,
+        fullMode
+    });
+    console.log("==============================\n");
+
     let compareVisiblePanels = compareVisiblePanelsArg;
-    console.log(`\n[IA RAG ${fullMode ? "COMPLET" : "LIGHT"}] Déclenchement de la requête...`);
-    compareVisiblePanels = compareVisiblePanels || isMultiTilePrompt(prompt);
-    
-    if (!compareVisiblePanels && !activePanel) {
-        return "SELECT_PANEL_REQUIRED";
-    }
 
-    const panel = activePanel ? findPanelNode(rootNode, activePanel) : null;
-    if (!compareVisiblePanels && (!panel || !panel.view)) return "Tuile introuvable.";
-
-    // 1. Activer immédiatement l'indicateur de chargement natif et de l'IHM
     if (win && !win.isDestroyed()) {
-        win.setProgressBar(2, { mode: 'indeterminate' }); 
+        win.setProgressBar(2, { mode: "indeterminate" });
         win.webContents.send("ai-loading-state", true);
     }
 
     try {
+
+        compareVisiblePanels =
+            compareVisiblePanels || isMultiTilePrompt(prompt);
+
+        if (!compareVisiblePanels && !activePanel) {
+            console.warn("[OLLAMA] Aucune tuile active");
+            return "SELECT_PANEL_REQUIRED";
+        }
+
+        const panel = activePanel
+            ? findPanelNode(rootNode, activePanel)
+            : null;
+
+        if (!compareVisiblePanels && (!panel || !panel.view)) {
+            console.warn("[OLLAMA] Tuile introuvable");
+            return "Tuile introuvable.";
+        }
+
+        console.log("[OLLAMA] Extraction du contexte...");
+
         const pageContexts = compareVisiblePanels
             ? await collectVisiblePanelsContext(prompt, fullMode)
-            : [await extractVisiblePanelContext(panel, fullMode)].filter(Boolean);
+            : [await extractVisiblePanelContext(panel, fullMode)]
+                  .filter(Boolean);
+
+        console.log(
+            `[OLLAMA] ${pageContexts.length} contexte(s) récupéré(s)`
+        );
+
         if (pageContexts.length === 0) {
             return compareVisiblePanels
                 ? "Aucune tuile visible ne contient de texte exploitable."
@@ -5550,94 +5687,219 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, {
 
         const contextBudget = fullMode ? 48000 : 15000;
         let remainingContext = contextBudget;
+
         const formattedContexts = pageContexts.map((page) => {
-            const header = `Source ${page.siteName} — ${page.title} — ${page.url}`;
-            const availableTextLength = Math.max(0, remainingContext - header.length - 100);
-            const text = page.text.slice(0, Math.min(fullMode ? 20000 : 5000, availableTextLength));
-            remainingContext -= header.length + text.length + 100;
+
+            const header =
+                `Source ${page.siteName} — ${page.title} — ${page.url}`;
+
+            const availableTextLength =
+                Math.max(
+                    0,
+                    remainingContext - header.length - 100
+                );
+
+            const text = page.text.slice(
+                0,
+                Math.min(
+                    fullMode ? 20000 : 5000,
+                    availableTextLength
+                )
+            );
+
+            remainingContext -=
+                header.length + text.length + 100;
+
             return `${header}\n${text}`;
         });
 
-        const combinedContext = formattedContexts.join("\n\n--- CONTEXTE DE LA SOURCE SUIVANTE ---\n\n");
+        const combinedContext = formattedContexts.join(
+            "\n\n--- CONTEXTE DE LA SOURCE SUIVANTE ---\n\n"
+        );
+
         const panelContextSummary = pageContexts
-            .map((page) => `- ${page.siteName} : ${page.title} (${page.url})`)
+            .map(
+                page =>
+                    `- ${page.siteName} : ${page.title} (${page.url})`
+            )
             .join("\n");
 
-        // Envoi et attente de la réponse de la requête HTTP vers Ollama
+        console.log("[OLLAMA] Construction du prompt terminée");
+
         const resultOllama = await new Promise((resolve, reject) => {
+
             try {
+
                 let systemInstruction = "";
-                if (prompt.toLowerCase().includes("résumé") || prompt.toLowerCase().includes("resume")) {
+
+                if (
+                    prompt.toLowerCase().includes("résumé") ||
+                    prompt.toLowerCase().includes("resume")
+                ) {
+
                     systemInstruction = compareVisiblePanels
                         ? `Tu es un assistant IA intégré au navigateur. Réponds en français, de façon claire et concise. Résume les informations pertinentes des tuiles visibles, en séparant les sources lorsque c'est utile. N'invente aucune donnée absente des extraits.\n\nTuiles fournies :\n${panelContextSummary}\n\nContenu extrait :\n${combinedContext}`
                         : `Tu es un assistant IA intégré au navigateur. Réponds en français de façon claire et concise en résumant uniquement la page active ci-dessous. N'invente aucune donnée absente de l'extrait.\n\nPage active :\n${panelContextSummary}\n\nContenu extrait :\n${combinedContext}`;
+
                 } else {
+
                     systemInstruction = compareVisiblePanels
-                        ? `Tu es un assistant IA intégré au navigateur. Réponds en français à la demande en te basant exclusivement sur le contenu des tuiles visibles. Compare leurs sources et construis un seul tableau Markdown : une colonne par produit/tuile, nomm\u00e9e d'apr\u00e8s le site ou le produit (jamais un identifiant de tuile), une ligne par caractéristique (prix, autonomie, poids, garantie...), sans répéter une même caractéristique sur plusieurs lignes. Pour le prix, utilise en priorité la ligne « Prix actuel du produit » de chaque source ; ignore éco-participation, mensualités et anciens prix. N'invente aucune donnée absente des extraits et précise lorsqu'une information manque.\n\nTuiles fournies :\n${panelContextSummary}\n\nContenu extrait de chaque tuile :\n${combinedContext}`
-                        : `Tu es un assistant IA intégré au navigateur. Réponds en français à la demande en te basant exclusivement sur le contenu de la page active ci-dessous. N'invente aucune donnée absente de l'extrait et précise lorsqu'une information manque.\n\nPage active :\n${panelContextSummary}\n\nContenu extrait :\n${combinedContext}`;
+                        ? `Tu es un assistant IA intégré au navigateur. Réponds en français à la demande en te basant exclusivement sur le contenu des tuiles visibles.\n\n${combinedContext}`
+                        : `Tu es un assistant IA intégré au navigateur. Réponds en français à la demande en te basant exclusivement sur le contenu de la page active.\n\n${combinedContext}`;
                 }
 
                 const postData = JSON.stringify({
-                    model: model,
-                    prompt: prompt,
+                    model,
+                    prompt,
                     system: systemInstruction,
                     stream: false,
-                    ...(fullMode ? { options: { num_ctx: 16384 } } : {})
+                    ...(fullMode
+                        ? { options: { num_ctx: 16384 } }
+                        : {})
+                });
+
+                console.log("[OLLAMA] Requête HTTP");
+                console.log({
+                    model,
+                    promptLength: prompt.length,
+                    contextLength: combinedContext.length
                 });
 
                 const http = getNodeModule("http");
+
                 const req = http.request({
-                    hostname: '127.0.0.1',
+                    hostname: "127.0.0.1",
                     port: 11434,
-                    path: '/api/generate',
-                    method: 'POST',
+                    path: "/api/generate",
+                    method: "POST",
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Content-Length': Buffer.byteLength(postData)
+                        "Content-Type": "application/json",
+                        "Content-Length":
+                            Buffer.byteLength(postData)
                     }
                 }, (res) => {
-                    let responseBody = '';
-                    res.setEncoding('utf8');
-                    res.on('data', (chunk) => responseBody += chunk);
-                    res.on('end', () => {
-                        if (res.statusCode < 200 || res.statusCode >= 300) {
-                            resolve(`Erreur Ollama (${res.statusCode})`);
+
+                    let responseBody = "";
+
+                    console.log(
+                        `[OLLAMA] Status HTTP : ${res.statusCode}`
+                    );
+
+                    res.setEncoding("utf8");
+
+                    res.on("data", chunk => {
+                        responseBody += chunk;
+                    });
+
+                    res.on("end", () => {
+
+                        console.log(
+                            "[OLLAMA] Réponse brute reçue :"
+                        );
+
+                        console.log(
+                            responseBody.substring(0, 1000)
+                        );
+
+                        if (
+                            res.statusCode < 200 ||
+                            res.statusCode >= 300
+                        ) {
+
+                            resolve(
+                                `Erreur Ollama (${res.statusCode})`
+                            );
+
                             return;
                         }
+
                         try {
-                            const result = JSON.parse(responseBody);
-                            resolve(result.response || "L'IA locale a renvoyé une réponse vide.");
+
+                            const result =
+                                JSON.parse(responseBody);
+
+                            console.log(
+                                "[OLLAMA] JSON parsé avec succès"
+                            );
+
+                            resolve(
+                                result.response ||
+                                "L'IA locale a renvoyé une réponse vide."
+                            );
+
                         } catch (error) {
-                            resolve(`Réponse Ollama invalide.`);
+
+                            console.error(
+                                "[OLLAMA] Erreur JSON :",
+                                error
+                            );
+
+                            resolve(
+                                "Réponse Ollama invalide."
+                            );
                         }
                     });
                 });
 
-                req.setTimeout(120000, () => req.destroy(new Error('Timeout')));
-                req.on('error', (error) => resolve(`Impossible de joindre l'IA locale.`));
+                req.setTimeout(120000, () => {
+                    console.error(
+                        "[OLLAMA] Timeout après 120 secondes"
+                    );
+                    req.destroy(new Error("Timeout"));
+                });
+
+                req.on("error", error => {
+
+                    console.error(
+                        "[OLLAMA] Erreur HTTP :",
+                        error
+                    );
+
+                    resolve(
+                        `Impossible de joindre l'IA locale : ${error.message}`
+                    );
+                });
 
                 req.write(postData);
                 req.end();
 
             } catch (innerError) {
+
+                console.error(
+                    "[OLLAMA] Exception interne :",
+                    innerError
+                );
+
                 reject(innerError);
             }
         });
 
+        console.log("[OLLAMA] Réponse finale obtenue");
+
         return resultOllama;
 
     } catch (err) {
-        console.error("[IA RAG LIGHT] Erreur générale :", err);
+
+        console.error(
+            "[IA RAG] Erreur générale :",
+            err
+        );
+
+        console.error(err.stack);
+
         return `Erreur interne : ${err.message}`;
+
     } finally {
-        // 2. Nettoyage et arrêt SYSTEMATIQUE de la barre de progression (Succès OU Échec)
+
         if (win && !win.isDestroyed()) {
-            win.setProgressBar(-1); 
-            win.webContents.send("ai-loading-state", false);
+            win.setProgressBar(-1);
+            win.webContents.send(
+                "ai-loading-state",
+                false
+            );
         }
     }
 });
-
 // L'interface IA demande à exécuter une action (ex: cliquer sur un bouton)
 ipcMain.handle("nanobrowser-execute-action", async (event, { actionType, argument }) => {
     if (!activePanel) return "No active panel";
@@ -5857,7 +6119,7 @@ app.on('will-quit', () => {
 });
 
 
-// app.whenReady().then(createWindow);
+/*
 app.whenReady().then(() => {
     // 1. Lance Ollama en arrière-plan
     startEmbeddedOllama();
@@ -5865,4 +6127,25 @@ app.whenReady().then(() => {
     // 2. Initialise votre fenêtre principale
     createWindow(); 
 });
+*/
+app.whenReady().then(async () => {
 
+    try {
+
+        await installOllamaIfNeeded();
+
+        startEmbeddedOllama();
+
+        createWindow();
+
+    } catch (err) {
+
+        console.error(
+            "Impossible d'installer Ollama",
+            err
+        );
+
+        console.log("[DEBUG] Création fenêtre");
+        createWindow();        
+    }
+});

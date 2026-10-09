@@ -21,32 +21,25 @@
 	"electron": "^44.7.0",
 	"electron-builder": "^26.15.3"
 	},
-	"build": {
-	  "appId": "com.harebrowser.app",
-	  "productName": "Hare Browser",
-	  "win": {
-		"target": "nsis",
-		"icon": "build/icon.ico"
-	  },
-	  "nsis": {
-		"oneClick": false,
-		"allowToChangeInstallationDirectory": true,
-		"createDesktopShortcut": true,
-		"createStartMenuShortcut": true,
-		"shortcutName": "Hare Browser"
-	  },
-	  "extraResources": [
-		{
-		  "from": "bin/${platform}/${arch}",
-		  "to": "ollama-bin",
-		  "filter": ["*"]
+		"build": {
+		  "appId": "com.harebrowser.app",
+		  "productName": "Hare Browser",
+		  "win": {
+			"target": "nsis",
+			"icon": "build/icon.ico"
+		  },
+		  "nsis": {
+			"oneClick": false,
+			"allowToChangeInstallationDirectory": true,
+			"createDesktopShortcut": true,
+			"createStartMenuShortcut": true,
+			"shortcutName": "Hare Browser"
+		  },
+		  "files": [
+			"**/*",
+			"!out/**/*",
+			"!dist/**/*",
+			"!bin/**/*"
+		  ]
 		}
-	  ],
-	  "files": [
-		"**/*",
-		"!out/**/*",
-		"!dist/**/*",
-		"!bin/**/*"
-	  ]
-	}
  }
