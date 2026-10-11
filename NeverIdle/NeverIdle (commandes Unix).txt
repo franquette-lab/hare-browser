@@ -1,8 +1,0 @@
-# Exécuter en arrière-plan :
-nohup ./NeverIdle-linux-amd64 -cp 0.22 -n 4h > neveridle.log 2>&1 &
-
-# Vérifier qu'il tourne :
-ps aux | grep NeverIdle
-
-# Suivre les logs :
-tail -f neveridle.log

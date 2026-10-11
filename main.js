@@ -27,79 +27,111 @@ const path = require("path");
 const https = require("https");
 const { spawn } = require("child_process");
 
-const ollamaPath = path.join(
-    process.env.LOCALAPPDATA || "",
-    "Programs",
-    "Ollama",
-    "ollama.exe"
-);
+// Runtime et modèle embarqués dans le package (Microsoft Store : aucun téléchargement/installeur exécuté au runtime).
+const OLLAMA_BUNDLE_DIR = app.isPackaged
+    ? path.join(process.resourcesPath, "ollama")
+    : path.join(__dirname, "ollama-bundle");
 
-
-
-async function installOllamaIfNeeded() {
-
-    const ollamaExe = path.join(
-        process.env.LOCALAPPDATA || "",
-        "Programs",
-        "Ollama",
-        "ollama.exe"
-    );
-
-    if (fs.existsSync(ollamaExe)) {
-        console.log("[OLLAMA] Déjà installé");
-        return ollamaExe;
-    }
-
-    console.log("[OLLAMA] Installation en cours...");
-
-    const installerPath = path.join(
-        os.tmpdir(),
-        "OllamaSetup.exe"
-    );
-
-    await downloadFile(
-        "https://ollama.com/download/OllamaSetup.exe",
-        installerPath
-    );
-
-    await runInstaller(installerPath);
-
-    return ollamaExe;
+function getOllamaExePath() {
+    const bundled = path.join(OLLAMA_BUNDLE_DIR, "ollama.exe");
+    if (fs.existsSync(bundled)) return bundled;
+    // Repli développement : Ollama installé sur le poste.
+    const local = path.join(process.env.LOCALAPPDATA || "", "Programs", "Ollama", "ollama.exe");
+    return fs.existsSync(local) ? local : null;
 }
-
 
 function startEmbeddedOllama() {
 
-    const ollamaPath = path.join(
-        process.env.LOCALAPPDATA || "",
-        "Programs",
-        "Ollama",
-        "ollama.exe"
-    );
+    const ollamaPath = getOllamaExePath();
 
-    if (!fs.existsSync(ollamaPath)) {
+    if (!ollamaPath) {
         console.error("[OLLAMA] ollama.exe introuvable");
         return;
     }
 
     console.log(`[OLLAMA] Démarrage : ${ollamaPath}`);
 
+    const bundledModels = path.join(OLLAMA_BUNDLE_DIR, "models");
+
     ollamaProcess = spawn(
         ollamaPath,
         ["serve"],
         {
+            windowsHide: true,
             env: {
                 ...process.env,
                 OLLAMA_ORIGINS: "*",
-                OLLAMA_HOST: "127.0.0.1:11434"
+                OLLAMA_HOST: "127.0.0.1:11434",
+                ...(fs.existsSync(bundledModels) ? { OLLAMA_MODELS: bundledModels } : {})
             }
         }
     );
 
-    ollamaProcess.on("error", err => {
-        console.error("[OLLAMA] Erreur :", err);
+    ollamaProcess.on("spawn", () => {
+        console.log("[OLLAMA] Processus démarré");
+    });
+
+    ollamaProcess.stdout.on("data", (data) => {
+        console.log("[OLLAMA STDOUT]", data.toString());
+    });
+
+    ollamaProcess.stderr.on("data", (data) => {
+        console.error("[OLLAMA STDERR]", data.toString());
+    });
+
+    ollamaProcess.on("error", (err) => {
+        console.error("[OLLAMA ERROR]", err);
+    });
+
+    ollamaProcess.on("close", (code) => {
+        console.log("[OLLAMA CLOSE]", code);
     });
 }
+
+function waitForOllama(timeoutMs = 30000) {
+
+    return new Promise((resolve, reject) => {
+
+        const http = require("http");
+        const start = Date.now();
+
+        const check = () => {
+
+            const req = http.get(
+                "http://127.0.0.1:11434/api/tags",
+                (res) => {
+
+                    if (res.statusCode === 200) {
+                        console.log("[OLLAMA] Port 11434 disponible");
+                        resolve(true);
+                        return;
+                    }
+
+                    retry();
+                }
+            );
+
+            req.on("error", retry);
+
+            function retry() {
+
+                if (Date.now() - start > timeoutMs) {
+                    reject(
+                        new Error(
+                            "Timeout d'attente du serveur Ollama"
+                        )
+                    );
+                    return;
+                }
+
+                setTimeout(check, 1000);
+            }
+        };
+
+        check();
+    });
+}
+``
 
 
 let splash = null; // ✨ AJOUT : Variable globale pour le Splash Screen
@@ -220,52 +252,6 @@ function createSandboxedBrowserView(options = {}) {
             contextIsolation: true,
             nodeIntegration: false
         }
-    });
-}
-
-
-function downloadFile(url, destination) {
-    return new Promise((resolve, reject) => {
-
-        const file = fs.createWriteStream(destination);
-
-        https.get(url, response => {
-
-            response.pipe(file);
-
-            file.on("finish", () => {
-                file.close(resolve);
-            });
-
-        }).on("error", err => {
-            reject(err);
-        });
-
-    });
-}
-
-function runInstaller(installerPath) {
-
-    return new Promise((resolve, reject) => {
-
-        const p = spawn(installerPath, ["/S"], {
-            detached: false,
-            stdio: "inherit"
-        });
-
-        p.on("close", code => {
-
-            if (code === 0) {
-                resolve();
-            } else {
-                reject(
-                    new Error(
-                        `Installation Ollama échouée (${code})`
-                    )
-                );
-            }
-        });
-
     });
 }
 
@@ -475,26 +461,15 @@ let isDarkModeForced = false;
 
 async function ensureOllamaInstalled() {
 
-    const ollamaPath = path.join(
-        process.env.LOCALAPPDATA || "",
-        "Programs",
-        "Ollama",
-        "ollama.exe"
-    );
-
-    if (fs.existsSync(ollamaPath)) {
+    if (getOllamaExePath()) {
         return true;
     }
 
-    await shell.openExternal(
-        "https://ollama.com/download"
-    );
-
     await dialog.showMessageBox({
-        type: "info",
-        title: "Ollama requis",
+        type: "error",
+        title: "Assistant IA indisponible",
         message:
-            "Ollama doit être installé pour utiliser l'assistant IA."
+            "Le moteur IA embarqué est introuvable. Réinstallez l'application."
     });
 
     return false;
@@ -6119,33 +6094,32 @@ app.on('will-quit', () => {
 });
 
 
-/*
-app.whenReady().then(() => {
-    // 1. Lance Ollama en arrière-plan
-    startEmbeddedOllama();
-    
-    // 2. Initialise votre fenêtre principale
-    createWindow(); 
-});
-*/
+
 app.whenReady().then(async () => {
 
     try {
 
-        await installOllamaIfNeeded();
-
         startEmbeddedOllama();
+
+        console.log(
+            "[OLLAMA] Attente du serveur sur le port 11434..."
+        );
+
+        await waitForOllama();
+
+        console.log(
+            "[OLLAMA] Serveur prêt"
+        );
 
         createWindow();
 
     } catch (err) {
 
         console.error(
-            "Impossible d'installer Ollama",
+            "[OLLAMA] Erreur démarrage :",
             err
         );
 
-        console.log("[DEBUG] Création fenêtre");
-        createWindow();        
+        createWindow();
     }
 });

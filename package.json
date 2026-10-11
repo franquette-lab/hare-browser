@@ -1,45 +1,66 @@
 {
-	"name": "tile-browser",
+	"name": "hare-browser",
 	"version": "1.0.0",
 	"description": "Navigateur internet multi-tuiles avec assistant IA local connecté à Ollama.",
 	"main": "main.js",
 	"scripts": {
-	"start": "electron .",
-	"dist": "electron-builder --windows nsis:x64"
+		"start": "electron .",
+		"prepare-ollama": "node scripts/prepare-ollama.js",
+		"dist": "npm run prepare-ollama && electron-builder --windows nsis-web:x64",
+		"dist:store": "npm run prepare-ollama && electron-builder --windows appx:x64"
 	},
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
 	"type": "commonjs",
 	"dependencies": {
-	"react": "^19.2.8",
-	"react-dom": "^19.2.8",
-	"react-mosaic-component": "^7.0.0",
-	"typescript": "^5.9.2"
+		"react": "^19.2.8",
+		"react-dom": "^19.2.8",
+		"react-mosaic-component": "^7.0.0",
+		"typescript": "^5.9.2"
 	},
 	"devDependencies": {
-	"electron": "^44.7.0",
-	"electron-builder": "^26.15.3"
+		"electron": "^44.7.0",
+		"electron-builder": "^26.15.3"
 	},
-		"build": {
-		  "appId": "com.harebrowser.app",
-		  "productName": "Hare Browser",
-		  "win": {
-			"target": "nsis",
-			"icon": "build/icon.ico"
-		  },
-		  "nsis": {
+	"build": {
+		"appId": "com.harebrowser.app",
+		"productName": "Hare Browser",
+		"win": {
+			"target": [
+				"nsis-web"
+			],
+			"icon": "build/icon.ico",
+			"artifactName": "Hare-Browser-Setup-${version}.${ext}"
+		},
+		"extraResources": [
+			{
+				"from": "ollama-bundle",
+				"to": "ollama"
+			}
+		],
+		"appx": {
+			"identityName": "REMPLACER.PartnerCenterIdentityName",
+			"publisher": "CN=REMPLACER-PartnerCenterPublisherId",
+			"publisherDisplayName": "REMPLACER",
+			"applicationId": "HareBrowser"
+		},
+		"nsisWeb": {
 			"oneClick": false,
+			"perMachine": true,
 			"allowToChangeInstallationDirectory": true,
 			"createDesktopShortcut": true,
 			"createStartMenuShortcut": true,
-			"shortcutName": "Hare Browser"
-		  },
-		  "files": [
+			"shortcutName": "Hare Browser",
+			"include": "build/installer.nsh"
+		},
+		"files": [
 			"**/*",
 			"!out/**/*",
 			"!dist/**/*",
-			"!bin/**/*"
-		  ]
-		}
- }
+			"!bin/**/*",
+			"!ollama-bundle",
+			"!searxng/**/*"
+		]
+	}
+}

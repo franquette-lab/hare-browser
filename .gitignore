@@ -1,11 +1,12 @@
 node_modules/
-src/
+dist/
+ollama-bundle/
+build/
 OLD/
 searxng/
-dist/
 NeverIdle/
 ORACLE/
-dist/
 navigation_history.json
 scripts.txt
 tailwind.css
+.DS_Store

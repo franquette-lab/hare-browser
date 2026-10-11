@@ -1,1 +1,0 @@
-ssh -i "$HOME\.ssh\oracle_searxng" ubuntu@129.151.254.175
