@@ -27,18 +27,78 @@ const path = require("path");
 const https = require("https");
 const { spawn } = require("child_process");
 
+let ollamaProcess = null;
+
 // Runtime et modèle embarqués dans le package (Microsoft Store : aucun téléchargement/installeur exécuté au runtime).
 const OLLAMA_BUNDLE_DIR = app.isPackaged
     ? path.join(process.resourcesPath, "ollama")
     : path.join(__dirname, "ollama-bundle");
 
 function getOllamaExePath() {
-    const bundled = path.join(OLLAMA_BUNDLE_DIR, "ollama.exe");
-    if (fs.existsSync(bundled)) return bundled;
-    // Repli développement : Ollama installé sur le poste.
-    const local = path.join(process.env.LOCALAPPDATA || "", "Programs", "Ollama", "ollama.exe");
-    return fs.existsSync(local) ? local : null;
+
+    const fs = require("fs");
+    const path = require("path");
+
+    const candidates = [];
+
+    // Version embarquée dans Hare Browser
+    if (app.isPackaged) {
+
+        candidates.push(
+            path.join(
+                process.resourcesPath,
+                "ollama",
+                "ollama.exe"
+            )
+        );
+
+    } else {
+
+        // Mode développement
+        candidates.push(
+            path.join(
+                __dirname,
+                "ollama-bundle",
+                "ollama.exe"
+            )
+        );
+    }
+
+    // Installation standard Ollama
+    candidates.push(
+        path.join(
+            process.env.LOCALAPPDATA || "",
+            "Programs",
+            "Ollama",
+            "ollama.exe"
+        )
+    );
+
+    for (const candidate of candidates) {
+
+        console.log(
+            "[OLLAMA] Vérification :",
+            candidate
+        );
+
+        if (fs.existsSync(candidate)) {
+
+            console.log(
+                "[OLLAMA] Trouvé :",
+                candidate
+            );
+
+            return candidate;
+        }
+    }
+
+    console.warn(
+        "[OLLAMA] Aucun exécutable trouvé"
+    );
+
+    return null;
 }
+
 
 function startEmbeddedOllama() {
 
@@ -465,16 +525,28 @@ async function ensureOllamaInstalled() {
         return true;
     }
 
-    await dialog.showMessageBox({
-        type: "error",
-        title: "Assistant IA indisponible",
+    const result = await dialog.showMessageBox({
+        type: "question",
+        title: "Assistant IA",
         message:
-            "Le moteur IA embarqué est introuvable. Réinstallez l'application."
+            "Cette fonctionnalité nécessite l'assistant IA local.",
+        buttons: [
+            "Installer",
+            "Plus tard"
+        ],
+        defaultId: 0,
+        cancelId: 1
     });
+
+    if (result.response === 0) {
+
+        shell.openExternal(
+            "https://ollama.com/download"
+        );
+    }
 
     return false;
 }
-
 
 function getAiSidebarWidth(windowWidth) {
     return isAiSidebarWide ? Math.max(300, Math.min(760, Math.round(windowWidth * 0.6))) : 300;
@@ -785,6 +857,119 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
 
     const contextMenu = Menu.buildFromTemplate(menuTemplate);
     contextMenu.popup({ window: win, x, y });
+}
+
+
+async function isModelInstalled(modelName) {
+
+    return new Promise((resolve) => {
+
+        const http = getNodeModule("http");
+
+        const req = http.get(
+            "http://127.0.0.1:11434/api/tags",
+            (res) => {
+
+                let body = "";
+
+                res.on("data", chunk => {
+                    body += chunk;
+                });
+
+                res.on("end", () => {
+
+                    try {
+
+                        const result = JSON.parse(body);
+
+                        const found =
+                            result.models?.some(
+                                m => m.name === modelName
+                            );
+
+                        resolve(Boolean(found));
+
+                    } catch (e) {
+
+                        console.error(
+                            "[OLLAMA] Erreur lecture modèles :",
+                            e
+                        );
+
+                        resolve(false);
+                    }
+                });
+            }
+        );
+
+        req.on("error", () => {
+            resolve(false);
+        });
+
+    });
+}
+
+async function pullOllamaModel(modelName) {
+
+    return new Promise((resolve, reject) => {
+
+        const ollamaPath = getOllamaExePath();
+
+        if (!ollamaPath) {
+            reject(
+                new Error("Ollama non installé")
+            );
+            return;
+        }
+
+        console.log(
+            `[OLLAMA] Téléchargement du modèle ${modelName}`
+        );
+
+        const pullProcess = spawn(
+            ollamaPath,
+            ["pull", modelName]
+        );
+
+        pullProcess.stdout.on("data", data => {
+
+            console.log(
+                "[OLLAMA PULL]",
+                data.toString()
+            );
+
+        });
+
+        pullProcess.stderr.on("data", data => {
+
+            console.log(
+                "[OLLAMA PULL]",
+                data.toString()
+            );
+
+        });
+
+        pullProcess.on("close", code => {
+
+            if (code === 0) {
+
+                console.log(
+                    `[OLLAMA] Modèle ${modelName} installé`
+                );
+
+                resolve();
+
+            } else {
+
+                reject(
+                    new Error(
+                        `Échec téléchargement (${code})`
+                    )
+                );
+            }
+        });
+
+    });
 }
 
 function applyThemeToView(view) {
@@ -5624,7 +5809,103 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, {
         win.webContents.send("ai-loading-state", true);
     }
 
+
+
+
+
     try {
+
+        // Vérifie qu'Ollama est installé
+        const installed = await ensureOllamaInstalled();
+
+        if (!installed) {
+            return "Assistant IA non installé.";
+        }
+
+        const modelInstalled =
+    await isModelInstalled(model);
+
+if (!modelInstalled) {
+
+    const result =
+        await dialog.showMessageBox({
+            type: "question",
+            title: "Téléchargement du modèle IA",
+            message:
+                `Le modèle "${model}" n'est pas installé.`,
+            detail:
+                "Voulez-vous le télécharger automatiquement maintenant ?",
+            buttons: [
+                "Télécharger",
+                "Annuler"
+            ],
+            defaultId: 0,
+            cancelId: 1
+        });
+
+    if (result.response !== 0) {
+        return "Téléchargement du modèle annulé.";
+    }
+
+    try {
+
+        if (
+            win &&
+            !win.isDestroyed()
+        ) {
+
+            win.webContents.send(
+                "ai-loading-state",
+                true
+            );
+        }
+
+        await pullOllamaModel(model);
+
+    } catch (err) {
+
+        console.error(
+            "[OLLAMA] Erreur téléchargement :",
+            err
+        );
+
+        return (
+            "Impossible de télécharger automatiquement le modèle : " +
+            err.message
+        );
+    }
+}
+
+        // Vérifie que le serveur Ollama répond
+        const running = await isOllamaRunning();
+
+        if (!running) {
+
+            // Tentative de démarrage automatique
+            try {
+                startEmbeddedOllama();
+
+                await new Promise(resolve =>
+                    setTimeout(resolve, 5000)
+                );
+
+            } catch (e) {
+                console.error(
+                    "[OLLAMA] Impossible de démarrer Ollama :",
+                    e
+                );
+            }
+
+            const runningAfterStart =
+                await isOllamaRunning();
+
+            if (!runningAfterStart) {
+                return "L'assistant IA est installé mais n'est pas démarré.";
+            }
+        }
+
+
+
 
         compareVisiblePanels =
             compareVisiblePanels || isMultiTilePrompt(prompt);
@@ -5776,17 +6057,36 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, {
                             responseBody.substring(0, 1000)
                         );
 
-                        if (
-                            res.statusCode < 200 ||
-                            res.statusCode >= 300
-                        ) {
 
-                            resolve(
-                                `Erreur Ollama (${res.statusCode})`
-                            );
 
-                            return;
-                        }
+
+                if (
+                    res.statusCode < 200 ||
+                    res.statusCode >= 300
+                ) {
+
+                    try {
+
+                        const errorJson =
+                            JSON.parse(responseBody);
+
+                        resolve(
+                            `Erreur Ollama (${res.statusCode}) : ${
+                                errorJson.error || responseBody
+                            }`
+                        );
+
+                    } catch {
+
+                        resolve(
+                            `Erreur Ollama (${res.statusCode}) : ${responseBody}`
+                        );
+                    }
+
+                    return;
+                }
+
+
 
                         try {
 
@@ -5874,7 +6174,39 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, {
             );
         }
     }
+
+
+
+    
 });
+
+
+async function isOllamaRunning() {
+
+    return new Promise(resolve => {
+
+        const http = getNodeModule("http");
+
+        const req = http.get(
+            "http://127.0.0.1:11434/api/tags",
+            res => {
+                resolve(
+                    res.statusCode >= 200 &&
+                    res.statusCode < 300
+                );
+            }
+        );
+
+        req.on("error", () => {
+            resolve(false);
+        });
+
+        req.setTimeout(3000, () => {
+            req.destroy();
+            resolve(false);
+        });
+    });
+}
 // L'interface IA demande à exécuter une action (ex: cliquer sur un bouton)
 ipcMain.handle("nanobrowser-execute-action", async (event, { actionType, argument }) => {
     if (!activePanel) return "No active panel";
@@ -6087,10 +6419,14 @@ app.on('will-quit', () => {
     globalShortcut.unregisterAll();
 
     // 🔥 ARRÊT D'OLLAMA : Tue le processus enfant pour ne pas le laisser tourner en zombie sur l'OS de l'utilisateur
-    if (ollamaProcess) {
-        console.log("[OLLAMA] Fermeture forcée du serveur Ollama enfant...");
-        ollamaProcess.kill('SIGINT'); // Envoie un signal d'arrêt propre
+    if (
+        ollamaProcess &&
+        !ollamaProcess.killed
+    ) {
+        ollamaProcess.kill("SIGINT");
     }
+
+
 });
 
 

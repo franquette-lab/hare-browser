@@ -106,6 +106,28 @@
             color: #94a3b8;
             font-style: italic;
         }
+
+        .loading-spinner {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 0;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+
+        .spinner-wheel {
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(148,163,184,0.3);
+            border-top: 2px solid var(--purple-accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            flex-shrink: 0;
+        }
+
+
     </style>
 </head>
 <body>
@@ -114,7 +136,12 @@
         <div class="bubble ai">✨ Assistant IA local prêt. Posez-moi une question sur vos tuiles ou demandez un résumé adaptatif.</div>
     </div>
 
-    <div class="loading-spinner" id="spinner">⏳ L'IA locale réfléchit (Analyse RAG en cours)...</div>
+    <div class="loading-spinner" id="spinner">
+        <div class="spinner-wheel"></div>
+        <span>L'IA locale réfléchit (Analyse RAG en cours)</span>
+    </div>
+
+
 
     <div class="controls-container">
         <div class="options-row">
@@ -150,7 +177,9 @@
 
         // Gestion du statut de chargement natif de la barre de progression Electron
         window.api?.onAiLoadingState((isLoading) => {
-            spinner.style.display = isLoading ? 'block' : 'none';
+
+            spinner.style.display = isLoading ? 'flex' : 'none';
+            
             sendBtn.disabled = isLoading;
             if (isLoading) chat.scrollTop = chat.scrollHeight;
         });

@@ -594,7 +594,8 @@ html.dark #pwd-modal {
     color: #111827 !important; /* TITRE EN NOIR FONCÉ SURCHARGÉ */
 }
 .ai-sidebar-native #ai-response-container {
-    color: #1f2937 !important; /* Descriptif en gris très foncé */
+    color: #6b7280 !important; /* Descriptif en gris*/
+    line-height: 1.2 !important;
 }
 /* Forçage de l'encadré du bas en gris clair (plus de rectangle noir) */
 .ai-sidebar-native .ai-footer-box {
@@ -637,10 +638,22 @@ html.dark #pwd-modal {
     color: #f87171 !important;
 }
 
+.hourglass-anim {
+    display: inline-block;
+    animation: hourglass-flip 1.6s ease-in-out infinite;
+}
+
+@keyframes hourglass-flip {
+    0%, 40% { transform: rotate(0deg); }
+    60%, 100% { transform: rotate(180deg); }
+}
+
 .btn-split:hover {
     color: #4ade80;
     transform: scale(1.2);
 }
+
+
 
 </style>
 
@@ -772,10 +785,9 @@ html.dark #pwd-modal {
     
     <!-- Zone d'affichage des réponses (Conteneur de texte) -->
     <div id="ai-response-container"
-        style="flex: 1; overflow-y: auto; font-size: 12.5px; line-height: 1.6; padding-right: 4px; white-space: pre-wrap; margin-bottom: 16px; text-align: left; color: #e2e8f0;">
-    Posez une question ou cliquez sur «&nbsp;Résumer&nbsp;» pour analyser la tuile active.<br>
-    Utilisez «&nbsp;Comparer les tuiles&nbsp;» pour demander une analyse croisée des pages visibles.
-    </div>
+        style="flex: 1; overflow-y: auto; font-size: 12.5px; line-height: 1.6; padding-right: 4px; white-space: pre-wrap; margin-bottom: 16px; text-align: left; color: #e2e8f0;">● Saisir un texte pour <strong>Poser une question</strong>.
+        <br>● Cliquer sur <strong>Résumer</strong> pour analyser la tuile active.
+        <br>● Utiliser <strong>Comparer les tuiles</strong> pour demander une analyse croisée des pages visibles.</div>
 
         <!-- Zone de saisie et Commandes -->
         <!-- Dans index.html -> Dans la div #ai-sidebar, remplacez la ligne de l'encadré du bas par celle-ci : -->
@@ -1226,7 +1238,7 @@ window.api.onAiLoadingState?.((isLoading) => {
     
     if (resumeBtn) {
         if (isLoading) {
-            resumeBtn.innerText = "⏳ Analyse...";
+            resumeBtn.innerHTML = '<span class="hourglass-anim">⏳</span> Analyse...';
             resumeBtn.style.backgroundColor = "#166534"; // Vert plus foncé pour indiquer le verrouillage
             resumeBtn.disabled = true;
         } else {
@@ -3068,7 +3080,7 @@ async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = fa
         : isQuestion
             ? document.getElementById("ai-submit-btn")
             : compareVisiblePanels ? document.getElementById("ai-compare-panels-btn") : null;
-    const originalButtonLabel = loadingBtn ? loadingBtn.textContent : "";
+    const originalButtonHtml = loadingBtn ? loadingBtn.innerHTML : "";
     
     // Pré-élargit le volet pour afficher le tableau
     if (compareVisiblePanels) window.api.setAiSidebarWide(true);
@@ -3079,13 +3091,13 @@ async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = fa
     if (loadingBtn) {
         loadingBtn.disabled = true;
         loadingBtn.classList.add("btn-analyzing");
-        loadingBtn.textContent = "⏳ Analyse...";
+        loadingBtn.innerHTML = '<span class="hourglass-anim">⏳</span> Analyse...';
     }
     
     // Affiche le message d'attente à l'utilisateur
     aiResponseContainer.innerHTML = compareVisiblePanels
-        ? '<span style="color: #a1a1aa; font-style: italic; font-size: 12px;">⏳ L\'IA analyse les tuiles visibles pour préparer la comparaison...</span>'
-        : '<span style="color: #a1a1aa; font-style: italic; font-size: 12px;">⏳ L\'IA analyse le contenu de la tuile active...</span>';
+        ? '<span style="color: #a1a1aa; font-style: italic; font-size: 12px;"><span class="hourglass-anim">⏳</span> L\'IA analyse les tuiles visibles pour préparer la comparaison...</span>'
+        : '<span style="color: #a1a1aa; font-size: 12px;"><span class="hourglass-anim">⏳</span> L\'IA analyse le contenu de la tuile active...</span>';
     
     console.log("[IHM DIAGNOSTIC] Envoi de la demande d'IA au processus principal pour :", questionUser);
     
@@ -3124,7 +3136,7 @@ async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = fa
             if (loadingBtn) {
                 loadingBtn.disabled = false;
                 loadingBtn.classList.remove("btn-analyzing");
-                loadingBtn.textContent = originalButtonLabel;
+                loadingBtn.innerHTML = originalButtonHtml;
             }
         }
 }
