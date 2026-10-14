@@ -460,6 +460,7 @@ let dragTimer = null;
 let dragInProgress = false;
 let resizeTimer = null;
 
+let currentOllamaRequest = null; // Stocke la requête HTTP Ollama en cours
 
 // ==========================================
 // ✨ PLACEZ LES DEUX LIGNES ICI TOUT EN HAUT
@@ -5802,6 +5803,7 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, {
     model = DEFAULT_OLLAMA_MODEL,
     compareVisiblePanels: compareVisiblePanelsArg = false,
     fullMode = false
+
 } = {}) => {
 
     // ✨ 1. AJOUT DU BLOC DE SÉCURITÉ CONTRE LES REQUÊTES VIDES
@@ -5816,7 +5818,6 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, {
         win.setProgressBar(2, { mode: "indeterminate" });
         win.webContents.send("ai-loading-state", true);
     }
-
 
     try {
 
@@ -6021,14 +6022,30 @@ if (!modelInstalled) {
                         : {})
                 });
 
-/*                
-                console.log("[OLLAMA] Requête HTTP");
-                console.log({
-                    model,
-                    promptLength: prompt.length,
-                    contextLength: combinedContext.length
-                });
-*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+
+
+
+
+
+
+
+
                 const http = getNodeModule("http");
 
                 const req = http.request({
@@ -6038,18 +6055,11 @@ if (!modelInstalled) {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "Content-Length":
-                            Buffer.byteLength(postData)
+                        "Content-Length": Buffer.byteLength(postData)
                     }
-                }, (res) => {
+                }, (res) => { // 🟢 DEBUT DU CALLBACK DE RÉPONSE
 
                     let responseBody = "";
-
-/*
-                    console.log(
-                        `[OLLAMA] Status HTTP : ${res.statusCode}`
-                    );
-*/
 
                     res.setEncoding("utf8");
 
@@ -6058,110 +6068,53 @@ if (!modelInstalled) {
                     });
 
                     res.on("end", () => {
-
-/*
-                        console.log(
-                            "[OLLAMA] Réponse brute reçue :"
-                        );
-*/
-
-/*
-                        console.log(
-                            responseBody.substring(0, 1000)
-                        );
-*/
-
-
-
-                if (
-                    res.statusCode < 200 ||
-                    res.statusCode >= 300
-                ) {
-
-                    try {
-
-                        const errorJson =
-                            JSON.parse(responseBody);
-
-                        resolve(
-                            `Erreur Ollama (${res.statusCode}) : ${
-                                errorJson.error || responseBody
-                            }`
-                        );
-
-                    } catch {
-
-                        resolve(
-                            `Erreur Ollama (${res.statusCode}) : ${responseBody}`
-                        );
-                    }
-
-                    return;
-                }
-
-
+                        if (res.statusCode < 200 || res.statusCode >= 300) {
+                            try {
+                                const errorJson = JSON.parse(responseBody);
+                                resolve(`Erreur Ollama (${res.statusCode}) : ${errorJson.error || responseBody}`);
+                            } catch {
+                                resolve(`Erreur Ollama (${res.statusCode}) : ${responseBody}`);
+                            }
+                            return;
+                        }
 
                         try {
-
-                            const result =
-                                JSON.parse(responseBody);
-
-/*
-                            console.log(
-                                "[OLLAMA] JSON parsé avec succès"
-                            );
-*/
-
-                            resolve(
-                                result.response ||
-                                "L'IA locale a renvoyé une réponse vide."
-                            );
-
+                            const result = JSON.parse(responseBody);
+                            resolve(result.response || "L'IA locale a renvoyé une réponse vide.");
                         } catch (error) {
-
-                            console.error(
-                                "[OLLAMA] Erreur JSON :",
-                                error
-                            );
-
-                            resolve(
-                                "Réponse Ollama invalide."
-                            );
+                            console.error("[OLLAMA] Erreur JSON :", error);
+                            resolve("Réponse Ollama invalide.");
                         }
                     });
-                });
+
+                }); // 🔴 FIN DU CALLBACK DE RÉPONSE (L'intrus a été supprimé d'ici !)
+
+                // ✨ AJOUT : On mémorise la requête globalement pour pouvoir l'annuler depuis l'IHM
+                currentOllamaRequest = req;
 
                 req.setTimeout(120000, () => {
-                    console.error(
-                        "[OLLAMA] Timeout après 120 secondes"
-                    );
+                    console.error("[OLLAMA] Timeout après 120 secondes");
                     req.destroy(new Error("Timeout"));
                 });
 
                 req.on("error", error => {
-
-                    console.error(
-                        "[OLLAMA] Erreur HTTP :",
-                        error
-                    );
-
-                    resolve(
-                        `Impossible de joindre l'IA locale : ${error.message}`
-                    );
+                    console.error("[OLLAMA] Erreur HTTP :", error);
+                    resolve(`Impossible de joindre l'IA locale : ${error.message}`);
                 });
 
-                req.write(postData);
-                req.end();
+                // 🌟 LE SEUL ET UNIQUE ENDROIT OÙ L'ON ÉCRIT LES DONNÉES (Tout en bas, à l'extérieur)
+                if (req && !req.destroyed) {
+                    req.write(postData);
+                    req.end();
+                }
 
             } catch (innerError) {
-
-                console.error(
-                    "[OLLAMA] Exception interne :",
-                    innerError
-                );
-
+                console.error("[OLLAMA] Exception interne :", innerError);
                 reject(innerError);
             }
+
+
+
         });
 
 //      console.log("[OLLAMA] Réponse finale obtenue");
@@ -6194,7 +6147,6 @@ if (!modelInstalled) {
 
     
 });
-
 
 async function isOllamaRunning() {
 
@@ -6246,6 +6198,27 @@ ipcMain.handle("save-theme-preference", async (event, isDark) => { // 🌟 Déj�
 
     return true;
 });
+
+
+// ✨ ÉCOUTEUR D'ARRÊT DE L'IA
+// ✨ Dans main.js, assurez-vous d'avoir ce bloc exact :
+// ✨ Dans main.js, l'interrupteur réseau blindé :
+ipcMain.on("cancel-ollama-request", () => {
+    if (currentOllamaRequest) {
+        // 1. On détruit la connexion réseau de force
+        currentOllamaRequest.destroy(new Error("Annulé par l'utilisateur"));
+        currentOllamaRequest = null;
+        console.log("[OLLAMA] Flux réseau interrompu manuellement.");
+    }
+    
+    // 2. On éteint les barres de progression système de la fenêtre Electron
+    if (win && !win.isDestroyed()) {
+        win.setProgressBar(-1); // Enlève la barre de chargement verte de l'icône de l'application
+        win.webContents.send("ai-loading-state", false); // Éteint les spinners et les sabliers
+    }
+});
+
+
 
 ipcMain.on("toggle-dark-mode-request", (_event, enabled) => {
     isDarkModeForced = enabled === true;

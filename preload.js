@@ -144,10 +144,13 @@ onActivePanelChanged: (callback) => {
             ipcRenderer.on("toggle-ai-sidebar-keyboard-force", (_, force) => callback(force));
         },
 
-        // --- ASSISTANT IA ---
+        // Dans preload.js, sous la section // --- ASSISTANT IA ---
         toggleAiSidebar: (isVisible) => ipcRenderer.send("toggle-ai-sidebar-request", isVisible),
         onAiLoadingState: (callback) => ipcRenderer.on("ai-loading-state", (_, isLoading) => callback(isLoading)),
         
+        // ✨ AJOUTEZ / VÉRIFIEZ CETTE LIGNE EXACTE :
+        cancelAiRequest: () => ipcRenderer.send("cancel-ollama-request"),
+
         onReaderModeResult: (callback) => ipcRenderer.on("reader-mode-result", (event, data) => callback(data)),
         onReaderModeStateChanged: (callback) => ipcRenderer.on("reader-mode-state-changed", (_event, data) => callback(data)),
         toggleReaderMode: (panelId) => ipcRenderer.invoke("toggle-reader-mode", panelId),

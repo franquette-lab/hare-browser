@@ -728,7 +728,7 @@ html.dark #pwd-modal {
         <div id="bookmarks-list"></div>
         <div class="bookmarks-actions">
             <button id="clear-bookmarks-btn">
-                🗑️
+                Effacer
             </button>
             <div id="close-bookmarks-bar">
             ×
@@ -803,7 +803,7 @@ html.dark #pwd-modal {
         <button id="ai-summary-btn" style="height: 30px; background: #16a34a; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; padding: 0 12px; transition: background 0.2s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">Résumer</button>
         
         <!-- ✨ NOUVEAU : Bouton Effacer ajouté à la suite -->
-        <button id="ai-clear-btn" title="Effacer l'historique de l'assistant" style="height: 30px; background: #4b5563; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; padding: 0 12px; transition: background 0.2s;" onmouseover="this.style.background='#374151'" onmouseout="this.style.background='#4b5563'">🗑️</button>
+        <button id="ai-clear-btn" title="Effacer l'historique de l'assistant" style="height: 30px; background: #4b5563; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; padding: 0 12px; transition: background 0.2s;" onmouseover="this.style.background='#374151'" onmouseout="this.style.background='#4b5563'">Effacer</button>
     </div>
     <button id="ai-compare-panels-btn" type="button" title="Comparer le contenu de toutes les tuiles visibles" style="width:100%; height:30px; background:#7c3aed; color:white; border:none; border-radius:6px; font-size:11.5px; cursor:pointer; font-weight:600;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">Comparer les tuiles</button>
     <label title="Mode complet : envoie l'intégralité du texte des pages (jusqu'à 20 000 caractères par tuile) au lieu de l'extraction allégée. Plus précis mais plus lent." style="display:flex;align-items:center;gap:6px;font-size:11.5px;cursor:pointer;">
@@ -2848,7 +2848,13 @@ window.api.onPageLoading((data) => {
 
 const aiSidebar = document.getElementById("ai-sidebar");
 const aiResponseContainer = document.getElementById("ai-response-container");
-const aiUserPrompt = document.getElementById("ai-user-prompt");
+
+// ✨ ÉLÉMENTS IA GROUPÉS ET SYNCHRONISÉS
+const aiInputField = document.getElementById("ai-user-prompt"); 
+const aiSubmitBtn = document.getElementById("ai-submit-btn");
+const aiClearBtn = document.getElementById("ai-clear-btn"); 
+
+let isAiRequestRunning = false; // Suivi global de l'état de chargement de l'IA
 
 // Afficher le menu natif d'édition (copier/coller) dans tout le volet IA.
 aiSidebar.addEventListener("contextmenu", (event) => {
@@ -2858,7 +2864,6 @@ aiSidebar.addEventListener("contextmenu", (event) => {
 });
 
 // Ouvrir / Fermer le volet IA
-// Dans index.html -> Modifier l'écouteur existant du bouton de l'IA
 function setAiSidebarUiVisible(isVisible) {
     if (!aiSidebar) return;
     aiSidebar.style.right = isVisible ? "0px" : `-${aiSidebar.offsetWidth + 1}px`;
@@ -2872,13 +2877,11 @@ document.getElementById("ai-sidebar-button").addEventListener("click", () => {
 document
     .getElementById('help-btn')
     .addEventListener('click', async () => {
-
         try {
             await window.api.openHelp();
         } catch (err) {
             console.error('Erreur ouverture aide :', err);
         }
-
     });
 
 document.getElementById("close-ai-sidebar").addEventListener("click", () => {
@@ -2886,91 +2889,196 @@ document.getElementById("close-ai-sidebar").addEventListener("click", () => {
 });
 
 // Gestion de la touche "Entrée" dans le champ de texte
-aiUserPrompt.addEventListener("keydown", (e) => {
+aiInputField.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
-        document.getElementById("ai-submit-btn").click();
+        aiSubmitBtn.click();
     }
 });
 
-// Dans la balise <script> de votre index.html
-
 // 1. Bouton VERT : Résumer la page (Envoie une consigne fixe)
 document.getElementById("ai-summary-btn").addEventListener("click", () => {
-    envoyerRequeteIA("Fais-moi un résumé concis des 3 points clés de cet article.", true);
+    if (!isAiRequestRunning) {
+        envoyerRequeteIA("Fais-moi un résumé concis des 3 points clés de cet article.", true);
+    }
 });
 
-// 2. Bouton BLEU : Poser la question (Prend le texte écrit dans l'input par l'utilisateur)
-// Ajoutez 'event' ici 
-// ✨ Liaison avec le bon ID de votre zone de texte
-const aiInputField = document.getElementById("ai-user-prompt"); 
-const aiSubmitBtn = document.getElementById("ai-submit-btn");
 
-// Fonction pour mettre à jour l'état visuel et actif du bouton
+
+
+// ===================================================
+// LOGIQUE DE L'ASSISTANT IA OLLAMA (VERSION BLINDÉE)
+// ===================================================
+
+//const aiInputField = document.getElementById("ai-user-prompt"); 
+//const aiSubmitBtn = document.getElementById("ai-submit-btn");
+//const aiClearBtn = document.getElementById("ai-clear-btn"); 
+
+// let isAiRequestRunning = false; 
+const summaryBtn = document.getElementById("ai-summary-btn"); // Votre bouton vert / rouge Stop
+
+// Fonction pour mettre à jour l'état visuel et actif du bouton bleu
 function rafraichirEtatBoutonIA() {
+    if (isAiRequestRunning) {
+        aiSubmitBtn.disabled = true;
+        aiSubmitBtn.style.opacity = "0.5";
+        aiSubmitBtn.style.cursor = "not-allowed";
+        return;
+    }
+
     const texteSaisi = aiInputField.value.trim();
-    
     if (texteSaisi === "") {
         aiSubmitBtn.disabled = true;
-        aiSubmitBtn.style.background = "#9ca3af"; // Gris neutre
+        aiSubmitBtn.style.background = "#9ca3af"; 
         aiSubmitBtn.style.cursor = "not-allowed";
         aiSubmitBtn.style.opacity = "0.6";
     } else {
         aiSubmitBtn.disabled = false;
-        aiSubmitBtn.style.background = "#2563eb"; // Bleu d'origine
+        aiSubmitBtn.style.background = "#2563eb"; 
         aiSubmitBtn.style.cursor = "pointer";
         aiSubmitBtn.style.opacity = "1";
     }
 }
 
-// Écoute les changements dans la zone de texte (saisie, effacement, copier-coller)
 aiInputField.addEventListener("input", rafraichirEtatBoutonIA);
-
-// Initialisation immédiate pour que le bouton démarre grisé au chargement
 rafraichirEtatBoutonIA();
 
-// Écouteur de clic sécurisé
-aiSubmitBtn.addEventListener("click", (event) => {
-    const customPrompt = aiInputField.value.trim();
+
+
+
+// ===================================================
+// GESTION ABSOLUE DU BOUTON RESUMER / STOP
+// ===================================================
+
+
+// ===================================================
+// GESTION UNIFIÉE DU BOUTON RESUMER / STOP (CORRIGÉE)
+// ===================================================
+
+/*
+let isAiRequestRunning = false;
+const summaryBtn = document.getElementById("ai-summary-btn");
+const aiInputField = document.getElementById("ai-user-prompt");
+const aiSubmitBtn = document.getElementById("ai-submit-btn");
+*/
+// Fonction centrale pour restaurer l'état nominal VERT du bouton
+function restaurerBoutonVertOrigine() {
+    isAiRequestRunning = false;
+    if (summaryBtn) {
+        summaryBtn.innerHTML = "Résumer";
+        summaryBtn.style.background = "#10b981"; // Vert d'origine
+        summaryBtn.style.color = "white";       // Texte blanc garanti
+        summaryBtn.title = "Résumer la page active";
+        summaryBtn.className = "";              // Nettoie les animations
+        summaryBtn.style.animation = "none";
+    }
+    if (typeof rafraichirEtatBoutonIA === "function") {
+        rafraichirEtatBoutonIA();
+    }
+}
+
+// Interception des signaux de chargement globaux (main.js)
+window.api.onAiLoadingState((isLoading) => {
+    isAiRequestRunning = isLoading;
     
-    if (customPrompt) {
-        envoyerRequeteIA(customPrompt, false, true);
+    if (isLoading) {
+        if (summaryBtn) {
+            summaryBtn.innerHTML = "🛑 Stop";
+            summaryBtn.style.background = "#ef4444"; // Rouge Stop
+            summaryBtn.style.color = "white";
+            summaryBtn.title = "Interrompre la génération en cours";
+            summaryBtn.style.animation = "none";
+        }
     } else {
+        restaurerBoutonVertOrigine();
+    }
+});
+
+// ÉCOUTEUR DE CLIC UNIQUE SUR LE BOUTON MIXTE (DISJONCTEUR RE-SYNCHRONISÉ)
+if (summaryBtn) {
+    // On supprime l'ancien comportement en forçant un stop de propagation prioritaire
+    summaryBtn.addEventListener("click", async (event) => {
         event.preventDefault();
-        event.stopImmediatePropagation();
-    }
-});
+        event.stopImmediatePropagation(); // Coupe les scripts parasites de index.html
+
+        if (isAiRequestRunning) {
+            // 🚨 ACTION A : L'IA TOURNE -> LE BOUTON AGIT EN STOP NET
+            console.log("[Disjoncteur] Clic sur Stop : Interruption demandée.");
+            
+            // 1. Coupe immédiatement le réseau côté main.js
+            window.api.cancelAiRequest(); 
+            
+            // 2. Réinitialise l'IHM locale immédiatement
+            restaurerBoutonVertOrigine();
+        } else {
+            // 📝 ACTION B : L'IA EST INACTIVE -> ON LANCE L'ANALYSE
+            console.log("[Interface] Lancement du résumé...");
+            
+            // On passe manuellement l'IHM en mode chargement pour éviter les latences
+            isAiRequestRunning = true;
+            summaryBtn.innerHTML = "🛑 Stop";
+            summaryBtn.style.background = "#ef4444";
+            
+            try {
+                // Utilisation de la passerelle directe exposée dans votre preload.js (Ligne 128)
+                const promptFixe = "Fais-moi un résumé concis des 3 points clés de cet article.";
+                const response = await window.api.nanobrowser.askOllama(promptFixe, undefined, false, true);
+                
+                // Injection du résultat dans le conteneur si la fonction d'affichage globale ne l'a pas fait
+                const container = document.getElementById("ai-response-container");
+                if (container && response) {
+                    // Si la réponse n'est pas une notification d'erreur ou d'annulation
+                    if (!response.includes("Annulé par l'utilisateur")) {
+                        container.innerHTML = `<div class="ai-message">${response}</div>`;
+                    }
+                }
+            } catch (err) {
+                console.error("[Assistant IA] Erreur lors de la génération :", err);
+            } finally {
+                // On restaure le bouton vert à la fin de l'exécution
+                restaurerBoutonVertOrigine();
+            }
+        }
+    }, true); // Le paramètre 'true' (phase de capture) intercepte le clic avant le script masqué
+}
+
+// Sécurité pour le bouton de soumission bleu
+if (aiSubmitBtn) {
+    aiSubmitBtn.addEventListener("click", async (event) => {
+        const text = aiInputField.value.trim();
+        if (!text || isAiRequestRunning) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return;
+        }
+    }, true);
+}
 
 
 
-document.getElementById("ai-compare-panels-btn")?.addEventListener("click", () => {
-    const customPrompt = document.getElementById("ai-user-prompt").value.trim();
-    const comparePrompt = customPrompt || "Fais-moi un tableau comparatif des informations importantes présentes dans mes tuiles visibles.";
-    envoyerRequeteIA(comparePrompt, false, false, true);
-});
+
+// Bouton Effacer
+if (aiClearBtn) {
+    aiClearBtn.addEventListener("click", () => {
+        if (!isAiRequestRunning) {
+            const aiResponseContainer = document.getElementById("ai-response-container");
+            if (aiResponseContainer) aiResponseContainer.innerHTML = "";
+            if (aiInputField) aiInputField.value = "";
+            window.api.setAiSidebarWide(false);
+            restaurerBoutonVertOrigine();
+        }
+    });
+}
 
 
-// Écouteur pour vider l'historique et le champ de saisie de l'Assistant IA
-document.getElementById("ai-clear-btn").addEventListener("click", () => {
-    // 1. Vide l'intégralité du conteneur des réponses affichées par l'IA
-    if (aiResponseContainer) {
-        aiResponseContainer.innerHTML = "";
-    }
 
-    // 2. Réinitialise le champ de saisie de texte à blanc
-    if (aiUserPrompt) {
-        aiUserPrompt.value = "";
-    }
 
-    console.log("[Assistant IA] Écran et champ de saisie réinitialisés à zéro.");
-    window.api.setAiSidebarWide(false);
-});
+
+
 
 // DANS INDEX.HTML -> Remplacer l'écouteur du bouton de gestion des mots de passe
 document.getElementById("pwd-manager-btn").addEventListener("click", () => {
-    // Demande au processus principal d'ouvrir la fenêtre de gestion native
     window.api.openPasswordManagerWindow();
 });
-
 
 document.getElementById("pwd-save-btn").addEventListener("click", async () => {
     const url = document.getElementById("pwd-input-url").value.trim();
@@ -2979,7 +3087,6 @@ document.getElementById("pwd-save-btn").addEventListener("click", async () => {
 
     if (url && username && password) {
         await window.api.passwords.saveEntry({ url, username, password });
-        // Vide les champs de saisie
         document.getElementById("pwd-input-url").value = "";
         document.getElementById("pwd-input-user").value = "";
         document.getElementById("pwd-input-pass").value = "";
@@ -3018,9 +3125,9 @@ async function refreshPasswordList() {
         container.appendChild(div);
     });
 }
+
 // Écouter les ordres lancés depuis le menu contextuel natif (clic droit)
 window.api.onTriggerAiAction((data) => {
-    // On s'assure que la sidebar affiche bien le mode actif graphiquement
     const aiSidebar = document.getElementById("ai-sidebar");
     if (aiSidebar) aiSidebar.style.right = "0px";
 
@@ -3033,7 +3140,6 @@ window.api.onTriggerAiAction((data) => {
     }
 });
 
-// Tout en haut de votre logique de Sidebar dans index.html (Script)
 const aiSidebarElement = document.getElementById("ai-sidebar");
 
 // Synchronisation de la hauteur de la barre d'outils
@@ -3049,6 +3155,8 @@ window.api.onAiSidebarWidthChanged?.((width) => {
     aiSidebarElement.style.width = width + "px";
     if (hidden) aiSidebarElement.style.right = `-${width + 1}px`;
 });
+
+
 window.api.getAiSidebarPreference?.()
     .then(setAiSidebarUiVisible)
     .catch((error) => console.error("Impossible de restaurer l’état du volet IA :", error));
