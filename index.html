@@ -796,7 +796,10 @@ html.dark #pwd-modal {
     <input type="text" id="ai-user-prompt" placeholder="Question sur une page ou sur vos tuiles" style="width: 100%; height: 32px; background: #2d2d30; border: 1px solid #3c3c3c; color: white; border-radius: 6px; padding: 0 10px; font-size: 12px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#3c3c3c'">
     
     <div style="display: flex; gap: 8px;">
-        <button id="ai-submit-btn" style="flex: 1; height: 30px; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; transition: background 0.2s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Poser la question</button>
+
+        <button id="ai-submit-btn" disabled style="flex: 1; height: 30px; background: #9ca3af; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: not-allowed; opacity: 0.6; font-weight: 600; transition: background 0.2s;">Poser la question</button>
+
+
         <button id="ai-summary-btn" style="height: 30px; background: #16a34a; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; padding: 0 12px; transition: background 0.2s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">Résumer</button>
         
         <!-- ✨ NOUVEAU : Bouton Effacer ajouté à la suite -->
@@ -918,11 +921,12 @@ if (darkModeBtn) {
 
     darkModeBtn.addEventListener("click", () => {
 
+/*
     console.log(
         "BUTTON CLICK",
         applicationDarkMode
     );
-
+*/
     setDarkMode(!applicationDarkMode);
 
 });}
@@ -2896,12 +2900,47 @@ document.getElementById("ai-summary-btn").addEventListener("click", () => {
 });
 
 // 2. Bouton BLEU : Poser la question (Prend le texte écrit dans l'input par l'utilisateur)
-document.getElementById("ai-submit-btn").addEventListener("click", () => {
-    const customPrompt = document.getElementById("ai-user-prompt").value.trim();
+// Ajoutez 'event' ici 
+// ✨ Liaison avec le bon ID de votre zone de texte
+const aiInputField = document.getElementById("ai-user-prompt"); 
+const aiSubmitBtn = document.getElementById("ai-submit-btn");
+
+// Fonction pour mettre à jour l'état visuel et actif du bouton
+function rafraichirEtatBoutonIA() {
+    const texteSaisi = aiInputField.value.trim();
+    
+    if (texteSaisi === "") {
+        aiSubmitBtn.disabled = true;
+        aiSubmitBtn.style.background = "#9ca3af"; // Gris neutre
+        aiSubmitBtn.style.cursor = "not-allowed";
+        aiSubmitBtn.style.opacity = "0.6";
+    } else {
+        aiSubmitBtn.disabled = false;
+        aiSubmitBtn.style.background = "#2563eb"; // Bleu d'origine
+        aiSubmitBtn.style.cursor = "pointer";
+        aiSubmitBtn.style.opacity = "1";
+    }
+}
+
+// Écoute les changements dans la zone de texte (saisie, effacement, copier-coller)
+aiInputField.addEventListener("input", rafraichirEtatBoutonIA);
+
+// Initialisation immédiate pour que le bouton démarre grisé au chargement
+rafraichirEtatBoutonIA();
+
+// Écouteur de clic sécurisé
+aiSubmitBtn.addEventListener("click", (event) => {
+    const customPrompt = aiInputField.value.trim();
+    
     if (customPrompt) {
-        envoyerRequeteIA(customPrompt, false, true); // Envoie la question en conservant le texte dans le champ
+        envoyerRequeteIA(customPrompt, false, true);
+    } else {
+        event.preventDefault();
+        event.stopImmediatePropagation();
     }
 });
+
+
 
 document.getElementById("ai-compare-panels-btn")?.addEventListener("click", () => {
     const customPrompt = document.getElementById("ai-user-prompt").value.trim();

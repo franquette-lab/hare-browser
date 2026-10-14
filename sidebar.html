@@ -107,6 +107,11 @@
             font-style: italic;
         }
 
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .loading-spinner {
             display: none;
             align-items: center;
@@ -159,12 +164,49 @@
     </div>
 
     <script>
+
+console.log("SIDEBAR LOADED");
+
+
         const chat = document.getElementById('chat');
         const promptInput = document.getElementById('prompt');
         const sendBtn = document.getElementById('send-btn');
+
+console.log({
+    promptInput,
+    sendBtn
+});
+
+console.log(sendBtn);
+
         const spinner = document.getElementById('spinner');
         const compareMode = document.getElementById('compare-mode');
         const fullMode = document.getElementById('full-mode');
+
+/*        
+        function updateSendButton() {
+            sendBtn.disabled = promptInput.value.trim().length === 0;
+        }
+*/
+
+        function updateSendButton() {
+            const disabled = promptInput.value.trim().length === 0;
+
+            console.log("updateSendButton", {
+                text: promptInput.value,
+                disabled
+            });
+
+            sendBtn.disabled = disabled;
+        }
+
+        promptInput.addEventListener('input', updateSendButton);
+
+        // État initial
+        updateSendButton();
+
+console.log("disabled =", sendBtn.disabled);
+
 
         // Écoute les actions automatiques déclenchées depuis le menu clic droit du main.js
         window.api?.onTriggerAiAction((data) => {
@@ -179,30 +221,31 @@
         window.api?.onAiLoadingState((isLoading) => {
 
             spinner.style.display = isLoading ? 'flex' : 'none';
-            
-            sendBtn.disabled = isLoading;
-            if (isLoading) chat.scrollTop = chat.scrollHeight;
+
+            if (isLoading) {
+                sendBtn.disabled = true;
+                chat.scrollTop = chat.scrollHeight;
+            } else {
+                updateSendButton();
+            }
         });
 
         async function executeAiQuery(forcedPrompt = null) {
             const text = forcedPrompt || promptInput.value.trim();
-            if (!text) return;
+
+            if (!text) {
+                return;
+            }
 
             if (!forcedPrompt) promptInput.value = '';
+
+            updateSendButton();
 
             // Ajout de la bulle utilisateur
             appendBubble(text, 'user');
 
             try {
                 // Appel RAG asynchrone vers Ollama via le pont preload du main.js
-/*
-                const response = await window.api.nanobrowser.askOllama(
-                    text, 
-                    "qwen2.5:1.5b", // Modèle par défaut ultra-léger et rapide
-                    compareMode.checked, 
-                    fullMode.checked
-                );
-*/
 				const response = await window.api.nanobrowser.askOllama({
 					prompt: text,
 					compareVisiblePanels: compareMode.checked,

@@ -78,25 +78,30 @@ function getOllamaExePath() {
 
     for (const candidate of candidates) {
 
+/*
         console.log(
             "[OLLAMA] Vérification :",
             candidate
         );
+*/
 
         if (fs.existsSync(candidate)) {
 
+/*            
             console.log(
                 "[OLLAMA] Trouvé :",
                 candidate
             );
-
+*/
             return candidate;
         }
     }
 
+/*
     console.warn(
         "[OLLAMA] Aucun exécutable trouvé"
     );
+*/
 
     return null;
 }
@@ -111,7 +116,9 @@ function startEmbeddedOllama() {
         return;
     }
 
+/*
     console.log(`[OLLAMA] Démarrage : ${ollamaPath}`);
+*/
 
     const bundledModels = path.join(OLLAMA_BUNDLE_DIR, "models");
 
@@ -130,15 +137,15 @@ function startEmbeddedOllama() {
     );
 
     ollamaProcess.on("spawn", () => {
-        console.log("[OLLAMA] Processus démarré");
+//      console.log("[OLLAMA] Processus démarré");
     });
 
     ollamaProcess.stdout.on("data", (data) => {
-        console.log("[OLLAMA STDOUT]", data.toString());
+//      console.log("[OLLAMA STDOUT]", data.toString());
     });
 
     ollamaProcess.stderr.on("data", (data) => {
-        console.error("[OLLAMA STDERR]", data.toString());
+//      console.error("[OLLAMA STDERR]", data.toString());
     });
 
     ollamaProcess.on("error", (err) => {
@@ -146,7 +153,7 @@ function startEmbeddedOllama() {
     });
 
     ollamaProcess.on("close", (code) => {
-        console.log("[OLLAMA CLOSE]", code);
+//      console.log("[OLLAMA CLOSE]", code);
     });
 }
 
@@ -164,7 +171,7 @@ function waitForOllama(timeoutMs = 30000) {
                 (res) => {
 
                     if (res.statusCode === 200) {
-                        console.log("[OLLAMA] Port 11434 disponible");
+//                      console.log("[OLLAMA] Port 11434 disponible");
                         resolve(true);
                         return;
                     }
@@ -223,7 +230,7 @@ function enableAdBlockerForSession(targetSession) {
         const shouldBlock = AD_BLOCKLIST.some(pattern => url.includes(pattern));
 
         if (shouldBlock) {
-            console.log(`[ADBLOCK] Requête bloquée avec succès : ${details.url}`);
+//          console.log(`[ADBLOCK] Requête bloquée avec succès : ${details.url}`);
             // Annule le chargement de la ressource publicitaire avant son départ
             callback({ cancel: true });
         } else {
@@ -924,9 +931,11 @@ async function pullOllamaModel(modelName) {
             return;
         }
 
+/*        
         console.log(
             `[OLLAMA] Téléchargement du modèle ${modelName}`
         );
+*/
 
         const pullProcess = spawn(
             ollamaPath,
@@ -955,9 +964,11 @@ async function pullOllamaModel(modelName) {
 
             if (code === 0) {
 
+/*                
                 console.log(
                     `[OLLAMA] Modèle ${modelName} installé`
                 );
+*/
 
                 resolve();
 
@@ -3383,13 +3394,13 @@ ipcMain.on("close-panel", (event, panelId) => {
 
         // 2. Si c'est une tuile privée, exécution du nettoyage complet de la session incognito
         if (node.isPrivate) {
-            console.log(`Fermeture d'une tuile privée : Nettoyage complet de la partition : ${targetSession.getStoragePath()}`);
+//          console.log(`Fermeture d'une tuile privée : Nettoyage complet de la partition : ${targetSession.getStoragePath()}`);
             
             targetSession.clearStorageData({
                 storages: ['cookies', 'localstorage', 'caches', 'indexeddb', 'websql', 'serviceworkers', 'cachestorage'],
                 quotas: ['temporary', 'persistent', 'syncable']
             }).then(() => {
-                console.log(`[Partition ${panelId}] Stockages et Cookies détruits avec succès.`);
+//              console.log(`[Partition ${panelId}] Stockages et Cookies détruits avec succès.`);
             }).catch(err => console.error("Erreur destruction storage privé :", err));
             
             targetSession.clearCache().catch(err => console.error("Erreur destruction cache privé :", err));
@@ -3413,7 +3424,7 @@ ipcMain.on("close-panel", (event, panelId) => {
                 setTimeout(() => {
                     if (!viewToDestroy.webContents.isDestroyed()) {
                         viewToDestroy.webContents.destroy();
-                        console.log(`[RAM] Processus Chromium de la tuile ${panelId} libéré proprement.`);
+//                      console.log(`[RAM] Processus Chromium de la tuile ${panelId} libéré proprement.`);
                     }
                 }, 150);
             }).catch(() => {
@@ -4233,12 +4244,13 @@ async function createWindow() {
     isDarkModeForced = await getThemePreference();
     nativeTheme.themeSource = isDarkModeForced ? "dark" : "light";
 
+ /*
     process.on("warning", (warning) => {
         console.log("WARNING NAME:", warning.name);
         console.log("WARNING MESSAGE:", warning.message);
         console.log("WARNING STACK:", warning.stack);
     });
-
+*/
     win.webContents.on("did-finish-load", () => {
         win.webContents.send("app-title", APP_TITLE);
     });
@@ -4275,9 +4287,9 @@ async function createWindow() {
                         if (filePath) {
                             try {
                                 await fsPromises.writeFile(filePath, JSON.stringify(snapshot, null, 2), 'utf-8');
-                                console.log("Configuration sauvegardée via raccourci.");
+//                              console.log("Configuration sauvegardée via raccourci.");
                             } catch (error) {
-                                console.error("Erreur raccourci sauvegarde :", error);
+//                              console.error("Erreur raccourci sauvegarde :", error);
                             }
                         }
                     }
@@ -4313,7 +4325,7 @@ async function createWindow() {
                         forceRebuildSplitters = true;
                         resizeViews();
 
-                        console.log("[Mosaïque] Ratios réinitialisés à parts égales.");
+//                      console.log("[Mosaïque] Ratios réinitialisés à parts égales.");
                     }
                 },
 
@@ -4433,7 +4445,7 @@ async function createWindow() {
                                     win.webContents.send("active-panel-changed", { id: firstPanel.id, bounds: firstPanel.bounds });
                                 }
 
-                                console.log("Configuration chargée via raccourci.");
+//                              console.log("Configuration chargée via raccourci.");
                             } catch (error) {
                                 console.error("Erreur raccourci chargement :", error);
                                 dialog.showErrorBox("Erreur de chargement", "Le fichier sélectionné est corrompu ou malformé.");
@@ -4875,7 +4887,7 @@ async function createWindow() {
         
         // 🔒 SÉCURITÉ A : Bloquer l'ouverture de nouvelles fenêtres non contrôlées
         contents.setWindowOpenHandler(({ url }) => {
-            console.log(`[SÉCURITÉ GLOBALE] Ouverture de fenêtre bloquée pour l'URL : ${url}`);
+//          console.log(`[SÉCURITÉ GLOBALE] Ouverture de fenêtre bloquée pour l'URL : ${url}`);
             
             // Au lieu d'ouvrir une pop-up Electron instable, on force l'ouverture
             // sécurisée dans le navigateur par défaut du système d'exploitation de l'utilisateur.
@@ -5785,8 +5797,6 @@ ipcMain.handle("nanobrowser-get-context", async () => {
 });
 
 
-
-
 ipcMain.handle("nanobrowser-ask-ollama", async (event, {
     prompt,
     model = DEFAULT_OLLAMA_MODEL,
@@ -5794,25 +5804,18 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, {
     fullMode = false
 } = {}) => {
 
-    console.log("\n==============================");
-    console.log("[OLLAMA IPC] Appel reçu");
-    console.log({
-        prompt,
-        model,
-        compareVisiblePanels: compareVisiblePanelsArg,
-        fullMode
-    });
-    console.log("==============================\n");
+    // ✨ 1. AJOUT DU BLOC DE SÉCURITÉ CONTRE LES REQUÊTES VIDES
+    if (!prompt || !prompt.trim()) {
+        return "Veuillez saisir une question avant de cliquer sur Poser une question.";
+    }
 
+    // ✨ 2. LA CORRECTION : Déclaration explicite de la variable avec 'let' pour éviter le crash
     let compareVisiblePanels = compareVisiblePanelsArg;
 
     if (win && !win.isDestroyed()) {
         win.setProgressBar(2, { mode: "indeterminate" });
         win.webContents.send("ai-loading-state", true);
     }
-
-
-
 
 
     try {
@@ -5926,16 +5929,18 @@ if (!modelInstalled) {
             return "Tuile introuvable.";
         }
 
-        console.log("[OLLAMA] Extraction du contexte...");
+//      console.log("[OLLAMA] Extraction du contexte...");
 
         const pageContexts = compareVisiblePanels
             ? await collectVisiblePanelsContext(prompt, fullMode)
             : [await extractVisiblePanelContext(panel, fullMode)]
                   .filter(Boolean);
 
+/*                  
         console.log(
             `[OLLAMA] ${pageContexts.length} contexte(s) récupéré(s)`
         );
+*/
 
         if (pageContexts.length === 0) {
             return compareVisiblePanels
@@ -5982,7 +5987,7 @@ if (!modelInstalled) {
             )
             .join("\n");
 
-        console.log("[OLLAMA] Construction du prompt terminée");
+//      console.log("[OLLAMA] Construction du prompt terminée");
 
         const resultOllama = await new Promise((resolve, reject) => {
 
@@ -6016,13 +6021,14 @@ if (!modelInstalled) {
                         : {})
                 });
 
+/*                
                 console.log("[OLLAMA] Requête HTTP");
                 console.log({
                     model,
                     promptLength: prompt.length,
                     contextLength: combinedContext.length
                 });
-
+*/
                 const http = getNodeModule("http");
 
                 const req = http.request({
@@ -6039,9 +6045,11 @@ if (!modelInstalled) {
 
                     let responseBody = "";
 
+/*
                     console.log(
                         `[OLLAMA] Status HTTP : ${res.statusCode}`
                     );
+*/
 
                     res.setEncoding("utf8");
 
@@ -6051,14 +6059,17 @@ if (!modelInstalled) {
 
                     res.on("end", () => {
 
+/*
                         console.log(
                             "[OLLAMA] Réponse brute reçue :"
                         );
+*/
 
+/*
                         console.log(
                             responseBody.substring(0, 1000)
                         );
-
+*/
 
 
 
@@ -6095,9 +6106,11 @@ if (!modelInstalled) {
                             const result =
                                 JSON.parse(responseBody);
 
+/*
                             console.log(
                                 "[OLLAMA] JSON parsé avec succès"
                             );
+*/
 
                             resolve(
                                 result.response ||
@@ -6151,7 +6164,7 @@ if (!modelInstalled) {
             }
         });
 
-        console.log("[OLLAMA] Réponse finale obtenue");
+//      console.log("[OLLAMA] Réponse finale obtenue");
 
         return resultOllama;
 
@@ -6449,24 +6462,30 @@ app.whenReady().then(async () => {
 
         startEmbeddedOllama();
 
+        /*
         console.log(
             "[OLLAMA] Attente du serveur sur le port 11434..."
         );
+*/
 
         await waitForOllama();
 
+/*
         console.log(
             "[OLLAMA] Serveur prêt"
         );
+*/
 
         createWindow();
 
     } catch (err) {
 
+/*        
         console.error(
             "[OLLAMA] Erreur démarrage :",
             err
         );
+*/
 
         createWindow();
     }
