@@ -195,13 +195,20 @@
 
             try {
                 // Appel RAG asynchrone vers Ollama via le pont preload du main.js
+/*
                 const response = await window.api.nanobrowser.askOllama(
                     text, 
                     "qwen2.5:1.5b", // Modèle par défaut ultra-léger et rapide
                     compareMode.checked, 
                     fullMode.checked
                 );
-
+*/
+				const response = await window.api.nanobrowser.askOllama({
+					prompt: text,
+					compareVisiblePanels: compareMode.checked,
+					fullMode: fullMode.checked
+				});
+				
                 if (response === "SELECT_PANEL_REQUIRED") {
                     appendBubble("⚠️ Veuillez d'abord cliquer sur une tuile active pour l'analyser.", 'ai');
                 } else {

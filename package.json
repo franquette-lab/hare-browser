@@ -23,44 +23,45 @@
 		"electron": "^44.7.0",
 		"electron-builder": "^26.15.3"
 	},
-	"build": {
-		"appId": "com.harebrowser.app",
-		"productName": "Hare Browser",
-		"win": {
-			"target": [
-				"nsis-web"
-			],
-			"icon": "build/icon.ico",
-			"artifactName": "Hare-Browser-Setup-${version}.${ext}"
-		},
-		"extraResources": [
-			{
-				"from": "ollama-bundle",
-				"to": "ollama"
-			}
-		],
-		"appx": {
-			"identityName": "REMPLACER.PartnerCenterIdentityName",
-			"publisher": "CN=REMPLACER-PartnerCenterPublisherId",
-			"publisherDisplayName": "REMPLACER",
-			"applicationId": "HareBrowser"
-		},
-		"nsisWeb": {
-			"oneClick": false,
-			"perMachine": true,
-			"allowToChangeInstallationDirectory": true,
-			"createDesktopShortcut": true,
-			"createStartMenuShortcut": true,
-			"shortcutName": "Hare Browser",
-			"include": "build/installer.nsh"
-		},
-		"files": [
-			"**/*",
-			"!out/**/*",
-			"!dist/**/*",
-			"!bin/**/*",
-			"!ollama-bundle",
-			"!searxng/**/*"
-		]
-	}
+	
+"build": {
+  "appId": "com.harebrowser.app",
+  "productName": "Hare Browser",
+
+  "win": {
+    "target": [
+      "nsis-web"
+    ],
+    "icon": "build/icon.ico",
+    "artifactName": "Hare-Browser-Setup-${version}.${ext}"
+  },
+
+  "extraResources": [
+    {
+      "from": "ollama-bundle",
+      "to": "ollama"
+    }
+  ],
+
+	"nsisWeb": {
+	  "oneClick": false,
+	  "perMachine": true,
+	  "allowToChangeInstallationDirectory": true,
+	  "createDesktopShortcut": true,
+	  "createStartMenuShortcut": true,
+	  "shortcutName": "Hare Browser",
+	  "include": "build/installer.nsh"
+	  },
+  
+
+  "files": [
+    "**/*",
+    "!out/**/*",
+    "!dist/**/*",
+    "!bin/**/*",
+    "!ollama-bundle",
+    "!searxng/**/*"
+  ]
+}
+
 }

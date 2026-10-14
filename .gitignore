@@ -3,6 +3,7 @@ dist/
 ollama-bundle/
 build/
 OLD/
+BAD/
 searxng/
 NeverIdle/
 ORACLE/

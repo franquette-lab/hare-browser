@@ -34,6 +34,8 @@ const OLLAMA_BUNDLE_DIR = app.isPackaged
     ? path.join(process.resourcesPath, "ollama")
     : path.join(__dirname, "ollama-bundle");
 
+const DEFAULT_OLLAMA_MODEL = "qwen2.5:1.5b";
+
 function getOllamaExePath() {
 
     const fs = require("fs");
@@ -5787,7 +5789,7 @@ ipcMain.handle("nanobrowser-get-context", async () => {
 
 ipcMain.handle("nanobrowser-ask-ollama", async (event, {
     prompt,
-    model = "qwen2.5:1.5b",
+    model = DEFAULT_OLLAMA_MODEL,
     compareVisiblePanels: compareVisiblePanelsArg = false,
     fullMode = false
 } = {}) => {
@@ -6407,6 +6409,16 @@ ipcMain.handle("find-in-page", (event, { panelId, text, action = "start" } = {})
     findInPageRequests.set(panelId, { requestId, text: searchText });
     return { panelId, requestId };
 });
+
+
+app.on("before-quit", () => {
+    if (ollamaProcess) {
+        try {
+            ollamaProcess.kill();
+        } catch (e) {}
+    }
+});
+
 
 // Modifiez votre écouteur existant app.on('will-quit')
 app.on('will-quit', () => {
