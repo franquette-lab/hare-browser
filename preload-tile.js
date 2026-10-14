@@ -1,4 +1,4 @@
-const { ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
 let lastHoverReport = 0;
 
@@ -15,4 +15,13 @@ document.addEventListener('pointerdown', () => reportActivity('click'), { captur
 
 document.addEventListener('hare-reader-mode-state', (event) => {
     if (event.detail === false) ipcRenderer.send('reader-mode-state-from-tile', false);
+});
+
+
+// Permet au script injecté d'envoyer des ordres de navigation au processus principal
+contextBridge.exposeInMainWorld('tileNavigation', {
+    goBack: () => ipcRenderer.invoke('go-back-current'),
+    goForward: () => ipcRenderer.invoke('go-forward-current'),
+    reload: () => ipcRenderer.invoke('refresh-current'),
+    loadUrl: (url) => ipcRenderer.send('navigate-current', url)
 });

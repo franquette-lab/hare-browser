@@ -2874,6 +2874,20 @@ function setupNavigationTracking(panel) {
             }
         }
 
+
+    // ✨ INJECTION DE LA BARRE FLOUTANTE INDIVIDUELLE
+    try {
+        const scriptPath = path.join(__dirname, "tile-nav-bar.js");
+        if (fs.existsSync(scriptPath)) {
+            const navBarCode = fs.readFileSync(scriptPath, "utf8");
+            await panel.view.webContents.executeJavaScript(navBarCode + "; void 0;");
+        }
+    } catch (err) {
+        console.error("Erreur injection mini-barre de navigation :", err);
+    }
+
+        
+
         // Certains moteurs envoient le terme via POST : la requête n'est alors
         // pas dans l'URL et doit être lue dans le formulaire de la page.
         await syncSearchQueryFromPage();
@@ -3112,6 +3126,32 @@ function layoutNode(node, x, y, width, height) {
         layoutNode(node.second, x, y + firstHeight, width, height - firstHeight);
     }
 }
+
+
+// ✨ INTERRUPTEURS DE NAVIGATION DÉDIÉS AUX MINI-BARRES FLOUTANTES
+ipcMain.handle('go-back-current', (event) => {
+    if (event.sender.navigationHistory.canGoBack()) {
+        event.sender.navigationHistory.goBack();
+    }
+});
+
+ipcMain.handle('go-forward-current', (event) => {
+    if (event.sender.navigationHistory.canGoForward()) {
+        event.sender.navigationHistory.goForward();
+    }
+});
+
+ipcMain.handle('refresh-current', (event) => {
+    event.sender.reload();
+});
+
+ipcMain.on('navigate-current', (event, inputUrl) => {
+    // Réutilise votre fonction existante de traitement d'URL
+    const targetUrl = buildNavigationTarget(inputUrl); 
+    event.sender.loadURL(targetUrl);
+});
+
+
 
 // À mettre avec vos autres ipcMain.handle dans main.js
 ipcMain.removeHandler('pwd-find-for-url');
