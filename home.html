@@ -180,6 +180,40 @@ html.mw-theme-client-dark button[type="submit"]:hover {
     background-color: #60a5fa !important;
 }
 
+
+/* Définition de l'animation de pulsation */
+@keyframes loupePulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.25); /* La loupe grossit légèrement */
+        opacity: 0.7;           /* Elle s'estompe un peu */
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes fondLoading {
+    0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+}
+
+/* Applique l'animation à tout le contenu texte/émoji à l'intérieur du bouton */
+.searching {
+    animation: fondLoading 1.5s infinite ease-in-out;
+    pointer-events: none; /* Évite les doubles clics accidentels */
+}
+
+.searching .loupe-text {
+    display: inline-block;
+    animation: loupePulse 1.2s infinite ease-in-out;
+}
+
 </style>
 </head>
 
@@ -215,7 +249,7 @@ html.mw-theme-client-dark button[type="submit"]:hover {
             <button
                 class="search-button"
                 type="submit">
-                🔍
+                <span class="loupe-text">🔍</span>
             </button>
 
         </div>
@@ -227,7 +261,7 @@ html.mw-theme-client-dark button[type="submit"]:hover {
         <div class="feature">🔒 Respect vie privée</div>
         <div class="feature">🧩 Navigation mosaïque</div>
         <div class="feature">🚫 Blocage actif</div>
-		</div>
+    </div>
 
     <div class="footer">
 
@@ -240,6 +274,17 @@ html.mw-theme-client-dark button[type="submit"]:hover {
     </div>
 
 </div>
+
+<!-- --- CODE JAVASCRIPT DE DÉCLENCHEMENT --- -->
+<script>
+    const searchForm = document.querySelector('.search-form');
+    const searchButton = document.querySelector('.search-button');
+
+    searchForm.addEventListener('submit', function() {
+        // Active l'animation dès que le formulaire est envoyé
+        searchButton.classList.add('searching');
+    });
+</script>
 
 </body>
 </html>
