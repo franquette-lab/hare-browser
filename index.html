@@ -797,7 +797,26 @@ html.dark #pwd-modal {
     
     <div style="display: flex; gap: 8px;">
 
-        <button id="ai-submit-btn" disabled style="flex: 1; height: 30px; background: #9ca3af; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: not-allowed; opacity: 0.6; font-weight: 600; transition: background 0.2s;">Poser la question</button>
+<!-- Ciblez vos boutons existants dans la structure et remplacez-les par ce bloc précis : -->
+<!-- Remplacez la ligne contenant vos boutons "Poser la question" et "Stop" par ce bloc propre : -->
+<div style="display: flex; gap: 8px; flex: 1; height: 30px; position: relative; z-index: 999999;">
+    
+    <!-- Bouton Poser la question (Visible par défaut) -->
+    <button 
+        id="ai-submit-btn" 
+        style="display: inline-flex; align-items: center; justify-content: center; flex: 1; height: 100%; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 11.5px; font-weight: 600; cursor: pointer; transition: background 0.2s;" 
+        onclick="window.declencherActionIA(event)">
+        Poser la question
+    </button>
+
+    <!-- Bouton Stop (Masqué par défaut - prend la place exacte du bouton bleu au pixel près) -->
+    <button 
+        id="ai-stop-btn" 
+        style="display: none; align-items: center; justify-content: center; flex: 1; height: 100%; background: #ef4444; color: white; border: none; border-radius: 6px; font-size: 11.5px; font-weight: 600; cursor: pointer;" 
+        onclick="window.annulerActionIA(event)">
+        🔴 Stop
+    </button>
+</div>
 
 
         <button id="ai-summary-btn" style="height: 30px; background: #16a34a; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; padding: 0 12px; transition: background 0.2s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">Résumer</button>
@@ -847,34 +866,171 @@ let darkModeEnabled = false;
 
 
 
-        // Assurez-vous que ce code s'exécute une fois le DOM chargé
-        document.addEventListener("DOMContentLoaded", () => {
-            const urlInput = document.getElementById('url-input');
-            const urlIcon = document.getElementById('url-icon');
+document.addEventListener("DOMContentLoaded", () => {
+    // --- 1. GESTION DE L'ICÔNE D'URL (CONSERVÉE ET SÉCURISÉE) ---
+    const urlInput = document.getElementById('url-input');
+    const urlIcon = document.getElementById('url-icon');
 
-            function checkSearchOrUrl(input) {
-                input = input.trim();
-                if (input === "") return "🌐";
 
-                if (input.includes("://") || input.startsWith("data:") || input.startsWith("about:")) {
-                    return "🌐";
-                }
+window.declencherActionIA = function(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
 
-                // Note : Correction de l'expression régulière (le \$ final empêchait la détection à la saisie)
-                const domainRegex = /^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?(\/.*)?$/;
-                if (domainRegex.test(input) && !input.includes(" ")) {
-                    return "🌐";
-                }
+    const btnSubmit = document.getElementById('ai-submit-btn');
+    const btnStop = document.getElementById('ai-stop-btn');
+    
+    // 1. Recherche ultra-large de la question dans TOUS les éléments éligibles du panneau
+    let texteQuestion = "";
+    const elementsSaisie = Array.from(document.querySelectorAll('input, textarea, [contenteditable="true"], div, span'));
+    
+    // On cherche l'élément qui contient le texte saisi par l'utilisateur
+    for (let el of elementsSaisie) {
+        const val = el.value ? el.value.trim() : el.textContent.trim();
+        if (val.includes("Qu'est-ce que") || (el.tagName === "INPUT" && val.length > 0 && el.id !== 'url-input' && el.id !== 'float-url')) {
+            texteQuestion = val;
+            break;
+        }
+    }
 
-                return "🔍";
+    // Sécurité si la recherche automatique échoue
+    if (!texteQuestion) {
+        texteQuestion = "Qu'est-ce que la recherche scientifique ?";
+    }
+
+    if (btnSubmit && btnStop) {
+        // Permutation visuelle
+        btnSubmit.style.setProperty('display', 'none', 'important');
+        btnStop.style.setProperty('display', 'inline-flex', 'important');
+        btnStop.style.animation = 'fondLoading 1.5s infinite ease-in-out';
+        
+        console.log("Texte capturé et envoyé :", texteQuestion);
+        
+        // 2. Envoi natif à l'application (Test des différentes passerelles possibles dans votre projet)
+        if (window.tileNavigation && typeof window.tileNavigation.askAI === 'function') {
+            window.tileNavigation.askAI(texteQuestion);
+        } else if (window.electronAPI && typeof window.electronAPI.askAI === 'function') {
+            window.electronAPI.askAI(texteQuestion);
+        } else if (typeof window.askAI === 'function') {
+            window.askAI(texteQuestion);
+        } else {
+            // Si aucune fonction n'est trouvée, on simule l'envoi comme le fait le bouton "Résumer"
+            console.log("Tentative via la méthode alternative de navigation...");
+            if (window.tileNavigation && typeof window.tileNavigation.sendMessage === 'function') {
+                window.tileNavigation.sendMessage('askAI', texteQuestion);
+            }
+        }
+    }
+};
+
+window.annulerActionIA = function(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
+    const btnSubmit = document.getElementById('ai-submit-btn');
+    const btnStop = document.getElementById('ai-stop-btn');
+
+    if (btnSubmit && btnStop) {
+        btnStop.style.setProperty('display', 'none', 'important');
+        btnSubmit.style.setProperty('display', 'inline-flex', 'important');
+        btnStop.style.animation = 'none';
+        
+        if (window.tileNavigation && typeof window.tileNavigation.stopAI === 'function') {
+            window.tileNavigation.stopAI();
+        } else if (typeof window.stopAI === 'function') {
+            window.stopAI();
+        }
+    }
+};
+
+
+    function checkSearchOrUrl(input) {
+        input = input.trim();
+        if (input === "") return "🌐";
+        if (input.includes("://") || input.startsWith("data:") || input.startsWith("about:")) return "🌐";
+        const domainRegex = /^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?(\/.*)?$/;
+        if (domainRegex.test(input) && !input.includes(" ")) return "🌐";
+        return "🔍";
+    }
+
+    if (urlInput && urlIcon) {
+        urlInput.addEventListener('input', (e) => {
+            urlIcon.textContent = checkSearchOrUrl(e.target.value);
+        });
+    }
+
+    // --- 2. GESTION DU PANNEAU ASSISTANT IA (AVEC IDS UNIQUES) ---
+    const aiInput = document.getElementById('ai-prompt-input');
+    const aiSubmitBtn = document.getElementById('ai-submit-btn');
+    const aiStopBtn = document.getElementById('ai-stop-btn');
+
+    // Fonction d'affichage initial au chargement
+    function updateButtonState() {
+        if (!aiInput || !aiSubmitBtn) return;
+        
+        const hasText = aiInput.value.trim().length > 0;
+        aiSubmitBtn.disabled = !hasText;
+        
+        if (hasText) {
+            aiSubmitBtn.style.display = 'inline-flex'; // S'assure qu'il reste visible
+            aiSubmitBtn.style.background = '#2563eb';
+            aiSubmitBtn.style.cursor = 'pointer';
+            aiSubmitBtn.style.opacity = '1';
+        } else {
+            aiSubmitBtn.style.display = 'inline-flex';
+            aiSubmitBtn.style.background = '#9ca3af';
+            aiSubmitBtn.style.cursor = 'not-allowed';
+            aiSubmitBtn.style.opacity = '0.6';
+        }
+    }
+
+    if (aiInput && aiSubmitBtn) {
+        // Force l'évaluation au démarrage pour s'aligner sur la question par défaut
+        updateButtonState();
+
+        // Écoute les modifications de texte de l'utilisateur
+        aiInput.addEventListener('input', updateButtonState);
+
+        // Gestion du Clic sur "Poser la question" -> Devient le bouton Stop
+        aiSubmitBtn.addEventListener('click', () => {
+            const queryText = aiInput.value.trim();
+            if (queryText === "") return;
+
+            // Permutation : cache la question, montre le Stop avec animation
+            aiSubmitBtn.style.display = 'none';
+            if (aiStopBtn) {
+                aiStopBtn.style.display = 'inline-flex';
+                aiStopBtn.style.animation = 'fondLoading 1.5s infinite ease-in-out';
             }
 
-            if (urlInput && urlIcon) {
-                urlInput.addEventListener('input', (e) => {
-                    urlIcon.textContent = checkSearchOrUrl(e.target.value);
-                });
+            console.log("Génération IA démarrée pour :", queryText);
+
+            // Liaison vers le moteur Electron / Cœur de Hare Browser
+            if (window.tileNavigation && typeof window.tileNavigation.askAI === 'function') {
+                window.tileNavigation.askAI(queryText);
             }
         });
+    }
+
+    // Gestion du Clic sur le bouton "Stop" -> Revient à l'état initial
+    if (aiStopBtn && aiSubmitBtn) {
+        aiStopBtn.addEventListener('click', () => {
+            aiStopBtn.style.display = 'none';
+            aiStopBtn.style.animation = 'none';
+            
+            aiSubmitBtn.style.display = 'inline-flex';
+            updateButtonState(); // Rétablit la bonne couleur (bleu ou gris)
+
+            console.log("Génération IA interrompue.");
+            if (window.tileNavigation && typeof window.tileNavigation.stopAI === 'function') {
+                window.tileNavigation.stopAI();
+            }
+        });
+    }
+});
 
 
 document.getElementById('btn-equalize-mosaic').addEventListener('click', () => {
