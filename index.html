@@ -2675,6 +2675,10 @@ function applyTheme() {
         darkModeBtn.innerText =
             applicationDarkMode ? "☀️" : "🌙";
     }
+
+    window.dispatchEvent(
+        new CustomEvent("theme-changed")
+    );
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
