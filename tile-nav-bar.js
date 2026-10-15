@@ -2,6 +2,38 @@
     // Évite d'injecter la barre plusieurs fois
     if (document.getElementById('hare-floating-nav')) return;
 
+    // Récupération sécurisée du titre de l'application (fallback si non défini globalement)
+    const applicationTitle = window.applicationTitle || "Hare Browser";
+
+    // Recréation locale de la logique getDisplayUrl pour la barre autonome
+    function getDisplayUrl(url, fallbackQuery = "") {
+        try {
+            const parsedUrl = new URL(url);
+            if (parsedUrl.protocol === "file:") {
+                const localPage = parsedUrl.pathname.toLowerCase();
+                if (localPage.endsWith("/help.html")) return "Aide";
+                if (localPage.endsWith("/home.html")) return "Accueil";
+                if (localPage.endsWith("/welcome.html")) return "Bienvenue";
+            }
+            
+            // Vérification des fonctions globales du navigateur si existantes
+            const isSearch = typeof window.isSearchResultsUrl === "function" ? window.isSearchResultsUrl(url) : false;
+            const searchQuery = isSearch && typeof window.getSearchQueryFromUrl === "function"
+                ? window.getSearchQueryFromUrl(url, fallbackQuery)
+                : null;
+                
+            if (searchQuery !== null) return `${searchQuery} - Recherche ${applicationTitle}`;
+
+            if (parsedUrl.hostname === "129.151.254.175") {
+                return `Moteur de recherche ${applicationTitle}`;
+            }
+
+            return parsedUrl.hostname.replace(/^www\./, "");
+        } catch {
+            return url || "";
+        }
+    }
+
     // 1. Création du conteneur de la barre flottante
     const navBar = document.createElement('div');
     navBar.id = 'hare-floating-nav';
@@ -24,7 +56,6 @@
     navBar.onmouseout = () => navBar.style.opacity = "0.3";
 
 function applyFloatingBarTheme() {
-    // Vérification robuste du mode sombre : classe 'dark' sur le HTML, le BODY, ou via les préférences système du navigateur
     const isDark = document.documentElement.classList.contains('dark') || 
                    document.body?.classList.contains('dark') || 
                    window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -43,13 +74,13 @@ function applyFloatingBarTheme() {
         input.style.border = isDark ? '1px solid #2d2d2d' : '1px solid #e4e4e7';
     }
 
-    // Style initial des boutons flèches
+    // Style des boutons
     document.querySelectorAll('#hare-floating-nav button').forEach(btn => {
         btn.style.color = isDark ? '#8a8a8a' : '#71717a';
     });
 }
 
-    // 2. Structure HTML interne (Boutons + Barre d'adresse miniature)
+    // 2. Structure HTML interne (Utilisation immédiate de getDisplayUrl pour la valeur initiale)
     navBar.innerHTML = `
         <button id="float-back" style="background:none; border:none; cursor:pointer; font-size:11px; display:flex; align-items:center; justify-content:center; padding:4px; border-radius:4px; transition: color 0.15s;" 
             onmouseover="const isDark = document.documentElement.classList.contains('dark') || document.body?.classList.contains('dark') || window.matchMedia('(prefers-color-scheme: dark)').matches; this.style.color = isDark ? '#ffffff' : '#09090b';" 
@@ -65,26 +96,16 @@ function applyFloatingBarTheme() {
     onmouseover="const isDark = document.documentElement.classList.contains('dark') || document.body?.classList.contains('dark') || window.matchMedia('(prefers-color-scheme: dark)').matches; this.style.color = isDark ? '#ffffff' : '#09090b';"
     onmouseout="const isDark = document.documentElement.classList.contains('dark') || document.body?.classList.contains('dark') || window.matchMedia('(prefers-color-scheme: dark)').matches; this.style.color = isDark ? '#8a8a8a' : '#71717a';">
 
-    <svg xmlns="http://w3.org"
-         width="12"
-         height="12"
-         viewBox="0 0 24 24"
-         fill="none"
-         stroke="currentColor"
-         stroke-width="2.5"
-         stroke-linecap="round"
-         stroke-linejoin="round">
-
+    <svg xmlns="http://w3.org" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 2v6h-6" />
         <path d="M20.49 15A9 9 0 1 1 21 8" />
-
     </svg>
 </button>
-    <input id="float-url" type="text" value="${window.location.hostname}" style="
+    <input id="float-url" type="text" value="${getDisplayUrl(window.location.href)}" style="
         padding: 2px 8px;
         font-size: 11px;
         border-radius: 6px;
-        width: 150px;
+        width: 180px;
         text-align: left;
         outline: none;
         transition: background-color 0.15s, border-color 0.15s, color 0.15s;
@@ -96,15 +117,12 @@ function applyFloatingBarTheme() {
 
 	applyFloatingBarTheme();
 
-	// Écoute les changements de thèmes provoqués par le navigateur
 	window.addEventListener('theme-changed', applyFloatingBarTheme);
 	
-	// Observateur en arrière-plan pour intercepter les changements de classe dynamiques sur la page
 	const observer = new MutationObserver(applyFloatingBarTheme);
 	observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 	if(document.body) observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
-	// Même orientation que le bouton principal
 	const reloadSvg = document.querySelector('#float-reload svg');
 	if (reloadSvg) {
 		reloadSvg.style.transform = 'rotate(-90deg)';
@@ -115,18 +133,17 @@ function applyFloatingBarTheme() {
 	document.getElementById('float-forward').addEventListener('click', () => window.tileNavigation.goForward());
 	document.getElementById('float-reload').addEventListener('click', () => window.tileNavigation.reload());
     
-    // Validation de la saisie d'URL dans la mini-barre
     document.getElementById('float-url').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             window.tileNavigation.loadUrl(e.target.value);
         }
     });
 
-    // Met à jour la mini-barre d'adresse si l'URL interne change
+    // Met à jour la mini-barre d'adresse à intervalle avec getDisplayUrl
     setInterval(() => {
         const input = document.getElementById('float-url');
         if (input && document.activeElement !== input) {
-            input.value = window.location.hostname;
+            input.value = getDisplayUrl(window.location.href);
         }
     }, 2000);
 })();
