@@ -90,6 +90,14 @@
     navBar.addEventListener('pointercancel', stopDragging);
     navBar.style.cursor = 'grab';
 
+    navBar.addEventListener('dblclick', (event) => {
+        if (event.target.closest('button, input')) return;
+
+        navBar.style.left = '50%';
+        navBar.style.top = '6px';
+        navBar.style.transform = 'translateX(-50%)';
+    });
+
     // Effet d'apparition au survol
     navBar.onmouseover = () => navBar.style.opacity = "1";
     navBar.onmouseout = () => navBar.style.opacity = "0.3";
@@ -168,9 +176,26 @@ function applyFloatingBarTheme() {
 	}
 
 	// 4. Assignation des événements
-	document.getElementById('float-back').addEventListener('click', () => window.tileNavigation.goBack());
-	document.getElementById('float-forward').addEventListener('click', () => window.tileNavigation.goForward());
+    const backButton = document.getElementById('float-back');
+    const forwardButton = document.getElementById('float-forward');
+
+    function updateNavigationState(state = {}) {
+        backButton.disabled = state.canGoBack !== true;
+        forwardButton.disabled = state.canGoForward !== true;
+        [backButton, forwardButton].forEach((button) => {
+            button.style.opacity = button.disabled ? '0.35' : '1';
+            button.style.cursor = button.disabled ? 'not-allowed' : 'pointer';
+        });
+    }
+
+    backButton.addEventListener('click', () => window.tileNavigation.goBack());
+    forwardButton.addEventListener('click', () => window.tileNavigation.goForward());
 	document.getElementById('float-reload').addEventListener('click', () => window.tileNavigation.reload());
+
+    window.tileNavigation.onNavigationState(updateNavigationState);
+    window.tileNavigation.getNavigationState()
+        .then(updateNavigationState)
+        .catch(() => updateNavigationState());
     
     document.getElementById('float-url').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {

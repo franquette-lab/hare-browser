@@ -2600,6 +2600,19 @@ function updateNavigationButtons() {
     });
 }
 
+function updateTileNavigationButtons(webContents) {
+    if (!webContents || webContents.isDestroyed()) return;
+
+    try {
+        webContents.send("tile-navigation-state", {
+            canGoBack: webContents.navigationHistory.canGoBack(),
+            canGoForward: webContents.navigationHistory.canGoForward()
+        });
+    } catch (error) {
+        console.debug("Impossible de synchroniser l’état de navigation de la mini-barre :", error);
+    }
+}
+
 
 function setupNavigationTracking(panel) {
 
@@ -2707,6 +2720,7 @@ function setupNavigationTracking(panel) {
     };
 
     panel.view.webContents.on("did-navigate-in-page", () => {
+        updateTileNavigationButtons(panel.view.webContents);
         syncSearchQueryFromPage();
     });
 
@@ -2904,6 +2918,7 @@ function setupNavigationTracking(panel) {
             const title = panel.view.webContents.getTitle();
 
             updateNavigationButtons();
+            updateTileNavigationButtons(panel.view.webContents);
             
             // MODIFICATION ICI : On n'enregistre PAS si le panneau est en navigation privée
             if (!panel.isPrivate) {
@@ -3133,6 +3148,17 @@ ipcMain.handle('go-back-current', (event) => {
     if (event.sender.navigationHistory.canGoBack()) {
         event.sender.navigationHistory.goBack();
     }
+});
+
+ipcMain.handle('get-tile-navigation-state', (event) => {
+    const webContents = event.sender;
+    if (!webContents || webContents.isDestroyed()) {
+        return { canGoBack: false, canGoForward: false };
+    }
+    return {
+        canGoBack: webContents.navigationHistory.canGoBack(),
+        canGoForward: webContents.navigationHistory.canGoForward()
+    };
 });
 
 ipcMain.handle('go-forward-current', (event) => {

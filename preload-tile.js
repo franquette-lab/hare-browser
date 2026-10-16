@@ -23,5 +23,9 @@ contextBridge.exposeInMainWorld('tileNavigation', {
     goBack: () => ipcRenderer.invoke('go-back-current'),
     goForward: () => ipcRenderer.invoke('go-forward-current'),
     reload: () => ipcRenderer.invoke('refresh-current'),
-    loadUrl: (url) => ipcRenderer.send('navigate-current', url)
+    loadUrl: (url) => ipcRenderer.send('navigate-current', url),
+    getNavigationState: () => ipcRenderer.invoke('get-tile-navigation-state'),
+    onNavigationState: (callback) => {
+        ipcRenderer.on('tile-navigation-state', (_event, state) => callback(state));
+    }
 });
