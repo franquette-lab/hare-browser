@@ -819,7 +819,7 @@ html.dark #pwd-modal {
 </div>
 
 
-        <button id="ai-summary-btn" style="height: 30px; background: #16a34a; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; padding: 0 12px; transition: background 0.2s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">Résumer</button>
+        <button id="ai-summary-btn" style="height: 30px; background: #16a34a; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; padding: 0 12px; transition: background 0.2s;">Résumer</button>
         
         <!-- ✨ NOUVEAU : Bouton Effacer ajouté à la suite -->
         <button id="ai-clear-btn" title="Effacer l'historique de l'assistant" style="height: 30px; background: #4b5563; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; padding: 0 12px; transition: background 0.2s;" onmouseover="this.style.background='#374151'" onmouseout="this.style.background='#4b5563'">Effacer</button>
@@ -872,7 +872,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const urlIcon = document.getElementById('url-icon');
 
 
-window.declencherActionIA = function(event) {
+window.declencherActionIA = async function(event) {
     if (event) {
         event.preventDefault();
         event.stopPropagation();
@@ -881,45 +881,35 @@ window.declencherActionIA = function(event) {
     const btnSubmit = document.getElementById('ai-submit-btn');
     const btnStop = document.getElementById('ai-stop-btn');
     
-    // 1. Recherche ultra-large de la question dans TOUS les éléments éligibles du panneau
-    let texteQuestion = "";
-    const elementsSaisie = Array.from(document.querySelectorAll('input, textarea, [contenteditable="true"], div, span'));
-    
-    // On cherche l'élément qui contient le texte saisi par l'utilisateur
-    for (let el of elementsSaisie) {
-        const val = el.value ? el.value.trim() : el.textContent.trim();
-        if (val.includes("Qu'est-ce que") || (el.tagName === "INPUT" && val.length > 0 && el.id !== 'url-input' && el.id !== 'float-url')) {
-            texteQuestion = val;
-            break;
-        }
-    }
 
-    // Sécurité si la recherche automatique échoue
-    if (!texteQuestion) {
-        texteQuestion = "Qu'est-ce que la recherche scientifique ?";
+
+
+const questionInput = document.getElementById("ai-user-prompt");
+
+const texteQuestion = questionInput
+    ? questionInput.value.trim()
+    : "";
+
+
+    if (texteQuestion === "") {
+        alert("Veuillez saisir une question avant de valider.");
+        return;
     }
 
     if (btnSubmit && btnStop) {
-        // Permutation visuelle
+        // Aligne l'interface en affichant le bouton Stop rouge
         btnSubmit.style.setProperty('display', 'none', 'important');
         btnStop.style.setProperty('display', 'inline-flex', 'important');
-        btnStop.style.animation = 'fondLoading 1.5s infinite ease-in-out';
         
-        console.log("Texte capturé et envoyé :", texteQuestion);
-        
-        // 2. Envoi natif à l'application (Test des différentes passerelles possibles dans votre projet)
-        if (window.tileNavigation && typeof window.tileNavigation.askAI === 'function') {
-            window.tileNavigation.askAI(texteQuestion);
-        } else if (window.electronAPI && typeof window.electronAPI.askAI === 'function') {
-            window.electronAPI.askAI(texteQuestion);
-        } else if (typeof window.askAI === 'function') {
-            window.askAI(texteQuestion);
-        } else {
-            // Si aucune fonction n'est trouvée, on simule l'envoi comme le fait le bouton "Résumer"
-            console.log("Tentative via la méthode alternative de navigation...");
-            if (window.tileNavigation && typeof window.tileNavigation.sendMessage === 'function') {
-                window.tileNavigation.sendMessage('askAI', texteQuestion);
-            }
+        console.log("Transmission de la question à l'IA :", texteQuestion);
+
+        try {
+            // Le volet IA passe par l'API Ollama exposée dans window.api, pas par tileNavigation.
+            await envoyerRequeteIA(texteQuestion, false, true, false);
+        } finally {
+            btnStop.style.setProperty('display', 'none', 'important');
+            btnSubmit.style.setProperty('display', 'inline-flex', 'important');
+            btnSubmit.disabled = false;
         }
     }
 };
@@ -938,11 +928,7 @@ window.annulerActionIA = function(event) {
         btnSubmit.style.setProperty('display', 'inline-flex', 'important');
         btnStop.style.animation = 'none';
         
-        if (window.tileNavigation && typeof window.tileNavigation.stopAI === 'function') {
-            window.tileNavigation.stopAI();
-        } else if (typeof window.stopAI === 'function') {
-            window.stopAI();
-        }
+        window.api.cancelAiRequest();
     }
 };
 
@@ -1390,24 +1376,6 @@ window.api.onPanelsUpdated((panelsList, zoomPanelId) => {
 });
 
 
-
-
-window.api.onAiLoadingState?.((isLoading) => {
-    const resumeBtn = document.getElementById('votre-id-bouton-resumer') 
-                      || document.querySelector('button[style*="background-color: rgb(21, 128, 61)"]');
-    
-    if (resumeBtn) {
-        if (isLoading) {
-            resumeBtn.innerHTML = '<span class="hourglass-anim">⏳</span> Analyse...';
-            resumeBtn.style.backgroundColor = "#166534"; // Vert plus foncé pour indiquer le verrouillage
-            resumeBtn.disabled = true;
-        } else {
-            resumeBtn.innerText = "Résumer";
-            resumeBtn.style.backgroundColor = "#22c55e"; // Restaure la couleur d'origine
-            resumeBtn.disabled = false;
-        }
-    }
-});
 
 
 
@@ -3015,6 +2983,7 @@ const aiSubmitBtn = document.getElementById("ai-submit-btn");
 const aiClearBtn = document.getElementById("ai-clear-btn"); 
 
 let isAiRequestRunning = false; // Suivi global de l'état de chargement de l'IA
+let activeAiRequestKind = null;
 
 // Afficher le menu natif d'édition (copier/coller) dans tout le volet IA.
 aiSidebar.addEventListener("contextmenu", (event) => {
@@ -3123,13 +3092,15 @@ const aiSubmitBtn = document.getElementById("ai-submit-btn");
 // Fonction centrale pour restaurer l'état nominal VERT du bouton
 function restaurerBoutonVertOrigine() {
     isAiRequestRunning = false;
+    activeAiRequestKind = null;
     if (summaryBtn) {
         summaryBtn.innerHTML = "Résumer";
-        summaryBtn.style.background = "#10b981"; // Vert d'origine
+        summaryBtn.style.background = "#16a34a"; // Vert d'origine
         summaryBtn.style.color = "white";       // Texte blanc garanti
         summaryBtn.title = "Résumer la page active";
         summaryBtn.className = "";              // Nettoie les animations
         summaryBtn.style.animation = "none";
+        summaryBtn.disabled = false;
     }
     if (typeof rafraichirEtatBoutonIA === "function") {
         rafraichirEtatBoutonIA();
@@ -3140,13 +3111,20 @@ function restaurerBoutonVertOrigine() {
 window.api.onAiLoadingState((isLoading) => {
     isAiRequestRunning = isLoading;
     
-    if (isLoading) {
+    if (isLoading && activeAiRequestKind === "summary") {
         if (summaryBtn) {
             summaryBtn.innerHTML = "🛑 Stop";
             summaryBtn.style.background = "#ef4444"; // Rouge Stop
             summaryBtn.style.color = "white";
             summaryBtn.title = "Interrompre la génération en cours";
             summaryBtn.style.animation = "none";
+        }
+    } else if (isLoading) {
+        if (summaryBtn) {
+            summaryBtn.innerHTML = "Résumer";
+            summaryBtn.style.background = "#16a34a";
+            summaryBtn.disabled = true;
+            summaryBtn.title = "Disponible après la réponse en cours";
         }
     } else {
         restaurerBoutonVertOrigine();
@@ -3174,6 +3152,7 @@ if (summaryBtn) {
             console.log("[Interface] Lancement du résumé...");
             
             // On passe manuellement l'IHM en mode chargement pour éviter les latences
+            activeAiRequestKind = "summary";
             isAiRequestRunning = true;
             summaryBtn.innerHTML = "🛑 Stop";
             summaryBtn.style.background = "#ef4444";
@@ -3380,6 +3359,7 @@ function renderAiMarkdown(markdown) {
 }
 
 async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = false, compareVisiblePanels = false) {
+    activeAiRequestKind = isSummary ? "summary" : isQuestion ? "question" : "analysis";
     const modeleChoisi = "qwen2.5:1.5b";
     const aiSidebar = document.getElementById("ai-sidebar");
     const loadingBtn = isSummary

@@ -10,10 +10,10 @@ contextBridge.exposeInMainWorld(
 
 
         onRenderHistory: (callback) => {
-            console.log("PRELOAD : écoute render-history");
+ //         console.log("PRELOAD : écoute render-history");
 
             ipcRenderer.on('render-history', (event, data) => {
-                console.log("PRELOAD : render-history reçu");
+//              console.log("PRELOAD : render-history reçu");
                 callback(data);
             });
         },

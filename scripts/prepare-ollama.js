@@ -28,4 +28,4 @@ for (const { digest } of [manifest.config, ...manifest.layers]) {
     fs.copyFileSync(path.join(modelsDir, "blobs", name), path.join(out, "models", "blobs", name));
 }
 
-console.log("ollama-bundle prêt :", out);
+// console.log("ollama-bundle prêt :", out);
