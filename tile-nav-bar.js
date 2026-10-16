@@ -39,7 +39,7 @@
     navBar.id = 'hare-floating-nav';
     navBar.style = `
         position: fixed;
-        top: 10px;
+        top: 6px;
         left: 50%;
         transform: translateX(-50%);
         display: flex;
@@ -49,7 +49,46 @@
         z-index: 2147483647;
         font-family: system-ui, sans-serif;
         transition: opacity 0.2s, background-color 0.15s, border-color 0.15s;
+        touch-action: none;
     `;
+
+    // Déplacement par la zone libre de la barre, sans gêner les boutons ni le champ URL.
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+    navBar.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0 || event.target.closest('button, input')) return;
+
+        const bounds = navBar.getBoundingClientRect();
+        dragOffsetX = event.clientX - bounds.left;
+        dragOffsetY = event.clientY - bounds.top;
+        navBar.style.left = `${bounds.left}px`;
+        navBar.style.top = `${bounds.top}px`;
+        navBar.style.transform = 'none';
+        navBar.style.cursor = 'grabbing';
+        navBar.setPointerCapture(event.pointerId);
+        event.preventDefault();
+    });
+
+    navBar.addEventListener('pointermove', (event) => {
+        if (!navBar.hasPointerCapture(event.pointerId)) return;
+
+        const maxLeft = Math.max(0, window.innerWidth - navBar.offsetWidth);
+        const maxTop = Math.max(0, window.innerHeight - navBar.offsetHeight);
+        const left = Math.min(maxLeft, Math.max(0, event.clientX - dragOffsetX));
+        const top = Math.min(maxTop, Math.max(0, event.clientY - dragOffsetY));
+        navBar.style.left = `${left}px`;
+        navBar.style.top = `${top}px`;
+    });
+
+    const stopDragging = (event) => {
+        if (navBar.hasPointerCapture(event.pointerId)) {
+            navBar.releasePointerCapture(event.pointerId);
+            navBar.style.cursor = 'grab';
+        }
+    };
+    navBar.addEventListener('pointerup', stopDragging);
+    navBar.addEventListener('pointercancel', stopDragging);
+    navBar.style.cursor = 'grab';
 
     // Effet d'apparition au survol
     navBar.onmouseover = () => navBar.style.opacity = "1";
