@@ -40,6 +40,8 @@ contextBridge.exposeInMainWorld(
         closePanel: (panelId) => ipcRenderer.send("close-panel", panelId),
         splitPanel: (panelId, direction, isPrivate, initialUrl) => ipcRenderer.send('split-panel', panelId, direction, isPrivate, initialUrl),
         undo: () => ipcRenderer.send("undo"),
+        saveConfigToFile: () => ipcRenderer.invoke('save-config-to-file'),
+        loadConfigFromFile: () => ipcRenderer.invoke('load-config-from-file'),
         
 onActivePanelChanged: (callback) => {
     ipcRenderer.on("active-panel-changed", (_event, donneesPanel) => {
