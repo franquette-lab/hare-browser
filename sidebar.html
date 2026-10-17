@@ -143,7 +143,7 @@
 
     <div class="loading-spinner" id="spinner">
         <div class="spinner-wheel"></div>
-        <span>L'IA locale réfléchit (Analyse RAG en cours)</span>
+        <span id="spinner-message">⏳ L'IA analyse votre question et prépare une réponse...</span>
     </div>
 
 
@@ -180,6 +180,7 @@ console.log({
 console.log(sendBtn);
 
         const spinner = document.getElementById('spinner');
+        const spinnerMessage = document.getElementById('spinner-message');
         const compareMode = document.getElementById('compare-mode');
         const fullMode = document.getElementById('full-mode');
 
@@ -230,12 +231,35 @@ console.log("disabled =", sendBtn.disabled);
             }
         });
 
+        function getAiLoadingMessage(text) {
+            const normalizedText = text
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase();
+
+            if (compareMode.checked || /\b(tuiles?|pages visibles|comparer|comparaison)\b/.test(normalizedText)) {
+                return "⏳ L'IA analyse les tuiles visibles pour préparer la comparaison...";
+            }
+
+            if (/\b(resume|resumer|synthese)\b/.test(normalizedText)) {
+                return "⏳ L'IA analyse le contenu de la tuile active...";
+            }
+
+            if (/mots?[- ]cles?|themes?/.test(normalizedText)) {
+                return "⏳ L'IA analyse le contenu de la tuile active pour en extraire les mots-clés...";
+            }
+
+            return "⏳ L'IA analyse votre question et prépare une réponse...";
+        }
+
         async function executeAiQuery(forcedPrompt = null) {
             const text = forcedPrompt || promptInput.value.trim();
 
             if (!text) {
                 return;
             }
+
+            spinnerMessage.textContent = getAiLoadingMessage(text);
 
             if (!forcedPrompt) promptInput.value = '';
 

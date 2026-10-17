@@ -3382,9 +3382,14 @@ async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = fa
     }
     
     // Affiche le message d'attente à l'utilisateur
-    aiResponseContainer.innerHTML = compareVisiblePanels
-        ? '<span style="color: #a1a1aa; font-style: italic; font-size: 12px;"><span class="hourglass-anim">⏳</span> L\'IA analyse les tuiles visibles pour préparer la comparaison...</span>'
-        : '<span style="color: #a1a1aa; font-size: 12px;"><span class="hourglass-anim">⏳</span> L\'IA analyse le contenu de la tuile active...</span>';
+    const loadingMessage = compareVisiblePanels
+        ? "L'IA analyse les tuiles visibles pour préparer la comparaison..."
+        : isSummary
+            ? "L'IA analyse le contenu de la tuile active..."
+            : isQuestion
+                ? "L'IA analyse votre question et prépare une réponse..."
+                : "L'IA analyse le contenu de la tuile active...";
+    aiResponseContainer.innerHTML = `<span style="color: #a1a1aa; font-size: 12px;"><span class="hourglass-anim">⏳</span> ${loadingMessage}</span>`;
     
     console.log("[IHM DIAGNOSTIC] Envoi de la demande d'IA au processus principal pour :", questionUser);
     
