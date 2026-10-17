@@ -13,6 +13,10 @@ contextBridge.exposeInMainWorld(
         },
 
         getSystemTheme: () => ipcRenderer.invoke("get-system-theme"),
+        getLanguage: () => ipcRenderer.invoke("get-language"),
+        setLanguage: (language) => ipcRenderer.invoke("set-language", language),
+        openSettings: () => ipcRenderer.send("open-settings-window"),
+        onLanguageChanged: (callback) => ipcRenderer.on("language-changed", (_event, language) => callback(language)),
         getThemePreference: () => ipcRenderer.invoke("get-theme-preference"),
         saveThemePreference: (isDark) => ipcRenderer.invoke("save-theme-preference", isDark),
         toggleDarkMode: (enable) => ipcRenderer.send('toggle-dark-mode-request', enable),

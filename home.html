@@ -229,7 +229,7 @@ html.mw-theme-client-dark button[type="submit"]:hover {
 
     <h1>Hare Browser</h1>
 
-    <div class="subtitle">Votre espace de navigation privé</div>
+    <div class="subtitle" data-i18n="home.subtitle">Votre espace de navigation privé</div>
 
     <form
         class="search-form"
@@ -242,6 +242,7 @@ html.mw-theme-client-dark button[type="submit"]:hover {
                 class="search-input"
                 type="text"
                 name="q"
+                data-i18n-placeholder="home.search"
                 placeholder="Rechercher avec Hare Browser..."
                 autofocus
                 autocomplete="off">
@@ -257,18 +258,18 @@ html.mw-theme-client-dark button[type="submit"]:hover {
     </form>
 
     <div class="features">
-        <div class="feature">🐇 Rapidité</div>
-        <div class="feature">🔒 Respect vie privée</div>
-        <div class="feature">🧩 Navigation mosaïque</div>
-        <div class="feature">🚫 Blocage actif</div>
+        <div class="feature" data-i18n="home.speed">🐇 Rapidité</div>
+        <div class="feature" data-i18n="home.privacy">🔒 Respect vie privée</div>
+        <div class="feature" data-i18n="home.mosaic">🧩 Navigation mosaïque</div>
+        <div class="feature" data-i18n="home.blocking">🚫 Blocage actif</div>
     </div>
 
     <div class="footer">
 
-        Propulsé par SearXNG
+        <span data-i18n="home.credits">Propulsé par SearXNG</span>
 
         <div class="version">
-            2026.9.10+ba055b3e0 • un métamoteur respectueux de la vie privée
+            <span data-i18n="home.version">2026.9.10+ba055b3e0 • un métamoteur respectueux de la vie privée</span>
         </div>
 
     </div>
@@ -276,6 +277,8 @@ html.mw-theme-client-dark button[type="submit"]:hover {
 </div>
 
 <!-- --- CODE JAVASCRIPT DE DÉCLENCHEMENT --- -->
+<script src="i18n.js"></script>
+<script>HareI18n.attach(window.tileLanguage);</script>
 <script>
     const searchForm = document.querySelector('.search-form');
     const searchButton = document.querySelector('.search-button');

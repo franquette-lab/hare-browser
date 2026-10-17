@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+    <title data-i18n="app.settings.title">Paramètres de Hare Browser</title>
+    <style>
+        :root { color-scheme: light; font-family: "Segoe UI", system-ui, sans-serif; }
+        * { box-sizing: border-box; }
+        body { margin: 0; min-height: 100vh; padding: 24px; background: #f9fafb; color: #1f2937; }
+        main { max-width: 520px; margin: 0 auto; }
+        header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+        h1 { margin: 0; font-size: 20px; font-weight: 650; }
+        #close-button { width: 32px; height: 32px; border: 0; border-radius: 6px; background: transparent; color: inherit; font-size: 22px; cursor: pointer; }
+        #close-button:hover { background: #e5e7eb; }
+        label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600; }
+        select { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: inherit; font: inherit; }
+        p { color: #64748b; font-size: 13px; line-height: 1.5; }
+        #saved { min-height: 20px; color: #15803d; }
+        @media (prefers-color-scheme: dark) {
+            :root { color-scheme: dark; }
+            body { background: #252526; color: #e5e7eb; }
+            #close-button:hover { background: #3f3f46; }
+            select { background: #2d2d30; border-color: #52525b; }
+            p { color: #a1a1aa; }
+            #saved { color: #4ade80; }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <header>
+            <h1 data-i18n="app.settings.title">Paramètres de Hare Browser</h1>
+            <button id="close-button" type="button" data-i18n-title="app.settings.close" data-i18n-aria-label="app.settings.close" aria-label="Fermer">×</button>
+        </header>
+        <label for="language-select" data-i18n="app.settings.language">Langue de l’interface</label>
+        <select id="language-select">
+            <option value="fr" data-i18n="app.settings.language.fr">Français</option>
+            <option value="en" data-i18n="app.settings.language.en">English</option>
+        </select>
+        <p data-i18n="app.settings.language.help">Le changement est appliqué immédiatement et conservé pour les prochains démarrages.</p>
+        <p id="saved" aria-live="polite"></p>
+    </main>
+    <script src="i18n.js"></script>
+    <script>
+        HareI18n.attach(window.settingsApi);
+        const languageSelect = document.getElementById("language-select");
+        const savedMessage = document.getElementById("saved");
+
+        HareI18n.languages.forEach((language) => {
+            if (languageSelect.querySelector(`option[value="${language}"]`)) return;
+            const option = document.createElement("option");
+            option.value = language;
+            option.dataset.i18n = `app.settings.language.${language}`;
+            option.textContent = HareI18n.t(option.dataset.i18n, language);
+            languageSelect.appendChild(option);
+        });
+
+        window.settingsApi.getLanguage().then((language) => { languageSelect.value = language; });
+        languageSelect.addEventListener("change", async () => {
+            const language = await window.settingsApi.setLanguage(languageSelect.value);
+            languageSelect.value = language;
+            savedMessage.textContent = HareI18n.t("app.settings.saved", language);
+        });
+        document.getElementById("close-button").addEventListener("click", () => window.settingsApi.close());
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") window.settingsApi.close();
+        });
+    </script>
+</body>
+</html>

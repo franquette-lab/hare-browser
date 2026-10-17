@@ -29,3 +29,8 @@ contextBridge.exposeInMainWorld('tileNavigation', {
         ipcRenderer.on('tile-navigation-state', (_event, state) => callback(state));
     }
 });
+
+contextBridge.exposeInMainWorld('tileLanguage', {
+    get: () => ipcRenderer.invoke('get-language'),
+    onChanged: (callback) => ipcRenderer.on('language-changed', (_event, language) => callback(language))
+});

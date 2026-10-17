@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Chargement...</title>
+    <title data-i18n="splash.title">Chargement...</title>
     <style>
         :root {
             --bg-color: #f3f4f6;
@@ -84,9 +84,11 @@
     <img src="app-logo.png" class="logo-image" alt="Logo de l'application">
     
     <h1>Hare Browser</h1>
-    <div class="subtitle">Initialisation de la mosaïque d'onglets...</div>
+    <div class="subtitle" data-i18n="splash.loading">Initialisation de la mosaïque d'onglets...</div>
     <div class="progress-bar-container">
         <div class="progress-bar-value"></div>
     </div>
+<script src="i18n.js"></script>
+<script>HareI18n.apply(document, new URLSearchParams(location.search).get('language') || 'fr');</script>
 </body>
 </html>

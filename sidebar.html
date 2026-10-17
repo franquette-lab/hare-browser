@@ -163,6 +163,8 @@
         </div>
     </div>
 
+    <script src="i18n.js"></script>
+    <script>HareI18n.attach(window.api || window.tileLanguage);</script>
     <script>
 
 console.log("SIDEBAR LOADED");
@@ -212,9 +214,9 @@ console.log("disabled =", sendBtn.disabled);
         // Écoute les actions automatiques déclenchées depuis le menu clic droit du main.js
         window.api?.onTriggerAiAction((data) => {
             if (data.action === 'resume') {
-                executeAiQuery("Fais-moi un résumé concis en trois points clés de cette page.");
+                executeAiQuery(window.HareI18n.t("ai.summaryPrompt", document.documentElement.lang));
             } else if (data.action === 'keywords') {
-                executeAiQuery("Extrais les mots-clés et les thèmes principaux de ce texte sous forme de liste.");
+                executeAiQuery(window.HareI18n.t("ai.keywordPrompt", document.documentElement.lang));
             }
         });
 
@@ -232,24 +234,25 @@ console.log("disabled =", sendBtn.disabled);
         });
 
         function getAiLoadingMessage(text) {
+            const language = document.documentElement.lang || "fr";
             const normalizedText = text
                 .normalize('NFD')
                 .replace(/[\u0300-\u036f]/g, '')
                 .toLowerCase();
 
             if (compareMode.checked || /\b(tuiles?|pages visibles|comparer|comparaison)\b/.test(normalizedText)) {
-                return "⏳ L'IA analyse les tuiles visibles pour préparer la comparaison...";
+                return window.HareI18n.t("ai.analyzeCompare", language);
             }
 
             if (/\b(resume|resumer|synthese)\b/.test(normalizedText)) {
-                return "⏳ L'IA analyse le contenu de la tuile active...";
+                return window.HareI18n.t("ai.analyzePage", language);
             }
 
             if (/mots?[- ]cles?|themes?/.test(normalizedText)) {
-                return "⏳ L'IA analyse le contenu de la tuile active pour en extraire les mots-clés...";
+                return window.HareI18n.t("ai.analyzeKeywords", language);
             }
 
-            return "⏳ L'IA analyse votre question et prépare une réponse...";
+            return window.HareI18n.t("ai.loading", language);
         }
 
         async function executeAiQuery(forcedPrompt = null) {

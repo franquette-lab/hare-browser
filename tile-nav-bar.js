@@ -4,6 +4,7 @@
 
     // Récupération sécurisée du titre de l'application (fallback si non défini globalement)
     const applicationTitle = window.applicationTitle || "Hare Browser";
+    let currentLanguage = "fr";
 
     // Recréation locale de la logique getDisplayUrl pour la barre autonome
     function getDisplayUrl(url, fallbackQuery = "") {
@@ -11,9 +12,9 @@
             const parsedUrl = new URL(url);
             if (parsedUrl.protocol === "file:") {
                 const localPage = parsedUrl.pathname.toLowerCase();
-                if (localPage.endsWith("/help.html")) return "Aide";
-                if (localPage.endsWith("/home.html")) return "Accueil";
-                if (localPage.endsWith("/welcome.html")) return "Bienvenue";
+                if (localPage.endsWith("/help.html")) return currentLanguage === "en" ? "Help" : "Aide";
+                if (localPage.endsWith("/home.html")) return currentLanguage === "en" ? "Home" : "Accueil";
+                if (localPage.endsWith("/welcome.html")) return currentLanguage === "en" ? "Welcome" : "Bienvenue";
             }
             
             // Vérification des fonctions globales du navigateur si existantes
@@ -22,10 +23,10 @@
                 ? window.getSearchQueryFromUrl(url, fallbackQuery)
                 : null;
                 
-            if (searchQuery !== null) return `${searchQuery} - Recherche ${applicationTitle}`;
+            if (searchQuery !== null) return `${searchQuery} - ${currentLanguage === "en" ? "Search" : "Recherche"} ${applicationTitle}`;
 
             if (parsedUrl.hostname === "129.151.254.175") {
-                return `Moteur de recherche ${applicationTitle}`;
+                return `${currentLanguage === "en" ? "Search engine" : "Moteur de recherche"} ${applicationTitle}`;
             }
 
             return parsedUrl.hostname.replace(/^www\./, "");
@@ -178,6 +179,28 @@ function applyFloatingBarTheme() {
 	// 4. Assignation des événements
     const backButton = document.getElementById('float-back');
     const forwardButton = document.getElementById('float-forward');
+    backButton.title = currentLanguage === "en" ? "Back" : "Revenir";
+    forwardButton.title = currentLanguage === "en" ? "Forward" : "Avancer";
+    document.getElementById('float-reload').title = currentLanguage === "en" ? "Reload" : "Actualiser";
+
+    const refreshDisplayedUrl = () => {
+        const input = document.getElementById('float-url');
+        if (input && document.activeElement !== input) input.value = getDisplayUrl(window.location.href);
+    };
+    window.tileLanguage?.get().then((language) => {
+        currentLanguage = language === "en" ? "en" : "fr";
+        backButton.title = currentLanguage === "en" ? "Back" : "Revenir";
+        forwardButton.title = currentLanguage === "en" ? "Forward" : "Avancer";
+        document.getElementById('float-reload').title = currentLanguage === "en" ? "Reload" : "Actualiser";
+        refreshDisplayedUrl();
+    }).catch(() => {});
+    window.tileLanguage?.onChanged((language) => {
+        currentLanguage = language === "en" ? "en" : "fr";
+        backButton.title = currentLanguage === "en" ? "Back" : "Revenir";
+        forwardButton.title = currentLanguage === "en" ? "Forward" : "Avancer";
+        document.getElementById('float-reload').title = currentLanguage === "en" ? "Reload" : "Actualiser";
+        refreshDisplayedUrl();
+    });
 
     function updateNavigationState(state = {}) {
         backButton.disabled = state.canGoBack !== true;

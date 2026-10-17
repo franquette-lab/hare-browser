@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="utf-8">
-    <title>Aide</title>
+    <title data-i18n="help.title">Aide</title>
     <style>
         :root {
             color-scheme: light;
@@ -160,16 +160,16 @@
 <body>
 
 <div class="container">
-    <h1>Centre d'aide</h1>
+    <h1 data-i18n="help.title">Centre d'aide</h1>
     
-    <p>Bienvenue dans le centre d'aide officiel de <strong>Hare Browser</strong>. Ce navigateur web combine un environnement de navigation multi-panneaux avancé (mode mosaïque dynamique), un moteur de recherche SearXNG respectueux de la vie privée et un assistant d'intelligence artificielle locale propulsé par Ollama.</p>
+    <p data-i18n="help.welcome">Bienvenue dans le centre d'aide officiel de <strong>Hare Browser</strong>. Ce navigateur web combine un environnement de navigation multi-panneaux avancé (mode mosaïque dynamique), un moteur de recherche SearXNG respectueux de la vie privée et un assistant d'intelligence artificielle locale propulsé par Ollama.</p>
 
     <div class="info-box">
-        <p>🍏 Configuration macOS : Pour les utilisateurs d'Apple Mac, remplacez systématiquement la touche <code>Ctrl</code> par la touche <code>Cmd</code> (Commande) pour l'ensemble des raccourcis ci-dessous.</p>
+        <p data-i18n="help.mac">🍏 Configuration macOS : Pour les utilisateurs d'Apple Mac, remplacez systématiquement la touche Ctrl par la touche Cmd (Commande) pour l’ensemble des raccourcis ci-dessous.</p>
     </div>
 
-    <h2>🧱 Gestion des panneaux &amp; fonctionnement du fractionnement</h2>
-    <p>Le cœur de Hare Browser repose sur un arbre binaire de division (Split Nodes). Chaque panneau actif peut être subdivisé géométriquement à l'infini pour organiser votre espace de travail sans manipuler des dizaines d'onglets superposés traditionnels.</p>
+    <h2 data-i18n="help.panels">🧱 Gestion des panneaux &amp; fonctionnement du fractionnement</h2>
+    <p data-i18n="help.panelsIntro">Le cœur de Hare Browser repose sur un arbre binaire de division (Split Nodes). Chaque panneau actif peut être subdivisé géométriquement à l'infini pour organiser votre espace de travail sans manipuler des dizaines d'onglets superposés traditionnels.</p>
     
     <h3>Schémas géométriques de fractionnement des tuiles :</h3>
     
@@ -309,9 +309,9 @@ rapidement un espace de travail en mosaïque, d'analyser une page avec
 l'assistant IA et de gérer le contenu affiché sans quitter le panneau actif.
 </p>
 
-    <h2>⌨️ Répertoire Exhaustif des Raccourcis Clavier</h2>
+    <h2 data-i18n="help.shortcuts">⌨️ Répertoire Exhaustif des Raccourcis Clavier</h2>
     
-    <h3>🧱 Gestion des Panneaux &amp; Agencement</h3>
+    <h3 data-i18n="help.panelLayout">🧱 Gestion des Panneaux &amp; Agencement</h3>
     <table>
         <thead>
             <tr>
@@ -572,5 +572,7 @@ l'assistant IA et de gérer le contenu affiché sans quitter le panneau actif.
     </div>
 </div>
 
+<script src="i18n.js"></script>
+<script>HareI18n.attach(window.tileLanguage);</script>
 </body>
 </html>

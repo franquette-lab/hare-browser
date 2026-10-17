@@ -111,7 +111,7 @@ h2 span, h2 img {
 </head>
 <body>
     <div class="header">
-        <h2 id="history-title">🕒 Historique de navigation</h2>
+        <h2 id="history-title" data-i18n="history.heading">🕒 Historique de navigation</h2>
         <div id="clear-container"></div>
     </div>
 
@@ -119,6 +119,8 @@ h2 span, h2 img {
 <div id="history-container"></div>
 
 <!-- ====== DANS HISTORY.HTML ====== -->
+<script src="i18n.js"></script>
+<script>HareI18n.attach(window.historyApi);</script>
 <script>
 
 function applyHistoryTheme(isDark) {

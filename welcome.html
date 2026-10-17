@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bienvenue</title>
+<title data-i18n="welcome.title">Bienvenue</title>
 
 <style>
 :root {
@@ -178,7 +178,7 @@ html.mw-theme-client-dark .welcome-btn:hover {
     <div class="hero">
         <h1>Hare Browser</h1>
 
-        <p>
+        <p data-i18n="welcome.subtitle">
             Mosaïque • Recherche • IA locale • Confidentialité
         </p>
 
@@ -190,8 +190,8 @@ html.mw-theme-client-dark .welcome-btn:hover {
     <div class="cards">
 
         <div class="card">
-            <h2>🧩 Navigation mosaïque</h2>
-            <p>
+            <h2 data-i18n="welcome.tileNav">🧩 Navigation mosaïque</h2>
+            <p data-i18n="welcome.tileNavText">
                 Organisez votre navigation dans plusieurs panneaux indépendants
                 et redimensionnables pour afficher plusieurs sites simultanément.
             </p>
@@ -199,54 +199,54 @@ html.mw-theme-client-dark .welcome-btn:hover {
 
 <!-- Insérer ce bloc à l'intérieur de votre grille de fonctionnalités, par exemple à côté de "Navigation mosaïque" -->
         <div class="card">
-		<h2>🚫 Bloqueur intégré</h2>
-    <p>Publicités et trackers masqués par défaut sur vos tuiles publiques et privées pour accélérer le chargement.</p>
+		<h2 data-i18n="welcome.adblock">🚫 Bloqueur intégré</h2>
+    <p data-i18n="welcome.adblockText">Publicités et trackers masqués par défaut sur vos tuiles publiques et privées pour accélérer le chargement.</p>
        </div>
 
 
         <div class="card">
-            <h2>🔍 Recherche respectueuse</h2>
-            <p>
+            <h2 data-i18n="welcome.search">🔍 Recherche respectueuse</h2>
+            <p data-i18n="welcome.searchText">
                 Effectuez vos recherches grâce à SearXNG, un métamoteur open source
                 respectueux de la confidentialité et sans profilage des utilisateurs.
             </p>
         </div>
 
         <div class="card">
-            <h2>✨ IA locale</h2>
-            <p>
+            <h2 data-i18n="welcome.localAi">✨ IA locale</h2>
+            <p data-i18n="welcome.localAiText">
                 Une IA exécutée sur votre ordinateur, sans cloud distant,
                 pour un impact réduit sur l'environnement et plus de confidentialité.
             </p>
         </div>
 
         <div class="card">
-            <h2>🔒 Confidentialité</h2>
-            <p>
+            <h2 data-i18n="welcome.privacy">🔒 Confidentialité</h2>
+            <p data-i18n="welcome.privacyText">
                 Navigation privée, réduction du suivi et contrôle renforcé
                 de vos données personnelles.
             </p>
         </div>
 
         <div class="card">
-            <h2>🌗 Thèmes clair et sombre</h2>
-            <p>
+            <h2 data-i18n="welcome.themes">🌗 Thèmes clair et sombre</h2>
+            <p data-i18n="welcome.themesText">
                 Basculez instantanément entre les modes clair et sombre
                 selon vos préférences.
             </p>
         </div>
 
         <div class="card">
-            <h2>📜 Historique</h2>
-            <p>
+            <h2 data-i18n="welcome.history">📜 Historique</h2>
+            <p data-i18n="welcome.historyText">
                 Retrouvez facilement les pages récemment visitées
                 depuis l'historique intégré.
             </p>
         </div>
 
         <div class="card">
-            <h2>⚡ Productivité & Espaces</h2>
-            <p>
+            <h2 data-i18n="welcome.productivity">⚡ Productivité & Espaces</h2>
+            <p data-i18n="welcome.productivityText">
                 Optimisez votre multitâche : scindez les panneaux, pilotez au clavier et sauvegardez vos dispositions.	
             </p>
         </div>
@@ -254,12 +254,13 @@ html.mw-theme-client-dark .welcome-btn:hover {
     </div>
 
 		<div class="welcome-buttons-container">
-                <a href="hare://history" class="welcome-btn">📜&nbsp;Historique</a>
-            <a href="hare://close-panel" class="welcome-btn">
+                <a href="hare://history" class="welcome-btn" data-i18n="welcome.history">📜&nbsp;Historique</a>
+            <a href="hare://close-panel" class="welcome-btn" data-i18n="welcome.close">
                 ❌&nbsp;Fermer
 			</a>
 			<a href="#"
 			   class="welcome-btn"
+			   data-i18n="welcome.themeButton"
 			   onclick="window.location.href='hare://toggle-theme'; return false;">
 				🌗&nbsp;Thème
 			</a>
@@ -267,14 +268,16 @@ html.mw-theme-client-dark .welcome-btn:hover {
 
     <div class="footer">
         <div>
-            Hare Browser : productif, privé, moderne.
+                <span data-i18n="welcome.footer">Hare Browser : productif, privé, moderne.</span>
         </div>
         <div class="version">
-            Propulsé par SearXNG • Ollama • Electron
+            <span data-i18n="welcome.credits">Propulsé par SearXNG • Ollama • Electron</span>
         </div>
     </div>
 
 </div>
 
+<script src="i18n.js"></script>
+<script>HareI18n.attach(window.tileLanguage);</script>
 </body>
 </html>

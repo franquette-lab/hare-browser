@@ -665,14 +665,16 @@ html.dark #pwd-modal {
 <!-- ====== DANS INDEX.HTML -> BARRE D'OUTILS SÉCURISÉE AVEC ICÔNES COMPATIBLES ====== -->
 <div id="toolbar-buttons" class="fixed top-0 left-0 right-0 z-50">
    
-    <button id="back-button" title="Revenir (Alt+Flêche gauche)" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#9664;</button>
+    <button id="back-button" data-i18n-title="toolbar.back" title="Revenir (Alt+Flêche gauche)" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#9664;</button>
    
-    <button id="forward-button" title="Avancer (Alt+Flêche droite)" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#9654;</button>
+    <button id="forward-button" data-i18n-title="toolbar.forward" title="Avancer (Alt+Flêche droite)" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#9654;</button>
     
-    <button id="refresh-button" title="Actualiser (Ctrl+R ou F5)" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:14px; cursor:pointer;">&#8635;</button>
+    <button id="refresh-button" data-i18n-title="toolbar.refresh" title="Actualiser (Ctrl+R ou F5)" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:14px; cursor:pointer;">&#8635;</button>
     
     <!-- AJOUT ICI : Le bouton Mode Sombre -->
-    <button id="dark-mode-button" title="Activer le mode sombre" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🌙</button>
+    <button id="dark-mode-button" data-i18n-title="toolbar.darkMode" title="Activer le mode sombre" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🌙</button>
+
+    <button id="settings-button" type="button" data-i18n-title="app.settings" aria-label="Paramètres" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:14px; cursor:pointer;">⚙️</button>
 
     <!-- L'attribut onclick appelle directement notre nouveau pont preload de manière brute -->
     <button id="history-button" title="Historique (Ctrl+H)" onclick="window.api.openHistoryWindow()" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer; position:relative; z-index:999999 !important;">🕒</button>
@@ -851,12 +853,19 @@ html.dark #pwd-modal {
 </div>
 
 
+<script src="i18n.js"></script>
+<script>
+    HareI18n.attach(window.api);
+    document.getElementById('settings-button').addEventListener('click', () => window.api.openSettings());
+</script>
+
 <script>
 
 let activePanel = null;
 let currentPanels = []; // Stockage global pour maintenir la liste des panneaux
 let currentMaximizedId = null; // Mémoire globale du mode zoom
 let applicationTitle = "Hare Browser";
+const translateUi = (id, replacements = {}) => HareI18n.t(id, document.documentElement.lang || "fr", replacements);
 
 // AJOUTEZ CETTE LIGNE ICI POUR QU'ELLE SOIT ACCESSIBLE PARTOUT :
 let applicationDarkMode = false; 
@@ -892,7 +901,7 @@ const texteQuestion = questionInput
 
 
     if (texteQuestion === "") {
-        alert("Veuillez saisir une question avant de valider.");
+        alert(translateUi("ai.inputEmpty"));
         return;
     }
 
@@ -1035,8 +1044,8 @@ function updateAutoSleepToggle(enabled) {
     autoSleepToggle.setAttribute("aria-pressed", String(autoSleepUiEnabled));
     autoSleepToggle.textContent = autoSleepUiEnabled ? "💤" : "⏸";
     autoSleepToggle.title = autoSleepUiEnabled
-        ? "Veille automatique activée : les tuiles inactives sont mises en veille après 15 minutes"
-        : "Veille automatique désactivée";
+        ? translateUi("sleep.enabled")
+        : translateUi("sleep.disabled");
     autoSleepToggle.style.color = autoSleepUiEnabled ? "#4ade80" : "#9ca3af";
     autoSleepToggle.style.opacity = autoSleepUiEnabled ? "1" : "0.65";
 }
@@ -1182,17 +1191,17 @@ function getDisplayUrl(url, fallbackQuery = "") {
         const parsedUrl = new URL(url);
         if (parsedUrl.protocol === "file:") {
             const localPage = parsedUrl.pathname.toLowerCase();
-            if (localPage.endsWith("/help.html")) return "Aide";
-            if (localPage.endsWith("/home.html")) return "Accueil";
-            if (localPage.endsWith("/welcome.html")) return "Bienvenue";
+            if (localPage.endsWith("/help.html")) return translateUi("help.title");
+            if (localPage.endsWith("/home.html")) return document.documentElement.lang === "en" ? "Home" : "Accueil";
+            if (localPage.endsWith("/welcome.html")) return translateUi("welcome.title");
         }
         const searchQuery = isSearchResultsUrl(url)
             ? getSearchQueryFromUrl(url, fallbackQuery)
             : null;
-        if (searchQuery !== null) return `${searchQuery} - Recherche ${applicationTitle}`;
+        if (searchQuery !== null) return `${searchQuery} - ${translateUi("ui.searchLabel")} ${applicationTitle}`;
 
         if (parsedUrl.hostname === "129.151.254.175") {
-            return `Moteur de recherche ${applicationTitle}`;
+            return `${translateUi("ui.searchEngine")} ${applicationTitle}`;
         }
 
         // Comportement normal pour les autres sites (ex: github.com)
@@ -1241,7 +1250,7 @@ function attachUrlHandler(panelId) {
                 window.api.navigate(panelId, valeureSaisie);
                 input.blur();
                 if (isSearchQuery) {
-                    input.value = `${valeureSaisie} - Recherche ${applicationTitle}`;
+                    input.value = `${valeureSaisie} - ${translateUi("ui.searchLabel")} ${applicationTitle}`;
                 }
             }
         }
@@ -1410,9 +1419,7 @@ function updateAdblockButtons() {
         button.style.background = isExcepted
             ? (applicationDarkMode ? "#16351f" : "#dcfce7")
             : "transparent";
-        button.title = isExcepted
-            ? `Réactiver le bloqueur sur ${host}`
-            : `Désactiver le bloqueur sur ${host}`;
+        button.title = translateUi(isExcepted ? "adblock.reenable" : "adblock.disable", { host });
         button.setAttribute("aria-label", button.title);
     });
 }
@@ -1428,8 +1435,8 @@ function updateReaderModeButtons() {
         button.style.color = active ? "#ffffff" : (isToolbarButton ? "#cfcfcf" : (applicationDarkMode ? "#cfcfcf" : "#475569"));
         button.style.borderColor = active ? "#93c5fd" : (isToolbarButton ? "#3c3c3c" : "transparent");
         button.title = active
-            ? "Mode lecture activé — cliquer pour revenir à la page"
-            : "Mode lecture désactivé — cliquer pour lire sans distractions";
+            ? translateUi("reader.enabled")
+            : translateUi("reader.disabled");
     };
 
     currentPanels.forEach((panel) => {
@@ -1458,8 +1465,8 @@ window.api.adblock?.onExceptionsUpdated((exceptions) => {
 function flashReaderResult(panelId, status) {
     if (status !== "empty" && status !== "unavailable" && status !== "error") return;
     const message = status === "empty"
-        ? "Pas assez de texte à afficher en mode lecture sur cette page"
-        : "Mode lecture indisponible sur cette page";
+        ? translateUi("reader.notEnoughText")
+        : translateUi("reader.unavailablePage");
     [document.getElementById(`reader-${panelId}`), document.getElementById("reader-mode-button")].forEach((button) => {
         if (!button || button.dataset.flashing) return;
         const label = button.textContent;
@@ -1499,7 +1506,7 @@ function rebuildUrlBar(panels) {
         if (panel.isPrivate) tabWrapper.classList.add("private-url-tab");
         if (panel.containerId) {
             tabWrapper.style.borderTop = `3px solid ${panel.containerColor}`;
-            tabWrapper.title = `Conteneur : ${panel.containerLabel}`;
+            tabWrapper.title = translateUi("ui.container", { name: panel.containerLabel });
         }
 
         const isActive = activePanel === panel.id;
@@ -1828,7 +1835,7 @@ addressGroup.appendChild(input);
         starBtn.className = "btn-favori";
         starBtn.id = `star-${panel.id}`;
         starBtn.innerText = "★";
-        starBtn.title = "Ajouter aux favoris";
+        starBtn.title = translateUi("ui.addFavorite");
 
         starBtn.style.cursor = "pointer";
         starBtn.style.fontSize = "14px";
@@ -1866,7 +1873,7 @@ addressGroup.appendChild(input);
         const btnSplit = document.createElement("div");
         btnSplit.className = "btn-split";
         btnSplit.textContent = "+";
-        btnSplit.title = "Scinder ce panneau";
+        btnSplit.title = translateUi("ui.splitTile");
         btnSplit.style.cursor = "pointer";
         btnSplit.style.fontSize = "18px";
         btnSplit.style.fontWeight = "800";
@@ -1891,7 +1898,7 @@ addressGroup.appendChild(input);
         const btnReader = document.createElement("div");
         btnReader.className = "btn-split";
         btnReader.textContent = "👓";
-        btnReader.title = "Mode lecture (nettoie la page pour lire sans distractions)";
+        btnReader.title = translateUi("ui.readerTooltip");
         btnReader.style.cursor = "pointer";
         btnReader.style.fontSize = "14px";
         btnReader.style.display = "flex";
@@ -1957,7 +1964,7 @@ function requestFindInPage(action = "start") {
     lastFindText = text;
     window.api.findInPage(panelId, text, action).catch((error) => {
         console.error("Erreur de recherche dans la page :", error);
-        if (findCount) findCount.textContent = "Erreur";
+        if (findCount) findCount.textContent = translateUi("ui.error");
     });
 }
 
@@ -2029,11 +2036,11 @@ window.api.onFindInPageResult?.((result) => {
 
         const isFullscreen = !!state?.fullscreen;
         fullscreenToggleButton.title = isFullscreen
-            ? "Quitter le plein écran (F11)"
-            : "Activer le plein écran (F11)";
+            ? translateUi("fullscreen.exit")
+            : translateUi("fullscreen.enter");
         fullscreenToggleButton.setAttribute(
             "aria-label",
-            isFullscreen ? "Quitter le plein écran" : "Activer le plein écran"
+            isFullscreen ? translateUi("fullscreen.exitLabel") : translateUi("fullscreen.enterLabel")
         );
     });
 
@@ -2118,7 +2125,7 @@ async function checkFavorisState() {
                 
                 starBtn.innerText = isFavori ? "★" : "☆";
                 starBtn.style.color = isFavori ? "#eab308" : "#6b7280"; 
-                starBtn.title = isFavori ? "Retirer des favoris" : "Ajouter aux favoris";
+                starBtn.title = translateUi(isFavori ? "ui.removeFavorite" : "ui.addFavorite");
             }
         });
     } catch (e) {
@@ -2290,15 +2297,20 @@ window.api.onZoomChanged((maximizedPanelId) => {
         container.classList.add("maximized-mode");
         
         // Mode Zoom actif : On grise et désactive toutes les actions d'agencement et config
+        const zoomDisabledTitles = new Map([
+            [btnPrivate, "toolbar.private"],
+            [btnVertical, "toolbar.splitRight"],
+            [btnHorizontal, "toolbar.splitDown"],
+            [btnSave, "toolbar.saveLayout"],
+            [btnLoad, "toolbar.loadLayout"]
+        ]);
         [btnPrivate, btnVertical, btnHorizontal, btnSave, btnLoad].forEach(btn => {
             if (btn) {
                 btn.disabled = true;
                 btn.style.opacity = "0.4";
                 btn.style.cursor = "not-allowed";
                 // On évite d'accumuler le texte d'avertissement s'il est déjà présent
-                if (!btn.title.includes("(Désactivé")) {
-                    btn.title = btn.title + " (Désactivé en mode Zoom)";
-                }
+                btn.title = `${translateUi(zoomDisabledTitles.get(btn))} ${translateUi("ui.zoomDisabled")}`;
             }
         });
     } else {
@@ -2309,31 +2321,31 @@ window.api.onZoomChanged((maximizedPanelId) => {
             btnPrivate.disabled = false;
             btnPrivate.style.opacity = "1";
             btnPrivate.style.cursor = "pointer";
-            btnPrivate.title = "Ouvrir une tuile privée à droite (Ctrl+Shift+N)";
+            btnPrivate.title = translateUi("toolbar.private");
         }
         if (btnVertical) {
             btnVertical.disabled = false;
             btnVertical.style.opacity = "1";
             btnVertical.style.cursor = "pointer";
-            btnVertical.title = "Scinder à droite (Ctrl+T)";
+            btnVertical.title = translateUi("toolbar.splitRight");
         }
         if (btnHorizontal) {
             btnHorizontal.disabled = false;
             btnHorizontal.style.opacity = "1";
             btnHorizontal.style.cursor = "pointer";
-            btnHorizontal.title = "Scinder vers le bas (Ctrl+H)";
+            btnHorizontal.title = translateUi("toolbar.splitDown");
         }
         if (btnSave) {
             btnSave.disabled = false;
             btnSave.style.opacity = "1";
             btnSave.style.cursor = "pointer";
-            btnSave.title = "Sauver la configuration des panneaux (Ctrl+S)";
+            btnSave.title = translateUi("toolbar.saveLayout");
         }
         if (btnLoad) {
             btnLoad.disabled = false;
             btnLoad.style.opacity = "1";
             btnLoad.style.cursor = "pointer";
-            btnLoad.title = "Charger une configuration des panneaux (Ctrl+O)";
+            btnLoad.title = translateUi("toolbar.loadLayout");
         }
     }
 });
@@ -2348,11 +2360,11 @@ function updateCloseButtonState() {
     if (!selectedPanel) {
         closeBtn.disabled = true;
         closeBtn.style.cursor = "not-allowed";
-        closeBtn.title = "Aucun panneau sélectionné";
+        closeBtn.title = translateUi("panel.noneSelected");
     } else {
         closeBtn.disabled = false;
         closeBtn.style.cursor = "pointer";
-        closeBtn.title = "Fermer le panneau actif";
+        closeBtn.title = translateUi("panel.closeActive");
     }
 }
 
@@ -2388,7 +2400,7 @@ window.api.onDownloadProgress((data) => {
     }
     if (input && document.activeElement !== input) {
         input.value = `${data.percent} % · ${data.filename}`;
-        input.title = `Téléchargement : ${data.filename} (${data.percent} %)`;
+        input.title = translateUi("download.progressTitle", { filename: data.filename, percent: data.percent });
         input.style.color = "#f97316"; 
     }
 });
@@ -2455,7 +2467,7 @@ async function rebuildBookmarksBar() {
         const emptyText = document.createElement("span");
         emptyText.style.color = isDark ? "#6b7280" : "#9ca3af";
         emptyText.style.fontSize = "11px";
-        emptyText.innerText = "Aucun favori (⭐)";
+        emptyText.innerText = translateUi("bookmarks.empty");
         listContainer.appendChild(emptyText);
         return;
     }
@@ -2587,7 +2599,7 @@ const clearHistoryBtn = document.getElementById("clear-history-btn");
 
 if (clearHistoryBtn) {
     clearHistoryBtn.addEventListener("click", async () => {
-        if (confirm("Voulez-vous vraiment effacer tout votre historique ?")) {
+        if (confirm(translateUi("history.confirmClear"))) {
             if (window.api.clearHistory) {
                 await window.api.clearHistory();
                 renderHistory([]);
@@ -2679,7 +2691,7 @@ if (clearFavBtn) {
 
 // À mettre au bas du script dans index.html avec vos autres écouteurs
 document.getElementById("clear-bookmarks-btn")?.addEventListener("click", async () => {
-    if (confirm("Voulez-vous vraiment effacer tous vos favoris ?")) {
+    if (confirm(translateUi("bookmarks.confirmClear"))) {
         if (window.api.clearFavoris) {
             await window.api.clearFavoris();
             // Le rafraîchissement visuel se fera tout seul grâce à l'écouteur onFavorisUpdated déjà en place
@@ -2716,7 +2728,7 @@ function applyAppTheme(isDark) {
 
     if (darkModeBtn) {
         darkModeBtn.innerText = isDark ? "☀️" : "🌙";
-        darkModeBtn.title = isDark ? "Activer le mode clair" : "Activer le mode sombre";
+        darkModeBtn.title = isDark ? translateUi("toolbar.lightMode") : translateUi("toolbar.darkMode");
     }
 
     rebuildUrlBar(currentPanels);
@@ -3027,7 +3039,7 @@ aiInputField.addEventListener("keydown", (e) => {
 // 1. Bouton VERT : Résumer la page (Envoie une consigne fixe)
 document.getElementById("ai-summary-btn").addEventListener("click", () => {
     if (!isAiRequestRunning) {
-        envoyerRequeteIA("Fais-moi un résumé concis des 3 points clés de cet article.", true);
+        envoyerRequeteIA(translateUi("ai.autoSummaryPrompt"), true);
     }
 });
 
@@ -3097,7 +3109,7 @@ function restaurerBoutonVertOrigine() {
         summaryBtn.innerHTML = "Résumer";
         summaryBtn.style.background = "#16a34a"; // Vert d'origine
         summaryBtn.style.color = "white";       // Texte blanc garanti
-        summaryBtn.title = "Résumer la page active";
+            summaryBtn.title = translateUi("ai.summaryActiveTitle");
         summaryBtn.className = "";              // Nettoie les animations
         summaryBtn.style.animation = "none";
         summaryBtn.disabled = false;
@@ -3116,7 +3128,7 @@ window.api.onAiLoadingState((isLoading) => {
             summaryBtn.innerHTML = "🛑 Stop";
             summaryBtn.style.background = "#ef4444"; // Rouge Stop
             summaryBtn.style.color = "white";
-            summaryBtn.title = "Interrompre la génération en cours";
+            summaryBtn.title = translateUi("ai.stopGenerationTitle");
             summaryBtn.style.animation = "none";
         }
     } else if (isLoading) {
@@ -3124,7 +3136,7 @@ window.api.onAiLoadingState((isLoading) => {
             summaryBtn.innerHTML = "Résumer";
             summaryBtn.style.background = "#16a34a";
             summaryBtn.disabled = true;
-            summaryBtn.title = "Disponible après la réponse en cours";
+            summaryBtn.title = translateUi("ai.availableAfterResponse");
         }
     } else {
         restaurerBoutonVertOrigine();
@@ -3159,7 +3171,7 @@ if (summaryBtn) {
             
             try {
                 // Utilisation de la passerelle directe exposée dans votre preload.js (Ligne 128)
-                const promptFixe = "Fais-moi un résumé concis des 3 points clés de cet article.";
+                const promptFixe = translateUi("ai.autoSummaryPrompt");
                 const response = await window.api.nanobrowser.askOllama(promptFixe, undefined, false, true);
                 
                 // Injection du résultat dans le conteneur si la fonction d'affichage globale ne l'a pas fait
@@ -3271,7 +3283,7 @@ window.api.onTriggerAiAction((data) => {
     if (aiSidebar) aiSidebar.style.right = "0px";
 
     if (data.action === "resume") {
-        envoyerRequeteIA("Fais-moi un résumé concis des 3 points clés de cet article.", true);
+        envoyerRequeteIA(translateUi("ai.autoSummaryPrompt"), true);
     }
     
     if (data.action === "keywords") {
@@ -3378,17 +3390,17 @@ async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = fa
     if (loadingBtn) {
         loadingBtn.disabled = true;
         loadingBtn.classList.add("btn-analyzing");
-        loadingBtn.innerHTML = '<span class="hourglass-anim">⏳</span> Analyse...';
+        loadingBtn.innerHTML = `<span class="hourglass-anim">⏳</span> ${translateUi("ai.analyzeLabel")}`;
     }
     
     // Affiche le message d'attente à l'utilisateur
     const loadingMessage = compareVisiblePanels
-        ? "L'IA analyse les tuiles visibles pour préparer la comparaison..."
+        ? translateUi("ai.loadingComparison")
         : isSummary
-            ? "L'IA analyse le contenu de la tuile active..."
+            ? translateUi("ai.loadingSummary")
             : isQuestion
-                ? "L'IA analyse votre question et prépare une réponse..."
-                : "L'IA analyse le contenu de la tuile active...";
+                ? translateUi("ai.loadingPrompt")
+                : translateUi("ai.loadingSummary");
     aiResponseContainer.innerHTML = `<span style="color: #a1a1aa; font-size: 12px;"><span class="hourglass-anim">⏳</span> ${loadingMessage}</span>`;
     
     console.log("[IHM DIAGNOSTIC] Envoi de la demande d'IA au processus principal pour :", questionUser);
@@ -3403,9 +3415,9 @@ async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = fa
             aiResponseContainer.innerHTML = `
                 <div style="line-height: 1.6; text-align: left;">
                 <div class="ai-alert-badge" style="display: flex; flex-direction: row; align-items: center; justify-content: center; height: 38px; line-height: 38px; margin-bottom: 16px; border-radius: 6px; font-weight: 600; font-size: 12.5px; box-sizing: border-box; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #f87171;">
-                    <span style="display: inline-flex; align-items: center; justify-content: center; height: 100%; line-height: 1;">⚠️ Action impossible</span>
+                    <span style="display: inline-flex; align-items: center; justify-content: center; height: 100%; line-height: 1;">${translateUi("ai.actionUnavailable")}</span>
                 </div>
-                <span style="font-size: 12px;">Veuillez d'abord activer une tuile web avant de lancer l'analyse.</span>
+                <span style="font-size: 12px;">${translateUi("ai.activateTileLong")}</span>
                 </div>
             `;
             return;
@@ -3422,7 +3434,7 @@ async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = fa
         } catch (error) {
             console.error("Erreur IHM Assistant :", error);
             if (aiResponseContainer) {
-                aiResponseContainer.innerHTML = `<span style="color: #f87171; font-size: 12px;">❌ Impossible de joindre le pont IPC (${error.message})</span>`;
+                aiResponseContainer.innerHTML = `<span style="color: #f87171; font-size: 12px;">${translateUi("ai.bridgeError", { error: error.message })}</span>`;
             }
         } finally {
             if (loadingBtn) {
@@ -3432,6 +3444,19 @@ async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = fa
             }
         }
 }
+window.api.onLanguageChanged((language) => {
+    document.documentElement.lang = language;
+    setTimeout(() => {
+        rebuildUrlBar(currentPanels);
+        updateAutoSleepToggle(autoSleepUiEnabled);
+        updateReaderModeButtons();
+        updateAdblockButtons();
+        updateCloseButtonState();
+        void rebuildBookmarksBar();
+        void checkFavorisState();
+        window.api.getHistory().then(renderHistory).catch(() => {});
+    }, 0);
+});
 
 </script>
 

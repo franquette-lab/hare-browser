@@ -8,6 +8,9 @@ contextBridge.exposeInMainWorld(
     'historyApi',
     {
 
+        getLanguage: () => ipcRenderer.invoke('get-language'),
+        onLanguageChanged: (callback) => ipcRenderer.on('language-changed', (_event, language) => callback(language)),
+
 
         onRenderHistory: (callback) => {
  //         console.log("PRELOAD : écoute render-history");

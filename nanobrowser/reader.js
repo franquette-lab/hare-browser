@@ -134,16 +134,21 @@
     bar.className = "bar";
     var site = document.createElement("span");
     site.className = "site";
-    site.textContent = "Mode lecture \u00b7 " + location.hostname;
     var smaller = document.createElement("button");
-    smaller.textContent = "A\u2212";
-    smaller.title = "Texte plus petit";
     var larger = document.createElement("button");
-    larger.textContent = "A+";
-    larger.title = "Texte plus grand";
     var close = document.createElement("button");
+    function applyReaderLanguage(strings) {
+        strings = strings || window.__hareReaderStrings || {};
+        site.textContent = (strings.title || "Mode lecture") + " · " + location.hostname;
+        smaller.title = strings.smaller || "Texte plus petit";
+        larger.title = strings.larger || "Texte plus grand";
+        close.title = strings.close || "Quitter le mode lecture";
+    }
+    applyReaderLanguage();
+    document.addEventListener("hare-language-changed", function () { applyReaderLanguage(); });
+    smaller.textContent = "A\u2212";
+    larger.textContent = "A+";
     close.textContent = "\u2715";
-    close.title = "Quitter le mode lecture";
     bar.append(site, smaller, larger, close);
 
     var page = document.createElement("div");

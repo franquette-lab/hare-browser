@@ -26,6 +26,7 @@ const os = require("os");
 const path = require("path");
 const https = require("https");
 const { spawn } = require("child_process");
+const HareI18n = require("./i18n.js");
 
 let ollamaProcess = null;
 
@@ -35,6 +36,25 @@ const OLLAMA_BUNDLE_DIR = app.isPackaged
     : path.join(__dirname, "ollama-bundle");
 
 const DEFAULT_OLLAMA_MODEL = "qwen2.5:1.5b";
+let currentLanguage = "fr";
+let applicationMenuTemplate = null;
+
+function tr(id, replacements = {}) {
+    return HareI18n.t(id, currentLanguage, replacements);
+}
+
+function translateMenuTemplate(items) {
+    return items.map((item) => ({
+        ...item,
+        ...(item.label ? { label: HareI18n.translateText(item.label, currentLanguage) } : {}),
+        ...(item.submenu ? { submenu: translateMenuTemplate(item.submenu) } : {})
+    }));
+}
+
+function rebuildApplicationMenu() {
+    if (!win || win.isDestroyed() || !applicationMenuTemplate) return;
+    win.setMenu(Menu.buildFromTemplate(translateMenuTemplate(applicationMenuTemplate)));
+}
 
 function getOllamaExePath() {
 
@@ -338,6 +358,16 @@ function isValidContainerId(containerId) {
     return typeof containerId === "string" && Object.prototype.hasOwnProperty.call(TILE_CONTAINERS, containerId);
 }
 
+function getContainerLabel(containerId) {
+    const translationKey = {
+        perso: "container.personal",
+        travail: "container.work",
+        compte2: "container.account2",
+        compte3: "container.account3"
+    }[containerId];
+    return translationKey ? tr(translationKey) : "";
+}
+
 function getContainerSession(containerId) {
     const containerSession = session.fromPartition(`persist:container_${containerId}`);
     if (!configuredContainerSessions.has(containerId)) {
@@ -430,6 +460,75 @@ function getAdBlockExceptionsPath() {
 
 function getThemePath() {
     return path.join(appDataPath, 'theme.json');
+}
+
+function getLanguagePath() {
+    return path.join(appDataPath, 'language.json');
+}
+
+function loadLanguagePreference() {
+    try {
+        const saved = JSON.parse(fs.readFileSync(getLanguagePath(), 'utf8'));
+        currentLanguage = HareI18n.normalizeLanguage(saved.language);
+    } catch (error) {
+        currentLanguage = 'fr';
+        if (error.code !== 'ENOENT') console.error('Impossible de lire la langue préférée :', error);
+    }
+    return currentLanguage;
+}
+
+async function saveLanguagePreference(language) {
+    currentLanguage = HareI18n.normalizeLanguage(language);
+    await safeWriteJsonAsync(getLanguagePath(), { language: currentLanguage });
+    rebuildApplicationMenu();
+    if (win && !win.isDestroyed()) win.webContents.send('language-changed', currentLanguage);
+    if (rootNode) {
+        collectPanelNodes(rootNode).forEach((panel) => {
+            const contents = panel.view?.webContents;
+            if (contents && !contents.isDestroyed()) contents.send('language-changed', currentLanguage);
+        });
+    }
+    for (const secondaryWindow of [historyWindow, downloadsWindow, pwdWindow, settingsWindow]) {
+        if (secondaryWindow && !secondaryWindow.isDestroyed()) {
+            secondaryWindow.webContents.send('language-changed', currentLanguage);
+        }
+    }
+    if (historyWindow && !historyWindow.isDestroyed()) historyWindow.setTitle(tr("history.title"));
+    if (downloadsWindow && !downloadsWindow.isDestroyed()) downloadsWindow.setTitle(tr("downloads.title").replace(/^⬇️\s*/, ""));
+    if (pwdWindow && !pwdWindow.isDestroyed()) pwdWindow.setTitle(tr("passwords.title").replace(/^🔑\s*/, ""));
+    if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.setTitle(tr("app.settings.title"));
+    if (rootNode) {
+        Object.entries(handleViews).forEach(([panelId, handleView]) => {
+            try { if (win && !win.isDestroyed()) win.removeBrowserView(handleView); } catch {}
+            if (handleView.webContents && !handleView.webContents.isDestroyed()) {
+                try { handleView.webContents.destroy(); } catch {}
+            }
+            delete handleViews[panelId];
+        });
+        updatePanelHandles();
+        for (const panel of collectPanelNodes(rootNode)) {
+            if (panel.isSleeping && panel.view && !panel.view.webContents.isDestroyed()) {
+                const sleepingStrings = {
+                    title: tr("sleep.title"),
+                    body: tr("sleep.body")
+                };
+                panel.view.webContents.executeJavaScript(
+                    `document.querySelector('main strong').textContent = ${JSON.stringify(sleepingStrings.title)}; document.querySelector('main small').textContent = ${JSON.stringify(sleepingStrings.body)}; document.documentElement.lang = ${JSON.stringify(currentLanguage)};`
+                ).catch(() => {});
+            }
+            if (!panel.readerModeActive || !panel.view || panel.view.webContents.isDestroyed()) continue;
+            const strings = {
+                title: tr("reader.title"),
+                smaller: tr("reader.smaller"),
+                larger: tr("reader.larger"),
+                close: tr("reader.close")
+            };
+            panel.view.webContents.executeJavaScript(
+                `window.__hareReaderStrings = ${JSON.stringify(strings)}; document.dispatchEvent(new CustomEvent('hare-language-changed'));`
+            ).catch(() => {});
+        }
+    }
+    return currentLanguage;
 }
 
 function getAutoSleepPath() {
@@ -537,12 +636,11 @@ async function ensureOllamaInstalled() {
 
     const result = await dialog.showMessageBox({
         type: "question",
-        title: "Assistant IA",
-        message:
-            "Cette fonctionnalité nécessite l'assistant IA local.",
+        title: tr("dialog.installAi.title"),
+        message: tr("dialog.installAi.message"),
         buttons: [
-            "Installer",
-            "Plus tard"
+            tr("dialog.install"),
+            tr("dialog.later")
         ],
         defaultId: 0,
         cancelId: 1
@@ -608,7 +706,49 @@ function setAiSidebarVisible(visible) {
 }
 
 let pwdWindow = null;
+let settingsWindow = null;
 const findInPageRequests = new Map();
+
+ipcMain.on("open-settings-window", (event) => {
+    if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
+    if (settingsWindow && !settingsWindow.isDestroyed()) {
+        settingsWindow.focus();
+        return;
+    }
+
+    settingsWindow = new BrowserWindow({
+        width: 460,
+        height: 300,
+        minWidth: 380,
+        minHeight: 260,
+        title: tr("app.settings.title"),
+        parent: win,
+        modal: true,
+        show: false,
+        resizable: false,
+        autoHideMenuBar: true,
+        backgroundColor: isDarkModeForced ? "#252526" : "#f9fafb",
+        webPreferences: {
+            preload: path.join(__dirname, "preload-settings.js"),
+            sandbox: true,
+            contextIsolation: true,
+            nodeIntegration: false
+        }
+    });
+
+    settingsWindow.setMenu(null);
+    settingsWindow.loadFile(path.join(__dirname, "settings.html"));
+    settingsWindow.once("ready-to-show", () => {
+        if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.show();
+    });
+    settingsWindow.on("closed", () => { settingsWindow = null; });
+});
+
+ipcMain.on("close-settings-window", (event) => {
+    if (settingsWindow && !settingsWindow.isDestroyed() && event.sender === settingsWindow.webContents) {
+        settingsWindow.close();
+    }
+});
 
 function setNormalToolbarHeight(height) {
     normalToolbarHeight = height;
@@ -664,19 +804,19 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
 
     const menuTemplate = [
         {
-            label: "✏️ Édition",
+            label: tr("context.edit"),
             enabled: false
         },
-        { role: "cut", label: "   ✂️ Couper" },
-        { role: "copy", label: "   📋 Copier" },
-        { role: "paste", label: "   📌 Coller" },
-        { role: "delete", label: "   🗑️ Supprimer" },
+        { role: "cut", label: `   ✂️ ${tr("context.cut")}` },
+        { role: "copy", label: `   📋 ${tr("context.copy")}` },
+        { role: "paste", label: `   📌 ${tr("context.paste")}` },
+        { role: "delete", label: `   🗑️ ${tr("context.delete")}` },
         { type: "separator" },
-        { role: "selectAll", label: "   Sélectionner tout" },
+        { role: "selectAll", label: `   ${tr("context.selectAll")}` },
         ...(currentSiteHost ? [
             { type: "separator" },
             {
-                label: `   🛡️ ${siteHasAdBlockException ? "Réactiver" : "Désactiver"} le bloqueur sur ${currentSiteHost}`,
+                label: `   🛡️ ${tr(siteHasAdBlockException ? "context.reenableBlocker" : "context.disableBlocker")} ${currentLanguage === "fr" ? "le bloqueur sur" : "the blocker on"} ${currentSiteHost}`,
                 click: async () => {
                     await toggleAdBlockException(currentSiteHost);
                     const panelToReload = findPanelNode(rootNode, panelId);
@@ -694,12 +834,12 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
         { type: "separator" },
 
         {
-            label: "   ✂️ Scinder verticalement (Ctrl+T)",
+            label: `   ${tr("context.splitVertical")}`,
             enabled: !isZoomActive, // Grisé si zoom actif
             click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', false)
         },
         {
-            label: "   ⚍ Scinder horizontalement (Ctrl+H)",
+            label: `   ${tr("context.splitHorizontal")}`,
             enabled: !isZoomActive, // Grisé si zoom actif
             click: () => ipcMain.emit('split-panel', null, panelId, 'horizontal', false)
         },
@@ -709,22 +849,22 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
 
 
         {
-            label: isPrivate ? "   🕵️ Ouvrir une tuile publique classique" : "   🕵️ Scinder en Navigation Privée (Ctrl+Shift+N)",
+            label: `   ${tr(isPrivate ? "context.publicTile" : "context.privateSplit")}`,
             enabled: !isZoomActive,
             click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', !isPrivate)
         },
         {
-            label: "   🗂️ Scinder dans un conteneur isolé (comptes multiples)",
+            label: `   ${tr("context.containers")}`,
             enabled: !isZoomActive && !isPrivate,
             submenu: Object.entries(TILE_CONTAINERS).map(([id, container]) => ({
-                label: container.label,
+                label: tr(`container.${id === "perso" ? "personal" : id === "travail" ? "work" : id === "compte2" ? "account2" : "account3"}`),
                 click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', false, id)
             }))
         },
         
         // === AJOUT : DUPLICATION DE TUILE À LA VOLÉE ===
         {
-            label: "   📋 Dupliquer cette tuile (Ctrl+Shift+D)",
+            label: `   ${tr("context.duplicate")}`,
             enabled: !isZoomActive,
             click: () => {
                 if (webContents && !webContents.isDestroyed()) {
@@ -742,9 +882,9 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
         // ✨ VERSION CORRIGÉE : ÉVITE LE CRASH IPC EN MODIFIANT DIRECTEMENT L'ÉTAT
         // =========================================================================
         {
-            label: autoSleepEnabled 
-                ? "   💤 Désactiver la veille automatique (15 min)" 
-                : "   💤 Activer la veille automatique (15 min)",
+            label: autoSleepEnabled
+                ? `   💤 ${currentLanguage === "fr" ? "Désactiver la veille automatique (15 min)" : "Disable automatic sleep (15 min)"}`
+                : `   💤 ${currentLanguage === "fr" ? "Activer la veille automatique (15 min)" : "Enable automatic sleep (15 min)"}`,
             type: "checkbox",
             checked: autoSleepEnabled,
             click: () => {
@@ -776,7 +916,7 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
 
 
         {
-            label: "   📐 Égaliser les dimensions des tuiles (Ctrl+Shift+R)",
+            label: `   ${tr("main.menuMosaicEqual")}`,
             // Calcul direct et sécurisé : désactivé si zoom actif OU s'il y a 1 tuile ou moins
             enabled: !(maximizedPanelId !== null || collectPanelNodes(rootNode).length <= 1),
             click: () => {
@@ -790,12 +930,12 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
 
         { type: "separator" },
         {
-            label: `✨ Actions IA (Assistant)`,
+            label: tr("context.ai"),
             enabled: false
         },
 
         {
-            label: "📝 Résumer cette tuile web",
+            label: tr("context.summarize"),
             click: async () => {
 
                 if (!(await ensureOllamaInstalled())) {
@@ -816,7 +956,7 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
         },
 
         {
-            label: "   🔍 Analyser les mots-clés de la page",
+            label: `   ${tr("context.keywords")}`,
             click: () => {
                 if (win && !win.isDestroyed()) {
                     if (!isAiSidebarVisible) setAiSidebarVisible(true);
@@ -828,7 +968,7 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
 
         { type: "separator" },
         {
-            label: "📌 Gestion du panneau",
+            label: tr("context.panel"),
             enabled: false
         },
 
@@ -836,7 +976,7 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
 
 
         {
-            label: maximizedPanelId === panelId ? "   🗗 Restaurer la taille de la mosaïque (Échap)" : "    🗖 Maximiser cette tuile (Ctrl+M)",
+            label: maximizedPanelId === panelId ? `   ${tr("panel.restoreMosaic")}` : `    ${tr("panel.maximize")}`,
             click: () => {
                 maximizedPanelId = maximizedPanelId === panelId ? null : panelId;
                 forceRebuildSplitters = true;
@@ -846,26 +986,26 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
             }
         },
         {
-            label: "   👓 Mode lecture",
+            label: `   ${tr("context.reader")}`,
             click: async () => {
                 const status = await toggleReaderModeForPanel(panelId);
                 if (win && !win.isDestroyed()) win.webContents.send('reader-mode-result', { panelId, status });
             }
         },
         {
-            label: "   🖨️ Imprimer le contenu de la page (Ctrl+P)",
+            label: `   ${tr("context.print")}`,
             click: () => ipcMain.emit('print-panel', null, panelId)
         },
 
         { type: "separator" },
 
         {
-            label: "   ❌ Fermer cette tuile (Ctrl+W)",
+            label: `   ${tr("context.close")}`,
             click: () => ipcMain.emit('close-panel', null, panelId)
         }
     ];
 
-    const contextMenu = Menu.buildFromTemplate(menuTemplate);
+    const contextMenu = Menu.buildFromTemplate(translateMenuTemplate(menuTemplate));
     contextMenu.popup({ window: win, x, y });
 }
 
@@ -1202,7 +1342,7 @@ ipcMain.on("open-password-manager-window", () => {
     pwdWindow = new BrowserWindow({
         width: 350,
         height: 420,
-        title: "Gestionnaire de mots de passe",
+        title: tr("passwords.title").replace(/^🔑\s*/, ""),
         backgroundColor: isDarkModeForced ? "#2d2d30" : "#ffffff",
         autoHideMenuBar: true,
         alwaysOnTop: true,
@@ -1446,7 +1586,13 @@ async function toggleReaderModeForPanel(panelId) {
         const protocol = new URL(contents.getURL()).protocol;
         if (protocol !== 'http:' && protocol !== 'https:' && protocol !== 'file:') return 'unavailable';
         const script = await fsPromises.readFile(path.join(__dirname, 'nanobrowser', 'reader.js'), 'utf8');
-        const status = await contents.executeJavaScript(`window.__hareReaderDark = ${isDarkModeForced};\n${script}`);
+        const readerStrings = {
+            title: tr("reader.title"),
+            smaller: tr("reader.smaller"),
+            larger: tr("reader.larger"),
+            close: tr("reader.close")
+        };
+        const status = await contents.executeJavaScript(`window.__hareReaderDark = ${isDarkModeForced}; window.__hareReaderStrings = ${JSON.stringify(readerStrings)};\n${script}`);
         if (status === 'opened' || status === 'closed') {
             setReaderModeState(panel, status === 'opened');
         }
@@ -1484,7 +1630,7 @@ ipcMain.on('open-downloads-window', () => {
     downloadsWindow = new BrowserWindow({
         width: 520,
         height: 560,
-        title: 'Téléchargements',
+        title: tr('downloads.title').replace(/^⬇️\s*/, ''),
         backgroundColor: isDarkModeForced ? '#1e1e1e' : '#f9fafb',
         autoHideMenuBar: true,
         webPreferences: {
@@ -1623,12 +1769,14 @@ function registerDownloadHandler(session) {
                     if (dangerousExtensions.includes(ext)) {
                         dialog.showMessageBox(win, {
                             type: 'warning',
-                            buttons: ['Exécuter le fichier', 'Annuler'],
+                            buttons: [tr('dialog.runFile'), tr('dialog.cancel')],
                             defaultId: 1,
                             cancelId: 1,
-                            title: 'Alerte de sécurité',
-                            message: `Téléchargement terminé : ${filename}`,
-                            detail: "Ce type de fichier peut contenir des virus. Voulez-vous l'exécuter ?"
+                            title: tr('dialog.security'),
+                            message: tr("dialog.downloadComplete", { filename }),
+                            detail: currentLanguage === 'fr'
+                                ? "Ce type de fichier peut contenir des virus. Voulez-vous l'exécuter ?"
+                                : "This file type may contain viruses. Do you want to run it?"
                         }).then((response) => {
                             if (response.response === 0) {
                                 shell.openPath(finalPath).catch((e) => console.error(e));
@@ -1916,10 +2064,10 @@ function updatePanelHandles() {
             </head>
             <body>
             <div id="container" class="${containerClass}">
-                <div id="drag-btn" class="btn" title="Glisser pour déplacer">&#9776;</div>
-                <div id="zoom-btn" class="btn action" title="${isMaximized ? 'Restaurer la taille' : 'Agrandir'}">${isMaximized ? '&#128471;' : '&#128470;'}</div>
-                <div id="fullscreen-btn" class="btn action" title="Détacher">&#8599;</div>
-                <div id="close-btn" class="btn action" title="Fermer">&#10006;</div>
+                <div id="drag-btn" class="btn" title="${tr("panel.drag")}">&#9776;</div>
+                <div id="zoom-btn" class="btn action" title="${tr(isMaximized ? "panel.restore" : "panel.enlarge")}">${isMaximized ? '&#128471;' : '&#128470;'}</div>
+                <div id="fullscreen-btn" class="btn action" title="${tr("panel.detach")}">&#8599;</div>
+                <div id="close-btn" class="btn action" title="${tr("panel.close")}">&#10006;</div>
             </div>
             <script>
                 let dragging = false;
@@ -2405,14 +2553,14 @@ function sleepPanel(panel) {
     // 🌟 CORRECTIF THÈME : Déterminer dynamiquement la classe de thème active à injecter
     const currentThemeClass = isDarkModeForced ? "mw-theme-client-dark" : "mw-theme-client-light";
 
-    const sleepingHtml = `<!doctype html><html lang="fr" class="${currentThemeClass}"><meta charset="utf-8"><title>Tuile en veille</title>
+    const sleepingHtml = `<!doctype html><html lang="${currentLanguage}" class="${currentThemeClass}"><meta charset="utf-8"><title>${tr("sleep.title")}</title>
         <style>
         html,body{height:100%;margin:0}
         body{display:grid;place-items:center;background:#f3f4f6;color:#374151;font:15px 'Segoe UI',sans-serif}
         html.mw-theme-client-dark body{background:#1e1e1e;color:#cfcfcf}
         main{text-align:center;padding:24px}strong{display:block;margin-bottom:8px}small{color:#6b7280}
         </style>
-        <body><main><strong>Cette tuile est en veille</strong><small>Cliquez ici pour recharger la page</small></main></body></html>`;
+        <body><main><strong>${tr("sleep.title")}</strong><small>${tr("sleep.body")}</small></main></body></html>`;
         
     placeholder.webContents.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(sleepingHtml));
 
@@ -2507,7 +2655,7 @@ function collectPanels(node, panels = []) {
             // ✨ CRUCIAL : Assure la transmission exacte du mode privé pour la liste supérieure
             isPrivate: node.isPrivate === true, 
             containerId: node.containerId || null,
-            containerLabel: node.containerId ? TILE_CONTAINERS[node.containerId].label : "",
+            containerLabel: node.containerId ? getContainerLabel(node.containerId) : "",
             containerColor: node.containerId ? TILE_CONTAINERS[node.containerId].color : "",
             searchQuery: node.searchQuery || "",
             readerModeActive: node.readerModeActive === true
@@ -2843,10 +2991,10 @@ function setupNavigationTracking(panel) {
 
                             const options = {
                                 type: "question",
-                                title: "Choisir un compte",
-                                message: `Plusieurs identifiants sont enregistrés pour ${hostname}.`,
-                                detail: "Sélectionnez le compte à remplir dans le formulaire.",
-                                buttons,
+                                title: tr("dialog.account.title"),
+                                message: tr("dialog.account.message", { hostname }),
+                                detail: tr("dialog.account.detail"),
+                                buttons: [...buttons.slice(0, -1), tr("dialog.cancel")],
                                 defaultId: 0,
                                 cancelId: matches.length,
                                 noLink: true
@@ -3035,10 +3183,10 @@ panel.view.webContents.on("focus", () => {
             <body>
                 <div class="container">
                     <div class="icon">🌐</div>
-                    <h1>Impossible d'accéder au site</h1>
-                    <p>Une erreur réseau est survenue (<span style="color:#ef4444;">${errorDescription}</span>). Vérifiez votre connexion Internet ou l'adresse saisie.</p>
-                    <p>Adresse ciblée : <br><span class="url">${validatedURL}</span></p>
-                    <button class="btn-retry" onclick="window.location.reload()">Réessayer</button>
+                    <h1>${tr("network.error.title")}</h1>
+                    <p>${tr("network.error.description", { error: errorDescription })}</p>
+                    <p>${tr("network.error.address")}<br><span class="url">${validatedURL}</span></p>
+                    <button class="btn-retry" onclick="window.location.reload()">${tr("network.error.retry")}</button>
                 </div>
             </body>
             </html>
@@ -3212,7 +3360,7 @@ ipcMain.on("equalize-mosaic-request", () => {
 
 
 ipcMain.on("show-url-context-menu", (event) => {
-    const menu = Menu.buildFromTemplate([
+    const menu = Menu.buildFromTemplate(translateMenuTemplate([
 //      { role: "undo", label: "Annuler" },
 //      { role: "redo", label: "Rétablir" },
 //      { type: "separator" },
@@ -3222,7 +3370,7 @@ ipcMain.on("show-url-context-menu", (event) => {
         { role: "delete", label: "Supprimer" },
         { type: "separator" },
         { role: "selectAll", label: "Tout sélectionner" }
-    ]);
+    ]));
 
     menu.popup({
         window: BrowserWindow.fromWebContents(event.sender)
@@ -3640,7 +3788,7 @@ ipcMain.on("open-history-window", () => {
     historyWindow = new BrowserWindow({
         width: 450,
         height: 600,
-        title: "Historique de navigation",
+        title: tr("history.title"),
         backgroundColor: isDarkModeForced ? "#1e1e1e" : "#f9fafb",
         autoHideMenuBar: true,
         alwaysOnTop: true,
@@ -3904,7 +4052,7 @@ ipcMain.on("show-container-menu", (event, panelId) => {
     if (!panel || panel.isPrivate || maximizedPanelId !== null) return;
 
     Menu.buildFromTemplate(Object.entries(TILE_CONTAINERS).map(([id, container]) => ({
-        label: container.label,
+        label: getContainerLabel(id),
         click: () => ipcMain.emit("split-panel", null, panelId, "vertical", false, id)
     }))).popup({ window: win });
 });
@@ -3975,14 +4123,23 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false, contain
     // Au lieu de lire une variable globale, on demande directement à Electron son état réel
     const isDark = isDarkModeForced;
     const themeClass = isDark ? "mw-theme-client-dark" : "mw-theme-client-light";
+    const privateTranslationKeys = [
+        "ui.privateLabel", "private.title", "private.body", "private.hidden", "private.visible",
+        "private.listHistory", "private.listCookies", "private.listForms", "private.listCache",
+        "private.visibleSites", "private.visibleAdmin", "private.visibleIsp", "private.search"
+    ];
+    const privateLocaleStrings = Object.fromEntries(privateTranslationKeys.map((key) => [
+        key,
+        { fr: HareI18n.t(key, "fr"), en: HareI18n.t(key, "en") }
+    ]));
 
     // 1. Définition du code HTML / CSS de la page d'accueil privée mis à jour dynamiquement
     const incognitoHomeHtml = `
         <!DOCTYPE html>
-        <html lang="fr" class="${themeClass}">
+        <html lang="${currentLanguage}" class="${themeClass}">
         <head>
             <meta charset="utf-8">
-            <title>Navigation Privée</title>
+            <title id="private-page-title">${tr("ui.privateLabel")}</title>
             <style>
                 /* CONFIGURATION DE LA GÉOMÉTRIE (Élimine l'air en bas) */
                 html, body {
@@ -4100,34 +4257,54 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false, contain
         <body>
             <div class="container">
                 <div class="icon">🕵️</div>
-                <h1>Vous êtes en navigation privée</h1>
-                <p>Désormais, les pages que vous consultez dans cette tuile ne seront pas mémorisées dans l'historique et vos cookies seront détruits à la fermeture du panneau.</p>
+                <h1 id="private-title">${tr("private.title")}</h1>
+                <p id="private-body">${tr("private.body")}</p>
                 
                 <div class="lists-container">
                     <div class="list-box secure">
-                        <h3>🔒 Ce qui est masqué</h3>
+                        <h3 id="private-hidden">${tr("private.hidden")}</h3>
                         <ul>
-                            <li>Historique de navigation locale</li>
-                            <li>Cookies et données de session</li>
-                            <li>Saisies dans les formulaires</li>
-                            <li>Mémoire cache détruite à la fermeture</li>
+                            <li id="private-list-history">${tr("private.listHistory")}</li>
+                            <li id="private-list-cookies">${tr("private.listCookies")}</li>
+                            <li id="private-list-forms">${tr("private.listForms")}</li>
+                            <li id="private-list-cache">${tr("private.listCache")}</li>
                         </ul>
                     </div>
                     <div class="list-box warn">
-                        <h3>⚠️ Visible malgré tout</h3>
+                        <h3 id="private-visible">${tr("private.visible")}</h3>
                         <ul>
-                            <li>Les sites web visités eux-mêmes</li>
-                            <li>Votre administrateur réseau (école/travail)</li>
-                            <li>Votre fournisseur d'accès internet</li>
+                            <li id="private-visible-sites">${tr("private.visibleSites")}</li>
+                            <li id="private-visible-admin">${tr("private.visibleAdmin")}</li>
+                            <li id="private-visible-isp">${tr("private.visibleIsp")}</li>
                         </ul>
                     </div>
                 </div>
 
                 <!-- Redirection vers votre IP locale au clic -->
-                <button class="btn-search" onclick="window.location.href='http://129.151.254.175:8080'">
-                    Ouvrir le moteur de recherche privé
+                <button id="private-search" class="btn-search" onclick="window.location.href='http://129.151.254.175:8080'">
+                    ${tr("private.search")}
                 </button>
             </div>
+            <script>
+                const privateLocaleStrings = ${JSON.stringify(privateLocaleStrings)};
+                const privateElements = {
+                    "ui.privateLabel": "private-page-title", "private.title": "private-title", "private.body": "private-body",
+                    "private.hidden": "private-hidden", "private.visible": "private-visible", "private.listHistory": "private-list-history",
+                    "private.listCookies": "private-list-cookies", "private.listForms": "private-list-forms", "private.listCache": "private-list-cache",
+                    "private.visibleSites": "private-visible-sites", "private.visibleAdmin": "private-visible-admin",
+                    "private.visibleIsp": "private-visible-isp", "private.search": "private-search"
+                };
+                function applyPrivateLanguage(language) {
+                    const locale = language === "en" ? "en" : "fr";
+                    document.documentElement.lang = locale;
+                    Object.entries(privateElements).forEach(([key, elementId]) => {
+                        const element = document.getElementById(elementId);
+                        if (element) element.textContent = privateLocaleStrings[key][locale];
+                    });
+                }
+                window.tileLanguage?.get().then(applyPrivateLanguage).catch(() => {});
+                window.tileLanguage?.onChanged(applyPrivateLanguage);
+            </script>
         </body>
         </html>
     `;
@@ -4240,6 +4417,8 @@ async function createDefaultLayout() {
 async function createWindow() {
 
 
+    loadLanguagePreference();
+
         await fsPromises.mkdir(appDataPath, { recursive: true }); //
     
     // Récupération des préférences de thème
@@ -4263,7 +4442,7 @@ async function createWindow() {
         }
     });
     
-    splash.loadFile('splash.html');
+    splash.loadFile('splash.html', { query: { language: currentLanguage } });
 
     // ==========================================================
     // ✨ STEP 2 : INITIALISATION DE LA FENÊTRE PRINCIPALE CACHÉE
@@ -4356,9 +4535,9 @@ async function createWindow() {
                         if (!rootNode) return;
                         const snapshot = createSnapshot(rootNode);
                         const { filePath } = await dialog.showSaveDialog(win, {
-                            title: "Sauvegarder la configuration des panneaux",
+                            title: tr("main.saveLayout"),
                             defaultPath: path.join(app.getPath('documents'), 'hare-browser-layout.json'),
-                            filters: [{ name: 'Fichiers Configuration (*.json)', extensions: ['json'] }]
+                            filters: [{ name: tr('dialog.configFiles'), extensions: ['json'] }]
                         });
                         if (filePath) {
                             try {
@@ -4454,10 +4633,10 @@ async function createWindow() {
                     accelerator: 'CmdOrCtrl+O',
                     click: async () => {
                         const { filePaths } = await dialog.showOpenDialog(win, {
-                            title: "Charger une configuration de panneaux",
+                            title: tr("main.loadLayout"),
                             defaultPath: app.getPath('documents'),
                             properties: ['openFile'],
-                            filters: [{ name: 'Fichiers Configuration (*.json)', extensions: ['json'] }]
+                            filters: [{ name: tr('dialog.configFiles'), extensions: ['json'] }]
                         });
 
                         if (filePaths && filePaths.length > 0) {
@@ -4524,7 +4703,7 @@ async function createWindow() {
 //                              console.log("Configuration chargée via raccourci.");
                             } catch (error) {
                                 console.error("Erreur raccourci chargement :", error);
-                                dialog.showErrorBox("Erreur de chargement", "Le fichier sélectionné est corrompu ou malformé.");
+                                dialog.showErrorBox(tr("dialog.loadError"), tr("dialog.corruptFile"));
                             }
                         }
                     }
@@ -4752,12 +4931,12 @@ async function createWindow() {
                     click: () => {
                         const response = dialog.showMessageBoxSync(win, {
                             type: 'question',
-                            buttons: ['Oui, quitter', 'Annuler'],
+                            buttons: [tr('dialog.quit'), tr('dialog.cancel')],
                             defaultId: 1,
                             cancelId: 1,
-                            title: 'Confirmation',
-                            message: `Êtes-vous sûr de vouloir fermer ${APP_TITLE} ?`, // === DYNAMIQUE ICI ===
-                            detail: 'La disposition sera sauvegardée automatiquement pour la prochaine ouverture.'
+                            title: tr('dialog.confirm'),
+                            message: tr('dialog.quitMessage', { app: APP_TITLE }),
+                            detail: tr('dialog.quitDetail')
                         });
                         if (response === 0) {
                             app.exit(0); 
@@ -4873,7 +5052,8 @@ async function createWindow() {
         }
     ];
 
-    const menu = Menu.buildFromTemplate(template);
+    applicationMenuTemplate = template;
+    const menu = Menu.buildFromTemplate(translateMenuTemplate(template));
     win.setMenu(menu);
     
     // === CORRECTIF VISUEL TOTAL ===
@@ -5055,12 +5235,12 @@ win.on('close', (e) => {
     dialog.showMessageBox(win, {
         type: 'none', // 🌟 TRÈS IMPORTANT : On passe le type à 'none' pour masquer l'icône "i" système
         icon: appIcon, // ✨ ON INJECTE NOTRE ICÔNE PERSONNALISÉE ICI
-        buttons: ['Oui, quitter', 'Annuler'], //
+        buttons: [tr('dialog.quit'), tr('dialog.cancel')], //
         defaultId: 1, //
         cancelId: 1, //
-        title: 'Confirmation', //
-        message: `Êtes-vous sûr de vouloir fermer ${APP_TITLE} ?`, //
-        detail: 'La disposition sera sauvegardée automatiquement pour la prochaine ouverture.' //
+        title: tr('dialog.confirm'), //
+        message: tr('dialog.quitMessage', { app: APP_TITLE }), //
+        detail: tr('dialog.quitDetail') //
     }).then((response) => {
         // Seul l'index 0 ("Oui, quitter") détruit la fenêtre
         if (response.response === 0) {
@@ -5622,10 +5802,10 @@ ipcMain.handle('save-config-to-file', async () => {
     const snapshot = createSnapshot(rootNode);
 
     const { filePath } = await dialog.showSaveDialog(win, {
-        title: "Sauvegarder la configuration des panneaux",
+        title: tr("main.saveLayout"),
         defaultPath: path.join(app.getPath('documents'), 'hare-browser-layout.json'),
         filters: [
-            { name: 'Fichiers Configuration (*.json)', extensions: ['json'] }
+            { name: tr('dialog.configFiles'), extensions: ['json'] }
         ]
     });
 
@@ -5644,11 +5824,11 @@ ipcMain.handle('save-config-to-file', async () => {
 // 2. CHARGER LA CONFIGURATION DEPUIS UN FICHIER
 ipcMain.handle('load-config-from-file', async () => {
     const { filePaths } = await dialog.showOpenDialog(win, {
-        title: "Charger une configuration de panneaux",
+        title: tr("main.loadLayout"),
         defaultPath: app.getPath('documents'),
         properties: ['openFile'],
         filters: [
-            { name: 'Fichiers Configuration (*.json)', extensions: ['json'] }
+            { name: tr('dialog.configFiles'), extensions: ['json'] }
         ]
     });
 
@@ -5729,7 +5909,7 @@ ipcMain.handle('load-config-from-file', async () => {
             return true;
         } catch (error) {
             console.error("Erreur lors de l'import de la configuration :", error);
-            dialog.showErrorBox("Erreur de chargement", "Le fichier sélectionné est corrompu ou malformé.");
+            dialog.showErrorBox(tr("dialog.loadError"), tr("dialog.corruptFile"));
             return false;
         }
     }
@@ -5883,7 +6063,7 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, {
 
     // ✨ 1. AJOUT DU BLOC DE SÉCURITÉ CONTRE LES REQUÊTES VIDES
     if (!prompt || !prompt.trim()) {
-        return "Veuillez saisir une question avant de cliquer sur Poser une question.";
+        return tr("ollama.selectTile");
     }
 
     // ✨ 2. LA CORRECTION : Déclaration explicite de la variable avec 'let' pour éviter le crash
@@ -5900,7 +6080,7 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, {
         const installed = await ensureOllamaInstalled();
 
         if (!installed) {
-            return "Assistant IA non installé.";
+            return tr("ollama.notInstalled");
         }
 
         const modelInstalled =
@@ -5911,21 +6091,19 @@ if (!modelInstalled) {
     const result =
         await dialog.showMessageBox({
             type: "question",
-            title: "Téléchargement du modèle IA",
-            message:
-                `Le modèle "${model}" n'est pas installé.`,
-            detail:
-                "Voulez-vous le télécharger automatiquement maintenant ?",
+            title: tr("dialog.downloadModel.title"),
+            message: tr("dialog.downloadModel.message", { model }),
+            detail: tr("dialog.downloadModel.detail"),
             buttons: [
-                "Télécharger",
-                "Annuler"
+                tr("dialog.download"),
+                tr("dialog.cancel")
             ],
             defaultId: 0,
             cancelId: 1
         });
 
     if (result.response !== 0) {
-        return "Téléchargement du modèle annulé.";
+        return tr("ollama.cancelled");
     }
 
     try {
@@ -5950,10 +6128,7 @@ if (!modelInstalled) {
             err
         );
 
-        return (
-            "Impossible de télécharger automatiquement le modèle : " +
-            err.message
-        );
+        return tr("ai.downloadError", { error: err.message });
     }
 }
 
@@ -5981,7 +6156,7 @@ if (!modelInstalled) {
                 await isOllamaRunning();
 
             if (!runningAfterStart) {
-                return "L'assistant IA est installé mais n'est pas démarré.";
+                return tr("ollama.notRunning");
             }
         }
 
@@ -6002,7 +6177,7 @@ if (!modelInstalled) {
 
         if (!compareVisiblePanels && (!panel || !panel.view)) {
             console.warn("[OLLAMA] Tuile introuvable");
-            return "Tuile introuvable.";
+            return tr("panel.notFound");
         }
 
 //      console.log("[OLLAMA] Extraction du contexte...");
@@ -6020,8 +6195,8 @@ if (!modelInstalled) {
 
         if (pageContexts.length === 0) {
             return compareVisiblePanels
-                ? "Aucune tuile visible ne contient de texte exploitable."
-                : "La tuile active ne contient pas de texte exploitable.";
+                ? tr("ollama.noVisibleText")
+                : tr("ollama.noPageText");
         }
 
         const contextBudget = fullMode ? 48000 : 15000;
@@ -6077,14 +6252,14 @@ if (!modelInstalled) {
                 ) {
 
                     systemInstruction = compareVisiblePanels
-                        ? `Tu es un assistant IA intégré au navigateur. Réponds en français, de façon claire et concise. Résume les informations pertinentes des tuiles visibles, en séparant les sources lorsque c'est utile. N'invente aucune donnée absente des extraits.\n\nTuiles fournies :\n${panelContextSummary}\n\nContenu extrait :\n${combinedContext}`
-                        : `Tu es un assistant IA intégré au navigateur. Réponds en français de façon claire et concise en résumant uniquement la page active ci-dessous. N'invente aucune donnée absente de l'extrait.\n\nPage active :\n${panelContextSummary}\n\nContenu extrait :\n${combinedContext}`;
+                        ? `${currentLanguage === "fr" ? "Tu es un assistant IA intégré au navigateur. Réponds en français, de façon claire et concise. Résume les informations pertinentes des tuiles visibles, en séparant les sources lorsque c'est utile. N'invente aucune donnée absente des extraits." : "You are an AI assistant integrated into the browser. Reply in English, clearly and concisely. Summarize relevant information from visible tiles, separating sources when useful. Do not invent information absent from the excerpts."}\n\n${currentLanguage === "fr" ? "Tuiles fournies" : "Provided tiles"} :\n${panelContextSummary}\n\n${currentLanguage === "fr" ? "Contenu extrait" : "Extracted content"} :\n${combinedContext}`
+                        : `${currentLanguage === "fr" ? "Tu es un assistant IA intégré au navigateur. Réponds en français de façon claire et concise en résumant uniquement la page active ci-dessous. N'invente aucune donnée absente de l'extrait." : "You are an AI assistant integrated into the browser. Reply in English, clearly and concisely, summarizing only the active page below. Do not invent information absent from the excerpt."}\n\n${currentLanguage === "fr" ? "Page active" : "Active page"} :\n${panelContextSummary}\n\n${currentLanguage === "fr" ? "Contenu extrait" : "Extracted content"} :\n${combinedContext}`;
 
                 } else {
 
                     systemInstruction = compareVisiblePanels
-                        ? `Tu es un assistant IA intégré au navigateur. Réponds en français à la demande en te basant exclusivement sur le contenu des tuiles visibles.\n\n${combinedContext}`
-                        : `Tu es un assistant IA intégré au navigateur. Réponds en français à la demande en te basant exclusivement sur le contenu de la page active.\n\n${combinedContext}`;
+                        ? `${currentLanguage === "fr" ? "Tu es un assistant IA intégré au navigateur. Réponds en français à la demande en te basant exclusivement sur le contenu des tuiles visibles." : "You are an AI assistant integrated into the browser. Reply in English, using only the content of the visible tiles."}\n\n${combinedContext}`
+                        : `${currentLanguage === "fr" ? "Tu es un assistant IA intégré au navigateur. Réponds en français à la demande en te basant exclusivement sur le contenu de la page active." : "You are an AI assistant integrated into the browser. Reply in English, using only the content of the active page."}\n\n${combinedContext}`;
                 }
 
                 const postData = JSON.stringify({
@@ -6146,19 +6321,19 @@ if (!modelInstalled) {
                         if (res.statusCode < 200 || res.statusCode >= 300) {
                             try {
                                 const errorJson = JSON.parse(responseBody);
-                                resolve(`Erreur Ollama (${res.statusCode}) : ${errorJson.error || responseBody}`);
+                                resolve(tr("ai.ollamaError", { status: res.statusCode, error: errorJson.error || responseBody }));
                             } catch {
-                                resolve(`Erreur Ollama (${res.statusCode}) : ${responseBody}`);
+                                resolve(tr("ai.ollamaError", { status: res.statusCode, error: responseBody }));
                             }
                             return;
                         }
 
                         try {
                             const result = JSON.parse(responseBody);
-                            resolve(result.response || "L'IA locale a renvoyé une réponse vide.");
+                            resolve(result.response || tr("ai.empty"));
                         } catch (error) {
                             console.error("[OLLAMA] Erreur JSON :", error);
-                            resolve("Réponse Ollama invalide.");
+                            resolve(tr("ollama.invalidResponse"));
                         }
                     });
 
@@ -6174,7 +6349,7 @@ if (!modelInstalled) {
 
                 req.on("error", error => {
                     console.error("[OLLAMA] Erreur HTTP :", error);
-                    resolve(`Impossible de joindre l'IA locale : ${error.message}`);
+                    resolve(tr("ai.localUnavailable", { error: error.message }));
                 });
 
                 // 🌟 LE SEUL ET UNIQUE ENDROIT OÙ L'ON ÉCRIT LES DONNÉES (Tout en bas, à l'extérieur)
@@ -6205,7 +6380,7 @@ if (!modelInstalled) {
 
         console.error(err.stack);
 
-        return `Erreur interne : ${err.message}`;
+        return tr("ai.internalError", { error: err.message });
 
     } finally {
 
@@ -6251,9 +6426,9 @@ async function isOllamaRunning() {
 }
 // L'interface IA demande à exécuter une action (ex: cliquer sur un bouton)
 ipcMain.handle("nanobrowser-execute-action", async (event, { actionType, argument }) => {
-    if (!activePanel) return "No active panel";
+    if (!activePanel) return tr("panel.noActive");
     const panel = findPanelNode(rootNode, activePanel);
-    if (!panel || !panel.view) return "Panel not found";
+    if (!panel || !panel.view) return tr("panel.notFound");
     
     if (actionType === "click") {
         return await panel.view.webContents.executeJavaScript(`window.NanobrowserExecutor.clickElement("${argument}")`);
@@ -6263,6 +6438,16 @@ ipcMain.handle("nanobrowser-execute-action", async (event, { actionType, argumen
 
 ipcMain.handle("get-theme-preference", () => {
     return getThemePreference();
+});
+
+ipcMain.handle("get-language", () => currentLanguage);
+
+ipcMain.handle("set-language", async (event, language) => {
+    const isAuthorizedSender = (win && !win.isDestroyed() && event.sender === win.webContents) ||
+        (settingsWindow && !settingsWindow.isDestroyed() && event.sender === settingsWindow.webContents);
+    if (!isAuthorizedSender) return currentLanguage;
+    if (!HareI18n.languages.includes(language)) return currentLanguage;
+    return saveLanguagePreference(language);
 });
 
 ipcMain.handle("save-theme-preference", async (event, isDark) => { // 🌟 Déjà async dans votre code
