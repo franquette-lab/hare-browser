@@ -200,8 +200,8 @@ console.log("Avant boucle");
 console.log("Premier item", data.historyList[0]);
 
             // Remplissage de l'historique
-//          data.historyList.forEach((item, index) => {
-data.historyList.slice(0, 5).forEach((item, index) => {
+            data.historyList.forEach((item, index) => {
+//data.historyList.slice(0, 5).forEach((item, index) => {
 
                 const div = document.createElement('div');
                 div.className = 'history-item';
