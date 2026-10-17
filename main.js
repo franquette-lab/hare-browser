@@ -3622,8 +3622,17 @@ ipcMain.on("open-history-window", () => {
     const existingHistoryWindow = historyWindow && !historyWindow.isDestroyed()
         ? historyWindow
         : global.historyWindow;
+
+
     if (existingHistoryWindow && !existingHistoryWindow.isDestroyed()) {
+
+        if (existingHistoryWindow.isMinimized()) {
+            existingHistoryWindow.restore();
+        }
+
+        existingHistoryWindow.show();
         existingHistoryWindow.focus();
+
         updateHistoryWindowContent();
         return;
     }
