@@ -674,8 +674,6 @@ html.dark #pwd-modal {
     <!-- AJOUT ICI : Le bouton Mode Sombre -->
     <button id="dark-mode-button" data-i18n-title="toolbar.darkMode" title="Activer le mode sombre" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🌙</button>
 
-    <button id="settings-button" type="button" data-i18n-title="app.settings" aria-label="Paramètres" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:14px; cursor:pointer;">⚙️</button>
-
     <!-- L'attribut onclick appelle directement notre nouveau pont preload de manière brute -->
     <button id="history-button" title="Historique (Ctrl+H)" onclick="window.api.openHistoryWindow()" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer; position:relative; z-index:999999 !important;">🕒</button>
 
@@ -715,8 +713,11 @@ html.dark #pwd-modal {
     <!-- Dans index.html -> Dans la div #toolbar-buttons -->
     <button id="ai-sidebar-button" title="Demander à l'IA Ollama" style="width:28px; height:24px; background:#2d2d30; color:#4ade80; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer;">✨</button>
 
-    <!-- Bouton aidr -->
+    <button id="settings-button" type="button" data-i18n-title="app.settings" aria-label="Paramètres" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:14px; cursor:pointer;">🛠️</button>
+    
+    <!-- Bouton aide -->
     <button id="help-btn" title="Aide de Hare Browser (F1)" style=" width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; cursor:pointer;">❓</button>
+
 
     <!-- Bouton Undo d'annulation -->
     <button id="undo" title="Rouvrir le dernier panneau fermé (Ctrl+Z)" disabled style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#10554;</button>
