@@ -1566,6 +1566,34 @@ function flashReaderResult(panelId, status) {
 
 window.api.onReaderModeResult?.(({ panelId, status }) => flashReaderResult(panelId, status));
 
+function refreshUrlBarLanguage(panels = currentPanels) {
+    if (!Array.isArray(panels)) return;
+
+    panels.forEach((panel) => {
+        if (!panel) return;
+        const input = document.getElementById(`${panel.id}-url`);
+        const tab = input?.closest(".url-tab");
+        if (!input || !tab) return;
+
+        const url = panel.realUrl || panel.url || input.dataset.url || "";
+        input.dataset.url = url;
+        if (document.activeElement !== input) {
+            input.value = getDisplayUrl(url, panel.searchQuery);
+        }
+
+        if (panel.containerId) {
+            tab.title = translateUi("ui.container", { name: panel.containerLabel });
+        }
+        const splitButton = tab.querySelector(".btn-split[aria-haspopup='menu']");
+        if (splitButton) {
+            splitButton.title = translateUi("ui.splitTile");
+            splitButton.setAttribute("aria-label", splitButton.title);
+        }
+        const readerButton = tab.querySelector(`[id="reader-${panel.id}"]`);
+        if (readerButton) readerButton.title = translateUi("ui.readerTooltip");
+    });
+}
+
 function rebuildUrlBar(panels) {
     // 1. Ciblage de votre élément conteneur d'origine
     const urlBar = document.getElementById("url-bar");
@@ -2543,6 +2571,7 @@ async function rebuildBookmarksBar() {
 
     if (favoris.length === 0) {
         const emptyText = document.createElement("span");
+        emptyText.className = "bookmarks-empty-state";
         emptyText.style.color = isDark ? "#6b7280" : "#9ca3af";
         emptyText.style.fontSize = "11px";
         emptyText.innerText = translateUi("bookmarks.empty");
@@ -2645,6 +2674,7 @@ async function renderHistory(historyList) {
         
         // Bouton de suppression unique
         const deleteBtn = document.createElement("span");
+        deleteBtn.className = "history-delete-button";
         deleteBtn.innerHTML = "&#10006;"; // Code pour l'icône X
         deleteBtn.style.color = "#ef4444";
         deleteBtn.style.cursor = "pointer";
@@ -3530,14 +3560,17 @@ async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = fa
 window.api.onLanguageChanged((language) => {
     document.documentElement.lang = language;
     setTimeout(() => {
-        rebuildUrlBar(currentPanels);
+        refreshUrlBarLanguage(currentPanels);
         updateAutoSleepToggle(autoSleepUiEnabled);
         updateReaderModeButtons();
         updateAdblockButtons();
         updateCloseButtonState();
-        void rebuildBookmarksBar();
+        const emptyBookmarks = document.querySelector(".bookmarks-empty-state");
+        if (emptyBookmarks) emptyBookmarks.textContent = translateUi("bookmarks.empty");
         void checkFavorisState();
-        window.api.getHistory().then(renderHistory).catch(() => {});
+        document.querySelectorAll(".history-delete-button").forEach((button) => {
+            button.title = translateUi("history.delete");
+        });
     }, 0);
 });
 
