@@ -679,7 +679,6 @@ html.dark #pwd-modal {
 }
 
 
-
 </style>
 
 <body class="m-0 flex items-center justify-center bg-gray-100 dark:bg-zinc-900 min-h-screen">
@@ -702,7 +701,7 @@ html.dark #pwd-modal {
     <!-- L'attribut onclick appelle directement notre nouveau pont preload de manière brute -->
     <button id="history-button" title="Historique (Ctrl+H)" onclick="window.api.openHistoryWindow()" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer; position:relative; z-index:999999 !important;">🕒</button>
 
-    <button id="downloads-button" title="Téléchargements (Ctrl+J)" onclick="window.api.openDownloadsWindow()" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">⬇️</button>
+    <button id="downloads-button" title="Téléchargements (Ctrl+J)" onclick="window.api.openDownloadsWindow()" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">📥</button>
 
     <button id="reader-mode-button" title="Mode lecture : affiche la page sans distractions" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">👓</button>
 
@@ -1956,6 +1955,9 @@ addressGroup.appendChild(input);
         btnSplit.style.width = "18px";
         btnSplit.style.marginLeft = "3px";
         btnSplit.style.flex = "0 0 auto";
+        btnSplit.setAttribute("role", "button");
+        btnSplit.setAttribute("aria-haspopup", "menu");
+        btnSplit.setAttribute("aria-label", translateUi("ui.splitTile"));
 
         btnSplit.addEventListener("mousedown", (e) => {
             e.stopPropagation();
@@ -1964,7 +1966,11 @@ addressGroup.appendChild(input);
         btnSplit.addEventListener("click", (e) => {
             e.stopPropagation();
             activePanel = panel.id;
-            window.api.splitPanel(panel.id, "vertical");
+            const bounds = btnSplit.getBoundingClientRect();
+            window.api.showSplitMenu(panel.id, {
+                x: bounds.right,
+                y: bounds.bottom
+            }, applicationDarkMode);
         });
 
         const btnReader = document.createElement("div");

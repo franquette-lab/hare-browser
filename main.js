@@ -494,7 +494,7 @@ async function saveLanguagePreference(language) {
         }
     }
     if (historyWindow && !historyWindow.isDestroyed()) historyWindow.setTitle(tr("history.title"));
-    if (downloadsWindow && !downloadsWindow.isDestroyed()) downloadsWindow.setTitle(tr("downloads.title").replace(/^⬇️\s*/, ""));
+    if (downloadsWindow && !downloadsWindow.isDestroyed()) downloadsWindow.setTitle(tr("downloads.title").replace(/^📥\s*/, ""));
     if (pwdWindow && !pwdWindow.isDestroyed()) pwdWindow.setTitle(tr("passwords.title").replace(/^🔑\s*/, ""));
     if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.setTitle(tr("app.settings.title"));
     if (rootNode) {
@@ -771,6 +771,8 @@ function setAiSidebarVisible(visible) {
 
 let pwdWindow = null;
 let settingsWindow = null;
+let splitMenuWindow = null;
+let splitMenuTargetPanelId = null;
 const findInPageRequests = new Map();
 
 ipcMain.on("open-settings-window", (event) => {
@@ -1676,7 +1678,7 @@ ipcMain.on('open-downloads-window', () => {
     downloadsWindow = new BrowserWindow({
         width: 520,
         height: 560,
-        title: tr('downloads.title').replace(/^⬇️\s*/, ''),
+        title: tr('downloads.title').replace(/^📥\s*/, ''),
         backgroundColor: isDarkModeForced ? '#1e1e1e' : '#f9fafb',
         autoHideMenuBar: true,
         webPreferences: {
@@ -4123,6 +4125,95 @@ ipcMain.on("show-container-menu", (event, panelId) => {
         label: getContainerLabel(id),
         click: () => ipcMain.emit("split-panel", null, panelId, "vertical", false, id)
     }))).popup({ window: win });
+});
+
+function closeSplitMenu() {
+    if (splitMenuWindow && !splitMenuWindow.isDestroyed()) splitMenuWindow.close();
+    splitMenuWindow = null;
+    splitMenuTargetPanelId = null;
+}
+
+ipcMain.on("show-split-menu", (event, panelId, anchor = {}, isDark = false) => {
+    if (!win || win.isDestroyed() || event.sender !== win.webContents || maximizedPanelId !== null) return;
+    if (!findPanelNode(rootNode, panelId)) return;
+
+    closeSplitMenu();
+    const menuWidth = 212;
+    const menuHeight = 92;
+    const contentBounds = win.getContentBounds();
+    const display = screen.getDisplayMatching({
+        x: contentBounds.x + (Number(anchor.x) || 0),
+        y: contentBounds.y + (Number(anchor.y) || 0),
+        width: 1,
+        height: 1
+    });
+    const workArea = display.workArea;
+    const anchorX = contentBounds.x + (Number(anchor.x) || 0);
+    const anchorY = contentBounds.y + (Number(anchor.y) || 0);
+    const x = Math.max(workArea.x, Math.min(workArea.x + workArea.width - menuWidth, Math.round(anchorX - menuWidth)));
+    const y = Math.max(workArea.y, Math.min(workArea.y + workArea.height - menuHeight, Math.round(anchorY + 4)));
+
+    splitMenuTargetPanelId = panelId;
+    splitMenuWindow = new BrowserWindow({
+        width: menuWidth,
+        height: menuHeight,
+        x,
+        y,
+        parent: win,
+        frame: false,
+        transparent: false,
+        resizable: false,
+        movable: false,
+        minimizable: false,
+        maximizable: false,
+        show: false,
+        focusable: true,
+        skipTaskbar: true,
+        hasShadow: true,
+        backgroundColor: isDark ? "#252526" : "#ffffff",
+        webPreferences: {
+            preload: path.join(__dirname, "preload-split-menu.js"),
+            contextIsolation: true,
+            nodeIntegration: false,
+            sandbox: true
+        }
+    });
+
+    const menuWindow = splitMenuWindow;
+    menuWindow.loadFile(path.join(__dirname, "split-menu.html"), {
+        query: {
+            lang: currentLanguage,
+            theme: isDark ? "dark" : "light"
+        }
+    });
+    menuWindow.once("ready-to-show", () => {
+        if (splitMenuWindow === menuWindow && !menuWindow.isDestroyed()) menuWindow.show();
+    });
+    menuWindow.on("blur", () => {
+        if (splitMenuWindow === menuWindow) closeSplitMenu();
+    });
+    menuWindow.on("closed", () => {
+        if (splitMenuWindow === menuWindow) {
+            splitMenuWindow = null;
+            splitMenuTargetPanelId = null;
+        }
+    });
+});
+
+ipcMain.on("split-menu-dismiss", (event) => {
+    if (splitMenuWindow && !splitMenuWindow.isDestroyed() && event.sender === splitMenuWindow.webContents) {
+        closeSplitMenu();
+    }
+});
+
+ipcMain.on("split-menu-choose", (event, direction) => {
+    if (!splitMenuWindow || splitMenuWindow.isDestroyed() || event.sender !== splitMenuWindow.webContents) return;
+    if (direction !== "vertical" && direction !== "horizontal") return;
+    const panelId = splitMenuTargetPanelId;
+    closeSplitMenu();
+    if (panelId && findPanelNode(rootNode, panelId) && maximizedPanelId === null) {
+        ipcMain.emit("split-panel", null, panelId, direction, false);
+    }
 });
 
 // ====== DANS MAIN.JS -> ipcMain.on("split-panel", ...) ======

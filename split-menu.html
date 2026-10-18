@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+    <title></title>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: "Segoe UI", system-ui, sans-serif;
+            --menu-bg: #ffffff;
+            --menu-text: #1f2937;
+            --menu-border: #d1d5db;
+            --menu-hover: #eff6ff;
+            --menu-accent: #2563eb;
+        }
+        :root.dark {
+            color-scheme: dark;
+            --menu-bg: #252526;
+            --menu-text: #e5e7eb;
+            --menu-border: #3f3f46;
+            --menu-hover: #333337;
+            --menu-accent: #60a5fa;
+        }
+        * { box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+        body { background: var(--menu-bg); color: var(--menu-text); }
+        #menu {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            height: 100%;
+            padding: 5px;
+            border: 1px solid var(--menu-border);
+            border-radius: 8px;
+            background: var(--menu-bg);
+            box-shadow: 0 6px 20px rgba(15, 23, 42, .2);
+        }
+        button {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            min-height: 36px;
+            padding: 0 10px;
+            border: 0;
+            border-radius: 5px;
+            background: transparent;
+            color: inherit;
+            font: 13px "Segoe UI", system-ui, sans-serif;
+            text-align: left;
+            cursor: pointer;
+        }
+        button:hover, button:focus-visible { background: var(--menu-hover); outline: none; }
+        svg { width: 20px; height: 20px; flex: 0 0 auto; color: var(--menu-accent); }
+    </style>
+</head>
+<body>
+    <main id="menu" role="menu">
+        <button id="split-right" type="button" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="16" rx="1.5" stroke="currentColor" stroke-width="1.7"/>
+                <path d="M12 4v16M5 12h5m-2-2 2 2-2 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span data-i18n="ui.splitRight">Scinder à droite</span>
+        </button>
+        <button id="split-down" type="button" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="16" rx="1.5" stroke="currentColor" stroke-width="1.7"/>
+                <path d="M3 12h18M12 6v5m-2-2 2 2 2-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span data-i18n="ui.splitDown">Scinder vers le bas</span>
+        </button>
+    </main>
+    <script src="i18n.js"></script>
+    <script>
+        const params = new URLSearchParams(location.search);
+        const language = HareI18n.normalizeLanguage(params.get("lang"));
+        document.documentElement.lang = language;
+        HareI18n.apply(document, language);
+        document.documentElement.classList.toggle("dark", params.get("theme") === "dark");
+        document.getElementById("split-right").addEventListener("click", () => window.splitMenuApi.choose("vertical"));
+        document.getElementById("split-down").addEventListener("click", () => window.splitMenuApi.choose("horizontal"));
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") window.splitMenuApi.dismiss();
+        });
+    </script>
+</body>
+</html>
