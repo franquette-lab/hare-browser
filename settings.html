@@ -18,6 +18,8 @@
         select { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: inherit; font: inherit; }
         p { color: #64748b; font-size: 13px; line-height: 1.5; }
         #saved { min-height: 20px; color: #15803d; }
+        .settings-section { margin-top: 22px; }
+        h2 { margin: 0 0 14px; font-size: 16px; font-weight: 650; }
         @media (prefers-color-scheme: dark) {
             :root { color-scheme: dark; }
             body { background: #252526; color: #e5e7eb; }
@@ -40,12 +42,28 @@
             <option value="en" data-i18n="app.settings.language.en">English</option>
         </select>
         <p data-i18n="app.settings.language.help">Le changement est appliqué immédiatement et conservé pour les prochains démarrages.</p>
+        <section class="settings-section" aria-labelledby="auto-sleep-heading">
+            <h2 id="auto-sleep-heading" data-i18n="app.settings.autoSleep">Mise en veille automatique</h2>
+            <label for="auto-sleep-delay" data-i18n="app.settings.autoSleep.delay">Délai avant mise en veille</label>
+            <select id="auto-sleep-delay">
+                <option value="5" data-i18n="app.settings.autoSleep.delay.5">5 minutes</option>
+                <option value="10" data-i18n="app.settings.autoSleep.delay.10">10 minutes</option>
+                <option value="15" data-i18n="app.settings.autoSleep.delay.15">15 minutes</option>
+                <option value="30" data-i18n="app.settings.autoSleep.delay.30">30 minutes</option>
+                <option value="45" data-i18n="app.settings.autoSleep.delay.45">45 minutes</option>
+                <option value="60" data-i18n="app.settings.autoSleep.delay.60">1 heure</option>
+                <option value="120" data-i18n="app.settings.autoSleep.delay.120">2 heures</option>
+                <option value="0" data-i18n="app.settings.autoSleep.delay.0">Jamais</option>
+            </select>
+            <p data-i18n="app.settings.autoSleep.help">Choisissez après combien de temps d’inactivité les tuiles sont mises en veille.</p>
+        </section>
         <p id="saved" aria-live="polite"></p>
     </main>
     <script src="i18n.js"></script>
     <script>
         HareI18n.attach(window.settingsApi);
         const languageSelect = document.getElementById("language-select");
+        const autoSleepDelaySelect = document.getElementById("auto-sleep-delay");
         const savedMessage = document.getElementById("saved");
 
         HareI18n.languages.forEach((language) => {
@@ -58,10 +76,19 @@
         });
 
         window.settingsApi.getLanguage().then((language) => { languageSelect.value = language; });
+        window.settingsApi.getAutoSleepDelay().then((delay) => {
+            autoSleepDelaySelect.value = String(delay);
+        });
         languageSelect.addEventListener("change", async () => {
             const language = await window.settingsApi.setLanguage(languageSelect.value);
             languageSelect.value = language;
             savedMessage.textContent = HareI18n.t("app.settings.saved", language);
+        });
+        autoSleepDelaySelect.addEventListener("change", async () => {
+            const delay = Number(autoSleepDelaySelect.value);
+            const savedDelay = await window.settingsApi.setAutoSleepDelay(delay);
+            autoSleepDelaySelect.value = String(savedDelay);
+            savedMessage.textContent = HareI18n.t("app.settings.autoSleep.saved", document.documentElement.lang || "fr");
         });
         document.getElementById("close-button").addEventListener("click", () => window.settingsApi.close());
         document.addEventListener("keydown", (event) => {

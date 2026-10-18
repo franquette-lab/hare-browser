@@ -132,8 +132,9 @@ onActivePanelChanged: (callback) => {
 
         // --- GESTION DE LA MISE EN VEILLE AUTOMATIQUE ---
         getAutoSleepPreference: () => ipcRenderer.invoke("get-autosleep-preference"),
+        getAutoSleepDelayPreference: () => ipcRenderer.invoke("get-autosleep-delay-preference"),
         toggleAutoSleep: (enable) => ipcRenderer.send('toggle-autosleep-request', enable),
-        onAutoSleepChanged: (callback) => ipcRenderer.on("autosleep-state-changed", (_event, enabled) => callback(enabled)),
+        onAutoSleepChanged: (callback) => ipcRenderer.on("autosleep-state-changed", (_event, enabled, delayMinutes) => callback(enabled, delayMinutes)),
 
         equalizeMosaic: () => ipcRenderer.send("equalize-mosaic-request"),
 

@@ -565,10 +565,9 @@ let currentOllamaRequest = null; // Stocke la requête HTTP Ollama en cours
 // ✨ PLACEZ LES DEUX LIGNES ICI TOUT EN HAUT
 // ==========================================
 
-  const PANEL_IDLE_TIMEOUT = 15 * 60 * 1000;
-//const PANEL_IDLE_TIMEOUT = 15 * 60;
-
   const panelIdleTimers = new Map();
+const AUTO_SLEEP_DELAY_OPTIONS = [5, 10, 15, 30, 45, 60, 120, 0];
+let autoSleepDelayMinutes = 15;
 
 //let autoSleepEnabled = true;
   let autoSleepEnabled = false;
@@ -578,8 +577,12 @@ function loadAutoSleepPreference() {
         const settings = JSON.parse(fs.readFileSync(getAutoSleepPath(), "utf-8"));
         // Remplacez le fallback ": true" par ": false"
         autoSleepEnabled = typeof settings.enabled === "boolean" ? settings.enabled : false;
+        autoSleepDelayMinutes = AUTO_SLEEP_DELAY_OPTIONS.includes(settings.delayMinutes)
+            ? settings.delayMinutes
+            : 15;
     } catch (error) {
         autoSleepEnabled = false; // <-- Changez true par false ici
+        autoSleepDelayMinutes = 15;
         if (error.code !== "ENOENT") {
             console.error("Impossible de lire la préférence de veille automatique :", error);
         }
@@ -591,7 +594,10 @@ function loadAutoSleepPreference() {
 function saveAutoSleepPreference() {
     try {
         fs.mkdirSync(appDataPath, { recursive: true });
-        fs.writeFileSync(getAutoSleepPath(), JSON.stringify({ enabled: autoSleepEnabled }, null, 2), "utf-8");
+        fs.writeFileSync(getAutoSleepPath(), JSON.stringify({
+            enabled: autoSleepEnabled,
+            delayMinutes: autoSleepDelayMinutes
+        }, null, 2), "utf-8");
     } catch (error) {
         console.error("Impossible d’enregistrer la préférence de veille automatique :", error);
     }
@@ -720,9 +726,9 @@ ipcMain.on("open-settings-window", (event) => {
 
     settingsWindow = new BrowserWindow({
         width: 460,
-        height: 300,
+        height: 480,
         minWidth: 380,
-        minHeight: 260,
+        minHeight: 440,
         title: tr("app.settings.title"),
         parent: win,
         modal: true,
@@ -884,33 +890,15 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
         // ✨ VERSION CORRIGÉE : ÉVITE LE CRASH IPC EN MODIFIANT DIRECTEMENT L'ÉTAT
         // =========================================================================
         {
-            label: autoSleepEnabled
-                ? `   💤 ${currentLanguage === "fr" ? "Désactiver la veille automatique (15 min)" : "Disable automatic sleep (15 min)"}`
-                : `   💤 ${currentLanguage === "fr" ? "Activer la veille automatique (15 min)" : "Enable automatic sleep (15 min)"}`,
+            label: `   ${tr(autoSleepEnabled ? "menu.sleepOff" : "menu.sleepOn")}`,
             type: "checkbox",
             checked: autoSleepEnabled,
             click: () => {
-                // Modifie la bonne variable globale
-                autoSleepEnabled = !autoSleepEnabled;
+                setAutoSleepEnabled(!autoSleepEnabled);
                 console.log(`[Auto-Sleep Menu] Mode changé : ${autoSleepEnabled ? "ACTIVÉ" : "DÉSACTIVÉ"}`);
-
-                if (!autoSleepEnabled) {
-                    panelIdleTimers.forEach((timer) => clearTimeout(timer));
-                    panelIdleTimers.clear();
-                } else {
-                    const activePanels = collectPanelNodes(rootNode);
-                    activePanels.forEach(panel => {
-                        if (!panel.isSleeping) markPanelActivity(panel);
-                    });
-                }
-
-                // Informe l'IHM
                 if (win && !win.isDestroyed()) {
-                    win.webContents.send('autosleep-state-changed', autoSleepEnabled);
+                    win.webContents.send('autosleep-state-changed', autoSleepEnabled, autoSleepDelayMinutes);
                 }
-
-                // SAUVEGARDE DANS LE BON FICHIER (autosleep.json)
-                saveAutoSleepPreference();
             }
         },
 
@@ -937,7 +925,7 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
         },
 
         {
-            label: tr("context.summarize"),
+            label: `   ${tr("context.summarize")}`,
             click: async () => {
 
                 if (!(await ensureOllamaInstalled())) {
@@ -2470,20 +2458,48 @@ function clearPanelIdleTimer(panelId) {
     panelIdleTimers.delete(panelId);
 }
 
+function schedulePanelIdleTimer(panel) {
+    clearPanelIdleTimer(panel.id);
+    if (!autoSleepEnabled || autoSleepDelayMinutes === 0 || panel.isSleeping) return;
+
+    const timeoutMs = autoSleepDelayMinutes * 60 * 1000;
+    const lastActivityAt = Number.isFinite(panel.lastActivityAt) ? panel.lastActivityAt : Date.now();
+    const remainingMs = Math.max(0, timeoutMs - (Date.now() - lastActivityAt));
+    panelIdleTimers.set(panel.id, setTimeout(() => {
+        panelIdleTimers.delete(panel.id);
+        if (autoSleepEnabled && autoSleepDelayMinutes > 0 && findPanelNode(rootNode, panel.id) === panel) {
+            sleepPanel(panel);
+        }
+    }, remainingMs));
+}
+
 function markPanelActivity(panelOrId) {
     const panel = typeof panelOrId === 'string'
         ? findPanelNode(rootNode, panelOrId)
         : panelOrId;
     if (!panel || panel.isSleeping) return;
 
-    clearPanelIdleTimer(panel.id);
-    if (!autoSleepEnabled) return; // Si false, on s'arrête immédiatement ici
-
     panel.lastActivityAt = Date.now();
-    panelIdleTimers.set(panel.id, setTimeout(() => {
-        panelIdleTimers.delete(panel.id);
-        if (autoSleepEnabled && findPanelNode(rootNode, panel.id) === panel) sleepPanel(panel);
-    }, PANEL_IDLE_TIMEOUT));
+    schedulePanelIdleTimer(panel);
+}
+
+function setAutoSleepDelay(minutes) {
+    if (!AUTO_SLEEP_DELAY_OPTIONS.includes(minutes)) return autoSleepDelayMinutes;
+    autoSleepDelayMinutes = minutes;
+
+    panelIdleTimers.forEach((timer) => clearTimeout(timer));
+    panelIdleTimers.clear();
+    if (autoSleepEnabled && autoSleepDelayMinutes > 0) {
+        collectPanelNodes(rootNode).forEach((panel) => {
+            if (!panel.isSleeping) schedulePanelIdleTimer(panel);
+        });
+    }
+
+    saveAutoSleepPreference();
+    if (win && !win.isDestroyed()) {
+        win.webContents.send("autosleep-state-changed", autoSleepEnabled, autoSleepDelayMinutes);
+    }
+    return autoSleepDelayMinutes;
 }
 
 
@@ -2494,7 +2510,10 @@ function setAutoSleepEnabled(enabled) {
 
     if (autoSleepEnabled) {
         collectPanelNodes(rootNode).forEach((panel) => {
-            if (!panel.isSleeping) markPanelActivity(panel);
+            if (!panel.isSleeping) {
+                if (!Number.isFinite(panel.lastActivityAt)) panel.lastActivityAt = Date.now();
+                schedulePanelIdleTimer(panel);
+            }
         });
     }
 
@@ -2557,7 +2576,7 @@ function sleepPanel(panel) {
         try { win.setTopBrowserView(handleViews[panel.id]); } catch (error) {}
     }
     if (panel.id === activePanel && panel.bounds) updateActiveBorder(panel.bounds);
-    console.log(`[Tab Sleeping] Tuile ${panel.id} mise en veille après 15 minutes d’inactivité.`);
+    console.log(`[Tab Sleeping] Tuile ${panel.id} mise en veille après ${autoSleepDelayMinutes} minute(s) d’inactivité.`);
 }
 
 
@@ -3398,10 +3417,23 @@ ipcMain.handle("get-autosleep-preference", (event) => {
     return autoSleepEnabled;
 });
 
+ipcMain.handle("get-autosleep-delay-preference", (event) => {
+    const isAuthorizedSender = (settingsWindow && !settingsWindow.isDestroyed() && event.sender === settingsWindow.webContents) ||
+        (win && !win.isDestroyed() && event.sender === win.webContents);
+    return isAuthorizedSender ? autoSleepDelayMinutes : 15;
+});
+
+ipcMain.handle("set-autosleep-delay-preference", (event, minutes) => {
+    if (!settingsWindow || settingsWindow.isDestroyed() || event.sender !== settingsWindow.webContents) {
+        return autoSleepDelayMinutes;
+    }
+    return setAutoSleepDelay(minutes);
+});
+
 ipcMain.on("toggle-autosleep-request", (event, enabled) => {
     if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
     const nextState = setAutoSleepEnabled(enabled);
-    win.webContents.send("autosleep-state-changed", nextState);
+    win.webContents.send("autosleep-state-changed", nextState, autoSleepDelayMinutes);
 });
 
 ipcMain.on("navigate", (event, panelId, input) => {

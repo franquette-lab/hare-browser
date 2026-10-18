@@ -725,7 +725,7 @@ html.dark #pwd-modal {
     <!-- Ajoutez le bouton dans votre conteneur de boutons existant -->
     <button id="btn-equalize-mosaic" title="Égaliser les dimensions des tuiles (Ctrl+Shift+R)">📐</button>
 
-    <button id="auto-sleep-toggle" type="button" aria-pressed="true" title="Veille automatique activée : les tuiles inactives sont mises en veille après 15 minutes">💤</button>
+    <button id="auto-sleep-toggle" type="button" aria-pressed="true" data-i18n-title="toolbar.autoSleep">💤</button>
 
     <button id="duplicate-panel" title="Dupliquer cette tuile (Ctrl+Shift+D)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:13px; cursor:pointer;">📋</button>
 
@@ -1076,20 +1076,27 @@ document.getElementById('btn-equalize-mosaic').addEventListener('click', () => {
 
 const autoSleepToggle = document.getElementById("auto-sleep-toggle");
 let autoSleepUiEnabled = true;
+let autoSleepUiDelayMinutes = 15;
 if (autoSleepToggle) autoSleepToggle.disabled = true;
 
-function updateAutoSleepToggle(enabled) {
+function updateAutoSleepToggle(enabled, delayMinutes = autoSleepUiDelayMinutes) {
     autoSleepUiEnabled = enabled === true;
+    autoSleepUiDelayMinutes = Number.isFinite(delayMinutes) ? delayMinutes : autoSleepUiDelayMinutes;
     if (!autoSleepToggle) return;
     autoSleepToggle.disabled = false;
     autoSleepToggle.setAttribute("aria-pressed", String(autoSleepUiEnabled));
     autoSleepToggle.textContent = autoSleepUiEnabled ? "💤" : "⏸";
     autoSleepToggle.title = autoSleepUiEnabled
-        ? translateUi("sleep.enabled")
+        ? translateUi("sleep.enabledDelay", {
+            duration: HareI18n.t(`app.settings.autoSleep.delay.${autoSleepUiDelayMinutes}`, document.documentElement.lang || "fr")
+        })
         : translateUi("sleep.disabled");
     autoSleepToggle.style.color = autoSleepUiEnabled ? "#4ade80" : "#9ca3af";
     autoSleepToggle.style.opacity = autoSleepUiEnabled ? "1" : "0.65";
 }
+
+window.api.getLanguage?.().then(() => updateAutoSleepToggle(autoSleepUiEnabled)).catch(() => {});
+window.api.onLanguageChanged?.(() => updateAutoSleepToggle(autoSleepUiEnabled));
 
 autoSleepToggle?.addEventListener("click", () => {
     updateAutoSleepToggle(!autoSleepUiEnabled);
@@ -1097,11 +1104,14 @@ autoSleepToggle?.addEventListener("click", () => {
 });
 
 window.api.onAutoSleepChanged?.(updateAutoSleepToggle);
-window.api.getAutoSleepPreference?.()
-    .then(updateAutoSleepToggle)
+Promise.all([
+    window.api.getAutoSleepPreference?.() ?? Promise.resolve(false),
+    window.api.getAutoSleepDelayPreference?.() ?? Promise.resolve(15)
+])
+    .then(([enabled, delayMinutes]) => updateAutoSleepToggle(enabled, delayMinutes))
     .catch((error) => {
         console.error("Impossible de lire la préférence de veille automatique :", error);
-        updateAutoSleepToggle(true);
+        updateAutoSleepToggle(false);
     });
 
 
