@@ -603,11 +603,13 @@ let activeDownloads = {};
 // Stocke l'ID du panneau actuellement zoomé/maximisé au premier plan (null si aucun)
 let maximizedPanelId = null; 
 
-// En haut de main.js, à la place de const TOOLBAR_HEIGHT = 105;
+// Hauteur compacte réservée à la barre supérieure et à la zone URL.
 let isBookmarksBarVisible = true; // La barre est affichée par défaut
 
-let TOOLBAR_HEIGHT = 76;
-const TOOLBAR_MIN_HEIGHT = 77;
+const TOOLBAR_ROW_HEIGHT = 38;
+const URL_BAR_HEIGHT = 30;
+let TOOLBAR_HEIGHT = TOOLBAR_ROW_HEIGHT + URL_BAR_HEIGHT;
+const TOOLBAR_MIN_HEIGHT = TOOLBAR_HEIGHT;
 const FULLSCREEN_COLLAPSED_TOOLBAR_HEIGHT = 8;
 let normalToolbarHeight = TOOLBAR_HEIGHT;
 let isFullscreenMode = false;
@@ -1871,61 +1873,45 @@ async function buildSearchPage(query) {
 }
 
 
-function updateActiveBorder(bounds, options) {
+function updateActiveBorder(bounds) {
     if (!bounds || !win || win.isDestroyed()) return;
 
-    const BORDER_THICKNESS = 2;
-    const skipRaise = options && options.skipRaise;
-
-    // 1. Déterminer si le panneau actuellement actif est privé pour adapter la couleur
-    const currentActivePanelNode = findPanelNode(rootNode, activePanel);
-    const isPrivateMode = currentActivePanelNode ? currentActivePanelNode.isPrivate === true : false;
-    
-    // ✨ CHOIX DE LA COULEUR : Bleu électrique (#3b82f6) pour le public, Violet Incognito (#a855f7) pour le privé
-    const borderHexColor = isPrivateMode ? "#a855f7" : "#3b82f6";
-
+    const borderThickness = 2;
+    const borderInset = 1;
+    const borderColor = "#3b82f6";
+    const frameX = bounds.x + borderInset;
+    const frameY = bounds.y + borderInset;
+    const frameWidth = Math.max(0, bounds.width - borderInset * 2);
+    const frameHeight = Math.max(0, bounds.height - borderInset * 2);
     const borderLayouts = [
-        { x: bounds.x, y: bounds.y, width: bounds.width, height: BORDER_THICKNESS }, // TOP
-        { x: bounds.x, y: bounds.y + bounds.height - BORDER_THICKNESS, width: bounds.width, height: BORDER_THICKNESS }, // BOTTOM
-        { x: bounds.x, y: bounds.y, width: BORDER_THICKNESS, height: bounds.height }, // LEFT
-        { x: bounds.x + bounds.width - BORDER_THICKNESS, y: bounds.y, width: BORDER_THICKNESS, height: bounds.height } // RIGHT
+        { x: frameX, y: frameY, width: frameWidth, height: borderThickness },
+        { x: frameX, y: frameY + frameHeight - borderThickness, width: frameWidth, height: borderThickness },
+        { x: frameX, y: frameY, width: borderThickness, height: frameHeight },
+        { x: frameX + frameWidth - borderThickness, y: frameY, width: borderThickness, height: frameHeight }
     ];
 
-    // 2. Création des 4 bordures si elles n'existent pas
     if (borderViews.length === 0) {
-        for (let i = 0; i < 4; i++) {
-            const bView = createSandboxedBrowserView();
-            win.addBrowserView(bView);
-            
-            bView.webContents.setIgnoreMenuShortcuts(true);
-            bView.webContents.userAgent = "InternalBorder";
-            borderViews.push(bView);
+        for (let i = 0; i < borderLayouts.length; i++) {
+            const borderView = createSandboxedBrowserView();
+            win.addBrowserView(borderView);
+            borderView.webContents.setIgnoreMenuShortcuts(true);
+            borderView.webContents.userAgent = "InternalBorder";
+            borderView.borderColor = borderColor;
+            borderView.setBackgroundColor(borderColor);
+            borderView.webContents.loadURL("data:text/html," + encodeURIComponent(
+                `<html><body style="margin:0;padding:0;background:${borderColor};overflow:hidden"></body></html>`
+            ));
+            borderViews.push(borderView);
         }
     }
 
-    // 3. Mise à jour de la position ET de la couleur en temps réel
     borderLayouts.forEach((layout, index) => {
-        const bView = borderViews[index];
-        if (bView && !bView.webContents.isDestroyed()) {
-            bView.setBounds(layout);
-            try { bView.setBackgroundColor(borderHexColor); } catch (error) {}
-
-            if (bView.borderColor !== borderHexColor) {
-                bView.borderColor = borderHexColor;
-                bView.webContents.loadURL("data:text/html," + encodeURIComponent(`
-                <html><body style="margin:0; padding:0; background:${borderHexColor}; overflow:hidden;"></body></html>
-            `));
-            }
-        }
+        const borderView = borderViews[index];
+        if (!borderView || borderView.webContents.isDestroyed()) return;
+        borderView.setBounds(layout);
+        borderView.setBackgroundColor(borderColor);
+        try { win.setTopBrowserView(borderView); } catch {}
     });
-
-    if (!skipRaise) {
-        borderViews.forEach((bView) => {
-            if (bView && !bView.webContents.isDestroyed()) {
-                try { win.setTopBrowserView(bView); } catch (error) {}
-            }
-        });
-    }
 }
 
 
@@ -2655,6 +2641,7 @@ function collectPanels(node, panels = []) {
             // ✨ CRUCIAL : Assure la transmission exacte du mode privé pour la liste supérieure
             isPrivate: node.isPrivate === true, 
             containerId: node.containerId || null,
+            bounds: node.bounds ? { ...node.bounds } : null,
             containerLabel: node.containerId ? getContainerLabel(node.containerId) : "",
             containerColor: node.containerId ? TILE_CONTAINERS[node.containerId].color : "",
             searchQuery: node.searchQuery || "",
@@ -3447,16 +3434,8 @@ ipcMain.on("cancel-download", (event, panelId) => {
 // Écouteur pour intercepter le clic sur la croix (X) de index.html
 ipcMain.on("toggle-bookmarks-bar-request", () => {
     isBookmarksBarVisible = false;
-    
-    // On force la hauteur minimale (77px) pour faire remonter les fenêtres
     setNormalToolbarHeight(TOOLBAR_MIN_HEIGHT);
-    
-    // On prévient l'index.html de masquer la barre en CSS
     win.webContents.send("toggle-bookmarks-bar", false);
-    
-    // On force Electron à étirer les fenêtres vers le haut instantanément
-    forceRebuildSplitters = true;
-    resizeViews();
 });
 
 function swapPanelsInTree(idA, idB) {
@@ -4458,7 +4437,7 @@ async function createWindow() {
         titleBarOverlay: {
             color: isDarkModeForced ? '#252526' : '#ffffff', //
             symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937', //
-            height: 38 //
+            height: TOOLBAR_ROW_HEIGHT //
         },
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'), //
@@ -4955,14 +4934,11 @@ async function createWindow() {
                         isBookmarksBarVisible = !isBookmarksBarVisible;
                         
                         // 2. On ajuste dynamiquement la hauteur de la zone d'outils
-                        setNormalToolbarHeight(isBookmarksBarVisible ? 105 : TOOLBAR_MIN_HEIGHT);
+                        setNormalToolbarHeight(TOOLBAR_HEIGHT);
 
                         // 3. On informe l'IHM (index.html) pour masquer la barre physiquement en CSS
                         win.webContents.send("toggle-bookmarks-bar", isBookmarksBarVisible);
 
-                        // 4. On force le redimensionnement immédiat des tuiles web au pixel près
-                        forceRebuildSplitters = true;
-                        resizeViews();
                     }
                 },
 
@@ -5619,40 +5595,17 @@ function resizeViews() {
     const serializableSplitters = splitters.map(({ node, ...splitter }) => splitter);
     win.webContents.send("splitters-updated", serializableSplitters);
 
-    // 4. Mettre à jour la position des liserés bleus
+    // 4. Garder le cadre bleu synchronisé avec le panneau actif.
     if (activePanel) {
         const activeNode = findPanelNode(rootNode, activePanel);
-        if (activeNode) {
-            let targetBounds = null;
-
-            if (maximizedPanelId) {
-                if (activePanel === maximizedPanelId) {
-                    const bounds = win.getContentBounds();
-                    targetBounds = {
-                        x: 0,
-                        y: TOOLBAR_HEIGHT,
-                        width: bounds.width,
-                        height: bounds.height - TOOLBAR_HEIGHT
-                    };
+        if (activeNode?.bounds) {
+            updateActiveBorder(activeNode.bounds);
+        } else {
+            borderViews.forEach(bView => {
+                if (bView && !bView.webContents.isDestroyed()) {
+                    bView.setBounds({ x: -100, y: -100, width: 0, height: 0 });
                 }
-            } else if (activeNode && activeNode.bounds) {
-                targetBounds = {
-                    x: activeNode.bounds.x,
-                    y: activeNode.bounds.y,
-                    width: activeNode.bounds.width,
-                    height: activeNode.bounds.height
-                };
-            }
-
-            if (targetBounds) {
-                updateActiveBorder(targetBounds);
-            } else {
-                borderViews.forEach(bView => {
-                    if (bView && !bView.webContents.isDestroyed()) {
-                        bView.setBounds({ x: -100, y: -100, width: 0, height: 0 });
-                    }
-                });
-            }
+            });
         }
     } else {
         borderViews.forEach(bView => {
@@ -5665,6 +5618,7 @@ function resizeViews() {
     updatePanelHandles();
     win.webContents.send("splitters-updated", serializableSplitters);
     win.webContents.send("zoom-changed", maximizedPanelId); 
+    win.webContents.send("panel-layout-updated", collectPanels(rootNode));
     scheduleSessionLayoutSave();
 }
 
@@ -5686,14 +5640,6 @@ function moveActivePanelKeyboard(direction) {
         swapPanelsInTree(activePanel, targetPanel.id);
     }
 }
-
-ipcMain.on("toggle-bookmarks-bar-request", () => {
-    isBookmarksBarVisible = false;
-    setNormalToolbarHeight(TOOLBAR_MIN_HEIGHT);
-    win.webContents.send("toggle-bookmarks-bar", false);
-    forceRebuildSplitters = true;
-    resizeViews();
-});
 
 ipcMain.on("fullscreen-toolbar-request", (event, visible) => {
     setFullscreenToolbarVisible(visible === true);
@@ -6491,7 +6437,7 @@ ipcMain.on("toggle-dark-mode-request", (_event, enabled) => {
             win.setTitleBarOverlay({
                 color: isDarkModeForced ? "#252526" : "#ffffff",
                 symbolColor: isDarkModeForced ? "#cfcfcf" : "#1f2937",
-                height: 38
+                height: TOOLBAR_ROW_HEIGHT
             });
         }
 

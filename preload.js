@@ -67,6 +67,11 @@ onActivePanelChanged: (callback) => {
                 }
             });
         },
+        onPanelLayoutUpdated: (callback) => {
+            ipcRenderer.on("panel-layout-updated", (_event, panelsList) => {
+                if (typeof callback === "function") callback(panelsList);
+            });
+        },
 
 
 

@@ -12,6 +12,9 @@
 
 :root {
     color-scheme: light;
+    --window-controls-width: 148px;
+    --toolbar-row-height: 38px;
+    --url-row-height: 30px;
     /* Fonds */
     --bg-main: #f3f4f6;
     --bg-toolbar: #ffffff;
@@ -83,18 +86,20 @@ body {
 ===================================================== */
 
 #toolbar-buttons {
-    height: 44px;
+    height: var(--toolbar-row-height);
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     background: var(--bg-toolbar);
     
     /* Supprimez ou commentez cette ligne : */
     /* border-bottom: 1px solid var(--border-color); */
 
-    padding: 6px 10px;
-    padding-right: 140px;
+    padding: 3px 8px;
+    padding-right: var(--window-controls-width);
     box-sizing: border-box;
+    min-width: 0;
+    overflow: hidden;
     z-index: 99999;
     -webkit-app-region: drag;
     transition: transform .22s ease, opacity .22s ease;
@@ -173,10 +178,10 @@ body.fullscreen-toolbar-hidden #fullscreen-reveal-zone {
 ===================================================== */
 
 #toolbar-buttons button {
-    width: 34px !important;
-    height: 30px !important;
-    min-width: 34px;
-    min-height: 30px;
+    width: 32px !important;
+    height: 27px !important;
+    min-width: 32px;
+    min-height: 27px;
 
     background: var(--button-bg) !important;
     color: var(--text-primary) !important;
@@ -186,7 +191,7 @@ body.fullscreen-toolbar-hidden #fullscreen-reveal-zone {
 
     cursor: pointer;
     font-weight: bold;
-    font-size: 16px !important;
+    font-size: 14px !important;
     line-height: 1;
     display: inline-flex;
     align-items: center;
@@ -228,43 +233,37 @@ body.fullscreen-toolbar-hidden #fullscreen-reveal-zone {
 }
 
 .url-icon {
-    margin-right: 8px;
-    font-size: 14px;
+    margin-right: 6px;
+    font-size: 12px;
     user-select: none;
 }
 
 
 #url-bar {
-    /* La zone URL arrive exactement au début des BrowserViews (TOOLBAR_HEIGHT = 76px). */
-    height: 38px !important;
+    /* Le début correspond à la fin de la zone native de titre; la rangée se termine à TOOLBAR_HEIGHT. */
+    height: var(--url-row-height) !important;
     background: linear-gradient(to bottom, rgba(255,255,255,0.08), var(--bg-secondary));
-    border-bottom: 1px solid #e5e7eb !important;
-    border-top: 1px solid rgba(59, 130, 246, 0.65) !important;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(15, 23, 42, 0.08);
+    border: 0 !important;
+    box-shadow: none !important;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 0 8px;
+    gap: 10px;
+    padding: 0;
     position: fixed;
-    top: 38px;
-    width: 100%;
+    top: var(--toolbar-row-height);
+    left: 0;
+    right: 0;
+    width: auto;
     box-sizing: border-box;
 }
 
 #url-bar::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    height: 3px;
-    background: linear-gradient(90deg, #ff4d4d 0%, #f59e0b 22%, #3b82f6 50%, #10b981 75%, #8b5cf6 100%);
-    box-shadow: 0 0 6px rgba(59, 130, 246, 0.6);
+    content: none;
 }
 
 #find-in-page-bar {
     position: fixed;
-    top: 42px;
+    top: var(--toolbar-row-height);
     right: 12px;
     z-index: 2147483646;
     display: none;
@@ -283,6 +282,24 @@ body.fullscreen-toolbar-hidden #fullscreen-reveal-zone {
 }
 
 #find-in-page-bar.open { display: flex; }
+
+.bookmarks-hidden #bookmarks-bar {
+    display: none !important;
+}
+
+#bookmarks-bar,
+#bookmarks-list {
+    min-width: 0;
+}
+
+#bookmarks-bar {
+    max-width: max(0px, calc(100% - 760px));
+    flex-shrink: 1;
+}
+
+#bookmarks-list {
+    flex: 1 1 auto;
+}
 
 #find-in-page-input {
     flex: 1;
@@ -320,8 +337,8 @@ body.fullscreen-toolbar-hidden #fullscreen-reveal-zone {
 
 .url-tab {
     position: relative;
-    padding: 0px 6px !important; /* Supprime le padding vertical (haut/bas) pour aplatir l'onglet */
-    height: 30px !important;
+    padding: 0px 5px !important; /* Garde le contour visible dans la barre URL compacte. */
+    height: 27px !important;
     box-sizing: border-box;
     border: 1px solid transparent;
 }
@@ -341,14 +358,22 @@ body.fullscreen-toolbar-hidden #fullscreen-reveal-zone {
 
 .url-tab.active-url-tab {
     border: 1px solid #3b82f6 !important;
-    border-top: 3px solid #3b82f6 !important;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35), 0 -2px 0 rgba(59, 130, 246, 0.8) !important;
+    box-shadow: none !important;
 }
 
 .url-tab.private-url-tab.active-url-tab {
-    border-color: #7e22ce !important;
-    border-top-color: #7e22ce !important;
-    box-shadow: 0 0 0 2px rgba(126, 34, 206, 0.35), 0 -2px 0 rgba(126, 34, 206, 0.8) !important;
+    border-color: #3b82f6 !important;
+}
+
+.url-address-group.active-url-address {
+    border: 1px solid #3b82f6 !important;
+    box-shadow: inset 0 0 0 1px #3b82f6;
+}
+
+.url-tab:focus,
+.url-tab:focus-visible,
+.url-address-group:focus-within {
+    outline: none !important;
 }
 
 .url-input {
@@ -391,8 +416,8 @@ html.dark .incognito-badge {
 }
 
 html.dark #url-bar {
-    border-bottom: 1px solid #3c3c3c !important;
-    border-top: 1px solid #3c3c3c !important;
+    border: 0 !important;
+    box-shadow: none !important;
 }
 
 
@@ -418,12 +443,12 @@ html.dark #url-bar {
 #bookmarks-bar {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 
     margin-left: auto;
 
-    height: 30px;
-    padding: 4px 8px;
+    height: 27px;
+    padding: 2px 6px;
 
     background: rgba(15, 23, 42, 0.12);
     border: 1px solid rgba(15, 23, 42, 0.35);
@@ -437,10 +462,10 @@ html.dark #url-bar {
     display: flex !important;
     flex-direction: row !important;
     flex-wrap: nowrap !important;
-    gap: 6px !important;
+    gap: 5px !important;
     align-items: center;
-    height: 28px;
-    padding: 2px 4px;
+    height: 24px;
+    padding: 1px 3px;
     overflow-x: auto;
     overflow-y: hidden;
     border-radius: 6px;
@@ -471,8 +496,8 @@ html.dark #url-bar {
     display: flex;
     align-items: center;
     gap: 6px;
-    min-height: 20px;
-    padding: 4px 10px !important;
+    min-height: 18px;
+    padding: 2px 8px !important;
     max-width: 140px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -742,7 +767,7 @@ html.dark #pwd-modal {
 </div>
 
 <!-- Dans votre boucle qui génère chaque en-tête de tuile -->
-<div id="url-bar" style="position: fixed; top: 38px; left: 0; right: 0; z-index: 50;"></div>
+<div id="url-bar" style="position: fixed; left: 0; z-index: 50;"></div>
 
 <div id="find-in-page-bar" role="search" aria-label="Rechercher dans la page">
     <input id="find-in-page-input" type="search" placeholder="Rechercher dans cette tuile" autocomplete="off">
@@ -752,11 +777,7 @@ html.dark #pwd-modal {
     <button id="find-in-page-close" type="button" title="Fermer (Échap)" aria-label="Fermer">×</button>
 </div>
 
-<div id="active-panel-frame"></div>
-
 <!-- === REMPLACER LE CONTENEUR DE LA BARRE DES FAVORIS PAR CELUI-CI === -->
-    
-<div id="active-panel-frame"></div>
 
 <!-- Panneau latéral d'historique -->
 <div id="history-sidebar">
@@ -773,7 +794,7 @@ html.dark #pwd-modal {
 
 
 <!-- Dans index.html -> Remplacez la ligne d'ouverture de #ai-sidebar par celle-ci (on enlève le background fixe et la top position en dur) -->
-<div id="ai-sidebar" class="ai-sidebar-native" style="position: fixed; top: 76px; right: 0; width: 300px; bottom: 0; border-left: 1px solid #3c3c3c; z-index: 99999; display: flex; flex-direction: column; padding: 16px; box-sizing: border-box; transition: right 0.3s ease, background 0.2s, color 0.2s, border-color 0.2s; font-family: sans-serif;">
+<div id="ai-sidebar" class="ai-sidebar-native" style="position: fixed; top: 68px; right: 0; width: 300px; bottom: 0; border-left: 1px solid #3c3c3c; z-index: 99999; display: flex; flex-direction: column; padding: 16px; box-sizing: border-box; transition: right 0.3s ease, background 0.2s, color 0.2s, border-color 0.2s; font-family: sans-serif;">
     
     <!-- En-tête de la Sidebar -->
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3c3c3c; padding-bottom: 12px; margin-bottom: 16px;">
@@ -867,6 +888,25 @@ let currentPanels = []; // Stockage global pour maintenir la liste des panneaux
 let currentMaximizedId = null; // Mémoire globale du mode zoom
 let applicationTitle = "Hare Browser";
 const translateUi = (id, replacements = {}) => HareI18n.t(id, document.documentElement.lang || "fr", replacements);
+
+function syncWindowControlsInset() {
+    const controlsOverlay = navigator.windowControlsOverlay;
+    if (!controlsOverlay?.visible || typeof controlsOverlay.getTitlebarAreaRect !== "function") return;
+
+    const titlebarArea = controlsOverlay.getTitlebarAreaRect();
+    const measuredInset = Math.ceil(window.innerWidth - (titlebarArea.x + titlebarArea.width)) + 8;
+    if (Number.isFinite(measuredInset) && measuredInset > 0) {
+        const fallbackInset = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--window-controls-width")) || 148;
+        document.documentElement.style.setProperty(
+            "--window-controls-width",
+            `${Math.max(fallbackInset, measuredInset)}px`
+        );
+    }
+}
+
+window.addEventListener("resize", syncWindowControlsInset);
+navigator.windowControlsOverlay?.addEventListener?.("geometrychange", syncWindowControlsInset);
+document.addEventListener("DOMContentLoaded", syncWindowControlsInset, { once: true });
 
 // AJOUTEZ CETTE LIGNE ICI POUR QU'ELLE SOIT ACCESSIBLE PARTOUT :
 let applicationDarkMode = false; 
@@ -1102,37 +1142,61 @@ function refreshTabBorders() {
         const panelId = input.id.replace("-url", "");
         const isActiveTab = !!(activePanel && panelId === activePanel);
         const isPrivateTab = !!tabWrapper.querySelector(".incognito-badge");
+        const addressGroup = tabWrapper.querySelector(".url-address-group");
         tabWrapper.classList.toggle("active-url-tab", isActiveTab);
         tabWrapper.classList.toggle("private-url-tab", isPrivateTab);
+        addressGroup?.classList.toggle("active-url-address", isActiveTab);
 
         if (isPrivateTab) {
             tabWrapper.style.background = isDark
                 ? (isActiveTab ? "#2a193d" : "#1e112c")
                 : (isActiveTab ? "#ede9fe" : "#f5f3ff");
-            tabWrapper.style.borderColor = isActiveTab
-                ? (isDark ? "#a855f7" : "#7e22ce")
-                : (isDark ? "#4a2874" : "#c4b5fd");
-            tabWrapper.style.borderWidth = isActiveTab ? "2px" : "1px";
+            tabWrapper.style.borderColor = isDark ? "#4a2874" : "#c4b5fd";
         } else if (isActiveTab) {
-            tabWrapper.style.borderColor = "#3b82f6";
             tabWrapper.style.background = isDark ? "#203a5d" : "#dbeafe";
-            tabWrapper.style.borderWidth = "2px";
         } else {
             tabWrapper.style.borderColor = isDark ? "#3c3c3c" : "#d1d5db";
             tabWrapper.style.background = isDark
                 ? "#3a3a3f"
                 : "#f3f4f6";
-            tabWrapper.style.borderWidth = "1px";
         }
-
-        tabWrapper.style.boxShadow = isActiveTab
-            ? (isPrivateTab
-                ? "0 0 0 2px rgba(126,34,206,0.35)"
-                : "0 0 0 2px rgba(59,130,246,0.5)")
-            : "none";
-
-
     }
+}
+
+function alignUrlTabsToPanels(panels = currentPanels) {
+    const urlBar = document.getElementById("url-bar");
+    if (!urlBar || !Array.isArray(panels) || panels.length === 0) return;
+
+    const bounds = panels.map(panel => panel?.bounds).filter(Boolean);
+    const ordered = [...bounds].sort((a, b) => a.x - b.x);
+    const oneHorizontalRow = bounds.length === panels.length && ordered.every((rect, index) =>
+        rect.y === ordered[0].y &&
+        rect.height === ordered[0].height &&
+        (index === 0 || rect.x >= ordered[index - 1].x + ordered[index - 1].width)
+    );
+
+    if (!oneHorizontalRow) {
+        urlBar.style.gap = "5px";
+        panels.forEach(panel => {
+            const tab = urlBar.querySelector(`#${CSS.escape(panel.id)}-url`)?.closest(".url-tab");
+            if (tab) {
+                tab.style.flex = "1 1 0";
+                tab.style.width = "";
+            }
+        });
+        return;
+    }
+
+    const gaps = ordered.slice(1).map((rect, index) => rect.x - (ordered[index].x + ordered[index].width));
+    const splitterGap = gaps.length ? Math.round(gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length) : 0;
+    urlBar.style.gap = `${splitterGap}px`;
+
+    panels.forEach(panel => {
+        const tab = urlBar.querySelector(`#${CSS.escape(panel.id)}-url`)?.closest(".url-tab");
+        if (!tab || !panel.bounds) return;
+        tab.style.flex = `0 0 ${panel.bounds.width}px`;
+        tab.style.width = `${panel.bounds.width}px`;
+    });
 }
 
 function getUrlTypeIcon(url, isPrivate = false) {
@@ -1375,6 +1439,8 @@ window.api.onPanelsUpdated((panelsList, zoomPanelId) => {
         }
     }
 
+    alignUrlTabsToPanels(currentPanels);
+
     // 5. Rafraîchissements secondaires
     try {
         if (typeof checkFavorisState === "function") checkFavorisState();
@@ -1383,6 +1449,12 @@ window.api.onPanelsUpdated((panelsList, zoomPanelId) => {
     } catch (err) {
         console.error("Erreur d'état d'interface secondaire :", err);
     }
+});
+
+window.api.onPanelLayoutUpdated?.((panelsList) => {
+    if (!Array.isArray(panelsList)) return;
+    currentPanels = panelsList;
+    alignUrlTabsToPanels(currentPanels);
 });
 
 
@@ -1506,7 +1578,6 @@ function rebuildUrlBar(panels) {
         tabWrapper.className = "url-tab";
         if (panel.isPrivate) tabWrapper.classList.add("private-url-tab");
         if (panel.containerId) {
-            tabWrapper.style.borderTop = `3px solid ${panel.containerColor}`;
             tabWrapper.title = translateUi("ui.container", { name: panel.containerLabel });
         }
 
@@ -1527,11 +1598,11 @@ function rebuildUrlBar(panels) {
         tabWrapper.style.display = "flex";
         tabWrapper.style.flexDirection = "row";
         tabWrapper.style.alignItems = "center";
-        tabWrapper.style.gap = "6px";
+        tabWrapper.style.gap = "5px";
         tabWrapper.style.flex = "1";
         tabWrapper.style.minWidth = "0";
 //      tabWrapper.style.padding = "2px 6px";
-        tabWrapper.style.padding = "0px 6px";
+        tabWrapper.style.padding = "0px 5px";
         tabWrapper.style.borderRadius = "6px";
         tabWrapper.style.boxSizing = "border-box";
 
@@ -1543,17 +1614,6 @@ function rebuildUrlBar(panels) {
         } else {
             tabWrapper.style.background = isDark ? "#2d2d30" : "#f3f4f6";
             tabWrapper.style.border = isDark ? "1px solid #3c3c3c" : "1px solid #d1d5db";
-        }
-
-        if (isActive) {
-            const activeBorderColor = panel.isPrivate
-                ? (isDark ? "#a855f7" : "#7e22ce")
-                : "#3b82f6";
-            tabWrapper.style.borderTop = `3px solid ${activeBorderColor}`;
-            tabWrapper.style.borderColor = activeBorderColor;
-            tabWrapper.style.boxShadow = panel.isPrivate
-                ? "0 0 0 2px rgba(126,34,206,0.35), 0 -2px 0 rgba(126,34,206,0.8)"
-                : "0 0 0 2px rgba(59,130,246,0.35), 0 -2px 0 rgba(59,130,246,0.8)";
         }
 
         // ============================
@@ -1648,6 +1708,7 @@ tabWrapper.appendChild(loadingIndicator);
         addressGroup.style.alignItems = "center";
         addressGroup.style.flex = "1";
         addressGroup.style.minWidth = "0";
+        addressGroup.style.boxSizing = "border-box";
         addressGroup.style.gap = "4px";
         addressGroup.style.padding = "0 6px";
         addressGroup.style.border = panel.isPrivate
@@ -1671,8 +1732,8 @@ tabWrapper.appendChild(loadingIndicator);
             );
 
             urlIcon.style.flex = "0 0 auto";
-            urlIcon.style.fontSize = "14px";
-            urlIcon.style.marginRight = "4px";
+            urlIcon.style.fontSize = "12px";
+            urlIcon.style.marginRight = "3px";
 
             addressGroup.appendChild(urlIcon);
         }
@@ -2887,6 +2948,11 @@ window.api.onFullscreenToolbarState((state) => {
     fullscreenToolbarIsActive = !!state?.fullscreen;
     document.body.classList.toggle("fullscreen-toolbar-hidden", fullscreenToolbarIsActive && !state.visible);
     document.body.classList.toggle("fullscreen-toolbar-active", fullscreenToolbarIsActive && !!state.visible);
+    if (fullscreenToolbarIsActive) {
+        document.documentElement.style.setProperty("--window-controls-width", "0px");
+    } else {
+        syncWindowControlsInset();
+    }
 
     if (fullscreenToolbarHideTimer) {
         clearTimeout(fullscreenToolbarHideTimer);
