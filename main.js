@@ -543,6 +543,62 @@ function getSessionLayoutPath() {
     return path.join(appDataPath, 'last-session-layout.json');
 }
 
+function getClosePreferencesPath() {
+    return path.join(appDataPath, 'close-preferences.json');
+}
+
+let saveLayoutOnExit = true;
+let sessionLayoutBaseline = null;
+let sessionLayoutBaselineCaptured = false;
+let isQuitConfirmationOpen = false;
+
+function loadClosePreferences() {
+    try {
+        const settings = JSON.parse(fs.readFileSync(getClosePreferencesPath(), "utf-8"));
+        saveLayoutOnExit = typeof settings.saveLayoutOnExit === "boolean" ? settings.saveLayoutOnExit : true;
+    } catch (error) {
+        saveLayoutOnExit = true;
+        if (error.code !== "ENOENT") {
+            console.error("Impossible de lire les préférences de fermeture :", error);
+        }
+    }
+}
+
+function saveClosePreferences() {
+    try {
+        fs.mkdirSync(appDataPath, { recursive: true });
+        fs.writeFileSync(getClosePreferencesPath(), JSON.stringify({ saveLayoutOnExit }, null, 2), "utf-8");
+    } catch (error) {
+        console.error("Impossible d’enregistrer les préférences de fermeture :", error);
+    }
+}
+
+function captureSessionLayoutBaseline() {
+    try {
+        sessionLayoutBaseline = fs.existsSync(getSessionLayoutPath())
+            ? fs.readFileSync(getSessionLayoutPath(), "utf-8")
+            : null;
+        sessionLayoutBaselineCaptured = true;
+    } catch (error) {
+        sessionLayoutBaseline = null;
+        sessionLayoutBaselineCaptured = false;
+        console.error("Impossible de mémoriser la disposition précédente :", error);
+    }
+}
+
+function restoreSessionLayoutBaseline() {
+    if (!sessionLayoutBaselineCaptured) return;
+    try {
+        if (sessionLayoutBaseline === null) {
+            fs.rmSync(getSessionLayoutPath(), { force: true });
+        } else {
+            fs.writeFileSync(getSessionLayoutPath(), sessionLayoutBaseline, "utf-8");
+        }
+    } catch (error) {
+        console.error("Impossible de restaurer la disposition précédente :", error);
+    }
+}
+
 // Stockage des 4 bordures bleues
 let borderViews = []; 
 
@@ -2260,7 +2316,7 @@ function createPersistedSessionSnapshot(node) {
 let sessionSaveTimer = null;
 
 function persistSessionLayout() {
-    if (!rootNode) return;
+    if (!rootNode || !saveLayoutOnExit) return;
     try {
         const snapshot = {
             version: 1,
@@ -2274,6 +2330,7 @@ function persistSessionLayout() {
 }
 
 function scheduleSessionLayoutSave() {
+    if (!saveLayoutOnExit) return;
     if (sessionSaveTimer) clearTimeout(sessionSaveTimer);
     sessionSaveTimer = setTimeout(() => {
         sessionSaveTimer = null;
@@ -4431,6 +4488,8 @@ async function createWindow() {
     loadLanguagePreference();
 
         await fsPromises.mkdir(appDataPath, { recursive: true }); //
+        loadClosePreferences();
+        captureSessionLayoutBaseline();
     
     // Récupération des préférences de thème
     isDarkModeForced = await getThemePreference(); //
@@ -4940,18 +4999,7 @@ async function createWindow() {
                     label: 'Quitter l\'application',
                     accelerator: 'CmdOrCtrl+Q',
                     click: () => {
-                        const response = dialog.showMessageBoxSync(win, {
-                            type: 'question',
-                            buttons: [tr('dialog.quit'), tr('dialog.cancel')],
-                            defaultId: 1,
-                            cancelId: 1,
-                            title: tr('dialog.confirm'),
-                            message: tr('dialog.quitMessage', { app: APP_TITLE }),
-                            detail: tr('dialog.quitDetail')
-                        });
-                        if (response === 0) {
-                            app.exit(0); 
-                        }
+                        if (win && !win.isDestroyed()) win.close();
                     }
                 },
 
@@ -5225,6 +5273,8 @@ async function createWindow() {
 win.on('close', (e) => {
     // Empêche la fermeture immédiate le temps de demander confirmation
     e.preventDefault(); //
+    if (isQuitConfirmationOpen) return;
+    isQuitConfirmationOpen = true;
 
     // 🌟 CORRECTIF CRUCIAL : On désactive temporairement le premier plan des fenêtres secondaires
     if (historyWindow && !historyWindow.isDestroyed()) { //
@@ -5246,10 +5296,25 @@ win.on('close', (e) => {
         buttons: [tr('dialog.quit'), tr('dialog.cancel')], //
         defaultId: 1, //
         cancelId: 1, //
+        checkboxLabel: tr('dialog.quitSaveLayout'),
+        checkboxChecked: saveLayoutOnExit,
         title: tr('dialog.confirm'), //
         message: tr('dialog.quitMessage', { app: APP_TITLE }), //
         detail: tr('dialog.quitDetail') //
     }).then((response) => {
+        saveLayoutOnExit = typeof response.checkboxChecked === "boolean"
+            ? response.checkboxChecked
+            : saveLayoutOnExit;
+        saveClosePreferences();
+
+        if (!saveLayoutOnExit) {
+            if (sessionSaveTimer) {
+                clearTimeout(sessionSaveTimer);
+                sessionSaveTimer = null;
+            }
+            restoreSessionLayoutBaseline();
+        }
+
         // Seul l'index 0 ("Oui, quitter") détruit la fenêtre
         if (response.response === 0) {
             if (sessionSaveTimer) { //
@@ -5257,9 +5322,10 @@ win.on('close', (e) => {
                 sessionSaveTimer = null; //
             }
             saveAutoSleepPreference(); //
-            persistSessionLayout(); //
+            if (saveLayoutOnExit) persistSessionLayout(); //
             win.destroy(); //
         } else {
+            isQuitConfirmationOpen = false;
             // 🌟 RESTAURATION : Si l'utilisateur annule, on remet le "Always on Top"
             if (historyWindow && !historyWindow.isDestroyed()) { //
                 historyWindow.setAlwaysOnTop(true); //
@@ -5268,6 +5334,11 @@ win.on('close', (e) => {
                 pwdWindow.setAlwaysOnTop(true); //
             }
         }
+    }).catch((error) => {
+        console.error("Erreur dans la confirmation de fermeture :", error);
+        isQuitConfirmationOpen = false;
+        if (historyWindow && !historyWindow.isDestroyed()) historyWindow.setAlwaysOnTop(true);
+        if (pwdWindow && !pwdWindow.isDestroyed()) pwdWindow.setAlwaysOnTop(true);
     });
 });
 
