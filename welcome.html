@@ -98,6 +98,32 @@ body {
     transform: translateY(-3px);
 }
 
+.card[data-tutorial-video] {
+    cursor: pointer;
+}
+
+.card[data-tutorial-video]:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+}
+
+#tutorial-error {
+    margin: 12px auto 0;
+    max-width: 720px;
+    padding: 10px 14px;
+    color: #991b1b;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+html.mw-theme-client-dark #tutorial-error {
+    color: #fecaca;
+    background: #450a0a;
+    border-color: #7f1d1d;
+}
+
 .card h2 {
     margin: 0 0 8px 0;
     font-size: 18px;
@@ -170,7 +196,7 @@ html.mw-theme-client-dark .welcome-btn:hover {
 }
 
 h1 {
-    margin-top: 40px !important;; /* Ajustez la valeur en pixels selon vos besoins */
+    margin-top: 40px !important; /* Ajustez la valeur en pixels selon vos besoins */
 }
 
 </style>
@@ -178,6 +204,10 @@ h1 {
 
 <body>
 
+
+
+
+    
 <div class="container">
 
     <div class="hero">
@@ -194,7 +224,12 @@ h1 {
 
     <div class="cards">
 
-        <div class="card">
+
+
+
+        <div class="card" data-tutorial-video="Mosaic_browsing.mp4" role="button" tabindex="0">
+
+
             <h2 data-i18n="welcome.tileNav">🧩 Navigation mosaïque</h2>
             <p data-i18n="welcome.tileNavText">
                 Organisez votre navigation dans plusieurs panneaux indépendants
@@ -202,6 +237,10 @@ h1 {
             </p>
         </div>
 
+
+
+
+        
 <!-- Insérer ce bloc à l'intérieur de votre grille de fonctionnalités, par exemple à côté de "Navigation mosaïque" -->
         <div class="card">
 		<h2 data-i18n="welcome.adblock">🚫 Bloqueur intégré</h2>
@@ -258,6 +297,8 @@ h1 {
 
     </div>
 
+    <div id="tutorial-error" role="alert" hidden></div>
+
 		<div class="welcome-buttons-container">
                 <a href="hare://history" class="welcome-btn" data-i18n="welcome.history">📜&nbsp;Historique</a>
             <a href="hare://close-panel" class="welcome-btn" data-i18n="welcome.close">
@@ -284,5 +325,44 @@ h1 {
 
 <script src="i18n.js"></script>
 <script>HareI18n.attach(window.tileLanguage);</script>
+<script>
+(() => {
+    const tutorialCard = document.querySelector('[data-tutorial-video]');
+    const errorNotice = document.getElementById('tutorial-error');
+
+    async function openTutorial() {
+        const videoFile = tutorialCard.dataset.tutorialVideo;
+        console.info('[Tutoriel] Clic détecté sur la carte :', videoFile);
+        errorNotice.hidden = true;
+
+        if (!window.tutorials || typeof window.tutorials.openVideo !== 'function') {
+            const message = 'Le pont Electron window.tutorials est indisponible (preload-tile.js non chargé).';
+            console.error('[Tutoriel] ' + message);
+            errorNotice.textContent = message;
+            errorNotice.hidden = false;
+            return;
+        }
+
+        try {
+            console.info('[Tutoriel] Appel de window.tutorials.openVideo().');
+            const result = await window.tutorials.openVideo(videoFile);
+            if (!result?.ok) throw new Error(result?.error || 'Le processus principal n’a pas pu ouvrir la vidéo.');
+            console.info('[Tutoriel] Confirmation reçue du processus principal.');
+        } catch (error) {
+            console.error('[Tutoriel] Échec de l’ouverture :', error);
+            errorNotice.textContent = `Impossible d’ouvrir le tutoriel : ${error.message || error}`;
+            errorNotice.hidden = false;
+        }
+    }
+
+    tutorialCard.addEventListener('click', openTutorial);
+    tutorialCard.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        openTutorial();
+    });
+    console.info('[Tutoriel] Gestionnaire de clic prêt. window.tutorials disponible :', !!window.tutorials);
+})();
+</script>
 </body>
 </html>

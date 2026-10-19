@@ -4,7 +4,7 @@
 
 const {
     app,
-    BrowserWindow,
+    BrowserWindow, 
     BrowserView,
     ipcMain,
     Menu,
@@ -12,9 +12,7 @@ const {
     nativeTheme,
     dialog,
     globalShortcut,
-    shell,
     screen,
-    webContents,
     safeStorage, // <-- Assurez-vous que safeStorage est bien présent dans vos imports Electron
     session
 } = require('electron');
@@ -22,7 +20,6 @@ const {
 
 const fs = require("fs");
 const fsPromises = require("fs/promises");
-const os = require("os");
 const path = require("path");
 const https = require("https");
 const { spawn } = require("child_process");
@@ -37,7 +34,62 @@ const OLLAMA_BUNDLE_DIR = app.isPackaged
 
 const DEFAULT_OLLAMA_MODEL = "qwen2.5:1.5b";
 let currentLanguage = "fr";
+
 let applicationMenuTemplate = null;
+
+
+
+async function ouvrirVideoTutoriel(videoFile) {
+    const allowedTutorials = new Set(["Mosaic_browsing.mp4"]);
+    if (typeof videoFile !== "string" || !allowedTutorials.has(videoFile)) {
+        throw new Error(`Fichier de tutoriel non autorisé : ${String(videoFile)}`);
+    }
+
+    const videoPath = path.join(__dirname, "videos", videoFile);
+    if (!fs.existsSync(videoPath)) {
+        throw new Error(`Fichier vidéo introuvable : ${videoPath}`);
+    }
+    const videoUrl = getPathToFileURL(videoPath).href;
+    console.info("[Tutoriel] Création de la fenêtre vidéo :", videoPath);
+
+    const videoWindow = new BrowserWindow({
+        width: 1280,
+        height: 720,
+        title: "Tutoriel Hare Browser",
+        autoHideMenuBar: true,
+        backgroundColor: "#1e1e1e",
+        webPreferences: {
+            contextIsolation: true,
+            nodeIntegration: false,
+            sandbox: true
+        }
+    });
+
+    videoWindow.webContents.on("did-finish-load", () => {
+        console.info("[Tutoriel] video-player.html chargé avec succès.");
+    });
+    videoWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
+        console.error("[Tutoriel] Échec du chargement du lecteur :", {
+            errorCode, errorDescription, validatedURL
+        });
+    });
+    videoWindow.webContents.on("console-message", (_event, details) => {
+        const log = details.level >= 2 ? console.error : console.info;
+        log.call(console, `[Tutoriel player ${details.sourceId}:${details.lineNumber}] ${details.message}`);
+    });
+
+    try {
+        await videoWindow.loadFile(path.join(__dirname, "video-player.html"), {
+            query: { src: videoUrl }
+        });
+        console.info("[Tutoriel] Lecteur ouvert, source vidéo :", videoUrl);
+        return { ok: true };
+    } catch (error) {
+        console.error("[Tutoriel] Impossible de charger video-player.html :", error);
+        if (!videoWindow.isDestroyed()) videoWindow.close();
+        throw error;
+    }
+}
 
 function tr(id, replacements = {}) {
     return HareI18n.t(id, currentLanguage, replacements);
@@ -57,73 +109,18 @@ function rebuildApplicationMenu() {
 }
 
 function getOllamaExePath() {
-
     const fs = require("fs");
     const path = require("path");
-
     const candidates = [];
 
-    // Version embarquée dans Hare Browser
     if (app.isPackaged) {
-
-        candidates.push(
-            path.join(
-                process.resourcesPath,
-                "ollama",
-                "ollama.exe"
-            )
-        );
-
+        candidates.push(path.join(process.resourcesPath, "ollama", "ollama.exe"));
     } else {
-
-        // Mode développement
-        candidates.push(
-            path.join(
-                __dirname,
-                "ollama-bundle",
-                "ollama.exe"
-            )
-        );
+        candidates.push(path.join(__dirname, "ollama-bundle", "ollama.exe"));
     }
 
-    // Installation standard Ollama
-    candidates.push(
-        path.join(
-            process.env.LOCALAPPDATA || "",
-            "Programs",
-            "Ollama",
-            "ollama.exe"
-        )
-    );
-
-    for (const candidate of candidates) {
-
-/*
-        console.log(
-            "[OLLAMA] Vérification :",
-            candidate
-        );
-*/
-
-        if (fs.existsSync(candidate)) {
-
-/*            
-            console.log(
-                "[OLLAMA] Trouvé :",
-                candidate
-            );
-*/
-            return candidate;
-        }
-    }
-
-/*
-    console.warn(
-        "[OLLAMA] Aucun exécutable trouvé"
-    );
-*/
-
-    return null;
+    candidates.push(path.join(process.env.LOCALAPPDATA || "", "Ollama", "ollama.exe"));
+    return candidates.find((candidate) => fs.existsSync(candidate)) || null;
 }
 
 
@@ -1299,6 +1296,34 @@ app.on('ready', () => {
 });
 
 
+ipcMain.handle("open-tutorial-video", async (event, videoFile) => {
+    console.info("[Tutoriel] IPC open-tutorial-video reçu :", videoFile);
+    const panel = findPanelByWebContents(event.sender);
+    const isMainRenderer = win && !win.isDestroyed() && event.sender === win.webContents;
+    const isWelcomeTile = panel && (() => {
+        try {
+            const url = new URL(event.sender.getURL());
+            return url.protocol === "file:" && decodeURIComponent(url.pathname).toLowerCase().endsWith("/welcome.html");
+        } catch {
+            return false;
+        }
+    })();
+
+    if (!isMainRenderer && !isWelcomeTile) {
+        console.warn("[Tutoriel] Requête refusée : l'émetteur n'est pas la page de bienvenue.");
+        return { ok: false, error: "Cette page n'est pas autorisée à ouvrir le tutoriel." };
+    }
+
+    try {
+        const result = await ouvrirVideoTutoriel(videoFile);
+        console.info("[Tutoriel] Fenêtre vidéo créée et lecteur chargé.");
+        return result;
+    } catch (error) {
+        console.error("[Tutoriel] Erreur pendant l'ouverture de la vidéo :", error);
+        return { ok: false, error: error.message || "Erreur inconnue lors de l'ouverture du tutoriel." };
+    }
+});
+
 
 ipcMain.handle('adblock-get-exceptions', (event) => {
     if (!win || win.isDestroyed() || event.sender !== win.webContents) return [];
@@ -2015,12 +2040,27 @@ function updatePanelHandles() {
 
         const isMaximized = (maximizedPanelId === panel.id);
         const expectedWidth = isLastRemaining ? 24 : (isMaximized ? 60 : 80);
+        const handleWidth = Math.min(expectedWidth, Math.max(0, panel.bounds.width - 12));
+        const handleHeight = Math.min(24, Math.max(0, panel.bounds.height - 12));
+
+        if (handleWidth === 0 || handleHeight === 0) {
+            if (handleViews[panel.id]) {
+                try {
+                    win.removeBrowserView(handleViews[panel.id]);
+                    if (!handleViews[panel.id].webContents.isDestroyed()) {
+                        handleViews[panel.id].webContents.destroy();
+                    }
+                } catch (e) {}
+                delete handleViews[panel.id];
+            }
+            return;
+        }
 
         const handleBounds = {
             x: panel.bounds.x + 6,
             y: panel.bounds.y + 6,
-            width: expectedWidth, 
-            height: 24
+            width: handleWidth,
+            height: handleHeight
         };
 
         // =============================================================
@@ -3333,25 +3373,31 @@ function layoutNode(node, x, y, width, height) {
     }
 
     if (node.direction === "vertical") {
-        const firstWidth = Math.floor(width * node.ratio);
+        const splitterWidth = Math.min(SPLITTER_SIZE, width);
+        const availableWidth = width - splitterWidth;
+        const firstWidth = Math.floor(availableWidth * node.ratio);
+        const secondWidth = availableWidth - firstWidth;
         splitters.push({
             node, direction: "vertical",
             x: x + firstWidth, y,
-            width: SPLITTER_SIZE, height,
+            width: splitterWidth, height,
             parentX: x, parentWidth: width
         });
         layoutNode(node.first, x, y, firstWidth, height);
-        layoutNode(node.second, x + firstWidth + SPLITTER_SIZE, y, width - firstWidth - SPLITTER_SIZE, height);
+        layoutNode(node.second, x + firstWidth + splitterWidth, y, secondWidth, height);
     } else {
-        const firstHeight = Math.floor(height * node.ratio);
+        const splitterHeight = Math.min(SPLITTER_SIZE, height);
+        const availableHeight = height - splitterHeight;
+        const firstHeight = Math.floor(availableHeight * node.ratio);
+        const secondHeight = availableHeight - firstHeight;
         splitters.push({
             node, direction: "horizontal",
             x, y: y + firstHeight,
-            width, height: SPLITTER_SIZE,
+            width, height: splitterHeight,
             parentY: y, parentHeight: height
         });
         layoutNode(node.first, x, y, width, firstHeight);
-        layoutNode(node.second, x, y + firstHeight, width, height - firstHeight);
+        layoutNode(node.second, x, y + firstHeight + splitterHeight, width, secondHeight);
     }
 }
 
@@ -5208,7 +5254,7 @@ async function createWindow() {
     win.setMenuBarVisibility(false); // Supprime définitivement la ligne vide sous Windows
 
     win.loadFile('index.html');
-
+    
     forceRebuildSplitters = true;
     resizeViews();
 

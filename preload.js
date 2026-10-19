@@ -3,6 +3,10 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld(
     'api',
     {
+
+
+
+
         // --- ÉCOUTEURS SYSTÈME ET THÈME ---
         onAppTitle: (callback) => {
             ipcRenderer.on("app-title", (_, title) => callback(title));
@@ -91,6 +95,14 @@ onActivePanelChanged: (callback) => {
             toggleException: (host) => ipcRenderer.invoke('adblock-toggle-exception', host),
             onExceptionsUpdated: (callback) => ipcRenderer.on('adblock-exceptions-updated', (event, data) => callback(data))
         },
+
+
+    openVideo: (videoFile) =>
+        ipcRenderer.invoke("open-tutorial-video", videoFile),
+
+
+
+
 
         // --- NAVIGATION ET ADRESSES ---
         navigate: (panelId, url) => ipcRenderer.send('navigate', panelId, url),
@@ -214,4 +226,11 @@ window.addEventListener("message", (event) => {
     if (event.data.source === "handle-drag-start") ipcRenderer.send("handle-drag-start", event.data.panelId);
     if (event.data.source === "handle-drag-move") ipcRenderer.send("handle-drag-move");
     if (event.data.source === "handle-drag-end") ipcRenderer.send("handle-drag-end");
+});
+
+contextBridge.exposeInMainWorld("tutorials", {
+    openVideo: (videoFile) => {
+        console.info("[Tutoriel] Appel IPC demandé depuis la fenêtre principale :", videoFile);
+        return ipcRenderer.invoke("open-tutorial-video", videoFile);
+    }
 });

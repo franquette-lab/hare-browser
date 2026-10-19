@@ -34,3 +34,10 @@ contextBridge.exposeInMainWorld('tileLanguage', {
     get: () => ipcRenderer.invoke('get-language'),
     onChanged: (callback) => ipcRenderer.on('language-changed', (_event, language) => callback(language))
 });
+
+contextBridge.exposeInMainWorld('tutorials', {
+    openVideo: (videoFile) => {
+        console.info('[Tutoriel] Appel IPC demandé depuis une tuile :', videoFile);
+        return ipcRenderer.invoke('open-tutorial-video', videoFile);
+    }
+});

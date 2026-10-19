@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Tutoriel vidéo</title>
+
+<style>
+html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    background: #111;
+    overflow: hidden;
+}
+
+video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+#player-error {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    color: #fff;
+    background: #111;
+    font: 15px "Segoe UI", sans-serif;
+    text-align: center;
+}
+
+#player-error[hidden] { display: none; }
+</style>
+</head>
+
+<body>
+
+<video id="player" controls autoplay></video>
+<div id="player-error" role="alert" hidden></div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const source = params.get("src");
+const player = document.getElementById("player");
+const errorNotice = document.getElementById("player-error");
+
+if (!source) {
+    const message = "Aucune source vidéo n’a été transmise au lecteur.";
+    console.error("[Tutoriel player]", message);
+    errorNotice.textContent = message;
+    errorNotice.hidden = false;
+} else {
+    try {
+        const videoUrl = new URL(source);
+        if (videoUrl.protocol !== "file:") throw new Error("La source vidéo doit être un fichier local.");
+        console.info("[Tutoriel player] Chargement de la vidéo :", videoUrl.href);
+        player.addEventListener("loadeddata", () => console.info("[Tutoriel player] Première image vidéo chargée."), { once: true });
+        player.addEventListener("error", () => {
+            const message = `Le fichier vidéo n’a pas pu être lu (code média ${player.error?.code ?? "inconnu"}).`;
+            console.error("[Tutoriel player]", message, player.error);
+            errorNotice.textContent = message;
+            errorNotice.hidden = false;
+        });
+        player.src = videoUrl.href;
+    } catch (error) {
+        console.error("[Tutoriel player] Source vidéo invalide :", error);
+        errorNotice.textContent = error.message || String(error);
+        errorNotice.hidden = false;
+    }
+}
+</script>
+
+</body>
+</html>
