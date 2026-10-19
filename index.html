@@ -800,23 +800,23 @@ html.dark #pwd-modal {
         <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-size: 14px;">✨</span>
 
-            <span class="ai-title-text" style="font-weight: bold; font-size: 13px;">Assistant IA</span>
+            <span class="ai-title-text" data-i18n="ai.title" style="font-weight: bold; font-size: 13px;">Assistant IA</span>
 
         </div>
-        <span id="close-ai-sidebar" style="cursor: pointer; color: #9ca3af; font-weight: bold; font-size: 16px; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#9ca3af'">×</span>
+        <span id="close-ai-sidebar" data-i18n-title="ai.close" style="cursor: pointer; color: #9ca3af; font-weight: bold; font-size: 16px; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#9ca3af'">×</span>
     </div>
     
     <!-- Zone d'affichage des réponses (Conteneur de texte) -->
     <div id="ai-response-container"
-        style="flex: 1; overflow-y: auto; font-size: 12.5px; line-height: 1.6; padding-right: 4px; white-space: pre-wrap; margin-bottom: 16px; text-align: left; color: #e2e8f0;">● Saisir un texte pour <strong>Poser une question</strong>.
-        <br>● Cliquer sur <strong>Résumer</strong> pour analyser la tuile active.
-        <br>● Utiliser <strong>Comparer les tuiles</strong> pour demander une analyse croisée des pages visibles.</div>
+        style="flex: 1; overflow-y: auto; font-size: 12.5px; line-height: 1.6; padding-right: 4px; white-space: pre-wrap; margin-bottom: 16px; text-align: left; color: #e2e8f0;"><div><span data-i18n="ai.instructions.enter">Saisissez un texte pour</span> <strong data-i18n="ai.ask">Poser une question</strong>.</div>
+        <div><span data-i18n="ai.instructions.click">● Cliquer sur</span> <strong data-i18n="ai.summary">Résumer</strong> <span data-i18n="ai.instructions.analyze">pour analyser la tuile active.</span></div>
+        <div><span data-i18n="ai.instructions.use">● Utiliser</span> <strong data-i18n="ai.compareButton">Comparer les tuiles</strong> <span data-i18n="ai.instructions.compare">pour demander une analyse croisée des pages visibles.</span></div></div>
 
         <!-- Zone de saisie et Commandes -->
         <!-- Dans index.html -> Dans la div #ai-sidebar, remplacez la ligne de l'encadré du bas par celle-ci : -->
     <div class="ai-footer-box" style="display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 8px;">
 
-    <input type="text" id="ai-user-prompt" placeholder="Question sur une page ou sur vos tuiles" style="width: 100%; height: 32px; background: #2d2d30; border: 1px solid #3c3c3c; color: white; border-radius: 6px; padding: 0 10px; font-size: 12px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#3c3c3c'">
+    <input type="text" id="ai-user-prompt" data-i18n-placeholder="ai.placeholder" placeholder="Posez une question sur cette page..." style="width: 100%; height: 32px; background: #2d2d30; border: 1px solid #3c3c3c; color: white; border-radius: 6px; padding: 0 10px; font-size: 12px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#3c3c3c'">
     
     <div style="display: flex; gap: 8px;">
 
@@ -829,7 +829,7 @@ html.dark #pwd-modal {
         id="ai-submit-btn" 
         style="display: inline-flex; align-items: center; justify-content: center; flex: 1; height: 100%; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 11.5px; font-weight: 600; cursor: pointer; transition: background 0.2s;" 
         onclick="window.declencherActionIA(event)">
-        Poser la question
+        <span class="ai-button-label" data-i18n="ai.ask">Poser une question</span>
     </button>
 
     <!-- Bouton Stop (Masqué par défaut - prend la place exacte du bouton bleu au pixel près) -->
@@ -837,19 +837,19 @@ html.dark #pwd-modal {
         id="ai-stop-btn" 
         style="display: none; align-items: center; justify-content: center; flex: 1; height: 100%; background: #ef4444; color: white; border: none; border-radius: 6px; font-size: 11.5px; font-weight: 600; cursor: pointer;" 
         onclick="window.annulerActionIA(event)">
-        🔴 Stop
+        <span data-i18n="ai.stop">🔴 Stop</span>
     </button>
 </div>
 
 
-        <button id="ai-summary-btn" style="height: 30px; background: #16a34a; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; padding: 0 12px; transition: background 0.2s;">Résumer</button>
+        <button id="ai-summary-btn" data-i18n="ai.summary" data-i18n-title="ai.summaryActiveTitle" style="height: 30px; background: #16a34a; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; padding: 0 12px; transition: background 0.2s;">Résumer</button>
         
         <!-- ✨ NOUVEAU : Bouton Effacer ajouté à la suite -->
-        <button id="ai-clear-btn" title="Effacer l'historique de l'assistant" style="height: 30px; background: #4b5563; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; padding: 0 12px; transition: background 0.2s;" onmouseover="this.style.background='#374151'" onmouseout="this.style.background='#4b5563'">Effacer</button>
+        <button id="ai-clear-btn" data-i18n="ai.clear" data-i18n-title="ai.clearHistory" style="height: 30px; background: #4b5563; color: white; border: none; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 600; padding: 0 12px; transition: background 0.2s;" onmouseover="this.style.background='#374151'" onmouseout="this.style.background='#4b5563'">Effacer</button>
     </div>
-    <button id="ai-compare-panels-btn" type="button" title="Comparer le contenu de toutes les tuiles visibles" style="width:100%; height:30px; background:#7c3aed; color:white; border:none; border-radius:6px; font-size:11.5px; cursor:pointer; font-weight:600;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">Comparer les tuiles</button>
-    <label title="Mode complet : envoie l'intégralité du texte des pages (jusqu'à 20 000 caractères par tuile) au lieu de l'extraction allégée. Plus précis mais plus lent." style="display:flex;align-items:center;gap:6px;font-size:11.5px;cursor:pointer;">
-        <input type="checkbox" id="ai-full-mode" onchange="localStorage.setItem('aiFullMode', this.checked ? '1' : '0')"> Mode complet (plus lent, plus précis)
+    <button id="ai-compare-panels-btn" type="button" data-i18n="ai.compareButton" data-i18n-title="ai.compareTooltip" style="width:100%; height:30px; background:#7c3aed; color:white; border:none; border-radius:6px; font-size:11.5px; cursor:pointer; font-weight:600;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">Comparer les tuiles</button>
+    <label data-i18n-title="ai.fullTooltip" style="display:flex;align-items:center;gap:6px;font-size:11.5px;cursor:pointer;">
+        <input type="checkbox" id="ai-full-mode" onchange="localStorage.setItem('aiFullMode', this.checked ? '1' : '0')"> <span data-i18n="ai.fullMode">Mode complet (plus lent, plus précis)</span>
     </label>
     <script>document.getElementById('ai-full-mode').checked = localStorage.getItem('aiFullMode') === '1';</script>
 </div>
@@ -3109,6 +3109,7 @@ const aiClearBtn = document.getElementById("ai-clear-btn");
 
 let isAiRequestRunning = false; // Suivi global de l'état de chargement de l'IA
 let activeAiRequestKind = null;
+let aiResponseTranslation = null;
 
 // Afficher le menu natif d'édition (copier/coller) dans tout le volet IA.
 aiSidebar.addEventListener("contextmenu", (event) => {
@@ -3170,6 +3171,37 @@ document.getElementById("ai-summary-btn").addEventListener("click", () => {
 // let isAiRequestRunning = false; 
 const summaryBtn = document.getElementById("ai-summary-btn"); // Votre bouton vert / rouge Stop
 
+function refreshAiSidebarTranslations(language = document.documentElement.lang || "fr") {
+    if (aiSidebar) HareI18n.apply(aiSidebar, language);
+
+    if (aiInputField) aiInputField.placeholder = translateUi("ai.placeholder");
+    if (aiSubmitBtn) {
+        const label = aiSubmitBtn.querySelector(".ai-button-label");
+        if (label) label.textContent = translateUi("ai.ask");
+    }
+    if (summaryBtn) {
+        if (summaryBtn.classList.contains("btn-analyzing")) {
+            summaryBtn.innerHTML = `<span class="hourglass-anim">⏳</span> ${translateUi("ai.analyzeLabel")}`;
+        } else if (isAiRequestRunning && activeAiRequestKind === "summary") {
+            summaryBtn.textContent = translateUi("ai.stop");
+            summaryBtn.title = translateUi("ai.stopGenerationTitle");
+        } else {
+            summaryBtn.textContent = translateUi("ai.summary");
+            summaryBtn.title = translateUi("ai.summaryActiveTitle");
+        }
+    }
+    if (aiResponseTranslation && aiResponseContainer) {
+        const message = aiResponseTranslation.key === "ai.bridgeError"
+            ? translateUi(aiResponseTranslation.key, { error: aiResponseTranslation.error })
+            : translateUi(aiResponseTranslation.key);
+        aiResponseContainer.textContent = aiResponseTranslation.key.startsWith("ai.loading")
+            ? `⏳ ${message}`
+            : message;
+    }
+}
+
+refreshAiSidebarTranslations();
+
 // Fonction pour mettre à jour l'état visuel et actif du bouton bleu
 function rafraichirEtatBoutonIA() {
     if (isAiRequestRunning) {
@@ -3219,7 +3251,7 @@ function restaurerBoutonVertOrigine() {
     isAiRequestRunning = false;
     activeAiRequestKind = null;
     if (summaryBtn) {
-        summaryBtn.innerHTML = "Résumer";
+        summaryBtn.textContent = translateUi("ai.summary");
         summaryBtn.style.background = "#16a34a"; // Vert d'origine
         summaryBtn.style.color = "white";       // Texte blanc garanti
             summaryBtn.title = translateUi("ai.summaryActiveTitle");
@@ -3238,7 +3270,7 @@ window.api.onAiLoadingState((isLoading) => {
     
     if (isLoading && activeAiRequestKind === "summary") {
         if (summaryBtn) {
-            summaryBtn.innerHTML = "🛑 Stop";
+            summaryBtn.textContent = translateUi("ai.stop");
             summaryBtn.style.background = "#ef4444"; // Rouge Stop
             summaryBtn.style.color = "white";
             summaryBtn.title = translateUi("ai.stopGenerationTitle");
@@ -3246,7 +3278,7 @@ window.api.onAiLoadingState((isLoading) => {
         }
     } else if (isLoading) {
         if (summaryBtn) {
-            summaryBtn.innerHTML = "Résumer";
+            summaryBtn.textContent = translateUi("ai.summary");
             summaryBtn.style.background = "#16a34a";
             summaryBtn.disabled = true;
             summaryBtn.title = translateUi("ai.availableAfterResponse");
@@ -3279,7 +3311,7 @@ if (summaryBtn) {
             // On passe manuellement l'IHM en mode chargement pour éviter les latences
             activeAiRequestKind = "summary";
             isAiRequestRunning = true;
-            summaryBtn.innerHTML = "🛑 Stop";
+            summaryBtn.textContent = translateUi("ai.stop");
             summaryBtn.style.background = "#ef4444";
             
             try {
@@ -3324,6 +3356,7 @@ if (aiSubmitBtn) {
 if (aiClearBtn) {
     aiClearBtn.addEventListener("click", () => {
         if (!isAiRequestRunning) {
+            aiResponseTranslation = null;
             const aiResponseContainer = document.getElementById("ai-response-container");
             if (aiResponseContainer) aiResponseContainer.innerHTML = "";
             if (aiInputField) aiInputField.value = "";
@@ -3492,7 +3525,13 @@ async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = fa
         : isQuestion
             ? document.getElementById("ai-submit-btn")
             : compareVisiblePanels ? document.getElementById("ai-compare-panels-btn") : null;
-    const originalButtonHtml = loadingBtn ? loadingBtn.innerHTML : "";
+    aiResponseTranslation = {
+        key: compareVisiblePanels
+            ? "ai.loadingComparison"
+            : isSummary
+                ? "ai.loadingSummary"
+                : isQuestion ? "ai.loadingPrompt" : "ai.loadingSummary"
+    };
     
     // Pré-élargit le volet pour afficher le tableau
     if (compareVisiblePanels) window.api.setAiSidebarWide(true);
@@ -3525,6 +3564,7 @@ async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = fa
         console.log("[IHM DIAGNOSTIC] Réponse reçue du processus principal :", reponse);
 
         if (reponse && reponse.trim() === "SELECT_PANEL_REQUIRED") {
+            aiResponseTranslation = { key: "ai.activateTileLong" };
             aiResponseContainer.innerHTML = `
                 <div style="line-height: 1.6; text-align: left;">
                 <div class="ai-alert-badge" style="display: flex; flex-direction: row; align-items: center; justify-content: center; height: 38px; line-height: 38px; margin-bottom: 16px; border-radius: 6px; font-weight: 600; font-size: 12.5px; box-sizing: border-box; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #f87171;">
@@ -3537,15 +3577,18 @@ async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = fa
         }
         
         if (reponse) {
+            aiResponseTranslation = null;
             const hasTable = /^\s*\|.+\|\s*$/m.test(reponse);
             window.api.setAiSidebarWide(hasTable);
             aiResponseContainer.innerHTML = renderAiMarkdown(reponse);
         } else {
-            aiResponseContainer.innerHTML = '<span style="color: #f87171; font-size: 12px;">❌ L\'IA a renvoyé une réponse vide.</span>';
+            aiResponseTranslation = { key: "ai.emptyResponse" };
+            aiResponseContainer.textContent = `❌ ${translateUi(aiResponseTranslation.key)}`;
         }
         
         } catch (error) {
             console.error("Erreur IHM Assistant :", error);
+            aiResponseTranslation = { key: "ai.bridgeError", error: error.message };
             if (aiResponseContainer) {
                 aiResponseContainer.innerHTML = `<span style="color: #f87171; font-size: 12px;">${translateUi("ai.bridgeError", { error: error.message })}</span>`;
             }
@@ -3553,12 +3596,20 @@ async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = fa
             if (loadingBtn) {
                 loadingBtn.disabled = false;
                 loadingBtn.classList.remove("btn-analyzing");
-                loadingBtn.innerHTML = originalButtonHtml;
+                if (loadingBtn === summaryBtn) {
+                    loadingBtn.textContent = translateUi("ai.summary");
+                } else if (loadingBtn.id === "ai-submit-btn") {
+                    const label = loadingBtn.querySelector(".ai-button-label");
+                    if (label) label.textContent = translateUi("ai.ask");
+                } else if (loadingBtn.id === "ai-compare-panels-btn") {
+                    loadingBtn.textContent = translateUi("ai.compareButton");
+                }
             }
         }
 }
 window.api.onLanguageChanged((language) => {
     document.documentElement.lang = language;
+    refreshAiSidebarTranslations(language);
     setTimeout(() => {
         refreshUrlBarLanguage(currentPanels);
         updateAutoSleepToggle(autoSleepUiEnabled);

@@ -49,7 +49,10 @@
         padding: 4px 8px;
         z-index: 2147483647;
         font-family: system-ui, sans-serif;
-        transition: opacity 0.2s, background-color 0.15s, border-color 0.15s;
+        transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+        isolation: isolate;
         touch-action: none;
     `;
 
@@ -99,32 +102,29 @@
         navBar.style.transform = 'translateX(-50%)';
     });
 
-    // Effet d'apparition au survol
-    navBar.onmouseover = () => navBar.style.opacity = "1";
-    navBar.onmouseout = () => navBar.style.opacity = "0.3";
-
 function applyFloatingBarTheme() {
     const isDark = document.documentElement.classList.contains('dark') || 
                    document.body?.classList.contains('dark') || 
                    window.matchMedia('(prefers-color-scheme: dark)').matches;
 
     // Style du conteneur principal
-    navBar.style.backgroundColor = isDark ? '#212121' : '#f4f4f5';
-    navBar.style.border = isDark ? '1px solid #2d2d2d' : '1px solid #e4e4e7';
+    navBar.style.backgroundColor = isDark ? 'rgba(33, 33, 33, 0.78)' : 'rgba(244, 244, 245, 0.78)';
+    navBar.style.border = isDark ? '1px solid rgba(255, 255, 255, 0.14)' : '1px solid rgba(31, 41, 55, 0.16)';
     navBar.style.borderRadius = '8px';
     navBar.style.boxShadow = isDark ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.08)';
+    navBar.style.opacity = '1';
 
     // Style du champ de texte d'URL
     const input = document.getElementById('float-url');
     if (input) {
-        input.style.backgroundColor = isDark ? '#212121' : '#f4f4f5';
-        input.style.color = isDark ? '#8a8a8a' : '#71717a';
-        input.style.border = isDark ? '1px solid #2d2d2d' : '1px solid #e4e4e7';
+        input.style.backgroundColor = isDark ? 'rgba(33, 33, 33, 0.58)' : 'rgba(255, 255, 255, 0.58)';
+        input.style.color = isDark ? '#f3f4f6' : '#374151';
+        input.style.border = isDark ? '1px solid rgba(255, 255, 255, 0.16)' : '1px solid rgba(31, 41, 55, 0.18)';
     }
 
     // Style des boutons
     document.querySelectorAll('#hare-floating-nav button').forEach(btn => {
-        btn.style.color = isDark ? '#8a8a8a' : '#71717a';
+        btn.style.color = isDark ? '#f3f4f6' : '#374151';
     });
 }
 
@@ -132,17 +132,17 @@ function applyFloatingBarTheme() {
     navBar.innerHTML = `
         <button id="float-back" style="background:none; border:none; cursor:pointer; font-size:11px; display:flex; align-items:center; justify-content:center; padding:4px; border-radius:4px; transition: color 0.15s;" 
             onmouseover="const isDark = document.documentElement.classList.contains('dark') || document.body?.classList.contains('dark') || window.matchMedia('(prefers-color-scheme: dark)').matches; this.style.color = isDark ? '#ffffff' : '#09090b';" 
-            onmouseout="const isDark = document.documentElement.classList.contains('dark') || document.body?.classList.contains('dark') || window.matchMedia('(prefers-color-scheme: dark)').matches; this.style.color = isDark ? '#8a8a8a' : '#71717a';">◀</button>
+            onmouseout="const isDark = document.documentElement.classList.contains('dark') || document.body?.classList.contains('dark') || window.matchMedia('(prefers-color-scheme: dark)').matches; this.style.color = isDark ? '#f3f4f6' : '#374151';">◀</button>
         <button id="float-forward" style="background:none; border:none; cursor:pointer; font-size:11px; display:flex; align-items:center; justify-content:center; padding:4px; border-radius:4px; transition: color 0.15s;" 
             onmouseover="const isDark = document.documentElement.classList.contains('dark') || document.body?.classList.contains('dark') || window.matchMedia('(prefers-color-scheme: dark)').matches; this.style.color = isDark ? '#ffffff' : '#09090b';" 
-            onmouseout="const isDark = document.documentElement.classList.contains('dark') || document.body?.classList.contains('dark') || window.matchMedia('(prefers-color-scheme: dark)').matches; this.style.color = isDark ? '#8a8a8a' : '#71717a';">▶</button>
+            onmouseout="const isDark = document.documentElement.classList.contains('dark') || document.body?.classList.contains('dark') || window.matchMedia('(prefers-color-scheme: dark)').matches; this.style.color = isDark ? '#f3f4f6' : '#374151';">▶</button>
         
 <button id="float-reload"
     style="background:none; border:none; cursor:pointer;
            display:flex; align-items:center; justify-content:center;
            padding:4px; border-radius:4px; transition: color 0.15s;"
     onmouseover="const isDark = document.documentElement.classList.contains('dark') || document.body?.classList.contains('dark') || window.matchMedia('(prefers-color-scheme: dark)').matches; this.style.color = isDark ? '#ffffff' : '#09090b';"
-    onmouseout="const isDark = document.documentElement.classList.contains('dark') || document.body?.classList.contains('dark') || window.matchMedia('(prefers-color-scheme: dark)').matches; this.style.color = isDark ? '#8a8a8a' : '#71717a';">
+    onmouseout="const isDark = document.documentElement.classList.contains('dark') || document.body?.classList.contains('dark') || window.matchMedia('(prefers-color-scheme: dark)').matches; this.style.color = isDark ? '#f3f4f6' : '#374151';">
 
     <svg xmlns="http://w3.org" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 2v6h-6" />
