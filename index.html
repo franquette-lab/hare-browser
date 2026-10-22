@@ -218,6 +218,30 @@ body.fullscreen-toolbar-hidden #fullscreen-reveal-zone {
     cursor: not-allowed;
 }
 
+
+/* --- EFFET BOUTON ENFONCÉ --- */
+.btn-ai-ollama.enfonce {
+    background-color: #cbd5e1 !important; /* Gris plus sombre en mode clair */
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15) !important; /* Ombre interne enfoncée */
+    transform: translateY(1px); /* Effet d'enfoncement mécanique */
+}
+
+/* Adaptation automatique pour le mode sombre */
+.dark-mode-active .btn-ai-ollama.enfonce {
+    background-color: #3f3f46 !important; /* Anthracite en mode sombre */
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* --- Style enfoncé sur-mesure pour votre bouton sombre/vert --- */
+#ai-sidebar-button.enfonce {
+    background-color: #1e1e1f !important; /* Devient plus sombre que #2d2d30 */
+    border-color: #222222 !important;     /* Bordure assombrie */
+    color: #22c55e !important;            /* Vert un peu plus foncé/éteint */
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6) !important; /* Ombre interne mécanique */
+    transform: translateY(1px);           /* Enfoncement physique de 1px */
+}
+
+
 /* =====================================================
    BARRE D'URL
 ===================================================== */
@@ -3120,10 +3144,27 @@ aiSidebar.addEventListener("contextmenu", (event) => {
 
 // Ouvrir / Fermer le volet IA
 function setAiSidebarUiVisible(isVisible) {
-    if (!aiSidebar) return;
-    aiSidebar.style.right = isVisible ? "0px" : `-${aiSidebar.offsetWidth + 1}px`;
-    if (isVisible) document.getElementById("history-sidebar")?.classList.remove("open");
+    // 1. Gestion de l'animation du volet IA
+    const sidebar = document.querySelector(".ai-sidebar-native");
+    if (sidebar) {
+        if (isVisible) {
+            sidebar.classList.add("visible");
+        } else {
+            sidebar.classList.remove("visible");
+        }
+    }
+
+    // 2. ✨ Cible votre bouton par son ID d'origine
+    const aiButton = document.getElementById("ai-sidebar-button"); 
+    if (aiButton) {
+        if (isVisible) {
+            aiButton.classList.add("enfonce");   // Applique le style enfoncé
+        } else {
+            aiButton.classList.remove("enfonce"); // Relâche le bouton
+        }
+    }
 }
+
 
 document.getElementById("ai-sidebar-button").addEventListener("click", () => {
     window.api.toggleAiSidebar(aiSidebar.style.right !== "0px");
@@ -3446,7 +3487,9 @@ window.api.onAiSidebarGeometryUpdate((data) => {
     }
 });
 
+
 window.api.onAiSidebarVisibilityChanged?.(setAiSidebarUiVisible);
+
 window.api.onAiSidebarWidthChanged?.((width) => {
     const hidden = aiSidebarElement.style.right !== "0px";
     aiSidebarElement.style.width = width + "px";

@@ -159,9 +159,11 @@ onActivePanelChanged: (callback) => {
             ipcRenderer.on("ai-sidebar-geometry-update", (_, geometry) => callback(geometry));
         },
         getAiSidebarPreference: () => ipcRenderer.invoke("get-ai-sidebar-preference"),
+
         onAiSidebarVisibilityChanged: (callback) => {
             ipcRenderer.on("ai-sidebar-visibility-changed", (_event, visible) => callback(visible));
         },
+        
         onTriggerAiAction: (callback) => {
             ipcRenderer.on("trigger-ai-action", (_, data) => callback(data));
         },
