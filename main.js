@@ -4,8 +4,9 @@
 
 const {
     app,
-    BrowserWindow, 
+    BrowserWindow,
     BrowserView,
+    webContents,
     ipcMain,
     Menu,
     nativeImage,
@@ -13,7 +14,7 @@ const {
     dialog,
     globalShortcut,
     screen,
-    safeStorage, // <-- Assurez-vous que safeStorage est bien présent dans vos imports Electron
+    safeStorage,
     session
 } = require('electron');
 

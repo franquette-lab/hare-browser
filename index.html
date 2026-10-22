@@ -3599,8 +3599,9 @@ async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = fa
                 if (loadingBtn === summaryBtn) {
                     loadingBtn.textContent = translateUi("ai.summary");
                 } else if (loadingBtn.id === "ai-submit-btn") {
-                    const label = loadingBtn.querySelector(".ai-button-label");
-                    if (label) label.textContent = translateUi("ai.ask");
+                    // Le passage en chargement remplace le contenu du bouton et supprime
+                    // donc l'ancien .ai-button-label : il faut recréer ce nœud ici.
+                    loadingBtn.innerHTML = `<span class="ai-button-label" data-i18n="ai.ask">${translateUi("ai.ask")}</span>`;
                 } else if (loadingBtn.id === "ai-compare-panels-btn") {
                     loadingBtn.textContent = translateUi("ai.compareButton");
                 }
