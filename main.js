@@ -773,6 +773,14 @@ let splitMenuWindow = null;
 let splitMenuTargetPanelId = null;
 const findInPageRequests = new Map();
 
+// Écouteur pour ouvrir automatiquement le volet IA depuis la page welcome
+ipcMain.on("request-open-ai-sidebar", (event) => {
+    // Appelle votre fonction existante pour afficher le volet d'IA
+    setAiSidebarVisible(true);
+    console.log("[IA Locale] Volet ouvert automatiquement suite à un clic sur welcome.html");
+});
+
+
 ipcMain.on("open-settings-window", (event) => {
     if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
     if (settingsWindow && !settingsWindow.isDestroyed()) {

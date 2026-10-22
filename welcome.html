@@ -6,198 +6,214 @@
 <title data-i18n="welcome.title">Bienvenue</title>
 
 <style>
-:root {
-    --bg: #f5f7fb;
-    --card: #ffffff;
-    --text: #1f2937;
-    --text-secondary: #6b7280;
-    --border: #e5e7eb;
-    --accent: #2563eb;
-    --accent-hover: #1d4ed8;
-    --shadow: rgba(0,0,0,.08);
-}
-
-@media (prefers-color-scheme: dark) {
     :root {
-        --bg: #1f232a;
-        --card: #2b313a;
-        --text: #f3f4f6;
-        --text-secondary: #b5bec8;
-        --border: #404854;
-        --accent: #60a5fa;
-        --accent-hover: #3b82f6;
-        --shadow: rgba(0,0,0,.35);
+        --bg: #f5f7fb;
+        --card: #ffffff;
+        --text: #1f2937;
+        --text-secondary: #6b7280;
+        --border: #e5e7eb;
+        --accent: #2563eb;
+        --accent-hover: #1d4ed8;
+        --shadow: rgba(0,0,0,.08);
     }
-}
 
-* {
-    box-sizing: border-box;
-}
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --bg: #1f232a;
+            --card: #2b313a;
+            --text: #f3f4f6;
+            --text-secondary: #b5bec8;
+            --border: #404854;
+            --accent: #60a5fa;
+            --accent-hover: #3b82f6;
+            --shadow: rgba(0,0,0,.35);
+        }
+    }
 
-body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: "Segoe UI", sans-serif;
-}
+    * {
+        box-sizing: border-box;
+    }
 
-.container {
-    max-width: 1200px;
-    margin: auto;
-    padding: 15px 30px;
-}
+    body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Segoe UI", sans-serif;
+    }
 
-.hero {
-    text-align: center;
-    margin-bottom: 20px;
-}
+    .container {
+        max-width: 1200px;
+        margin: auto;
+        padding: 15px 30px;
+    }
 
-.hero h1 {
-    margin: 0;
-    font-size: 48px;
-    font-weight: 700;
-}
+    .hero {
+        text-align: center;
+        margin-bottom: 20px;
+    }
 
-.hero p {
-    margin-top: 10px;
-    margin-bottom: 4px;
-    color: var(--text-secondary);
-    font-size: 14px;
-}
+    .hero h1 {
+        margin: 0;
+        font-size: 48px;
+        font-weight: 700;
+    }
 
-.badge {
-    display: inline-block;
-    padding: 8px 16px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    box-shadow: 0 4px 12px var(--shadow);
-    top: 4px;
-    margin-top: 10px !important;
-}
+    .hero p {
+        margin-top: 10px;
+        margin-bottom: 4px;
+        color: var(--text-secondary);
+        font-size: 14px;
+    }
 
-.cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 15px;
-    margin-top: 10px;
-    position: relative;
-    top: 0;
-}
+    .badge {
+        display: inline-block;
+        padding: 8px 16px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        box-shadow: 0 4px 12px var(--shadow);
+        top: 4px;
+        margin-top: 10px !important;
+    }
 
-.card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 18px;
-    box-shadow: 0 4px 12px var(--shadow);
-    transition: transform .15s ease;
-}
+    .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 15px;
+        margin-top: 10px;
+        position: relative;
+        top: 0;
+    }
 
-.card:hover {
-    transform: translateY(-3px);
-}
+    .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 18px;
+        box-shadow: 0 4px 12px var(--shadow);
+        transition: transform .15s ease;
+    }
 
-.card[data-tutorial-video] {
-    cursor: pointer;
-}
+    .card:hover {
+        transform: translateY(-3px);
+    }
 
-.card[data-tutorial-video]:focus-visible {
-    outline: 3px solid var(--accent);
-    outline-offset: 3px;
-}
+    .card[data-tutorial-video] {
+        cursor: pointer;
+    }
 
-#tutorial-error {
-    margin: 12px auto 0;
-    max-width: 720px;
-    padding: 10px 14px;
-    color: #991b1b;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    border-radius: 8px;
-    font-size: 13px;
-}
+    .card[data-tutorial-video]:focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 3px;
+    }
 
-html.mw-theme-client-dark #tutorial-error {
-    color: #fecaca;
-    background: #450a0a;
-    border-color: #7f1d1d;
-}
+    #tutorial-error {
+        margin: 12px auto 0;
+        max-width: 720px;
+        padding: 10px 14px;
+        color: #991b1b;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        font-size: 13px;
+    }
 
-.card h2 {
-    margin: 0 0 8px 0;
-    font-size: 18px;
-}
+    html.mw-theme-client-dark #tutorial-error {
+        color: #fecaca;
+        background: #450a0a;
+        border-color: #7f1d1d;
+    }
 
-.card p {
-    margin: 0;
-    color: var(--text-secondary);
-    line-height: 1.5;
-}
+    .card h2 {
+        margin: 0 0 8px 0;
+        font-size: 18px;
+    }
 
-.welcome-buttons-container {
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    width: 100% !important;
+    .card p {
+        margin: 0;
+        color: var(--text-secondary);
+        line-height: 1.5;
+    }
 
-    /* Descend les boutons et le footer */
-    margin: 65px 0 0 0 !important;
-}
+    .welcome-buttons-container {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        width: 100% !important;
 
-.welcome-btn {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 10px 24px !important;
-    border-radius: 20px !important;
-    font-size: 14px !important;
-    font-weight: 600 !important;
-    text-decoration: none !important;
-    margin: 0 8px !important;
-    border: none !important;
-    transition: background-color .2s ease-in-out !important;
-}
+        /* Descend les boutons et le footer */
+        margin: 65px 0 0 0 !important;
+    }
 
-html.mw-theme-client-light .welcome-btn,
-.mw-theme-client-light .welcome-btn,
-body .welcome-btn {
-    background-color: #2563eb !important;
-    color: #ffffff !important;
-}
+    .welcome-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 10px 24px !important;
+        border-radius: 20px !important;
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        text-decoration: none !important;
+        margin: 0 8px !important;
+        border: none !important;
+        transition: background-color .2s ease-in-out !important;
+    }
 
-html.mw-theme-client-light .welcome-btn:hover {
-    background-color: #1d4ed8 !important;
-}
+    html.mw-theme-client-light .welcome-btn,
+    .mw-theme-client-light .welcome-btn,
+    body .welcome-btn {
+        background-color: #2563eb !important;
+        color: #ffffff !important;
+    }
 
-html.mw-theme-client-dark .welcome-btn,
-.mw-theme-client-dark .welcome-btn {
-    background-color: #3b82f6 !important;
-    color: #ffffff !important;
-}
+    html.mw-theme-client-light .welcome-btn:hover {
+        background-color: #1d4ed8 !important;
+    }
 
-html.mw-theme-client-dark .welcome-btn:hover {
-    background-color: #60a5fa !important;
-}
+    html.mw-theme-client-dark .welcome-btn,
+    .mw-theme-client-dark .welcome-btn {
+        background-color: #3b82f6 !important;
+        color: #ffffff !important;
+    }
 
-.footer {
-    width: 100%;
-    margin-top: 24px;
-    padding-bottom: 15px;
-    text-align: center;
-    color: var(--text-secondary);
-    font-size: 14px;
-    line-height: 1.6;
-}
+    html.mw-theme-client-dark .welcome-btn:hover {
+        background-color: #60a5fa !important;
+    }
 
-.version {
-    margin-top: 0;
-    font-size: 13px;
-}
+    .footer {
+        width: 100%;
+        margin-top: 24px;
+        padding-bottom: 15px;
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: 14px;
+        line-height: 1.6;
+    }
 
-h1 {
-    margin-top: 40px !important; /* Ajustez la valeur en pixels selon vos besoins */
-}
+    .version {
+        margin-top: 0;
+        font-size: 13px;
+    }
+
+    h1 {
+        margin-top: 40px !important; /* Ajustez la valeur en pixels selon vos besoins */
+    }
+
+
+    /* Style pour rendre la tuile interactive et élégante au survol */
+    .clickable-card {
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    }
+    .clickable-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        background-color: rgba(255, 255, 255, 0.95);
+    }
+    /* Adaptation automatique si l'utilisateur est en mode sombre */
+    .mw-theme-client-dark .clickable-card:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
 
 </style>
 </head>
@@ -256,13 +272,13 @@ h1 {
             </p>
         </div>
 
-        <div class="card">
-            <h2 data-i18n="welcome.localAi">✨ IA locale</h2>
-            <p data-i18n="welcome.localAiText">
-                Une IA exécutée sur votre ordinateur, sans cloud distant,
-                pour un impact réduit sur l'environnement et plus de confidentialité.
-            </p>
-        </div>
+<div class="card clickable-card" id="local-ai-tile">
+    <h2 data-i18n="welcome.localAi">✨ IA locale</h2>
+    <p data-i18n="welcome.localAiText">
+        Une IA exécutée sur votre ordinateur, sans cloud distant,
+        pour un impact réduit sur l'environnement et plus de confidentialité.
+    </p>
+</div>
 
         <div class="card">
             <h2 data-i18n="welcome.privacy">🔒 Confidentialité</h2>
@@ -325,11 +341,13 @@ h1 {
 
 <script src="i18n.js"></script>
 <script>HareI18n.attach(window.tileLanguage);</script>
+
 <script>
 (() => {
+    // --- 1. CONFIGURATION DU TUTORIEL (Existant) ---
     const tutorialCard = document.querySelector('[data-tutorial-video]');
     const errorNotice = document.getElementById('tutorial-error');
-
+    
     async function openTutorial() {
         const videoFile = tutorialCard.dataset.tutorialVideo;
         console.info('[Tutoriel] Clic détecté sur la carte :', videoFile);
@@ -355,14 +373,43 @@ h1 {
         }
     }
 
-    tutorialCard.addEventListener('click', openTutorial);
-    tutorialCard.addEventListener('keydown', (event) => {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
-        event.preventDefault();
-        openTutorial();
-    });
-    console.info('[Tutoriel] Gestionnaire de clic prêt. window.tutorials disponible :', !!window.tutorials);
+    if (tutorialCard) {
+        tutorialCard.addEventListener('click', openTutorial);
+        tutorialCard.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            openTutorial();
+        });
+    }
+
+    // --- 2. CONFIGURATION DE LA TUILE IA LOCALE (Rétablie) ---
+    const localAiCard = document.getElementById('local-ai-tile');
+
+    function openLocalAiSidebar() {
+        // Appelle la méthode sécurisée présente dans votre preload-tile.js
+        if (window.tutorials && typeof window.tutorials.openAiSidebar === 'function') {
+            window.tutorials.openAiSidebar();
+        } else {
+            console.error('[IA Locale] Le pont sécurisé openAiSidebar est introuvable.');
+        }
+    }
+
+    if (localAiCard) {
+        localAiCard.addEventListener('click', openLocalAiSidebar);
+        localAiCard.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            openLocalAiSidebar();
+        });
+        // Accessibilité au clavier
+        localAiCard.setAttribute('tabindex', '0');
+        localAiCard.setAttribute('role', 'button');
+    }
+
+    console.info('[Initialisation] Gestionnaires d’IHM welcome.html réparés et opérationnels.');
 })();
 </script>
+
+
 </body>
 </html>

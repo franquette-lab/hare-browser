@@ -39,5 +39,10 @@ contextBridge.exposeInMainWorld('tutorials', {
     openVideo: (videoFile) => {
         console.info('[Tutoriel] Appel IPC demandé depuis une tuile :', videoFile);
         return ipcRenderer.invoke('open-tutorial-video', videoFile);
+    },
+    // ✨ AJOUT : Nouvelle méthode sécurisée pour ouvrir le volet d'IA locale
+    openAiSidebar: () => {
+        console.info('[IA Locale] Envoi du signal IPC request-open-ai-sidebar');
+        ipcRenderer.send('request-open-ai-sidebar');
     }
 });
