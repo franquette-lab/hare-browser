@@ -389,26 +389,25 @@ html.mw-theme-client-dark .arrow-right-icon::before {
         <div class="card clickable-card" id="theme-tile">
             <h2 class="ai-tile-header">
                 <span data-i18n="welcome.themes">🌗 Thèmes clair et sombre</span>
-                <span class="arrow-right-icon" data-tooltip="Cliquez pour ouvrir l'assistant IA local">▶️</span>
+                <span class="arrow-right-icon" data-tooltip="Cliquez pour Basculer entre les modes clair et sombre">▶️</span>
             </h2>
             <p data-i18n="welcome.themesText">
                 Basculez instantanément entre les modes clair et sombre selon vos préférences.
             </p>
         </div>
 
-
-
-
-
-
-
-        <div class="card">
-            <h2 data-i18n="welcome.history">📜 Historique</h2>
+        
+        <div class="card clickable-card" id="history-tile">
+            <h2 class="ai-tile-header">
+                <span data-i18n="welcome.history">📜 Historique</span>
+                <span class="arrow-right-icon" data-tooltip="Cliquez pour ouvrir la fenêtre d'historique">▶️</span>
+            </h2>
             <p data-i18n="welcome.historyText">
-                Retrouvez facilement les pages récemment visitées
-                depuis l'historique intégré.
+                Retrouvez facilement les pages récemment visitées depuis l’historique intégré.
             </p>
         </div>
+
+
 
         <div class="card">
             <h2 data-i18n="welcome.productivity">⚡ Productivité & Espaces</h2>
@@ -535,6 +534,34 @@ html.mw-theme-client-dark .arrow-right-icon::before {
     }
 
     console.info('[Initialisation] Gestionnaires d’IHM welcome.html réparés, tuile thème incluse et opérationnels.');
+
+
+    // --- 4. CONFIGURATION DE LA TUILE HISTORIQUE (Nouveau) ---
+    const historyCard = document.getElementById('history-tile');
+
+    function declencherOuvertureHistorique() {
+        if (window.tutorials && typeof window.tutorials.openHistory === 'function') {
+            window.tutorials.openHistory();
+            console.info('[Historique] Demande d’ouverture transmise via le canal tutorials.');
+        } else {
+            console.error('[Historique] Le pont sécurisé window.tutorials.openHistory est introuvable.');
+        }
+    }
+
+    if (historyCard) {
+        historyCard.addEventListener('click', declencherOuvertureHistorique);
+        historyCard.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            declencherOuvertureHistorique();
+        });
+        // Rendre la tuile accessible et navigable au clavier (Touche Tab)
+        historyCard.setAttribute('tabindex', '0');
+        historyCard.setAttribute('role', 'button');
+    }
+
+
+
 })();
 </script>
 
