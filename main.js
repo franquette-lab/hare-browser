@@ -1699,6 +1699,9 @@ ipcMain.handle('toggle-reader-mode', async (event, panelId) => {
     return toggleReaderModeForPanel(panelId);
 });
 
+// =========================================================================
+// ✨ VERSION CORRIGÉE : ENVOI DE L'ÉTAT DU BOUTON TÉLÉCHARGEMENTS À L'IHM
+// =========================================================================
 ipcMain.on('open-downloads-window', () => {
     if (downloadsWindow && !downloadsWindow.isDestroyed()) {
         downloadsWindow.focus();
@@ -1721,10 +1724,28 @@ ipcMain.on('open-downloads-window', () => {
     });
     const thisWindow = downloadsWindow;
     thisWindow.loadFile(path.join(__dirname, 'downloads.html'));
-    thisWindow.webContents.on('did-finish-load', updateDownloadsWindowContent);
+    
+    // 📥 APPARITION : Informe l'IHM que la fenêtre est active pour enfoncer le bouton
+    thisWindow.webContents.on('did-finish-load', () => {
+        updateDownloadsWindowContent();
+        if (win && !win.isDestroyed()) {
+            win.webContents.send("downloads-window-state", true);
+        }
+    });
+    
+    // 📥 DISPARITION : Informe l'IHM qu'elle se ferme pour relâcher le bouton
     thisWindow.on('closed', () => {
         if (downloadsWindow === thisWindow) downloadsWindow = null;
+        if (win && !win.isDestroyed()) {
+            win.webContents.send("downloads-window-state", false);
+        }
     });
+});
+
+// ✨ COUPLAGE SYNC : Répond à l'IHM pour synchroniser le bouton 📥 au lancement
+ipcMain.on("check-downloads-window-opened", (event) => {
+    const isOpened = downloadsWindow !== null && !downloadsWindow.isDestroyed();
+    event.sender.send("downloads-window-state", isOpened);
 });
 
 function isFromDownloadsWindow(event) {

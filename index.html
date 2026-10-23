@@ -969,6 +969,43 @@ if (boutonParametres) {
     });
 }
 
+// --- AUTO-DÉTECTION DU BOUTON GRÂCE À L'ÉMOJI 📥 ---
+let boutonTelechargements = null;
+
+document.querySelectorAll('.toolbar-btn, button').forEach(btn => {
+    if (btn.textContent.includes('📥')) {
+        boutonTelechargements = btn;
+    }
+});
+
+if (boutonTelechargements) {
+    console.log("[IHM] Ciblage réussi du bouton Téléchargements 📥");
+
+    // 1. Écoute dynamique du cycle de vie de la popup d'Electron
+    window.api.onDownloadsWindowState((isOpen) => {
+        if (isOpen) {
+            // Applique l'effet enfoncé mécanique réaliste (Gris profond + Enfoncement d'un pixel)
+            boutonTelechargements.style.backgroundColor = "rgba(0, 0, 0, 0.18)";
+            boutonTelechargements.style.boxShadow = "inset 0 3px 6px rgba(0, 0, 0, 0.3)";
+            boutonTelechargements.style.borderColor = "rgba(0, 0, 0, 0.25)";
+            boutonTelechargements.style.transform = "translateY(1px)";
+            console.log("[IHM] État visuel : 📥 ENFONCÉ");
+        } else {
+            // Nettoie les styles en ligne pour reprendre l'aspect normal de la barre
+            boutonTelechargements.style.backgroundColor = "";
+            boutonTelechargements.style.boxShadow = "";
+            boutonTelechargements.style.borderColor = "";
+            boutonTelechargements.style.transform = "";
+            console.log("[IHM] État visuel : 📥 RELÂCHÉ");
+        }
+    });
+
+    // 2. Force la vérification d'état dès le lancement visuel de la barre supérieure
+    window.api.checkDownloadsWindowOpened();
+} else {
+    console.error("[IHM] Alerte : Impossible de trouver l'élément contenant l'émoji 📥 dans la barre d'outils.");
+}
+
 
 
 const translateUi = (id, replacements = {}) => HareI18n.t(id, document.documentElement.lang || "fr", replacements);

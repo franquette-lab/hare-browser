@@ -9,13 +9,17 @@ contextBridge.exposeInMainWorld(
             ipcRenderer.on("app-title", (_, title) => callback(title));
         },
         
-        // ✨ VERSION REPARÉE : Transmet le bon paramètre "isOpen" au callback !
+        // --- ÉCOUTEURS SYSTÈME ET THÈME ---
         onHistoryWindowState: (callback) => {
             ipcRenderer.on("history-window-state", (_, isOpen) => callback(isOpen));
         },
-        
-        // ✨ AJOUT DE SECURITÉ : Permet à index.html de vérifier l'état au démarrage
         checkHistoryWindowOpened: () => ipcRenderer.send("check-history-window-opened"),
+
+        // ✨ AJOUT TÉLÉCHARGEMENTS : Transmet les signaux de la popup à index.html
+        onDownloadsWindowState: (callback) => {
+            ipcRenderer.on("downloads-window-state", (_, isOpen) => callback(isOpen));
+        },
+        checkDownloadsWindowOpened: () => ipcRenderer.send("check-downloads-window-opened"),
 
         
         onTitleChanged: (callback) => {
