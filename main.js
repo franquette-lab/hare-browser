@@ -761,6 +761,7 @@ function setAiSidebarVisible(visible) {
     resizeViews();
 
     if (win && !win.isDestroyed()) {
+        // Envoie la notification d'état ET de géométrie pour ouvrir/fermer le volet CSS
         win.webContents.send("ai-sidebar-visibility-changed", isAiSidebarVisible);
         win.webContents.send("ai-sidebar-geometry-update", { topPosition: TOOLBAR_HEIGHT });
     }
@@ -3514,11 +3515,23 @@ ipcMain.on("show-url-context-menu", (event) => {
     });
 });
 
-// Dans main.js -> Écouteur pour modifier l'état et forcer le rafraîchissement géométrique
+// Recherchez cette ligne et remplacez son contenu :
+// =========================================================================
+// ✨ CORRECTIF AVANCÉ : BASCULE ULTRA-FIABLE (ENTRÉE DEPUIS LE CLIC DE L'ICÔNE)
+// =========================================================================
 ipcMain.on("toggle-ai-sidebar-request", (event, isVisible) => {
     if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
-    setAiSidebarVisible(isVisible);
+    
+    // Au lieu de faire confiance aveuglément au paramètre 'isVisible' envoyé par l'IHM,
+    // on inverse strictement l'état réel stocké dans Electron :
+    const nextState = !isAiSidebarVisible;
+    
+    // On applique le nouvel état visuel et réseau
+    setAiSidebarVisible(nextState);
+    
+    console.log(`[IA Locale] Bascule déclenchée par l'icône. Nouvel état : ${nextState ? "OUVERT" : "FERMÉ"}`);
 });
+
 
 ipcMain.handle("get-ai-sidebar-preference", (event) => {
     if (!win || win.isDestroyed() || event.sender !== win.webContents) return true;
@@ -4819,15 +4832,21 @@ async function createWindow() {
                     }
                 },
 
-
                 {
                     label: 'Afficher / Masquer le volet de l\'assistant IA',
                     accelerator: 'CmdOrCtrl+Shift+A',
                     click: () => {
                         if (!win || win.isDestroyed()) return;
-                        setAiSidebarVisible(!isAiSidebarVisible);
+                        
+                        // Alterne l'état de visibilité de manière globale
+                        const nextVisibility = !isAiSidebarVisible;
+                        setAiSidebarVisible(nextVisibility);
+                        
+                        // Émet l'événement réseau vers l'IHM pour ouvrir le volet latéral
+                        win.webContents.send("ai-sidebar-visibility-changed", nextVisibility);
                     }
                 },
+
                 {
                     label: 'Quitter le mode agrandi',
                     accelerator: 'Escape',
