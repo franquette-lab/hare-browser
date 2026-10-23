@@ -810,9 +810,26 @@ ipcMain.on("open-settings-window", (event) => {
 
     settingsWindow.setMenu(null);
     settingsWindow.loadFile(path.join(__dirname, "settings.html"));
-    settingsWindow.once("ready-to-show", () => {
-        if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.show();
+
+
+    win.once('ready-to-show', () => {
+        setTimeout(() => {
+            if (splash && !splash.isDestroyed()) {
+                splash.close(); 
+                splash = null;
+            }
+            
+            if (win && !win.isDestroyed()) {
+                win.show();  
+                win.focus(); 
+                
+                // ✨ AJOUT 2 : Force Electron à recalculer la taille des tuiles 
+                // par rapport aux nouvelles dimensions maximisées de l'écran
+                resizeViews(); 
+            }
+        }, 600); 
     });
+
     settingsWindow.on("closed", () => { settingsWindow = null; });
 });
 
@@ -4683,6 +4700,8 @@ async function createWindow() {
             sandbox: true //
         }
     });
+
+    win.maximize(); // ✨ AJOUT 1 : Force la fenêtre à prendre la taille maximale de l'écran en tâche de fond
 
     win.setMaxListeners(0); //
     registerDownloadHandler(win.webContents.session); //
