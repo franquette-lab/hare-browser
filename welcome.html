@@ -319,17 +319,10 @@ html.mw-theme-client-dark .arrow-right-icon::after {
 html.mw-theme-client-dark .arrow-right-icon::before {
     border-color: #3f3f46 transparent transparent transparent !important;
 }
-
-
 </style>
 </head>
-
 <body>
-
-
-
-
-    
+   
 <div class="container">
 
     <div class="hero">
@@ -393,13 +386,21 @@ html.mw-theme-client-dark .arrow-right-icon::before {
             </p>
         </div>
 
-        <div class="card">
-            <h2 data-i18n="welcome.themes">🌗 Thèmes clair et sombre</h2>
+        <div class="card clickable-card" id="theme-tile">
+            <h2 class="ai-tile-header">
+                <span data-i18n="welcome.themes">🌗 Thèmes clair et sombre</span>
+                <span class="arrow-right-icon" data-tooltip="Cliquez pour ouvrir l'assistant IA local">▶️</span>
+            </h2>
             <p data-i18n="welcome.themesText">
-                Basculez instantanément entre les modes clair et sombre
-                selon vos préférences.
+                Basculez instantanément entre les modes clair et sombre selon vos préférences.
             </p>
         </div>
+
+
+
+
+
+
 
         <div class="card">
             <h2 data-i18n="welcome.history">📜 Historique</h2>
@@ -491,7 +492,6 @@ html.mw-theme-client-dark .arrow-right-icon::before {
     const localAiCard = document.getElementById('local-ai-tile');
 
     function openLocalAiSidebar() {
-        // Appelle la méthode sécurisée présente dans votre preload-tile.js
         if (window.tutorials && typeof window.tutorials.openAiSidebar === 'function') {
             window.tutorials.openAiSidebar();
         } else {
@@ -506,12 +506,35 @@ html.mw-theme-client-dark .arrow-right-icon::before {
             event.preventDefault();
             openLocalAiSidebar();
         });
-        // Accessibilité au clavier
         localAiCard.setAttribute('tabindex', '0');
         localAiCard.setAttribute('role', 'button');
     }
 
-    console.info('[Initialisation] Gestionnaires d’IHM welcome.html réparés et opérationnels.');
+    // --- 3. CONFIGURATION DE LA TUILE DES THÈMES (Modifié et Réparé) ---
+    const themeCard = document.getElementById('theme-tile');
+
+    function basculerThemeGlobal() {
+        if (window.tutorials && typeof window.tutorials.toggleTheme === 'function') {
+            window.tutorials.toggleTheme();
+            console.info('[Thème] Demande de bascule envoyée via le canal sécurisé tutorials.');
+        } else {
+            console.error('[Thème] Le pont sécurisé window.tutorials.toggleTheme est introuvable.');
+        }
+    }
+
+    if (themeCard) {
+        themeCard.addEventListener('click', basculerThemeGlobal);
+        themeCard.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            basculerThemeGlobal();
+        });
+        // Accessibilité complète au clavier
+        themeCard.setAttribute('tabindex', '0');
+        themeCard.setAttribute('role', 'button');
+    }
+
+    console.info('[Initialisation] Gestionnaires d’IHM welcome.html réparés, tuile thème incluse et opérationnels.');
 })();
 </script>
 

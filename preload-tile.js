@@ -35,14 +35,21 @@ contextBridge.exposeInMainWorld('tileLanguage', {
     onChanged: (callback) => ipcRenderer.on('language-changed', (_event, language) => callback(language))
 });
 
+// Expose les deux ponts IPC pour welcome.html à travers la sandbox Chromium
 contextBridge.exposeInMainWorld('tutorials', {
     openVideo: (videoFile) => {
         console.info('[Tutoriel] Appel IPC demandé depuis une tuile :', videoFile);
         return ipcRenderer.invoke('open-tutorial-video', videoFile);
     },
-    // ✨ AJOUT : Nouvelle méthode sécurisée pour ouvrir le volet d'IA locale
+    // Pont 1 : Ouverture de la barre latérale d'IA
     openAiSidebar: () => {
         console.info('[IA Locale] Envoi du signal IPC request-open-ai-sidebar');
         ipcRenderer.send('request-open-ai-sidebar');
+    },
+    // Pont 2 : Bascule du thème clair/sombre global
+    toggleTheme: () => {
+        console.info('[Thème] Envoi du signal IPC toggle-dark-mode-request-from-tile');
+        ipcRenderer.send('toggle-dark-mode-request-from-tile');
     }
 });
+

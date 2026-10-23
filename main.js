@@ -3538,6 +3538,14 @@ ipcMain.handle("get-ai-sidebar-preference", (event) => {
     return isAiSidebarVisible;
 });
 
+
+// ✨ AJOUT : Écouteur pour intercepter la demande issue de la tuile welcome.html
+// Intercepte la demande issue de la tuile sandboxée et déclenche l'inversion du thème
+ipcMain.on("toggle-dark-mode-request-from-tile", (event) => {
+    ipcMain.emit("toggle-dark-mode-request", null, !isDarkModeForced);
+});
+
+
 ipcMain.on('tile-activity', (event, activityType) => {
     const panel = findPanelByWebContents(event.sender);
     if (!panel) return;

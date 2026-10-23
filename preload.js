@@ -234,5 +234,13 @@ contextBridge.exposeInMainWorld("tutorials", {
     openVideo: (videoFile) => {
         console.info("[Tutoriel] Appel IPC demandé depuis la fenêtre principale :", videoFile);
         return ipcRenderer.invoke("open-tutorial-video", videoFile);
+    },
+    openAiSidebar: () => {
+        ipcRenderer.send("request-open-ai-sidebar");
+    },
+    // ✨ AJOUT : On expose la bascule de thème dans le même pont sécurisé !
+    toggleTheme: () => {
+        ipcRenderer.send("toggle-dark-mode-request-from-tile");
     }
 });
+
