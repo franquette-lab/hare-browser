@@ -957,6 +957,18 @@ if (boutonHistorique) {
 }
 
 
+// Recherche le bouton Paramètres par son texte ou attribut dans votre barre supérieure
+const boutonParametres = document.getElementById("btn-settings") || document.querySelector('.toolbar-btn[title*="Paramètres"]');
+
+if (boutonParametres) {
+    boutonParametres.addEventListener("click", (e) => {
+        e.preventDefault();
+        // Traverse les interférences de calques et réveille Electron
+        window.api.openSettings(); 
+        console.log("[IHM] Clic Paramètres forcé à travers les calques");
+    });
+}
+
 
 
 const translateUi = (id, replacements = {}) => HareI18n.t(id, document.documentElement.lang || "fr", replacements);

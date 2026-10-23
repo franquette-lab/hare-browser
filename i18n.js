@@ -385,7 +385,12 @@
             "sleep.disabled": "Veille automatique désactivée",
             "sleep.enabled": "Veille automatique activée",
             "sleep.enabledDelay": "Veille automatique activée : délai de {duration}",
-            "ollama.invalidResponse": "Réponse Ollama invalide."
+            "ollama.invalidResponse": "Réponse Ollama invalide.",
+            "welcome.tooltip.tutorial": "Cliquez pour lancer le tutoriel vidéo",
+            "welcome.tooltip.ai": "Cliquez pour ouvrir l'assistant IA local",
+            "welcome.tooltip.theme": "Cliquez pour basculer entre les modes clair et sombre",
+            "welcome.tooltip.history": "Cliquez pour ouvrir la fenêtre d'historique"
+
         },
         en: {
             "app.settings": "Settings",
@@ -618,7 +623,7 @@
             "main.menuSwitchUp": "Swap with tile above",
             "main.menuSwitchDown": "Swap with tile below",
             "welcome.title": "Welcome",
-            "welcome.tileNav": "🧩 Mosaic browsing 🎦",
+            "welcome.tileNav": "🧩 Mosaic browsing",
             "welcome.tileNavText": "Organize browsing into independent, resizable panels to view several sites at once.",
             "welcome.adblock": "🚫 Built-in blocker",
             "welcome.adblockText": "Ads and trackers are blocked by default in public and private tiles to speed up loading.",
@@ -766,7 +771,13 @@
             "sleep.disabled": "Automatic sleep is off",
             "sleep.enabled": "Automatic sleep is on",
             "sleep.enabledDelay": "Automatic sleep is on: delay is {duration}",
-            "ollama.invalidResponse": "Invalid Ollama response."
+            "ollama.invalidResponse": "Invalid Ollama response.",
+            "welcome.tooltip.tutorial": "Click to launch the video tutorial",
+            "welcome.tooltip.ai": "Click to open the local AI assistant",
+            "welcome.tooltip.theme": "Click to toggle between light and dark modes",
+            "welcome.tooltip.history": "Click to open the browsing history window"
+
+
         }
     };
 
@@ -816,6 +827,9 @@
             const id = element.getAttribute("data-i18n");
             if (id && element.textContent !== t(id, lang)) element.textContent = t(id, lang);
         });
+
+
+        // Recherchez ce bloc existant dans la fonction apply() :
         scope.querySelectorAll?.("[data-i18n-title], [data-i18n-placeholder], [data-i18n-aria-label], [data-i18n-alt]").forEach((element) => {
             [
                 ["data-i18n-title", "title"],
@@ -826,6 +840,18 @@
                 const id = element.getAttribute(dataAttribute);
                 if (id && element.getAttribute(targetAttribute) !== t(id, lang)) element.setAttribute(targetAttribute, t(id, lang));
             });
+        });
+
+        // ✨ AJOUTEZ CE BLOC JUSTE EN DESSOUS POUR METTRE À JOUR L'ATTRIBUT DU CSS DES BULLES :
+        scope.querySelectorAll?.("[data-i18n-tooltip]").forEach((element) => {
+            const id = element.getAttribute("data-i18n-tooltip");
+            if (id) {
+                const translatedTooltip = t(id, lang);
+                // Met à jour dynamiquement l'attribut exploité par votre pseudo-élément CSS (content: attr(data-tooltip))
+                if (element.getAttribute("data-tooltip") !== translatedTooltip) {
+                    element.setAttribute("data-tooltip", translatedTooltip);
+                }
+            }
         });
 
         const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
@@ -854,18 +880,45 @@
         const getLanguage = languageApi.getLanguage || languageApi.get;
         const onLanguageChanged = languageApi.onLanguageChanged || languageApi.onChanged;
         if (typeof getLanguage !== "function") return;
+        
         let current = "fr";
         try { current = normalizeLanguage(await getLanguage()); } catch {}
+        
+        // 1. Traduction de la page au démarrage
         apply(document, current);
+        traduireLesInfoBullesWelcome(current);
+
+        // 2. Écoute dynamique du changement de langue (Bascule en temps réel)
         if (typeof onLanguageChanged === "function") {
             onLanguageChanged((language) => {
                 current = normalizeLanguage(language);
                 apply(document, current);
+                traduireLesInfoBullesWelcome(current); // Met à jour les bulles d'aide
             });
         }
+
+        // 3. Fonction isolée de mise à jour des attributs CSS data-tooltip
+        function traduireLesInfoBullesWelcome(lang) {
+            document.querySelectorAll("[data-i18n-tooltip]").forEach((element) => {
+                const id = element.getAttribute("data-i18n-tooltip");
+                if (id) {
+                    const texteTraduit = t(id, lang);
+                    element.setAttribute("data-tooltip", texteTraduit);
+                }
+            });
+        }
+
+        // Observateur standard d'origine (inchangé, sécurisé contre les boucles)
         const observer = new MutationObserver(() => apply(document, current));
-        observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["title", "placeholder", "aria-label", "alt"] });
+        observer.observe(document.documentElement, { 
+            childList: true, 
+            subtree: true, 
+            characterData: true, 
+            attributes: true, 
+            attributeFilter: ["title", "placeholder", "aria-label", "alt"] 
+        });
     }
+
 
     return { catalogs, languages: Object.keys(catalogs), t, translateText, apply, attach, normalizeLanguage };
 });

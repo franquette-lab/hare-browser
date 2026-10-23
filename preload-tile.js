@@ -51,3 +51,14 @@ contextBridge.exposeInMainWorld('tutorials', {
     }
 });
 
+// ✨ AJOUT : Permet à welcome.html de capter les changements de langue d'Electron
+contextBridge.exposeInMainWorld("tileLanguage", {
+    // Récupère la langue actuelle stockée dans le processus principal
+    get: () => ipcRenderer.invoke("get-language"),
+    
+    // Écoute en temps réel si l'utilisateur change la langue dans les paramètres
+    onChanged: (callback) => {
+        ipcRenderer.on("language-changed", (_, langue) => callback(language));
+    }
+});
+

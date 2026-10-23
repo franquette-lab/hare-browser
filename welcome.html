@@ -337,86 +337,83 @@ html.mw-theme-client-dark .arrow-right-icon::before {
         </div>
     </div>
 
-    <div class="cards">
+<div class="cards">
 
+    <!-- 1. Carte Navigation Mosaïque -->
     <div class="card" data-tutorial-video="Mosaic_browsing.mp4" role="button" tabindex="0">
         <h2 class="ai-tile-header">
             <span data-i18n="welcome.tileNav">🧩 Navigation mosaïque</span>
-            <!-- L'icône hérite automatiquement de la taille et de la bulle d'aide du CSS global -->
-            <span class="arrow-right-icon" data-tooltip="Cliquez pour lancer le tutoriel vidéo">🎦</span>
+            <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.tutorial">🎦</span>
         </h2>
         <p data-i18n="welcome.tileNavText">
-            Organisez votre navigation dans plusieurs panneaux indépendants
-            et redimensionnables pour afficher plusieurs sites simultanément.
+            Organisez votre navigation dans several panneaux indépendants et redimensionnables pour afficher several sites simultanément.
         </p>
     </div>
         
-<!-- Insérer ce bloc à l'intérieur de votre grille de fonctionnalités, par exemple à côté de "Navigation mosaïque" -->
-        <div class="card">
-		<h2 data-i18n="welcome.adblock">🚫 Bloqueur intégré</h2>
-    <p data-i18n="welcome.adblockText">Publicités et trackers masqués par défaut sur vos tuiles publiques et privées pour accélérer le chargement.</p>
-       </div>
-
-
-        <div class="card">
-            <h2 data-i18n="welcome.search">🔍 Recherche respectueuse</h2>
-            <p data-i18n="welcome.searchText">
-                Effectuez vos recherches grâce à SearXNG, un métamoteur open source
-                respectueux de la confidentialité et sans profilage des utilisateurs.
-            </p>
-        </div>
-
-        <div class="card clickable-card" id="local-ai-tile">
-            <h2 class="ai-tile-header">
-                <span data-i18n="welcome.localAi">✨ IA locale</span>
-                <!-- L'émoji est agrandi et porte le texte de la bulle d'aide -->
-                <span class="arrow-right-icon" data-tooltip="Cliquez pour ouvrir l'assistant IA local">▶️</span>
-            </h2>
-            <p data-i18n="welcome.localAiText">
-                Une IA locale, sans cloud distant, pour plus de confidentialité, moins d'impact sur l'environnement.
-            </p>
-        </div>
-
-
-        <div class="card">
-            <h2 data-i18n="welcome.privacy">🔒 Confidentialité</h2>
-            <p data-i18n="welcome.privacyText">
-                Navigation privée, réduction du suivi et contrôle renforcé
-                de vos données personnelles.
-            </p>
-        </div>
-
-        <div class="card clickable-card" id="theme-tile">
-            <h2 class="ai-tile-header">
-                <span data-i18n="welcome.themes">🌗 Thèmes clair et sombre</span>
-                <span class="arrow-right-icon" data-tooltip="Cliquez pour Basculer entre les modes clair et sombre">▶️</span>
-            </h2>
-            <p data-i18n="welcome.themesText">
-                Basculez instantanément entre les modes clair et sombre selon vos préférences.
-            </p>
-        </div>
-
-        
-        <div class="card clickable-card" id="history-tile">
-            <h2 class="ai-tile-header">
-                <span data-i18n="welcome.history">📜 Historique</span>
-                <span class="arrow-right-icon" data-tooltip="Cliquez pour ouvrir la fenêtre d'historique">▶️</span>
-            </h2>
-            <p data-i18n="welcome.historyText">
-                Retrouvez facilement les pages récemment visitées depuis l’historique intégré.
-            </p>
-        </div>
-
-
-
-        <div class="card">
-            <h2 data-i18n="welcome.productivity">⚡ Productivité & Espaces</h2>
-            <p data-i18n="welcome.productivityText">
-                Optimisez votre multitâche : scindez les panneaux, pilotez au clavier et sauvegardez vos dispositions.	
-            </p>
-        </div>
-
+    <!-- 2. Carte Bloqueur -->
+    <div class="card">
+        <h2 data-i18n="welcome.adblock">🚫 Bloqueur intégré</h2>
+        <p data-i18n="welcome.adblockText">Publicités et trackers masqués par défaut sur vos tuiles publiques et privées pour accélérer le chargement.</p>
     </div>
+
+    <!-- 3. Carte Recherche -->
+    <div class="card">
+        <h2 data-i18n="welcome.search">🔍 Recherche respectueuse</h2>
+        <p data-i18n="welcome.searchText">
+            Effectuez vos recherches grâce à SearXNG, un métamoteur open source respectueux de la confidentialité et sans profilage des utilisateurs.
+        </p>
+    </div>
+
+    <!-- 4. Carte IA Locale -->
+    <div class="card clickable-card" id="local-ai-tile">
+        <h2 class="ai-tile-header">
+            <span data-i18n="welcome.localAi">✨ IA locale</span>
+            <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.ai">▶️</span>
+        </h2>
+        <p data-i18n="welcome.localAiText">
+            Une IA locale, sans cloud distant, pour plus de confidentialité, moins d'impact sur l'environnement.
+        </p>
+    </div>
+
+    <!-- 5. Carte Confidentialité -->
+    <div class="card">
+        <h2 data-i18n="welcome.privacy">🔒 Confidentialité</h2>
+        <p data-i18n="welcome.privacyText">
+            Navigation privée, réduction du suivi et contrôle renforcé de vos données personnelles.
+        </p>
+    </div>
+
+    <!-- 6. Carte Thèmes -->
+    <div class="card clickable-card" id="theme-tile">
+        <h2 class="ai-tile-header">
+            <span data-i18n="welcome.themes">🌗 Thèmes clair et sombre</span>
+            <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.theme">▶️</span>
+        </h2>
+        <p data-i18n="welcome.themesText">
+            Basculez instantanément entre les modes clair et sombre selon vos préférences.
+        </p>
+    </div>
+
+    <!-- 7. Carte Historique -->
+    <div class="card clickable-card" id="history-tile">
+        <h2 class="ai-tile-header">
+            <span data-i18n="welcome.history">📜 Historique</span>
+            <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.history">▶️</span>
+        </h2>
+        <p data-i18n="welcome.historyText">
+            Retrouvez facilement les pages récemment visitées depuis l’historique intégré.
+        </p>
+    </div>
+
+    <!-- 8. Carte Productivité -->
+    <div class="card">
+        <h2 data-i18n="welcome.productivity">⚡ Productivité & Espaces</h2>
+        <p data-i18n="welcome.productivityText">
+            Optimisez votre multitâche : scindez les panneaux, pilotez au clavier et sauvegardez vos dispositions.	
+        </p>
+    </div>
+
+</div>
 
     <div id="tutorial-error" role="alert" hidden></div>
 
@@ -559,6 +556,51 @@ html.mw-theme-client-dark .arrow-right-icon::before {
         historyCard.setAttribute('tabindex', '0');
         historyCard.setAttribute('role', 'button');
     }
+
+
+    // --- 5. SYNCHRONISATION FORCÉE DES INFO-BULLES (CORRECTIF CACHE) ---
+    function forcerTraductionDesTooltips(langue) {
+        const dictionnaire = {
+            fr: {
+                "welcome.tooltip.tutorial": "Cliquez pour lancer le tutoriel vidéo",
+                "welcome.tooltip.ai": "Cliquez pour ouvrir l'assistant IA local",
+                "welcome.tooltip.theme": "Cliquez pour basculer entre les modes clair et sombre",
+                "welcome.tooltip.history": "Cliquez pour ouvrir la fenêtre d'historique"
+            },
+            en: {
+                "welcome.tooltip.tutorial": "Click to launch the video tutorial",
+                "welcome.tooltip.ai": "Click to open the local AI assistant",
+                "welcome.tooltip.theme": "Click to toggle between light and dark modes",
+                "welcome.tooltip.history": "Click to open the browsing history window"
+            }
+        };
+
+        const lang = langue === "en" ? "en" : "fr";
+        console.log(`[welcome.html] Injection forcie des tooltips en langue : ${lang}`);
+
+        document.querySelectorAll("[data-i18n-tooltip]").forEach((element) => {
+            const cle = element.getAttribute("data-i18n-tooltip");
+            if (cle && dictionnaire[lang][cle]) {
+                element.setAttribute("data-tooltip", dictionnaire[lang][cle]);
+            }
+        });
+    }
+
+    // 1. Déclenchement immédiat au chargement de la page de bienvenue
+// Écoute le signal envoyé par le preload-tile et applique la traduction
+if (window.tileLanguage && typeof window.tileLanguage.onChanged === "function") {
+    window.tileLanguage.onChanged((nouvelleLangue) => {
+        console.log("[IHM welcome] Changement de langue détecté :", nouvelleLangue);
+        
+        // Si votre projet utilise un dictionnaire global HareI18n mis à disposition :
+        if (window.HareI18n && typeof window.HareI18n.apply === "function") {
+            window.HareI18n.apply(document, nouvelleLangue);
+        } else {
+            // Option de secours universelle : recharge proprement la tuile avec la nouvelle langue
+            window.location.reload();
+        }
+    });
+}
 
 
 

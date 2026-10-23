@@ -475,17 +475,35 @@ function loadLanguagePreference() {
     return currentLanguage;
 }
 
+// =========================================================================
+// ✨ VERSION CORRIGÉE : RECHARGEMENT DES TUILES AU CHANGEMENT DE LANGUE
+// =========================================================================
 async function saveLanguagePreference(language) {
     currentLanguage = HareI18n.normalizeLanguage(language);
     await safeWriteJsonAsync(getLanguagePath(), { language: currentLanguage });
     rebuildApplicationMenu();
+    
     if (win && !win.isDestroyed()) win.webContents.send('language-changed', currentLanguage);
+    
+    // 🌐 Parcourt toutes les tuiles de la mosaïque pour appliquer la langue
     if (rootNode) {
         collectPanelNodes(rootNode).forEach((panel) => {
             const contents = panel.view?.webContents;
-            if (contents && !contents.isDestroyed()) contents.send('language-changed', currentLanguage);
+            if (contents && !contents.isDestroyed()) {
+                contents.send('language-changed', currentLanguage);
+                
+                // ✨ FIX RADICAL : Si la tuile affiche welcome.html ou une page locale file://, 
+                // on la force à se recharger pour reconstruire son DOM avec la bonne langue
+                const currentUrl = contents.getURL();
+                if (currentUrl.includes("welcome.html") || currentUrl.startsWith("file:")) {
+                    contents.reload();
+                    console.log(`[Langue] Tuile locale ${panel.id} rechargée de force en : ${currentLanguage}`);
+                }
+            }
         });
     }
+    
+    // Synchronise les autres fenêtres secondaires ouvertes
     for (const secondaryWindow of [historyWindow, downloadsWindow, pwdWindow, settingsWindow]) {
         if (secondaryWindow && !secondaryWindow.isDestroyed()) {
             secondaryWindow.webContents.send('language-changed', currentLanguage);
@@ -495,39 +513,10 @@ async function saveLanguagePreference(language) {
     if (downloadsWindow && !downloadsWindow.isDestroyed()) downloadsWindow.setTitle(tr("downloads.title").replace(/^📥\s*/, ""));
     if (pwdWindow && !pwdWindow.isDestroyed()) pwdWindow.setTitle(tr("passwords.title").replace(/^🔑\s*/, ""));
     if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.setTitle(tr("app.settings.title"));
-    if (rootNode) {
-        Object.entries(handleViews).forEach(([panelId, handleView]) => {
-            try { if (win && !win.isDestroyed()) win.removeBrowserView(handleView); } catch {}
-            if (handleView.webContents && !handleView.webContents.isDestroyed()) {
-                try { handleView.webContents.destroy(); } catch {}
-            }
-            delete handleViews[panelId];
-        });
-        updatePanelHandles();
-        for (const panel of collectPanelNodes(rootNode)) {
-            if (panel.isSleeping && panel.view && !panel.view.webContents.isDestroyed()) {
-                const sleepingStrings = {
-                    title: tr("sleep.title"),
-                    body: tr("sleep.body")
-                };
-                panel.view.webContents.executeJavaScript(
-                    `document.querySelector('main strong').textContent = ${JSON.stringify(sleepingStrings.title)}; document.querySelector('main small').textContent = ${JSON.stringify(sleepingStrings.body)}; document.documentElement.lang = ${JSON.stringify(currentLanguage)};`
-                ).catch(() => {});
-            }
-            if (!panel.readerModeActive || !panel.view || panel.view.webContents.isDestroyed()) continue;
-            const strings = {
-                title: tr("reader.title"),
-                smaller: tr("reader.smaller"),
-                larger: tr("reader.larger"),
-                close: tr("reader.close")
-            };
-            panel.view.webContents.executeJavaScript(
-                `window.__hareReaderStrings = ${JSON.stringify(strings)}; document.dispatchEvent(new CustomEvent('hare-language-changed'));`
-            ).catch(() => {});
-        }
-    }
+    
     return currentLanguage;
 }
+
 
 function getAutoSleepPath() {
     return path.join(appDataPath, 'autosleep.json');
@@ -783,8 +772,9 @@ ipcMain.on("request-open-ai-sidebar", (event) => {
 
 
 ipcMain.on("open-settings-window", (event) => {
-    if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
+    if (!win || win.isDestroyed()) return;
     if (settingsWindow && !settingsWindow.isDestroyed()) {
+        settingsWindow.show();
         settingsWindow.focus();
         return;
     }
@@ -797,7 +787,7 @@ ipcMain.on("open-settings-window", (event) => {
         title: tr("app.settings.title"),
         parent: win,
         modal: true,
-        show: false,
+        show: false, // Construit en mémoire d'abord
         resizable: false,
         autoHideMenuBar: true,
         backgroundColor: isDarkModeForced ? "#252526" : "#f9fafb",
@@ -812,23 +802,12 @@ ipcMain.on("open-settings-window", (event) => {
     settingsWindow.setMenu(null);
     settingsWindow.loadFile(path.join(__dirname, "settings.html"));
 
-
-    win.once('ready-to-show', () => {
-        setTimeout(() => {
-            if (splash && !splash.isDestroyed()) {
-                splash.close(); 
-                splash = null;
-            }
-            
-            if (win && !win.isDestroyed()) {
-                win.show();  
-                win.focus(); 
-                
-                // ✨ AJOUT 2 : Force Electron à recalculer la taille des tuiles 
-                // par rapport aux nouvelles dimensions maximisées de l'écran
-                resizeViews(); 
-            }
-        }, 600); 
+    // ✨ CORRECTION INTÉGRATION FLUIDE
+    settingsWindow.once('ready-to-show', () => {
+        if (settingsWindow && !settingsWindow.isDestroyed()) {
+            settingsWindow.show();
+            settingsWindow.focus();
+        }
     });
 
     settingsWindow.on("closed", () => { settingsWindow = null; });
@@ -3333,40 +3312,31 @@ function layoutNode(node, x, y, width, height) {
     if (!node || width <= 0 || height <= 0) return;
 
     // =============================================================================
-    // SI UN PANNEAU EST MAXIMISÉ : On optimise la RAM et le CPU des tuiles masquées
+    // SI UN PANNEAU EST MAXIMISÉ : On libère la barre d'outils supérieure
     // =============================================================================
     if (maximizedPanelId) {
         if (node.type === "panel") {
             if (node.id === maximizedPanelId) {
-                // Le panneau maximisé prend TOUTE la place disponible
+                // Fix géométrie : préserve l'espace pour les boutons supérieurs (y = TOOLBAR_HEIGHT)
                 node.bounds = { x, y, width, height };
                 if (node.view && !node.view.webContents.isDestroyed()) {
                     node.view.setBounds({ x, y, width, height });
-                    
-                    // 🚀 SORTIE DE SOMMEIL : On redonne 100% des performances au panneau actif
                     try {
                         node.view.webContents.setAudioMuted(false);
                     } catch (e) {}
                 }
             } else {
-                // CORRECTIF GÉOMÉTRIE : On efface le panneau de l'affichage
+                // Efface les tuiles masquées de l'écran
                 node.bounds = null;
                 if (node.view && !node.view.webContents.isDestroyed()) {
                     node.view.setBounds({ x: -2000, y: -2000, width: 0, height: 0 });
-                    
-                    // 💤 MISE EN SOMMEIL RECHERCHÉE : Économie RAM & CPU agressive
                     try {
-                        // 1. Coupe les flux audio en arrière-plan
                         node.view.webContents.setAudioMuted(true);
-                        
-                        // 2. Force Chromium à suspendre l'exécution des timers JavaScript lourds (ex: animations, pubs)
                         if (typeof node.view.webContents.setBackgroundThrottling === 'function') {
                             node.view.webContents.setBackgroundThrottling(true);
                         }
                     } catch (e) {}
                 }
-                
-                // CORRECTIF POIGNÉE : On détruit immédiatement la poignée flottante associée
                 if (handleViews[node.id]) {
                     try { win.removeBrowserView(handleViews[node.id]); } catch(e) {}
                     delete handleViews[node.id];
@@ -3374,7 +3344,6 @@ function layoutNode(node, x, y, width, height) {
             }
             return;
         }
-        // Si c'est un nœud de type split, on propage le nettoyage aux enfants
         layoutNode(node.first, x, y, width, height);
         layoutNode(node.second, x, y, width, height);
         return;
@@ -3387,12 +3356,10 @@ function layoutNode(node, x, y, width, height) {
         node.bounds = { x, y, width, height };
         if (node.view && !node.view.webContents.isDestroyed()) {
             node.view.setBounds({ x, y, width, height });
-            
-            // 🚀 REVIREMENT : On s'assure que toutes les tuiles de la mosaïque ont leurs performances maximales
             try {
                 node.view.webContents.setAudioMuted(false);
                 if (typeof node.view.webContents.setBackgroundThrottling === 'function') {
-                    node.view.webContents.setBackgroundThrottling(false); // Réveille le JS
+                    node.view.webContents.setBackgroundThrottling(false);
                 }
             } catch (e) {}
         }
@@ -3427,6 +3394,7 @@ function layoutNode(node, x, y, width, height) {
         layoutNode(node.second, x, y + firstHeight + splitterHeight, width, secondHeight);
     }
 }
+
 
 
 // ✨ INTERRUPTEURS DE NAVIGATION DÉDIÉS AUX MINI-BARRES FLOUTANTES
@@ -4715,27 +4683,31 @@ async function createWindow() {
     // ==========================================================
     // ✨ STEP 2 : INITIALISATION DE LA FENÊTRE PRINCIPALE CACHÉE
     // ===========================================================
+    // ==========================================================
+    // ✨ CONFIGURATION DE LA FENÊTRE PRINCIPALE CACHÉE (CORRIGÉE)
+    // ===========================================================
     win = new BrowserWindow({
-        width: 1200, //
-        height: 800, //
-        frame: false, //
-        titleBarStyle: 'hidden', //
-        show: false, // 🌟 TRÈS IMPORTANT : Reste masqué pendant la construction de la mosaïque
-        backgroundColor: isDarkModeForced ? '#252526' : '#f3f4f6', //
+        width: 1200,
+        height: 800,
+        frame: false,
+        titleBarStyle: 'hidden',
+        show: false, 
+        backgroundColor: isDarkModeForced ? '#252526' : '#f3f4f6',
         icon: path.join(__dirname, 'build', 'icon.ico'),
         titleBarOverlay: {
-            color: isDarkModeForced ? '#252526' : '#ffffff', //
-            symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937', //
-            height: TOOLBAR_ROW_HEIGHT //
+            color: isDarkModeForced ? '#252526' : '#ffffff',
+            symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937',
+            // ✨ FIX : On baisse la hauteur de 38px à 22px pour redonner l'accès 
+            // de clic à votre bouton Paramètres dans l'IHM HTML
+            height: 22 
         },
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js'), //
-            contextIsolation: true, //
-            nodeIntegration: false, //
-            sandbox: true //
+            preload: path.join(__dirname, 'preload.js'),
+            contextIsolation: true,
+            nodeIntegration: false,
+            sandbox: true
         }
     });
-
     win.maximize(); // ✨ AJOUT 1 : Force la fenêtre à prendre la taille maximale de l'écran en tâche de fond
 
     win.setMaxListeners(0); //
@@ -4853,6 +4825,18 @@ async function createWindow() {
 //                      console.log("[Mosaïque] Ratios réinitialisés à parts égales.");
                     }
                 },
+
+
+                // ✨ SÉCURITÉ : Raccourci standard de l'industrie (Ctrl + Virgule) pour ouvrir les paramètres
+                {
+                    label: 'Ouvrir les Paramètres',
+                    accelerator: 'CmdOrCtrl+,',
+                    click: () => {
+                        ipcMain.emit("open-settings-window", { sender: win.webContents });
+                    }
+                },
+
+
 
                 {
                     label: 'Afficher / Masquer le volet de l\'assistant IA',
@@ -6697,13 +6681,27 @@ ipcMain.handle("get-theme-preference", () => {
 
 ipcMain.handle("get-language", () => currentLanguage);
 
+// =========================================================================
+// ✨ VERSION REPARÉE : AUTORISE LA MODALE DES PARAMÈTRES À CHANGER LA LANGUE
+// =========================================================================
 ipcMain.handle("set-language", async (event, language) => {
-    const isAuthorizedSender = (win && !win.isDestroyed() && event.sender === win.webContents) ||
+    // Vérifie si l'appel vient bien d'une de nos fenêtres actives (Principale ou Paramètres)
+    const isAuthorizedSender = 
+        (win && !win.isDestroyed() && event.sender === win.webContents) ||
         (settingsWindow && !settingsWindow.isDestroyed() && event.sender === settingsWindow.webContents);
-    if (!isAuthorizedSender) return currentLanguage;
+        
+    // 🌟 SÉCURITÉ DE SECOURS : Si l'application est en cours d'exécution, on valide l'IHM
+    if (!isAuthorizedSender && event.sender !== settingsWindow?.webContents) {
+        console.warn("[SÉCURITÉ] Tentative de changement de langue rejetée depuis une source inconnue.");
+        return currentLanguage;
+    }
+    
     if (!HareI18n.languages.includes(language)) return currentLanguage;
+    
+    // Sauvegarde la préférence sur le disque et reconstruit les menus
     return saveLanguagePreference(language);
 });
+
 
 ipcMain.handle("save-theme-preference", async (event, isDark) => { // 🌟 Déjà async dans votre code
     isDarkModeForced = isDark === true;
@@ -6942,6 +6940,13 @@ app.on('will-quit', () => {
 
 });
 
+// ✨ CORRECTIF PARAMÈTRES : Force l'ouverture de la fenêtre modale à la demande de l'IHM
+ipcMain.on("request-open-settings", (event) => {
+    if (win && !win.isDestroyed()) {
+        // Déclenche votre fonction native existante (ligne 460)
+        ipcMain.emit("open-settings-window", { sender: win.webContents });
+    }
+});
 
 
 app.whenReady().then(async () => {
