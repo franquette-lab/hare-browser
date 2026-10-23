@@ -3929,21 +3929,18 @@ function updateHistoryWindowContent() {
     }
 }
 // Écouteur pour ouvrir la fenêtre
+// =========================================================================
+// ✨ VERSION CORRIGÉE : ENVOI DE L'ÉTAT DU BOUTON HISTORIQUE À L'INTERFACE
+// =========================================================================
 ipcMain.on("open-history-window", () => {
     const existingHistoryWindow = historyWindow && !historyWindow.isDestroyed()
         ? historyWindow
         : global.historyWindow;
 
-
     if (existingHistoryWindow && !existingHistoryWindow.isDestroyed()) {
-
-        if (existingHistoryWindow.isMinimized()) {
-            existingHistoryWindow.restore();
-        }
-
+        if (existingHistoryWindow.isMinimized()) existingHistoryWindow.restore();
         existingHistoryWindow.show();
         existingHistoryWindow.focus();
-
         updateHistoryWindowContent();
         return;
     }
@@ -3956,9 +3953,9 @@ ipcMain.on("open-history-window", () => {
         autoHideMenuBar: true,
         alwaysOnTop: true,
         webPreferences: {
-            preload: path.join(__dirname, 'preload-history.js'), // <-- Charge le nouveau preload
-            nodeIntegration: false,                              // <-- SÉCURITÉ : Désactivé
-            contextIsolation: true,                              // <-- SÉCURITÉ : Activé
+            preload: path.join(__dirname, 'preload-history.js'),
+            nodeIntegration: false,
+            contextIsolation: true,
             sandbox: true
         }
     });
@@ -3966,15 +3963,25 @@ ipcMain.on("open-history-window", () => {
     global.historyWindow = historyWindow;
     historyWindow.loadFile(path.join(__dirname, 'history.html'));
 
+    // 🕒 APPARITION : Informe l'IHM que la fenêtre vient de s'ouvrir pour enfoncer le bouton
     historyWindow.webContents.on('did-finish-load', () => {
         updateHistoryWindowContent();
+        if (win && !win.isDestroyed()) {
+            win.webContents.send("history-window-state", true);
+        }
     });
 
+    // 🕒 DISPARITION : Informe l'IHM que la fenêtre se ferme pour relâcher le bouton
     historyWindow.on("closed", () => {
         historyWindow = null;
         global.historyWindow = null;
+        if (win && !win.isDestroyed()) {
+            win.webContents.send("history-window-state", false);
+        }
     });
 });
+
+
 
 // 2. Écouteur de rafraîchissement au changement de données
 // Écouteur de rafraîchissement au changement de données
@@ -4013,6 +4020,13 @@ ipcMain.on("history-click", (event, url) => {
         }
     }
 });
+
+// ✨ AJOUT : Répond à l'IHM pour synchroniser le bouton au démarrage de l'application
+ipcMain.on("check-history-window-opened", (event) => {
+    const isOpened = historyWindow !== null && !historyWindow.isDestroyed();
+    event.sender.send("history-window-state", isOpened);
+});
+
 
 // A. Suppression d'une seule entrée d'historique
 ipcMain.on('delete-single-history', async (event, index) => { // 🌟 Ajout de async
