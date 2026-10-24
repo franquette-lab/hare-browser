@@ -40,7 +40,10 @@
             "toolbar.private": "Ouvrir une tuile privée à droite (Ctrl+Shift+N)",
             "toolbar.container": "Scinder dans un conteneur isolé (comptes multiples)",
             "toolbar.equalize": "Égaliser les dimensions des tuiles (Ctrl+Shift+R)",
-            "toolbar.autoSleep": "Veille automatique activée",
+
+            "toolbar.autoSleep.enabled": "Veille automatique activée",
+            "toolbar.autoSleep.disabled": "Veille automatique désactivée",
+
             "toolbar.duplicate": "Dupliquer cette tuile (Ctrl+Shift+D)",
             "toolbar.splitRight": "Scinder à droite (Ctrl+T)",
             "toolbar.splitDown": "Scinder vers le bas (Ctrl+H)",
@@ -189,8 +192,11 @@
             "menu.switchRight": "Intervertir avec la tuile à droite",
             "menu.switchUp": "Intervertir avec la tuile au-dessus",
             "menu.switchDown": "Intervertir avec la tuile en dessous",
-            "menu.sleepOn": "Activer la veille automatique",
-            "menu.sleepOff": "Désactiver la veille automatique",
+
+            "menu.sleepOn": "⏸ Veille automatique activée (cliquer pour désactiver)",
+            "menu.sleepOff": "💤 Veille automatique désactivée (cliquer pour activer)",
+
+
             "menu.bookmarks": "Masquer/Afficher la barre de favoris",
             "menu.autoSleepOn": "Activer la veille automatique",
             "menu.autoSleepOff": "Désactiver la veille automatique",
@@ -326,7 +332,7 @@
             "passwords.saveShort": "Enregistrer",
             "welcome.searchLabel": "🔍 Recherche respectueuse",
             "home.featureSearch": "🔍 Recherche privée",
-            "menu.sleepDisabled": "💤 Désactiver la veille automatique",
+            "menu.sleepDisabled": "⏸ Désactiver la veille automatique",
             "menu.sleepEnabled": "💤 Activer la veille automatique",
             "main.menuSaveConfig": "Sauvegarder la configuration des panneaux",
             "main.menuLoadConfig": "Charger une configuration de panneaux",
@@ -435,7 +441,10 @@
             "toolbar.private": "Open a private tile to the right (Ctrl+Shift+N)",
             "toolbar.container": "Split into an isolated container (multiple accounts)",
             "toolbar.equalize": "Equalize tile sizes (Ctrl+Shift+R)",
-            "toolbar.autoSleep": "Automatic sleep is on",
+
+            "toolbar.autoSleep.enabled": "Automatic sleep is on",
+            "toolbar.autoSleep.disabled": "Automatic sleep is off",
+
             "toolbar.duplicate": "Duplicate this tile (Ctrl+Shift+D)",
             "toolbar.splitRight": "Split to the right (Ctrl+T)",
             "toolbar.splitDown": "Split downward (Ctrl+H)",
@@ -586,8 +595,10 @@
             "menu.switchRight": "Swap with tile to the right",
             "menu.switchUp": "Swap with tile above",
             "menu.switchDown": "Swap with tile below",
-            "menu.sleepOn": "Enable automatic sleep",
-            "menu.sleepOff": "Disable automatic sleep",
+
+            "menu.sleepOn": "Disable automatic sleep",
+            "menu.sleepOff": "Enable automatic sleep",
+            
             "menu.bookmarks": "Show/Hide bookmarks bar",
             "menu.autoSleepOn": "Enable automatic sleep",
             "menu.autoSleepOff": "Disable automatic sleep",

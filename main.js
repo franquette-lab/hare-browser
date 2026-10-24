@@ -1002,7 +1002,7 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
         // ✨ VERSION CORRIGÉE : ÉVITE LE CRASH IPC EN MODIFIANT DIRECTEMENT L'ÉTAT
         // =========================================================================
         {
-            label: `   ${tr(autoSleepEnabled ? "menu.sleepOff" : "menu.sleepOn")}`,
+            label: `   ${tr(autoSleepEnabled ? "menu.sleepOn" : "menu.sleepOff")}`,
             type: "checkbox",
             checked: autoSleepEnabled,
             click: () => {

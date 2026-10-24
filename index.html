@@ -781,7 +781,7 @@ html.dark #pwd-modal {
     <!-- Ajoutez le bouton dans votre conteneur de boutons existant -->
     <button id="btn-equalize-mosaic" title="Égaliser les dimensions des tuiles (Ctrl+Shift+R)">📐</button>
 
-    <button id="auto-sleep-toggle" type="button" aria-pressed="true" data-i18n-title="toolbar.autoSleep">💤</button>
+    <button id="auto-sleep-toggle" type="button" aria-pressed="true">💤</button>
 
     <button id="duplicate-panel" title="Dupliquer cette tuile (Ctrl+Shift+D)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:13px; cursor:pointer;">📋</button>
 
@@ -1285,12 +1285,20 @@ function updateAutoSleepToggle(enabled, delayMinutes = autoSleepUiDelayMinutes) 
     if (!autoSleepToggle) return;
     autoSleepToggle.disabled = false;
     autoSleepToggle.setAttribute("aria-pressed", String(autoSleepUiEnabled));
-    autoSleepToggle.textContent = autoSleepUiEnabled ? "💤" : "⏸";
+//  autoSleepToggle.textContent = autoSleepUiEnabled ? "💤" : "⏸";
+    autoSleepToggle.textContent = autoSleepUiEnabled ? "⏸" : "💤";
+
+/*
     autoSleepToggle.title = autoSleepUiEnabled
         ? translateUi("sleep.enabledDelay", {
             duration: HareI18n.t(`app.settings.autoSleep.delay.${autoSleepUiDelayMinutes}`, document.documentElement.lang || "fr")
         })
         : translateUi("sleep.disabled");
+*/
+autoSleepToggle.title = autoSleepUiEnabled
+    ? translateUi("toolbar.autoSleep.enabled")
+    : translateUi("toolbar.autoSleep.disabled");
+
     autoSleepToggle.style.color = autoSleepUiEnabled ? "#4ade80" : "#9ca3af";
     autoSleepToggle.style.opacity = autoSleepUiEnabled ? "1" : "0.65";
 }
