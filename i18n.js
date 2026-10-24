@@ -50,6 +50,7 @@
             "toolbar.close": "Fermer le panneau actif (Ctrl+W)",
             "toolbar.fullscreen": "Activer le plein écran (F11)",
             "toolbar.clearBookmarks": "Effacer",
+            "toolbar.resetWorkspace": "Réinitialiser l'espace de travail (Ctrl+Shift+Home)",
             "find.label": "Rechercher dans la page",
             "find.placeholder": "Rechercher dans cette tuile",
             "find.previous": "Résultat précédent (Maj+Entrée)",
@@ -162,6 +163,13 @@
             "dialog.quitSaveLayout": "Sauvegarder automatiquement la disposition pour la prochaine ouverture",
             "dialog.loadError": "Erreur de chargement",
             "dialog.corruptFile": "Le fichier sélectionné est corrompu ou malformé.",
+            "dialog.resetWorkspace.title": "Réinitialisation",
+            "dialog.resetWorkspace.message": "Réinitialiser toutes les tuiles et revenir à la configuration par défaut ?",
+            "common.reset": "Réinitialiser",
+            "common.cancel": "Annuler",
+
+
+
             "context.edit": "✏️ Édition",
             "context.selectAll": "Sélectionner tout",
             "context.splitVertical": "✂️ Scinder verticalement (Ctrl+T)",
@@ -549,6 +557,16 @@
             "dialog.quitSaveLayout": "Automatically save the layout for the next launch",
             "dialog.loadError": "Load error",
             "dialog.corruptFile": "The selected file is corrupted or malformed.",
+            
+            "dialog.resetWorkspace.title": "Workspace Reset",
+            "dialog.resetWorkspace.message": "Reset all tiles and restore the default layout?",
+            "common.reset": "Reset",
+            "common.cancel": "Cancel",
+
+
+
+
+
             "context.edit": "✏️ Edit",
             "context.selectAll": "Select all",
             "context.splitVertical": "✂️ Split vertically (Ctrl+T)",
@@ -718,6 +736,7 @@
             "fullscreen.enterLabel": "Enable full screen",
             "fullscreen.exitLabel": "Exit full screen",
             "toolbar.lightMode": "Enable light mode",
+            "toolbar.resetWorkspace": "Reset workspace (Ctrl+Shift+Home)",
             "panel.noneSelected": "No panel selected",
             "panel.closeActive": "Close active panel",
             "panel.drag": "Drag to move",

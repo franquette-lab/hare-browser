@@ -828,9 +828,29 @@ ipcMain.on("request-open-ai-sidebar", (event) => {
 });
 
 
+
+
+
+
+
+
+
+
+
+
 ipcMain.on("open-settings-window", () => {
     openSettingsWindow();
 });
+
+
+
+
+
+
+
+
+
+
 
 
 ipcMain.on("check-settings-window-opened", (event) => {
@@ -3502,17 +3522,69 @@ ipcMain.handle('pwd-find-for-url', (event, targetUrl) => {
 ipcMain.on("equalize-mosaic-request", () => {
     if (!rootNode) return;
 
-    // 1. Sauvegarde l'état actuel dans le système d'historique (permet Ctrl+Z)
     saveState();
 
-    // 2. Parcourt l'arbre binaire et applique le ratio 0.5 partout
-    resetTreeRatiosEqual(rootNode); 
+    resetTreeRatiosEqual(rootNode);
 
-    // 3. Force Electron à reconstruire les séparateurs et rafraîchir l'affichage
     forceRebuildSplitters = true;
     resizeViews();
 
     console.log("[Mosaïque] Ratios égalisés via le bouton de la barre d'outils.");
+});
+
+
+ipcMain.on("reset-workspace", async () => {
+
+    const result = await dialog.showMessageBox(win, {
+        type: "warning",
+        title: tr("dialog.resetWorkspace.title"),
+        message: tr("dialog.resetWorkspace.message"),
+        buttons: [tr("common.reset"), tr("common.cancel")],
+        defaultId: 1,
+        cancelId: 1
+    });
+
+    if (result.response !== 0) return;
+
+    try {
+        // ✨ PROTECTION : On ne nettoie les panneaux et les timers que si rootNode existe !
+        if (rootNode) {
+            const previousPanels = collectPanelNodes(rootNode);
+
+            panelIdleTimers.forEach((timer) => clearTimeout(timer));
+            panelIdleTimers.clear();
+            previousPanels.forEach((panel) => {
+                if (panel.isPrivate && panel.session) {
+                    void purgePrivateSession(panel.session, panel.id);
+                }
+                destroyPanelBrowserView(panel.view);
+            });
+        }
+
+        // Le reset ne doit pas laisser une ancienne disposition annulable.
+        history = [];
+        lastClosedPanel = null;
+        maximizedPanelId = null;
+        nextPanelNumber = 4;
+        rootNode = null;
+        activePanel = null;
+        win.webContents.send("undo-available", false);
+
+        await createDefaultLayout();
+        forceRebuildSplitters = true;
+        resizeViews();
+
+        const panels = collectPanels(rootNode);
+        win.webContents.send("panels-updated", panels, maximizedPanelId);
+        const firstPanel = findPanelNode(rootNode, activePanel);
+        if (firstPanel) {
+            win.webContents.send("active-panel-changed", { id: firstPanel.id, bounds: firstPanel.bounds });
+        }
+
+        console.log("[Mosaïque] Espace de travail réinitialisé.");
+    } catch (error) {
+        console.error("Impossible de réinitialiser l'espace de travail :", error);
+    }
 });
 
 
@@ -5983,6 +6055,17 @@ function moveActivePanelKeyboard(direction) {
         swapPanelsInTree(activePanel, targetPanel.id);
     }
 }
+
+
+
+
+
+///////////////////////////////// ICI
+
+
+
+
+
 
 ipcMain.on("fullscreen-toolbar-request", (event, visible) => {
     setFullscreenToolbarVisible(visible === true);

@@ -69,6 +69,11 @@ contextBridge.exposeInMainWorld(
         splitPanel: (panelId, direction, isPrivate, initialUrl) => ipcRenderer.send('split-panel', panelId, direction, isPrivate, initialUrl),
         showSplitMenu: (panelId, anchor, isDark) => ipcRenderer.send("show-split-menu", panelId, anchor, isDark === true),
         undo: () => ipcRenderer.send("undo"),
+
+
+        // ✨ AJOUTEZ CETTE LIGNE ICI :
+        resetWorkspace: () => ipcRenderer.send("reset-workspace"),
+
         saveConfigToFile: () => ipcRenderer.invoke('save-config-to-file'),
         loadConfigFromFile: () => ipcRenderer.invoke('load-config-from-file'),
         
