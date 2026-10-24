@@ -775,6 +775,11 @@ ipcMain.on("open-settings-window", (event) => {
     if (!win || win.isDestroyed()) return;
     if (settingsWindow && !settingsWindow.isDestroyed()) {
         settingsWindow.show();
+
+        if (win && !win.isDestroyed()) {
+            win.webContents.send("settings-window-state", true);
+        }
+
         settingsWindow.focus();
         return;
     }
@@ -810,7 +815,27 @@ ipcMain.on("open-settings-window", (event) => {
         }
     });
 
-    settingsWindow.on("closed", () => { settingsWindow = null; });
+    settingsWindow.on("closed", () => {
+        settingsWindow = null;
+
+        if (win && !win.isDestroyed()) {
+            win.webContents.send("settings-window-state", false);
+        }
+    });
+
+
+});
+
+
+ipcMain.on("check-settings-window-opened", (event) => {
+    const isOpened =
+        settingsWindow !== null &&
+        !settingsWindow.isDestroyed();
+
+    event.sender.send(
+        "settings-window-state",
+        isOpened
+    );
 });
 
 ipcMain.on("close-settings-window", (event) => {

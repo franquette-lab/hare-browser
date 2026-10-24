@@ -228,12 +228,27 @@ body.fullscreen-toolbar-hidden #fullscreen-reveal-zone {
 }
 
 
+#settings-button.enfonce {
+    background-color: rgba(0, 0, 0, 0.18) !important;
+    box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.3) !important;
+    border-color: rgba(0, 0, 0, 0.25) !important;
+    transform: translateY(1px);
+}
+
+html.dark #settings-button.enfonce {
+    background-color: #1e1e1f !important;
+    border-color: #222222 !important;
+    box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.6) !important;
+}
+
 /* --- EFFET BOUTON ENFONCÉ --- */
 .btn-ai-ollama.enfonce {
     background-color: #cbd5e1 !important; /* Gris plus sombre en mode clair */
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15) !important; /* Ombre interne enfoncée */
     transform: translateY(1px); /* Effet d'enfoncement mécanique */
 }
+
+
 
 /* Adaptation automatique pour le mode sombre */
 .dark-mode-active .btn-ai-ollama.enfonce {
@@ -920,8 +935,27 @@ let currentPanels = []; // Stockage global pour maintenir la liste des panneaux
 let currentMaximizedId = null; // Mémoire globale du mode zoom
 let applicationTitle = "Hare Browser";
 
+
+const boutonParametres =
+    document.getElementById("settings-button");
+
+if (boutonParametres) {
+
+    window.api.onSettingsWindowState((isOpen) => {
+
+        if (isOpen) {
+            boutonParametres.classList.add("enfonce");
+        } else {
+            boutonParametres.classList.remove("enfonce");
+        }
+
+    });
+
+    window.api.checkSettingsWindowOpened();
+}
+
+
 // --- AUTO-DÉTECTION INFALLIBLE DU BOUTON GRÂCE À L'ÉMOJI 🕒 ---
-// --- AUTO-DÉTECTION DU BOUTON GRÂCE À L'ÉMOJI 🕒 ---
 let boutonHistorique = null;
 
 document.querySelectorAll('.toolbar-btn, button').forEach(btn => {
@@ -958,7 +992,7 @@ if (boutonHistorique) {
 
 
 // Recherche le bouton Paramètres par son texte ou attribut dans votre barre supérieure
-const boutonParametres = document.getElementById("btn-settings") || document.querySelector('.toolbar-btn[title*="Paramètres"]');
+//const boutonParametres = document.getElementById("btn-settings") || document.querySelector('.toolbar-btn[title*="Paramètres"]');
 
 if (boutonParametres) {
     boutonParametres.addEventListener("click", (e) => {

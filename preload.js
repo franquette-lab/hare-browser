@@ -4,6 +4,16 @@ contextBridge.exposeInMainWorld(
     'api',
     {
 
+
+        onSettingsWindowState: (callback) =>
+            ipcRenderer.on(
+                "settings-window-state",
+                (_event, state) => callback(state)
+            ),
+
+        checkSettingsWindowOpened: () =>
+            ipcRenderer.send("check-settings-window-opened"),        
+
         // --- ÉCOUTEURS SYSTÈME ET THÈME ---
         onAppTitle: (callback) => {
             ipcRenderer.on("app-title", (_, title) => callback(title));
