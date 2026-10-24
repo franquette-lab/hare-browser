@@ -756,23 +756,10 @@ function setAiSidebarVisible(visible) {
     }
     return isAiSidebarVisible;
 }
+function openSettingsWindow() {
 
-let pwdWindow = null;
-let settingsWindow = null;
-let splitMenuWindow = null;
-let splitMenuTargetPanelId = null;
-const findInPageRequests = new Map();
-
-// Écouteur pour ouvrir automatiquement le volet IA depuis la page welcome
-ipcMain.on("request-open-ai-sidebar", (event) => {
-    // Appelle votre fonction existante pour afficher le volet d'IA
-    setAiSidebarVisible(true);
-    console.log("[IA Locale] Volet ouvert automatiquement suite à un clic sur welcome.html");
-});
-
-
-ipcMain.on("open-settings-window", (event) => {
     if (!win || win.isDestroyed()) return;
+
     if (settingsWindow && !settingsWindow.isDestroyed()) {
         settingsWindow.show();
 
@@ -792,7 +779,7 @@ ipcMain.on("open-settings-window", (event) => {
         title: tr("app.settings.title"),
         parent: win,
         modal: true,
-        show: false, // Construit en mémoire d'abord
+        show: false,
         resizable: false,
         autoHideMenuBar: true,
         backgroundColor: isDarkModeForced ? "#252526" : "#f9fafb",
@@ -807,11 +794,14 @@ ipcMain.on("open-settings-window", (event) => {
     settingsWindow.setMenu(null);
     settingsWindow.loadFile(path.join(__dirname, "settings.html"));
 
-    // ✨ CORRECTION INTÉGRATION FLUIDE
-    settingsWindow.once('ready-to-show', () => {
+    settingsWindow.once("ready-to-show", () => {
         if (settingsWindow && !settingsWindow.isDestroyed()) {
             settingsWindow.show();
             settingsWindow.focus();
+
+            if (win && !win.isDestroyed()) {
+                win.webContents.send("settings-window-state", true);
+            }
         }
     });
 
@@ -822,8 +812,24 @@ ipcMain.on("open-settings-window", (event) => {
             win.webContents.send("settings-window-state", false);
         }
     });
+}
+
+let pwdWindow = null;
+let settingsWindow = null;
+let splitMenuWindow = null;
+let splitMenuTargetPanelId = null;
+const findInPageRequests = new Map();
+
+// Écouteur pour ouvrir automatiquement le volet IA depuis la page welcome
+ipcMain.on("request-open-ai-sidebar", (event) => {
+    // Appelle votre fonction existante pour afficher le volet d'IA
+    setAiSidebarVisible(true);
+    console.log("[IA Locale] Volet ouvert automatiquement suite à un clic sur welcome.html");
+});
 
 
+ipcMain.on("open-settings-window", () => {
+    openSettingsWindow();
 });
 
 
@@ -4873,15 +4879,13 @@ async function createWindow() {
                 },
 
 
-                // ✨ SÉCURITÉ : Raccourci standard de l'industrie (Ctrl + Virgule) pour ouvrir les paramètres
                 {
-                    label: 'Ouvrir les Paramètres',
-                    accelerator: 'CmdOrCtrl+,',
+                    label: "Ouvrir les Paramètres",
+                    accelerator: "CmdOrCtrl+,",
                     click: () => {
-                        ipcMain.emit("open-settings-window", { sender: win.webContents });
+                        openSettingsWindow();
                     }
                 },
-
 
 
                 {
