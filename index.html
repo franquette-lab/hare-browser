@@ -114,6 +114,15 @@ body {
 }
 
 
+
+.reader-active {
+    background-color: rgba(0,0,0,0.18) !important;
+    box-shadow: inset 0 3px 6px rgba(0,0,0,0.3) !important;
+    border-color: rgba(0,0,0,0.25) !important;
+    transform: translateY(1px);
+    color: #fbbf24 !important;
+}
+
 #fullscreen-reveal-zone {
     display: none;
 }
@@ -1698,25 +1707,57 @@ function updateAdblockButtons() {
     });
 }
 
+
 function updateReaderModeButtons() {
     const isReaderActive = (panelId) =>
-        currentPanels.some((panel) => panel.id === panelId && panel.readerModeActive === true);
+        currentPanels.some(
+            (panel) => panel.id === panelId && panel.readerModeActive === true
+        );
+
     const applyState = (button, active, isToolbarButton = false) => {
         if (!button) return;
+
         button.setAttribute("aria-pressed", active ? "true" : "false");
         button.dataset.active = active ? "true" : "false";
-        button.style.backgroundColor = active ? "#2563eb" : (isToolbarButton ? "#2d2d30" : "transparent");
-        button.style.color = active ? "#ffffff" : (isToolbarButton ? "#cfcfcf" : (applicationDarkMode ? "#cfcfcf" : "#475569"));
-        button.style.borderColor = active ? "#93c5fd" : (isToolbarButton ? "#3c3c3c" : "transparent");
+
+        if (active) {
+    button.style.backgroundColor = "#ffe8a3";
+    button.style.color = "#000000";
+    button.style.borderColor = "#d4a017";
+    button.style.boxShadow = "inset 0 2px 4px rgba(0,0,0,0.3)";
+        } else {
+            button.style.backgroundColor = isToolbarButton
+                ? "#2d2d30"
+                : "transparent";
+
+            button.style.color = isToolbarButton
+                ? "#cfcfcf"
+                : (applicationDarkMode ? "#cfcfcf" : "#475569");
+
+            button.style.borderColor = isToolbarButton
+                ? "#3c3c3c"
+                : "transparent";
+
+            button.style.boxShadow = "";
+        }
+
         button.title = active
             ? translateUi("reader.enabled")
             : translateUi("reader.disabled");
     };
 
     currentPanels.forEach((panel) => {
-        applyState(document.getElementById(`reader-${panel.id}`), isReaderActive(panel.id));
+        applyState(
+            document.getElementById(`reader-${panel.id}`),
+            isReaderActive(panel.id)
+        );
     });
-    applyState(document.getElementById("reader-mode-button"), isReaderActive(activePanel), true);
+
+    applyState(
+        document.getElementById("reader-mode-button"),
+        isReaderActive(activePanel),
+        true
+    );
 }
 
 window.api.onReaderModeStateChanged?.(({ panelId, active }) => {
