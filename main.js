@@ -23,6 +23,7 @@ const {
 const fs = require("fs");
 const fsPromises = require("fs/promises");
 const path = require("path");
+const net = require("net");
 const https = require("https");
 const { spawn } = require("child_process");
 const HareI18n = require("./i18n.js");
@@ -278,6 +279,118 @@ function isAdBlockExceptionHost(hostname) {
     return Array.from(adBlockExceptions).some((exception) =>
         host === exception || host.endsWith(`.${exception}`)
     );
+}
+
+function resolveContextLinkUrl(rawLinkUrl, pageUrl = "") {
+    if (typeof rawLinkUrl !== "string" || !rawLinkUrl.trim()) return "";
+
+    let candidate = rawLinkUrl.trim();
+    const wrapperParameters = ["url", "target", "dest", "destination", "uddg", "redirect", "redirect_url", "link", "u", "q"];
+    const wrapperPath = /(?:^|\/)(?:url|redirect|out|link|away)(?:\/|$)/i;
+
+    for (let depth = 0; depth < 5; depth++) {
+        let parsed;
+        try {
+            parsed = new URL(candidate, depth === 0 ? pageUrl || undefined : undefined);
+        } catch {
+            return "";
+        }
+
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+
+        const hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
+        const infrastructureHost = hostname === SEARCH_ENGINE_HOST || net.isIP(hostname) !== 0;
+        const isRedirectEndpoint = infrastructureHost || wrapperPath.test(parsed.pathname);
+        let nestedTarget = "";
+
+        if (isRedirectEndpoint) {
+            for (const parameter of wrapperParameters) {
+                if (parameter === "q" && !wrapperPath.test(parsed.pathname)) continue;
+                const value = parsed.searchParams.get(parameter);
+                if (!value || value === candidate) continue;
+                try {
+                    const nested = new URL(value, parsed.href);
+                    if (nested.protocol === "http:" || nested.protocol === "https:") {
+                        nestedTarget = nested.href;
+                        break;
+                    }
+                } catch {}
+            }
+        }
+
+        if (nestedTarget) {
+            candidate = nestedTarget;
+            continue;
+        }
+
+        // Ne jamais exposer l'IP de l'instance de recherche comme destination finale.
+        if (hostname === SEARCH_ENGINE_HOST) return "";
+        return parsed.href;
+    }
+
+    return "";
+}
+
+function getContextLinkHost(linkUrl) {
+    if (!linkUrl) return "";
+    try {
+        const hostname = new URL(linkUrl).hostname.toLowerCase().replace(/^www\./, "");
+        return hostname === SEARCH_ENGINE_HOST ? "" : normalizeAdBlockHost(hostname);
+    } catch {
+        return "";
+    }
+}
+
+function openContextLinkInPanel(panelId, linkUrl) {
+    const panel = findPanelNode(rootNode, panelId);
+    if (!panel || !linkUrl) return;
+    activePanel = panel.id;
+
+    if (panel.isSleeping) {
+        wakePanel(panel, linkUrl);
+        return;
+    }
+
+    if (!panel.view?.webContents || panel.view.webContents.isDestroyed()) return;
+    markPanelActivity(panel);
+    panel.view.webContents.loadURL(linkUrl).catch((error) => {
+        console.error(`[Menu contextuel] Impossible d’ouvrir le lien dans ${panel.id} :`, error);
+    });
+}
+
+function openContextLinkInNewWindow(linkUrl, sourcePanelId) {
+    if (!linkUrl) return null;
+
+    const linkWindow = new BrowserWindow({
+        width: 1100,
+        height: 760,
+        title: "Hare Browser",
+        parent: win && !win.isDestroyed() ? win : undefined,
+        autoHideMenuBar: true,
+        backgroundColor: isDarkModeForced ? "#252526" : "#ffffff",
+        webPreferences: {
+            sandbox: true,
+            contextIsolation: true,
+            nodeIntegration: false
+        }
+    });
+
+    linkWindow.webContents.on("will-navigate", (event, targetUrl) => {
+        try {
+            const protocol = new URL(targetUrl).protocol;
+            if (protocol !== "http:" && protocol !== "https:") event.preventDefault();
+        } catch {
+            event.preventDefault();
+        }
+    });
+    linkWindow.webContents.on("page-title-updated", (_event, title) => {
+        if (title && !linkWindow.isDestroyed()) linkWindow.setTitle(`${title} — Hare Browser`);
+    });
+    linkWindow.loadURL(linkUrl).catch((error) => {
+        console.error(`[Menu contextuel] Impossible d’ouvrir le lien dans une nouvelle fenêtre (${sourcePanelId}) :`, error);
+        if (!linkWindow.isDestroyed()) linkWindow.close();
+    });
+    return linkWindow;
 }
 
 async function toggleAdBlockException(hostname) {
@@ -907,27 +1020,58 @@ function updatePasswordWindowContent() {
     }
 }
 
-function afficherMenuContextuelPanneau(webContents, x, y) {
+function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
     const panel = findPanelByWebContents(webContents);
     const panelId = panel ? panel.id : activePanel;
     if (!panelId) return;
 
     const targetPanel = findPanelNode(rootNode, panelId);
     const isPrivate = targetPanel ? targetPanel.isPrivate : false;
-    let currentSiteHost = "";
+    const hasClickedLink = typeof contextParams.linkURL === "string" && contextParams.linkURL.trim().length > 0;
+    const clickedLinkUrl = hasClickedLink
+        ? resolveContextLinkUrl(contextParams.linkURL, contextParams.pageURL || webContents.getURL())
+        : "";
+    let currentPageHost = "";
     try {
         const currentUrl = targetPanel?.view?.webContents?.getURL() || "";
-        const parsedUrl = new URL(currentUrl);
-        if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
-            currentSiteHost = normalizeAdBlockHost(parsedUrl.hostname);
-        }
+        currentPageHost = normalizeAdBlockHost(currentUrl);
     } catch {}
-    const siteHasAdBlockException = currentSiteHost && isAdBlockExceptionHost(currentSiteHost);
+    const adBlockHost = hasClickedLink
+        ? getContextLinkHost(clickedLinkUrl)
+        : currentPageHost;
+    const siteHasAdBlockException = adBlockHost && isAdBlockExceptionHost(adBlockHost);
 
     // NOUVEAU : Détecter si le mode zoom/maximisé est actif sur le navigateur
     const isZoomActive = maximizedPanelId !== null;
 
+    const linkMenuItems = clickedLinkUrl ? [{
+        label: tr("context.openLinkIn"),
+        submenu: [
+            {
+                label: tr("context.openLinkCurrentTile"),
+                click: () => openContextLinkInPanel(panelId, clickedLinkUrl)
+            },
+            { type: "separator" },
+            {
+                label: tr("context.openLinkSplitRight"),
+                enabled: !isZoomActive,
+                click: () => ipcMain.emit("split-panel", null, panelId, "vertical", false, null, clickedLinkUrl)
+            },
+            {
+                label: tr("context.openLinkSplitBottom"),
+                enabled: !isZoomActive,
+                click: () => ipcMain.emit("split-panel", null, panelId, "horizontal", false, null, clickedLinkUrl)
+            },
+            { type: "separator" },
+            {
+                label: tr("context.openLinkNewWindow"),
+                click: () => openContextLinkInNewWindow(clickedLinkUrl, panelId)
+            }
+        ]
+    }, { type: "separator" }] : [];
+
     const menuTemplate = [
+        ...linkMenuItems,
         {
             label: tr("context.edit"),
             enabled: false
@@ -938,14 +1082,14 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
         { role: "delete", label: `   🗑️ ${tr("context.delete")}` },
         { type: "separator" },
         { role: "selectAll", label: `   ${tr("context.selectAll")}` },
-        ...(currentSiteHost ? [
+        ...(adBlockHost ? [
             { type: "separator" },
             {
-                label: `   🛡️ ${tr(siteHasAdBlockException ? "context.reenableBlocker" : "context.disableBlocker")} ${currentLanguage === "fr" ? "le bloqueur sur" : "the blocker on"} ${currentSiteHost}`,
+                label: `   🛡️ ${tr(siteHasAdBlockException ? "context.reenableBlocker" : "context.disableBlocker", { host: adBlockHost })}`,
                 click: async () => {
-                    await toggleAdBlockException(currentSiteHost);
+                    await toggleAdBlockException(adBlockHost);
                     const panelToReload = findPanelNode(rootNode, panelId);
-                    if (panelToReload?.view && !panelToReload.view.webContents.isDestroyed()) {
+                    if (currentPageHost === adBlockHost && panelToReload?.view && !panelToReload.view.webContents.isDestroyed()) {
                         panelToReload.view.webContents.reload();
                     }
                 }
@@ -3245,7 +3389,7 @@ function setupNavigationTracking(panel) {
         }
 
         // On affiche maintenant le menu d'actions au pixel exact sous la souris
-        afficherMenuContextuelPanneau(panel.view.webContents, menuX, menuY);
+        afficherMenuContextuelPanneau(panel.view.webContents, menuX, menuY, params);
     });
 
     panel.view.webContents.on("did-start-loading", () => {
@@ -4584,10 +4728,16 @@ ipcMain.on("split-menu-choose", (event, direction) => {
 });
 
 // ====== DANS MAIN.JS -> ipcMain.on("split-panel", ...) ======
-ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false, containerId = null) => {
+ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false, containerId = null, initialUrl = null) => {
 
     const node = findPanelNode(rootNode, panelId);
     const parent = findParentNode(rootNode, panelId);    
+    if (!node || (direction !== "vertical" && direction !== "horizontal")) return;
+    const resolvedInitialUrl = initialUrl ? resolveContextLinkUrl(initialUrl) : "";
+    if (initialUrl && !resolvedInitialUrl) {
+        console.warn("[Menu contextuel] URL initiale de scindage refusée.");
+        return;
+    }
 
     const newPanelId = "panel" + nextPanelNumber++;
     if (isPrivate || !isValidContainerId(containerId)) containerId = null;
@@ -4835,17 +4985,17 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false, contain
         </html>
     `;
 
-    // Les nouvelles tuiles publiques démarrent sur l'accueil Hare Browser,
-    // et non directement sur l'instance SearXNG.
-    const defaultUrl = isPrivate
+    // Une URL de lien sélectionnée est prioritaire; sinon la tuile suit son accueil habituel.
+    const defaultUrl = resolvedInitialUrl || (isPrivate
         ? "data:text/html;charset=utf-8," + encodeURIComponent(incognitoHomeHtml)
-        : getHomePageUrl();
-
-    newView.webContents.loadURL(defaultUrl);
+        : getHomePageUrl());
 
     // Passer le paramètre isPrivate au constructeur
     const newPanel = new PanelNode(newPanelId, newView, defaultUrl, isPrivate, containerId);
-    setupNavigationTracking(newPanel);            
+    setupNavigationTracking(newPanel);
+    newView.webContents.loadURL(defaultUrl).catch((error) => {
+        console.error(`[Mosaïque] Impossible de charger la nouvelle tuile ${newPanelId} :`, error);
+    });
 
     const newSplit = new SplitNode(direction);
     newSplit.ratio = 0.5;
