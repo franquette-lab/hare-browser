@@ -34,6 +34,15 @@ contextBridge.exposeInMainWorld('tileNavigation', {
     }
 });
 
+contextBridge.exposeInMainWorld("tileFloatingNavigation", {
+    getState: () => ipcRenderer.invoke("get-floating-navigation-state"),
+    setVisible: (visible) => ipcRenderer.invoke("set-floating-navigation-visible", visible),
+    setSize: (size) => ipcRenderer.invoke("set-floating-navigation-size", size),
+    setPosition: (position) => ipcRenderer.invoke("set-floating-navigation-position", position),
+    onVisibilityChanged: (callback) => ipcRenderer.on("floating-navigation-visibility-changed", (_event, visible) => callback(visible)),
+    onGlobalChanged: (callback) => ipcRenderer.on("floating-navigation-global-changed", (_event, enabled) => callback(enabled))
+});
+
 // Expose les méthodes IPC pour welcome.html à travers la sandbox Chromium
 contextBridge.exposeInMainWorld('tutorials', {
     openVideo: (videoFile) => {

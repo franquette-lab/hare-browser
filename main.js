@@ -648,6 +648,51 @@ function getClosePreferencesPath() {
     return path.join(appDataPath, 'close-preferences.json');
 }
 
+function getFloatingNavigationPreferencesPath() {
+    return path.join(appDataPath, 'floating-navigation.json');
+}
+
+const FLOATING_NAVIGATION_DEFAULTS = Object.freeze({ width: 340, height: 48 });
+let floatingNavigationGloballyEnabled = true;
+
+function normalizeFloatingNavigationSize(width, height) {
+    return {
+        width: Number.isFinite(width) ? Math.round(Math.min(1000, Math.max(220, width))) : FLOATING_NAVIGATION_DEFAULTS.width,
+        height: Number.isFinite(height) ? Math.round(Math.min(320, Math.max(44, height))) : FLOATING_NAVIGATION_DEFAULTS.height
+    };
+}
+
+function loadFloatingNavigationPreference() {
+    try {
+        const preference = JSON.parse(fs.readFileSync(getFloatingNavigationPreferencesPath(), "utf-8"));
+        floatingNavigationGloballyEnabled = typeof preference.enabled === "boolean" ? preference.enabled : true;
+    } catch (error) {
+        floatingNavigationGloballyEnabled = true;
+        if (error.code !== "ENOENT") console.error("Impossible de lire la préférence de navigation flottante :", error);
+    }
+    return floatingNavigationGloballyEnabled;
+}
+
+function saveFloatingNavigationPreference() {
+    try {
+        fs.mkdirSync(appDataPath, { recursive: true });
+        fs.writeFileSync(getFloatingNavigationPreferencesPath(), JSON.stringify({ enabled: floatingNavigationGloballyEnabled }, null, 2), "utf-8");
+    } catch (error) {
+        console.error("Impossible d’enregistrer la préférence de navigation flottante :", error);
+    }
+}
+
+function setFloatingNavigationGloballyEnabled(enabled) {
+    floatingNavigationGloballyEnabled = enabled === true;
+    saveFloatingNavigationPreference();
+    collectPanelNodes(rootNode).forEach((panel) => {
+        if (panel.view?.webContents && !panel.view.webContents.isDestroyed()) {
+            panel.view.webContents.send("floating-navigation-global-changed", floatingNavigationGloballyEnabled);
+        }
+    });
+    return floatingNavigationGloballyEnabled;
+}
+
 let saveLayoutOnExit = true;
 let sessionLayoutBaseline = null;
 let sessionLayoutBaselineCaptured = false;
@@ -1144,6 +1189,32 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
             }
         },
 
+
+        { type: "separator" },
+
+        {
+            label: tr("context.floatingNavigation"),
+            enabled: false
+        },
+        {
+            label: tr("context.floatingNavigation.show"),
+            type: "checkbox",
+            checked: targetPanel?.floatingNavigationVisible !== false,
+            enabled: floatingNavigationGloballyEnabled,
+            click: () => {
+                const currentPanel = findPanelNode(rootNode, panelId);
+                if (!currentPanel || !floatingNavigationGloballyEnabled) return;
+                currentPanel.floatingNavigationVisible = !currentPanel.floatingNavigationVisible;
+                if (currentPanel.view?.webContents && !currentPanel.view.webContents.isDestroyed()) {
+                    currentPanel.view.webContents.send("floating-navigation-visibility-changed", currentPanel.floatingNavigationVisible);
+                }
+                scheduleSessionLayoutSave();
+            }
+        },
+        ...(!floatingNavigationGloballyEnabled ? [{
+            label: tr("context.floatingNavigation.disabledGlobally"),
+            enabled: false
+        }] : []),
 
         { type: "separator" },
 
@@ -2595,7 +2666,12 @@ function createSnapshot(node) {
             containerId: node.containerId || null,
             readerModeActive: node.readerModeActive === true,
             readerModeUrl: node.readerModeUrl || "",
-            readerModePreferences: normalizeReaderPreferences(node.readerModePreferences)
+            readerModePreferences: normalizeReaderPreferences(node.readerModePreferences),
+            floatingNavigationVisible: node.floatingNavigationVisible,
+            floatingNavigationWidth: node.floatingNavigationWidth,
+            floatingNavigationHeight: node.floatingNavigationHeight,
+            floatingNavigationX: node.floatingNavigationX,
+            floatingNavigationY: node.floatingNavigationY
         };
     }
 
@@ -2649,7 +2725,12 @@ function createPersistedSessionSnapshot(node) {
             isPrivate: false,
             containerId: node.containerId || null,
             readerModeActive: !node.isPrivate && node.readerModeActive === true,
-            readerModePreferences: normalizeReaderPreferences(node.readerModePreferences)
+            readerModePreferences: normalizeReaderPreferences(node.readerModePreferences),
+            floatingNavigationVisible: node.floatingNavigationVisible,
+            floatingNavigationWidth: node.floatingNavigationWidth,
+            floatingNavigationHeight: node.floatingNavigationHeight,
+            floatingNavigationX: node.floatingNavigationX,
+            floatingNavigationY: node.floatingNavigationY
         };
     }
     return {
@@ -2788,6 +2869,15 @@ class PanelNode {
         this.readerModeRestorePending = this.readerModeActive;
         this.readerModeApplyPromise = null;
         this.isPreparingSleep = false;
+        this.floatingNavigationVisible = readerState.floatingNavigationVisible !== false;
+        const floatingSize = normalizeFloatingNavigationSize(
+            readerState.floatingNavigationWidth,
+            readerState.floatingNavigationHeight
+        );
+        this.floatingNavigationWidth = floatingSize.width;
+        this.floatingNavigationHeight = floatingSize.height;
+        this.floatingNavigationX = Number.isFinite(readerState.floatingNavigationX) ? Math.round(readerState.floatingNavigationX) : null;
+        this.floatingNavigationY = Number.isFinite(readerState.floatingNavigationY) ? Math.round(readerState.floatingNavigationY) : null;
     }
     toJSON() {
         return { type: this.type, id: this.id, url: this.url, isPrivate: this.isPrivate, containerId: this.containerId };
@@ -3966,6 +4056,49 @@ ipcMain.on('reader-mode-preferences-from-tile', (event, preferences) => {
     scheduleSessionLayoutSave();
 });
 
+ipcMain.handle("get-floating-navigation-state", (event) => {
+    const panel = findPanelByWebContents(event.sender);
+    if (!panel) return null;
+    return {
+        visible: panel.floatingNavigationVisible,
+        width: panel.floatingNavigationWidth,
+        height: panel.floatingNavigationHeight,
+        x: panel.floatingNavigationX,
+        y: panel.floatingNavigationY,
+        globallyEnabled: floatingNavigationGloballyEnabled
+    };
+});
+
+ipcMain.handle("set-floating-navigation-visible", (event, visible) => {
+    const panel = findPanelByWebContents(event.sender);
+    if (!panel || typeof visible !== "boolean") return false;
+    panel.floatingNavigationVisible = visible;
+    if (panel.view?.webContents && !panel.view.webContents.isDestroyed()) {
+        panel.view.webContents.send("floating-navigation-visibility-changed", visible);
+    }
+    scheduleSessionLayoutSave();
+    return true;
+});
+
+ipcMain.handle("set-floating-navigation-size", (event, size = {}) => {
+    const panel = findPanelByWebContents(event.sender);
+    if (!panel || !size || typeof size !== "object") return null;
+    const normalized = normalizeFloatingNavigationSize(Number(size.width), Number(size.height));
+    panel.floatingNavigationWidth = normalized.width;
+    panel.floatingNavigationHeight = normalized.height;
+    scheduleSessionLayoutSave();
+    return normalized;
+});
+
+ipcMain.handle("set-floating-navigation-position", (event, position = {}) => {
+    const panel = findPanelByWebContents(event.sender);
+    if (!panel || !position || typeof position !== "object") return false;
+    panel.floatingNavigationX = Number.isFinite(position.x) ? Math.round(position.x) : null;
+    panel.floatingNavigationY = Number.isFinite(position.y) ? Math.round(position.y) : null;
+    scheduleSessionLayoutSave();
+    return true;
+});
+
 ipcMain.handle("get-autosleep-preference", (event) => {
     if (!win || win.isDestroyed() || event.sender !== win.webContents) return true;
     return autoSleepEnabled;
@@ -3982,6 +4115,19 @@ ipcMain.handle("set-autosleep-delay-preference", (event, minutes) => {
         return autoSleepDelayMinutes;
     }
     return setAutoSleepDelay(minutes);
+});
+
+ipcMain.handle("get-floating-navigation-preference", (event) => {
+    const authorized = (settingsWindow && !settingsWindow.isDestroyed() && event.sender === settingsWindow.webContents) ||
+        (win && !win.isDestroyed() && event.sender === win.webContents);
+    return authorized ? floatingNavigationGloballyEnabled : true;
+});
+
+ipcMain.handle("set-floating-navigation-preference", (event, enabled) => {
+    if (!settingsWindow || settingsWindow.isDestroyed() || event.sender !== settingsWindow.webContents || typeof enabled !== "boolean") {
+        return floatingNavigationGloballyEnabled;
+    }
+    return setFloatingNavigationGloballyEnabled(enabled);
 });
 
 ipcMain.on("toggle-autosleep-request", (event, enabled) => {
@@ -4588,7 +4734,13 @@ ipcMain.on("duplicate-panel", (panelId, urlToClone, isPrivate) => {
     newView.webContents.loadURL(urlToClone || getHomePageUrl());
 
     // Création du nouveau PanelNode
-    const newPanel = new PanelNode(newPanelId, newView, urlToClone, isPrivate);
+    const newPanel = new PanelNode(newPanelId, newView, urlToClone, isPrivate, null, {
+        floatingNavigationVisible: node.floatingNavigationVisible,
+        floatingNavigationWidth: node.floatingNavigationWidth,
+        floatingNavigationHeight: node.floatingNavigationHeight,
+        floatingNavigationX: node.floatingNavigationX,
+        floatingNavigationY: node.floatingNavigationY
+    });
     setupNavigationTracking(newPanel);            
 
     // Par défaut, on duplique via un split vertical à parts égales (0.5)
@@ -4991,7 +5143,13 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false, contain
         : getHomePageUrl());
 
     // Passer le paramètre isPrivate au constructeur
-    const newPanel = new PanelNode(newPanelId, newView, defaultUrl, isPrivate, containerId);
+    const newPanel = new PanelNode(newPanelId, newView, defaultUrl, isPrivate, containerId, {
+        floatingNavigationVisible: node.floatingNavigationVisible,
+        floatingNavigationWidth: node.floatingNavigationWidth,
+        floatingNavigationHeight: node.floatingNavigationHeight,
+        floatingNavigationX: node.floatingNavigationX,
+        floatingNavigationY: node.floatingNavigationY
+    });
     setupNavigationTracking(newPanel);
     newView.webContents.loadURL(defaultUrl).catch((error) => {
         console.error(`[Mosaïque] Impossible de charger la nouvelle tuile ${newPanelId} :`, error);
@@ -5178,6 +5336,7 @@ async function createWindow() {
 
     await fsPromises.mkdir(appDataPath, { recursive: true });
     loadAutoSleepPreference();  
+    loadFloatingNavigationPreference();
     loadAiSidebarPreference();
     loadDownloadsList();
     isDarkModeForced = await getThemePreference();

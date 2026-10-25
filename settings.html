@@ -16,6 +16,8 @@
         #close-button:hover { background: #e5e7eb; }
         label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600; }
         select { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: inherit; font: inherit; }
+        .checkbox-row { display: flex; align-items: center; gap: 10px; margin: 0; font-weight: 600; }
+        .checkbox-row input { width: 17px; height: 17px; accent-color: #2563eb; }
         p { color: #64748b; font-size: 13px; line-height: 1.5; }
         #saved { min-height: 20px; color: #15803d; }
         .settings-section { margin-top: 22px; }
@@ -42,6 +44,13 @@
             <option value="en" data-i18n="app.settings.language.en">English</option>
         </select>
         <p data-i18n="app.settings.language.help">Le changement est appliqué immédiatement et conservé pour les prochains démarrages.</p>
+        <section class="settings-section" data-i18n-aria-label="settings.floatingNavigation" aria-label="Afficher la barre de navigation flottante">
+            <label class="checkbox-row" for="floating-navigation-enabled">
+                <input id="floating-navigation-enabled" type="checkbox">
+                <span data-i18n="settings.floatingNavigation">Afficher la barre de navigation flottante</span>
+            </label>
+            <p data-i18n="settings.floatingNavigation.description">Contrôle l’affichage global ; les préférences propres à chaque tuile sont conservées.</p>
+        </section>
         <section class="settings-section" aria-labelledby="auto-sleep-heading">
             <h2 id="auto-sleep-heading" data-i18n="app.settings.autoSleep">Mise en veille automatique</h2>
             <label for="auto-sleep-delay" data-i18n="app.settings.autoSleep.delay">Délai avant mise en veille</label>
@@ -64,6 +73,7 @@
         HareI18n.attach(window.settingsApi);
         const languageSelect = document.getElementById("language-select");
         const autoSleepDelaySelect = document.getElementById("auto-sleep-delay");
+        const floatingNavigationCheckbox = document.getElementById("floating-navigation-enabled");
         const savedMessage = document.getElementById("saved");
 
         HareI18n.languages.forEach((language) => {
@@ -79,6 +89,9 @@
         window.settingsApi.getAutoSleepDelay().then((delay) => {
             autoSleepDelaySelect.value = String(delay);
         });
+        window.settingsApi.getFloatingNavigationEnabled().then((enabled) => {
+            floatingNavigationCheckbox.checked = enabled === true;
+        });
         languageSelect.addEventListener("change", async () => {
             const language = await window.settingsApi.setLanguage(languageSelect.value);
             languageSelect.value = language;
@@ -89,6 +102,10 @@
             const savedDelay = await window.settingsApi.setAutoSleepDelay(delay);
             autoSleepDelaySelect.value = String(savedDelay);
             savedMessage.textContent = HareI18n.t("app.settings.autoSleep.saved", document.documentElement.lang || "fr");
+        });
+        floatingNavigationCheckbox.addEventListener("change", async () => {
+            floatingNavigationCheckbox.checked = await window.settingsApi.setFloatingNavigationEnabled(floatingNavigationCheckbox.checked);
+            savedMessage.textContent = HareI18n.t("app.settings.saved", document.documentElement.lang || "fr");
         });
         document.getElementById("close-button").addEventListener("click", () => window.settingsApi.close());
         document.addEventListener("keydown", (event) => {
