@@ -1703,6 +1703,99 @@ function findDownloadEntry(id) {
     return downloadsList.find((entry) => entry.id === Number(id));
 }
 
+function normalizeReaderPreferences(preferences = {}) {
+    const fontSize = Number(preferences.fontSize);
+    const scrollTop = Number(preferences.scrollTop);
+    return {
+        fontSize: Number.isFinite(fontSize) ? Math.max(13, Math.min(32, fontSize)) : 19,
+        scrollTop: Number.isFinite(scrollTop) ? Math.max(0, scrollTop) : 0
+    };
+}
+
+async function executeReaderScript(panel) {
+    const contents = panel?.view?.webContents;
+    if (!contents || contents.isDestroyed()) throw new Error('La vue du panneau n’est pas disponible.');
+
+    const script = await fsPromises.readFile(path.join(__dirname, 'nanobrowser', 'reader.js'), 'utf8');
+    const readerStrings = {
+        title: tr("reader.title"),
+        smaller: tr("reader.smaller"),
+        larger: tr("reader.larger"),
+        close: tr("reader.close")
+    };
+    const preferences = normalizeReaderPreferences(panel.readerModePreferences);
+    return contents.executeJavaScript(
+        `window.__hareReaderDark = ${isDarkModeForced};` +
+        `window.__hareReaderStrings = ${JSON.stringify(readerStrings)};` +
+        `window.__hareReaderPreferences = ${JSON.stringify(preferences)};\n${script}`
+    );
+}
+
+function setReaderModeState(panel, active, options = {}) {
+    if (!panel) return;
+    panel.readerModeActive = active === true;
+    if (panel.readerModeActive) {
+        panel.readerModeUrl = options.url || panel.view?.webContents?.getURL() || panel.readerModeUrl || '';
+        panel.readerModePreferences = normalizeReaderPreferences(
+            options.preferences || panel.readerModePreferences
+        );
+    } else {
+        panel.readerModeUrl = '';
+        panel.readerModeRestorePending = false;
+        panel.readerModePreferences = normalizeReaderPreferences();
+    }
+
+    if (win && !win.isDestroyed()) {
+        win.webContents.send('reader-mode-state-changed', {
+            panelId: panel.id,
+            active: panel.readerModeActive
+        });
+        win.webContents.send('panels-updated', collectPanels(rootNode), maximizedPanelId);
+    }
+}
+
+async function applyReaderModeToPanel(panel) {
+    if (!panel?.readerModeActive || panel.isSleeping) return 'closed';
+    if (panel.readerModeApplyPromise) return panel.readerModeApplyPromise;
+
+    panel.readerModeApplyPromise = (async () => {
+        const contents = panel.view?.webContents;
+        if (!contents || contents.isDestroyed()) return 'unavailable';
+
+        try {
+            const protocol = new URL(contents.getURL()).protocol;
+            if (protocol !== 'http:' && protocol !== 'https:' && protocol !== 'file:') return 'unavailable';
+
+            // reader.js est un toggle; ne l’exécuter que si le calque n’existe pas déjà.
+            const alreadyApplied = await contents.executeJavaScript(
+                '!!document.getElementById("hare-reader-host")'
+            );
+            if (alreadyApplied) {
+                panel.readerModeRestorePending = false;
+                return 'opened';
+            }
+
+            const status = await executeReaderScript(panel);
+            if (status === 'opened') {
+                setReaderModeState(panel, true, { url: contents.getURL() });
+                panel.readerModeRestorePending = false;
+            } else if (status === 'empty' || status === 'unavailable') {
+                setReaderModeState(panel, false);
+            }
+            return status;
+        } catch (error) {
+            console.warn('[LECTURE] Impossible de restaurer le mode lecture :', error.message);
+            return 'error';
+        }
+    })();
+
+    try {
+        return await panel.readerModeApplyPromise;
+    } finally {
+        panel.readerModeApplyPromise = null;
+    }
+}
+
 async function toggleReaderModeForPanel(panelId) {
     const panel = findPanelNode(rootNode, panelId);
     const contents = panel?.view?.webContents;
@@ -1711,33 +1804,16 @@ async function toggleReaderModeForPanel(panelId) {
     try {
         const protocol = new URL(contents.getURL()).protocol;
         if (protocol !== 'http:' && protocol !== 'https:' && protocol !== 'file:') return 'unavailable';
-        const script = await fsPromises.readFile(path.join(__dirname, 'nanobrowser', 'reader.js'), 'utf8');
-        const readerStrings = {
-            title: tr("reader.title"),
-            smaller: tr("reader.smaller"),
-            larger: tr("reader.larger"),
-            close: tr("reader.close")
-        };
-        const status = await contents.executeJavaScript(`window.__hareReaderDark = ${isDarkModeForced}; window.__hareReaderStrings = ${JSON.stringify(readerStrings)};\n${script}`);
-        if (status === 'opened' || status === 'closed') {
-            setReaderModeState(panel, status === 'opened');
+        const status = await executeReaderScript(panel);
+        if (status === 'opened') {
+            setReaderModeState(panel, true, { url: contents.getURL() });
+        } else if (status === 'closed') {
+            setReaderModeState(panel, false);
         }
         return status;
     } catch (error) {
         console.warn('[LECTURE] Impossible de basculer le mode lecture :', error.message);
         return 'error';
-    }
-}
-
-function setReaderModeState(panel, active) {
-    if (!panel) return;
-    panel.readerModeActive = active === true;
-    if (win && !win.isDestroyed()) {
-        win.webContents.send('reader-mode-state-changed', {
-            panelId: panel.id,
-            active: panel.readerModeActive
-        });
-        win.webContents.send('panels-updated', collectPanels(rootNode), maximizedPanelId);
     }
 }
 
@@ -2343,11 +2419,11 @@ function rebuildTreeFromSnapshot(snapshotNode, restoredView) {
     if (snapshotNode.type === "panel") {
         // Si c'est le panneau qu'on vient de restaurer, on lui donne la nouvelle vue
         if (snapshotNode.id === lastClosedPanel.id) {
-            return new PanelNode(snapshotNode.id, restoredView, snapshotNode.url);
+            return new PanelNode(snapshotNode.id, restoredView, snapshotNode.realUrl || snapshotNode.url, snapshotNode.isPrivate === true, snapshotNode.containerId || null, snapshotNode);
         } else {
             // Sinon, on cherche le panneau déjà existant à l'écran pour récupérer sa vue actuelle
             const existingPanel = findPanelNode(rootNode, snapshotNode.id);
-            return new PanelNode(snapshotNode.id, existingPanel ? existingPanel.view : null, snapshotNode.url, existingPanel?.isPrivate === true, existingPanel?.containerId || null);
+            return new PanelNode(snapshotNode.id, existingPanel ? existingPanel.view : null, snapshotNode.url, existingPanel?.isPrivate === true, existingPanel?.containerId || null, snapshotNode);
         }
     }
 
@@ -2366,7 +2442,17 @@ function createSnapshot(node) {
             : (node.view?.webContents && !node.view.webContents.isDestroyed()
                 ? node.view.webContents.getURL()
                 : node.url);
-        return { type: "panel", id: node.id, url: node.url, realUrl, isPrivate: node.isPrivate, containerId: node.containerId || null };
+        return {
+            type: "panel",
+            id: node.id,
+            url: node.url,
+            realUrl,
+            isPrivate: node.isPrivate,
+            containerId: node.containerId || null,
+            readerModeActive: node.readerModeActive === true,
+            readerModeUrl: node.readerModeUrl || "",
+            readerModePreferences: normalizeReaderPreferences(node.readerModePreferences)
+        };
     }
 
     return {
@@ -2417,7 +2503,9 @@ function createPersistedSessionSnapshot(node) {
             id: node.id,
             url: getPersistablePanelUrl(node),
             isPrivate: false,
-            containerId: node.containerId || null
+            containerId: node.containerId || null,
+            readerModeActive: !node.isPrivate && node.readerModeActive === true,
+            readerModePreferences: normalizeReaderPreferences(node.readerModePreferences)
         };
     }
     return {
@@ -2492,7 +2580,11 @@ async function restorePersistedSession() {
             });
             win.addBrowserView(view);
             const restoreUrl = getPersistablePanelUrl({ url: savedNode.url, isPrivate: false });
-            const panel = new PanelNode(id, view, restoreUrl, false, containerId);
+            const panel = new PanelNode(id, view, restoreUrl, false, containerId, savedNode);
+            if (panel.readerModeActive) {
+                panel.readerModeUrl = restoreUrl;
+                panel.readerModeRestorePending = true;
+            }
             setupNavigationTracking(panel);
             try {
                 await view.webContents.loadURL(panel.url);
@@ -2534,7 +2626,7 @@ function saveState() {
 }
 
 class PanelNode {
-    constructor(id, view, url = "", isPrivate = false, containerId = null) {
+    constructor(id, view, url = "", isPrivate = false, containerId = null, readerState = {}) {
         this.type = "panel";
         this.id = id;
         this.view = view;
@@ -2546,7 +2638,12 @@ class PanelNode {
             : null;
         this.isSleeping = false;
         this.sleepingUrl = null;
-        this.readerModeActive = false;
+        this.readerModeActive = readerState.readerModeActive === true;
+        this.readerModeUrl = typeof readerState.readerModeUrl === "string" ? readerState.readerModeUrl : "";
+        this.readerModePreferences = normalizeReaderPreferences(readerState.readerModePreferences);
+        this.readerModeRestorePending = this.readerModeActive;
+        this.readerModeApplyPromise = null;
+        this.isPreparingSleep = false;
     }
     toJSON() {
         return { type: this.type, id: this.id, url: this.url, isPrivate: this.isPrivate, containerId: this.containerId };
@@ -2702,8 +2799,20 @@ function destroyPanelBrowserView(view) {
     try { view.webContents.destroy(); } catch (error) {}
 }
 
-function sleepPanel(panel) {
-    if (!panel || panel.isSleeping || !panel.view || !win || win.isDestroyed()) return;
+function readerUrlsMatch(leftUrl, rightUrl) {
+    try {
+        const left = new URL(leftUrl);
+        const right = new URL(rightUrl);
+        left.hash = "";
+        right.hash = "";
+        return left.href === right.href;
+    } catch {
+        return leftUrl === rightUrl;
+    }
+}
+
+async function sleepPanel(panel) {
+    if (!panel || panel.isSleeping || panel.isPreparingSleep || !panel.view || !win || win.isDestroyed()) return;
     if (activeDownloads[panel.id]) {
         markPanelActivity(panel);
         return;
@@ -2713,12 +2822,43 @@ function sleepPanel(panel) {
     const contents = originalView.webContents;
     if (!contents || contents.isDestroyed()) return;
 
+    panel.isPreparingSleep = true;
     const currentUrl = contents.getURL();
-    panel.sleepingUrl = currentUrl && currentUrl !== 'about:blank'
+    const savedUrl = currentUrl && currentUrl !== 'about:blank'
         ? currentUrl
         : (panel.url || getHomePageUrl());
+
+    // Le script Reader garde taille et défilement dans la page; les capturer avant
+    // de détruire la BrowserView permet une reconstruction visuellement cohérente.
+    if (panel.readerModeActive) {
+        try {
+            const preferences = await contents.executeJavaScript(`(() => {
+                const saved = window.__hareReaderPreferences || {};
+                const host = document.getElementById("hare-reader-host");
+                const page = host?.shadowRoot?.querySelector(".page");
+                const doc = host?.shadowRoot?.querySelector(".doc");
+                return {
+                    fontSize: Number.parseFloat(doc?.style.fontSize) || saved.fontSize || 19,
+                    scrollTop: Number(page?.scrollTop) || saved.scrollTop || 0
+                };
+            })()`);
+            panel.readerModePreferences = normalizeReaderPreferences(preferences);
+        } catch (error) {
+            console.debug(`[LECTURE] Préférences de la tuile ${panel.id} non capturées avant veille :`, error.message);
+        }
+    }
+
+    // Vérifier que le panneau n’a pas été remplacé pendant la capture asynchrone.
+    if (panel.view !== originalView || contents.isDestroyed()) {
+        panel.isPreparingSleep = false;
+        return;
+    }
+
+    panel.sleepingUrl = savedUrl;
     panel.session = contents.session;
     panel.isSleeping = true;
+    panel.isPreparingSleep = false;
+    panel.readerModeRestorePending = panel.readerModeActive;
 
     destroyPanelBrowserView(originalView);
 
@@ -2757,10 +2897,17 @@ function wakePanel(panel, targetUrl = null) {
     if (!panel || !panel.isSleeping || !win || win.isDestroyed()) return panel?.view || null;
 
     clearPanelIdleTimer(panel.id);
-    const originalUrl = targetUrl || panel.sleepingUrl || panel.url || getHomePageUrl();
+    const sleepingUrl = panel.sleepingUrl || panel.url || getHomePageUrl();
+    const originalUrl = targetUrl || sleepingUrl;
+    if (targetUrl && !readerUrlsMatch(targetUrl, sleepingUrl) && panel.readerModeActive) {
+        // Une navigation explicitement demandée pendant la veille est une autre page;
+        // ne pas appliquer à celle-ci le mode Lecture de l’ancienne URL.
+        setReaderModeState(panel, false);
+    }
     const placeholder = panel.view;
     panel.isSleeping = false;
     panel.sleepingUrl = null;
+    panel.readerModeRestorePending = panel.readerModeActive;
     destroyPanelBrowserView(placeholder);
 
     const view = createSandboxedBrowserView({
@@ -3046,8 +3193,12 @@ function setupNavigationTracking(panel) {
         }
     };
 
-    panel.view.webContents.on("did-navigate-in-page", () => {
+    panel.view.webContents.on("did-navigate-in-page", (_event, url) => {
         updateTileNavigationButtons(panel.view.webContents);
+        if (panel.readerModeActive && !panel.readerModeRestorePending &&
+            url && !readerUrlsMatch(url, panel.readerModeUrl)) {
+            setReaderModeState(panel, false);
+        }
         syncSearchQueryFromPage();
     });
 
@@ -3103,9 +3254,6 @@ function setupNavigationTracking(panel) {
         if (!initialLoadFinished) {
         return;
         }
-
-        if (panel.readerModeActive) setReaderModeState(panel, false);
-
 
         if (win && !win.isDestroyed()) {
             win.webContents.send("page-loading", {
@@ -3232,6 +3380,16 @@ function setupNavigationTracking(panel) {
         // Certains moteurs envoient le terme via POST : la requête n'est alors
         // pas dans l'URL et doit être lue dans le formulaire de la page.
         await syncSearchQueryFromPage();
+
+        // Un rechargement conserve Reader si l’URL est identique; au réveil,
+        // readerModeRestorePending autorise également les redirections canoniques.
+        if (panel.readerModeActive) {
+            const status = await applyReaderModeToPanel(panel);
+            if (status === 'opened') {
+                panel.readerModeRestorePending = false;
+                panel.readerModeUrl = panel.view?.webContents?.getURL() || panel.readerModeUrl;
+            }
+        }
     });
 
     if (typeof panel.view.webContents.setForceDarkModeEnabled === 'function') {
@@ -3239,6 +3397,11 @@ function setupNavigationTracking(panel) {
     }
     
     panel.view.webContents.on("did-navigate", (event, url, httpResponseCode, httpStatusText) => {
+        if (panel.readerModeActive && !panel.readerModeRestorePending &&
+            url && !readerUrlsMatch(url, panel.readerModeUrl)) {
+            setReaderModeState(panel, false);
+        }
+
         if (httpResponseCode >= 400) {
             // ... Votre logique de gestion des erreurs HTML ...
         } else {
@@ -3316,6 +3479,11 @@ panel.view.webContents.on("focus", () => {
 
         // Ignorer TOUTES les formes d'annulations de requêtes (code -3 dans Chromium ou ERR_ABORTED)
         if (errorDescription === "ERR_ABORTED" || errorCode === -3) return;
+
+        if (panel.readerModeActive && (panel.readerModeRestorePending ||
+            (validatedURL && !readerUrlsMatch(validatedURL, panel.readerModeUrl)))) {
+            setReaderModeState(panel, false);
+        }
 
         console.log(`Échec de chargement sur la tuile ${panel.id} [${errorCode}]: ${errorDescription}`);
     
@@ -3647,6 +3815,13 @@ ipcMain.on('reader-mode-state-from-tile', (event, active) => {
     setReaderModeState(panel, active);
 });
 
+ipcMain.on('reader-mode-preferences-from-tile', (event, preferences) => {
+    const panel = findPanelByWebContents(event.sender);
+    if (!panel || !panel.readerModeActive || !preferences || typeof preferences !== 'object') return;
+    panel.readerModePreferences = normalizeReaderPreferences(preferences);
+    scheduleSessionLayoutSave();
+});
+
 ipcMain.handle("get-autosleep-preference", (event) => {
     if (!win || win.isDestroyed() || event.sender !== win.webContents) return true;
     return autoSleepEnabled;
@@ -3937,7 +4112,6 @@ ipcMain.on("undo", (event) => {
     // 3. On recrée une BrowserView toute neuve pour le panneau à restaurer
     const restoredView = createSandboxedBrowserView();
     win.addBrowserView(restoredView);
-    restoredView.webContents.loadURL(lastClosedPanel.url);
 
     // 4. On reconstruit l'arbre complet à partir du snapshot sauvegardé
     // Cette fonction utilitaire va ré-associer les BrowserViews existantes et injecter la nouvelle
@@ -3947,6 +4121,9 @@ ipcMain.on("undo", (event) => {
     const restoredNode = findPanelNode(rootNode, lastClosedPanel.id);
     if (restoredNode) {
         setupNavigationTracking(restoredNode);
+        restoredView.webContents.loadURL(restoredNode.url || lastClosedPanel.url).catch((error) => {
+            console.error(`[LECTURE] Impossible de restaurer la tuile ${restoredNode.id} après annulation :`, error);
+        });
     }
 
     // 6. On applique le focus sur le panneau rouvert
@@ -5047,10 +5224,11 @@ async function createWindow() {
                                         };
                                         const newView = createSandboxedBrowserView(viewOptions);
                                         win.addBrowserView(newView);
-                                        newView.webContents.loadURL(node.realUrl || node.url || "http://129.151.254.175:8080");
-
-                                        const newNode = new PanelNode(node.id, newView, node.url, !!node.isPrivate);
+                                        const newNode = new PanelNode(node.id, newView, node.url, !!node.isPrivate, node.containerId || null, node);
                                         setupNavigationTracking(newNode);
+                                        newView.webContents.loadURL(node.realUrl || node.url || "http://129.151.254.175:8080").catch((error) => {
+                                            console.error(`[LECTURE] Chargement de la tuile importée ${node.id} impossible :`, error);
+                                        });
                                         return newNode;
                                     }
 
@@ -6232,10 +6410,11 @@ ipcMain.handle('load-config-from-file', async () => {
                     };
                     const newView = createSandboxedBrowserView(viewOptions);
                     win.addBrowserView(newView);
-                    newView.webContents.loadURL(node.realUrl || node.url || "http://129.151.254.175:8080");
-
-                    const newNode = new PanelNode(node.id, newView, node.url, !!node.isPrivate, importedContainerId);
+                    const newNode = new PanelNode(node.id, newView, node.url, !!node.isPrivate, importedContainerId, node);
                     setupNavigationTracking(newNode);
+                    newView.webContents.loadURL(node.realUrl || node.url || "http://129.151.254.175:8080").catch((error) => {
+                        console.error(`[LECTURE] Chargement de la tuile importée ${node.id} impossible :`, error);
+                    });
                     return newNode;
                 }
 

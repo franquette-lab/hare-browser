@@ -1,6 +1,7 @@
 (function () {
     var HOST_ID = "hare-reader-host";
     var dark = window.__hareReaderDark === true;
+    var savedPreferences = window.__hareReaderPreferences || {};
 
     var existing = document.getElementById(HOST_ID);
     if (existing) {
@@ -101,7 +102,9 @@
     host.style.zIndex = "2147483647";
     var shadow = host.attachShadow({ mode: "open" });
 
-    var fontSize = 19;
+    var savedFontSize = Number(savedPreferences.fontSize);
+    var savedScrollTop = Number(savedPreferences.scrollTop);
+    var fontSize = Number.isFinite(savedFontSize) ? Math.max(13, Math.min(32, savedFontSize)) : 19;
     var sheet = new CSSStyleSheet();
     sheet.replaceSync(
         ":host{all:initial}" +
@@ -167,10 +170,23 @@
     page.appendChild(doc);
     wrap.append(bar, page);
     shadow.appendChild(wrap);
+    page.scrollTop = Number.isFinite(savedScrollTop) ? Math.max(0, savedScrollTop) : 0;
+
+    function saveReaderPreferences() {
+        var preferences = {
+            fontSize: fontSize,
+            scrollTop: page.scrollTop
+        };
+        window.__hareReaderPreferences = preferences;
+        document.dispatchEvent(new CustomEvent("hare-reader-mode-preferences", { detail: preferences }));
+    }
+    page.addEventListener("scroll", saveReaderPreferences, { passive: true });
+    saveReaderPreferences();
 
     function resize(delta) {
         fontSize = Math.max(13, Math.min(32, fontSize + delta));
         doc.style.fontSize = fontSize + "px";
+        saveReaderPreferences();
     }
     smaller.addEventListener("click", function () { resize(-2); });
     larger.addEventListener("click", function () { resize(2); });
@@ -183,5 +199,11 @@
     window.__hareReaderPrevOverflow = document.documentElement.style.overflow;
     document.documentElement.style.overflow = "hidden";
     document.documentElement.appendChild(host);
+    if (Number.isFinite(savedScrollTop) && savedScrollTop > 0) {
+        requestAnimationFrame(function () {
+            page.scrollTop = savedScrollTop;
+            saveReaderPreferences();
+        });
+    }
     return "opened";
 })();

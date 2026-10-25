@@ -17,6 +17,10 @@ document.addEventListener('hare-reader-mode-state', (event) => {
     if (event.detail === false) ipcRenderer.send('reader-mode-state-from-tile', false);
 });
 
+document.addEventListener('hare-reader-mode-preferences', (event) => {
+    ipcRenderer.send('reader-mode-preferences-from-tile', event.detail);
+});
+
 
 // Permet au script injecté d'envoyer des ordres de navigation au processus principal
 contextBridge.exposeInMainWorld('tileNavigation', {
