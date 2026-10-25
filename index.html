@@ -756,12 +756,11 @@ html.dark #pwd-modal {
     <button id="dark-mode-button" data-i18n-title="toolbar.darkMode" title="Activer le mode sombre" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🌙</button>
 
     <!-- L'attribut onclick appelle directement notre nouveau pont preload de manière brute -->
-    <button id="history-button" title="Historique (Ctrl+H)" onclick="window.api.openHistoryWindow()" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer; position:relative; z-index:999999 !important;">🕒</button>
+    <button id="history-button" title="Historique (Ctrl+H)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer; position:relative; z-index:999999 !important;">🕒</button>
 
     <button id="downloads-button" title="Téléchargements (Ctrl+J)" onclick="window.api.openDownloadsWindow()" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">📥</button>
 
-    <button id="reader-mode-button" title="Mode lecture : affiche la page sans distractions" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">👓</button>
-
+ 
     <!-- Bouton Gestionnaire de mots de passe -->
     <button id="pwd-manager-btn" title="Gestionnaire de mots de passe" style="width:28px; height:24px; background:#2d2d30; color:#fbbf24; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🔑</button>
 
@@ -789,7 +788,9 @@ html.dark #pwd-modal {
     <button id="split-vertical" title="Scinder à droite (Ctrl+T)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; font-weight:bold; cursor:pointer;">|</button>
     
     <!-- Scindage horizontal : Une barre horizontale simple -->
-    <button id="split-horizontal" title="Scinder vers le bas (Ctrl+H)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; font-weight:bold; cursor:pointer;">&mdash;</button>   
+    <button id="split-horizontal" data-i18n-title="toolbar.splitDown" title="Scinder vers le bas (Ctrl+Shift+H)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:11px; font-weight:bold; cursor:pointer;">&mdash;</button>   
+
+    <button id="reader-mode-button" data-i18n-title="toolbar.reader" aria-label="Mode lecture" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:13px; cursor:pointer;">👓</button>
 
     <!-- Dans index.html -> Dans la div #toolbar-buttons -->
     <button id="ai-sidebar-button" title="Demander à l'IA Ollama" style="width:28px; height:24px; background:#2d2d30; color:#4ade80; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer;">✨</button>
@@ -867,7 +868,7 @@ html.dark #pwd-modal {
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3c3c3c; padding-bottom: 8px;">
         <span style="color: #ffffff; font-weight: bold; font-size: 13px;">Historique</span>
 
-<button id="clear-bookmarks-btn" title="Effacer les favoris">
+<button id="clear-history-btn" title="Effacer l'historique">
     🗑
 </button>
 
@@ -877,7 +878,7 @@ html.dark #pwd-modal {
 
 
 <!-- Dans index.html -> Remplacez la ligne d'ouverture de #ai-sidebar par celle-ci (on enlève le background fixe et la top position en dur) -->
-<div id="ai-sidebar" class="ai-sidebar-native" style="position: fixed; top: 68px; right: 0; width: 300px; bottom: 0; border-left: 1px solid #3c3c3c; z-index: 99999; display: flex; flex-direction: column; padding: 16px; box-sizing: border-box; transition: right 0.3s ease, background 0.2s, color 0.2s, border-color 0.2s; font-family: sans-serif;">
+<div id="ai-sidebar" class="ai-sidebar-native" style="position: fixed; top: 68px; right: -301px; width: 300px; bottom: 0; border-left: 1px solid #3c3c3c; z-index: 99999; display: flex; flex-direction: column; padding: 16px; box-sizing: border-box; transition: right 0.3s ease, background 0.2s, color 0.2s, border-color 0.2s; font-family: sans-serif;">
     
     <!-- En-tête de la Sidebar -->
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3c3c3c; padding-bottom: 12px; margin-bottom: 16px;">
@@ -961,7 +962,6 @@ html.dark #pwd-modal {
 <script src="i18n.js"></script>
 <script>
     HareI18n.attach(window.api);
-    document.getElementById('settings-button').addEventListener('click', () => window.api.openSettings());
 </script>
 
 <script>
@@ -2971,27 +2971,12 @@ document.addEventListener("keydown", (e) => {
         return;
     }
 
-if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "h") {
-e.preventDefault();
-window.api.openHistoryWindow();
-return;
-}
-
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
         e.preventDefault();
         openFindBar(activePanel);
         return;
     }
 
-    if (e.ctrlKey && e.key.toLowerCase() === "s") {
-        e.preventDefault();
-        document.getElementById("save-config-btn")?.click();
-    }
-
-    if (e.ctrlKey && e.key.toLowerCase() === "o") {
-        e.preventDefault();
-        document.getElementById("load-config-btn")?.click();
-    }
 });
 
 document.addEventListener("keydown", (e) => {
@@ -3047,13 +3032,6 @@ document.getElementById("clear-bookmarks-btn")?.addEventListener("click", async 
         }
     }
 });
-
-// Ajoutez cette ligne avec vos autres écouteurs de boutons de la barre d'outils
-document.getElementById("history-button").addEventListener("click", (e) => {
-    e.stopPropagation();
-    window.api.openHistoryWindow();
-});
-
 
 // Écoute le signal du processus principal pour changer le titre de la fenêtre
 window.api.onTitleChanged?.((newTitle) => {
@@ -3175,21 +3153,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 });
 
-document.addEventListener('keydown', (e) => {
-
-    if (e.ctrlKey && e.key.toLowerCase() === 's') {
-        e.preventDefault();
-
-        // même action que le bouton Sauvegarder
-    }
-
-    if (e.ctrlKey && e.key.toLowerCase() === 'o') {
-        e.preventDefault();
-
-        // même action que le bouton Charger
-    }
-});
-
 document.addEventListener('keydown', async (event) => {
 
     if (event.key === 'F1') {
@@ -3286,7 +3249,9 @@ document.getElementById("duplicate-panel").addEventListener("click", () => {
 
 document.getElementById("reader-mode-button").addEventListener("click", async () => {
     const targetPanelId = activePanel || currentPanels[0]?.id;
-    if (targetPanelId) flashReaderResult(targetPanelId, await window.api.toggleReaderMode(targetPanelId));
+    if (targetPanelId) {
+        flashReaderResult(targetPanelId, await window.api.toggleReaderMode(targetPanelId));
+    }
 });
 
 document.getElementById("print-button").addEventListener("click", () => {
@@ -3341,6 +3306,7 @@ window.api.onPageLoading((data) => {
 // ===================================================
 
 const aiSidebar = document.getElementById("ai-sidebar");
+
 const aiResponseContainer = document.getElementById("ai-response-container");
 
 // ✨ ÉLÉMENTS IA GROUPÉS ET SYNCHRONISÉS
@@ -3361,30 +3327,26 @@ aiSidebar.addEventListener("contextmenu", (event) => {
 
 // Ouvrir / Fermer le volet IA
 function setAiSidebarUiVisible(isVisible) {
-    // 1. Gestion de l'animation du volet IA
-    const sidebar = document.querySelector(".ai-sidebar-native");
+    const visible = isVisible === true;
+    const sidebar = document.getElementById("ai-sidebar");
+    const aiButton = document.getElementById("ai-sidebar-button");
+
     if (sidebar) {
-        if (isVisible) {
-            sidebar.classList.add("visible");
-        } else {
-            sidebar.classList.remove("visible");
-        }
+        const width = Number.parseFloat(sidebar.style.width) || 300;
+        sidebar.style.right = visible ? "0px" : `-${width + 1}px`;
+        sidebar.setAttribute("aria-hidden", String(!visible));
     }
 
-    // 2. ✨ Cible votre bouton par son ID d'origine
-    const aiButton = document.getElementById("ai-sidebar-button"); 
     if (aiButton) {
-        if (isVisible) {
-            aiButton.classList.add("enfonce");   // Applique le style enfoncé
-        } else {
-            aiButton.classList.remove("enfonce"); // Relâche le bouton
-        }
+        aiButton.classList.toggle("enfonce", visible);
+        aiButton.setAttribute("aria-pressed", String(visible));
     }
 }
 
 
 document.getElementById("ai-sidebar-button").addEventListener("click", () => {
-    window.api.toggleAiSidebar(aiSidebar.style.right !== "0px");
+    // Le processus principal détient l'état de référence; sans argument, il bascule cet état.
+    window.api.toggleAiSidebar();
 });
 
 document
@@ -3684,7 +3646,7 @@ async function refreshPasswordList() {
 // Écouter les ordres lancés depuis le menu contextuel natif (clic droit)
 window.api.onTriggerAiAction((data) => {
     const aiSidebar = document.getElementById("ai-sidebar");
-    if (aiSidebar) aiSidebar.style.right = "0px";
+    if (aiSidebar) window.api.toggleAiSidebar(true);
 
     if (data.action === "resume") {
         envoyerRequeteIA(translateUi("ai.autoSummaryPrompt"), true);
@@ -3707,6 +3669,7 @@ window.api.onAiSidebarGeometryUpdate((data) => {
 
 window.api.onAiSidebarVisibilityChanged?.(setAiSidebarUiVisible);
 
+
 window.api.onAiSidebarWidthChanged?.((width) => {
     const hidden = aiSidebarElement.style.right !== "0px";
     aiSidebarElement.style.width = width + "px";
@@ -3717,11 +3680,6 @@ window.api.onAiSidebarWidthChanged?.((width) => {
 window.api.getAiSidebarPreference?.()
     .then(setAiSidebarUiVisible)
     .catch((error) => console.error("Impossible de restaurer l’état du volet IA :", error));
-
-// Compatibilité avec les commandes clavier existantes.
-window.api.onToggleAiSidebarKeyboardForce((isVisible) => {
-    window.api.toggleAiSidebar(isVisible);
-});
 
 // Synchronisation dynamique du thème Clair / Sombre
 window.api.onSystemThemeChanged((isDarkMode) => {
@@ -3797,7 +3755,7 @@ async function envoyerRequeteIA(questionUser, isSummary = false, isQuestion = fa
     if (compareVisiblePanels) window.api.setAiSidebarWide(true);
 
     // Force l'ouverture visuelle immédiate du volet
-    if (aiSidebar) aiSidebar.style.right = "0px";
+    if (aiSidebar) window.api.toggleAiSidebar(true);
 
     if (loadingBtn) {
         loadingBtn.disabled = true;

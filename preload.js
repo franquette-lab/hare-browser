@@ -36,7 +36,6 @@ contextBridge.exposeInMainWorld(
             ipcRenderer.on("app-title-changed", (event, title) => callback(title));
         },
 
-        getSystemTheme: () => ipcRenderer.invoke("get-system-theme"),
         getLanguage: () => ipcRenderer.invoke("get-language"),
         setLanguage: (language) => ipcRenderer.invoke("set-language", language),
         openSettings: () => ipcRenderer.send("open-settings-window"),
@@ -192,10 +191,6 @@ onActivePanelChanged: (callback) => {
         onTriggerAiAction: (callback) => {
             ipcRenderer.on("trigger-ai-action", (_, data) => callback(data));
         },
-        onToggleAiSidebarKeyboardForce: (callback) => {
-            ipcRenderer.on("toggle-ai-sidebar-keyboard-force", (_, force) => callback(force));
-        },
-
         // Dans preload.js, sous la section // --- ASSISTANT IA ---
         toggleAiSidebar: (isVisible) => ipcRenderer.send("toggle-ai-sidebar-request", isVisible),
         onAiLoadingState: (callback) => ipcRenderer.on("ai-loading-state", (_, isLoading) => callback(isLoading)),
@@ -246,14 +241,6 @@ onActivePanelChanged: (callback) => {
         }
     }
 );
-
-window.addEventListener("message", (event) => {
-    if (!event.data) return;
-    if (event.data.source === "tile-browser-focus") ipcRenderer.send("set-active-panel-from-handle", event.data.panelId);
-    if (event.data.source === "handle-drag-start") ipcRenderer.send("handle-drag-start", event.data.panelId);
-    if (event.data.source === "handle-drag-move") ipcRenderer.send("handle-drag-move");
-    if (event.data.source === "handle-drag-end") ipcRenderer.send("handle-drag-end");
-});
 
 contextBridge.exposeInMainWorld("tutorials", {
     openVideo: (videoFile) => {

@@ -58,7 +58,7 @@ contextBridge.exposeInMainWorld("tileLanguage", {
     
     // Écoute en temps réel si l'utilisateur change la langue dans les paramètres
     onChanged: (callback) => {
-        ipcRenderer.on("language-changed", (_, langue) => callback(language));
+        ipcRenderer.on("language-changed", (_event, language) => callback(language));
     }
 });
 

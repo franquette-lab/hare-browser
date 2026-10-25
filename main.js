@@ -15,7 +15,8 @@ const {
     globalShortcut,
     screen,
     safeStorage,
-    session
+    session,
+    shell
 } = require('electron');
 
 
@@ -743,11 +744,15 @@ function saveAiSidebarPreference() {
 }
 
 function setAiSidebarVisible(visible) {
-    isAiSidebarVisible = visible === true;
+    const nextVisibility = visible === true;
+    const visibilityChanged = isAiSidebarVisible !== nextVisibility;
+    isAiSidebarVisible = nextVisibility;
     saveAiSidebarPreference();
 
-    forceRebuildSplitters = true;
-    resizeViews();
+    if (visibilityChanged) {
+        forceRebuildSplitters = true;
+        resizeViews();
+    }
 
     if (win && !win.isDestroyed()) {
         // Envoie la notification d'état ET de géométrie pour ouvrir/fermer le volet CSS
@@ -1087,13 +1092,26 @@ function afficherMenuContextuelPanneau(webContents, x, y) {
                 updatePanelHandles();
             }
         },
+
         {
             label: `   ${tr("context.reader")}`,
+            type: "checkbox",
+            checked: targetPanel?.readerModeActive === true,
             click: async () => {
                 const status = await toggleReaderModeForPanel(panelId);
-                if (win && !win.isDestroyed()) win.webContents.send('reader-mode-result', { panelId, status });
+
+                // Mise à jour immédiate de l'état du panneau
+                if (targetPanel && (status === "opened" || status === "closed")) {
+                    targetPanel.readerModeActive = (status === "opened");
+                }
+
+                if (win && !win.isDestroyed()) {
+                    win.webContents.send("reader-mode-result", { panelId, status });
+                }
             }
         },
+
+
         {
             label: `   ${tr("context.print")}`,
             click: () => ipcMain.emit('print-panel', null, panelId)
@@ -1463,7 +1481,9 @@ async function savePasswordsSecurely(passwordList) {
 
 
 ipcMain.on("open-password-manager-window", () => {
+    console.info("[PWD] Demande d’ouverture du gestionnaire de mots de passe reçue.");
     if (pwdWindow && !pwdWindow.isDestroyed()) {
+        console.info("[PWD] Fenêtre existante remise au premier plan.");
         pwdWindow.focus();
         return;
     }
@@ -1485,10 +1505,22 @@ ipcMain.on("open-password-manager-window", () => {
         }
     });
 
-    pwdWindow.loadFile(path.join(__dirname, 'passwords.html'));
+    pwdWindow.loadFile(path.join(__dirname, 'passwords.html')).catch((error) => {
+        console.error("[PWD] Impossible de charger passwords.html :", error);
+        if (pwdWindow && !pwdWindow.isDestroyed()) pwdWindow.close();
+    });
 
     pwdWindow.webContents.on('did-finish-load', () => {
+        console.info("[PWD] Interface du gestionnaire chargée.");
         updatePasswordWindowContent();
+    });
+
+    pwdWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+        console.error("[PWD] Échec de chargement de l’interface :", {
+            errorCode,
+            errorDescription,
+            validatedURL
+        });
     });
 
     pwdWindow.on("closed", () => {
@@ -1515,42 +1547,6 @@ ipcMain.on('pwd-ui-delete', async (event, index) => {
         list.splice(index, 1);
         await savePasswordsSecurely(list);
         updatePasswordWindowContent(); // Rafraîchit l'affichage de la popup
-    }
-});
-
-// Ré-enregistrement des handles IPC nettoyés
-ipcMain.removeHandler('pwd-get-all');
-ipcMain.handle('pwd-get-all', () => {
-    return getStoredPasswords();
-});
-
-ipcMain.removeHandler('pwd-save-entry');
-ipcMain.handle('pwd-save-entry', async (event, entry) => {
-    try {
-        let list = getStoredPasswords();
-        const existingIndex = list.findIndex(p => p.url === entry.url && p.username === entry.username);
-        if (existingIndex >= 0) {
-            list[existingIndex] = entry;
-        } else {
-            list.push(entry);
-        }
-        return await savePasswordsSecurely(list);
-    } catch (e) {
-        return false;
-    }
-});
-
-ipcMain.removeHandler('pwd-delete-entry');
-ipcMain.handle('pwd-delete-entry', async (event, index) => {
-    try {
-        let list = getStoredPasswords();
-        if (index >= 0 && index < list.length) {
-            list.splice(index, 1);
-            return await savePasswordsSecurely(list);
-        }
-        return false;
-    } catch (e) {
-        return false;
     }
 });
 
@@ -3505,31 +3501,27 @@ ipcMain.on('navigate-current', (event, inputUrl) => {
 
 
 
-// À mettre avec vos autres ipcMain.handle dans main.js
-ipcMain.removeHandler('pwd-find-for-url');
-ipcMain.handle('pwd-find-for-url', (event, targetUrl) => {
-    try {
-        const hostname = new URL(targetUrl).hostname.replace(/^www\./, "");
-        const list = getStoredPasswords();
-        return list.filter(p => p.url && p.url.includes(hostname));
-    } catch {
-        return [];
-    }
-});
-
-
 // Écouteur pour intercepter le clic sur le bouton 📐 de l'IHM
-ipcMain.on("equalize-mosaic-request", () => {
-    if (!rootNode) return;
+ipcMain.on("equalize-mosaic-request", (event) => {
+    if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
+    if (!rootNode) {
+        console.warn("[Mosaïque] Égalisation ignorée : aucun arbre de panneaux actif.");
+        return;
+    }
+    if (maximizedPanelId) {
+        console.info("[Mosaïque] Égalisation ignorée pendant le mode panneau agrandi.");
+        return;
+    }
+    if (collectPanelNodes(rootNode).length <= 1) {
+        console.info("[Mosaïque] Égalisation ignorée : une seule tuile est visible.");
+        return;
+    }
 
     saveState();
-
     resetTreeRatiosEqual(rootNode);
-
     forceRebuildSplitters = true;
     resizeViews();
-
-    console.log("[Mosaïque] Ratios égalisés via le bouton de la barre d'outils.");
+    console.info("[Mosaïque] Arbre de panneaux égalisé depuis la barre d’outils.");
 });
 
 
@@ -3611,22 +3603,21 @@ ipcMain.on("show-url-context-menu", (event) => {
 // =========================================================================
 // ✨ CORRECTIF AVANCÉ : BASCULE ULTRA-FIABLE (ENTRÉE DEPUIS LE CLIC DE L'ICÔNE)
 // =========================================================================
-ipcMain.on("toggle-ai-sidebar-request", (event, isVisible) => {
+ipcMain.on("toggle-ai-sidebar-request", (event, requestedVisibility) => {
     if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
-    
-    // Au lieu de faire confiance aveuglément au paramètre 'isVisible' envoyé par l'IHM,
-    // on inverse strictement l'état réel stocké dans Electron :
-    const nextState = !isAiSidebarVisible;
-    
-    // On applique le nouvel état visuel et réseau
+
+    // Sans valeur, le bouton principal demande une bascule; close/AI actions
+    // transmettent une valeur explicite afin de rester idempotents.
+    const nextState = typeof requestedVisibility === "boolean"
+        ? requestedVisibility
+        : !isAiSidebarVisible;
     setAiSidebarVisible(nextState);
-    
     console.log(`[IA Locale] Bascule déclenchée par l'icône. Nouvel état : ${nextState ? "OUVERT" : "FERMÉ"}`);
 });
 
 
 ipcMain.handle("get-ai-sidebar-preference", (event) => {
-    if (!win || win.isDestroyed() || event.sender !== win.webContents) return true;
+    if (!win || win.isDestroyed() || event.sender !== win.webContents) return false;
     return isAiSidebarVisible;
 });
 
@@ -4959,19 +4950,23 @@ async function createWindow() {
                     }
                 },
 
+                {
+                    label: tr("toolbar.resetWorkspace"),
+                    accelerator: "CmdOrCtrl+Shift+Home",
+                    click: () => {
+                        if (win && !win.isDestroyed()) {
+                            ipcMain.emit("reset-workspace", { sender: win.webContents });
+                        }
+                    }
+                },
+
 
                 {
                     label: 'Afficher / Masquer le volet de l\'assistant IA',
                     accelerator: 'CmdOrCtrl+Shift+A',
                     click: () => {
                         if (!win || win.isDestroyed()) return;
-                        
-                        // Alterne l'état de visibilité de manière globale
-                        const nextVisibility = !isAiSidebarVisible;
-                        setAiSidebarVisible(nextVisibility);
-                        
-                        // Émet l'événement réseau vers l'IHM pour ouvrir le volet latéral
-                        win.webContents.send("ai-sidebar-visibility-changed", nextVisibility);
+                        setAiSidebarVisible(!isAiSidebarVisible);
                     }
                 },
 
@@ -5112,7 +5107,7 @@ async function createWindow() {
                 },
                 {
                     label: 'Scinder horizontalement',
-                    accelerator: 'CmdOrCtrl+H', // Attention si doublon avec l'historique, ajustez selon votre configuration
+                    accelerator: 'CmdOrCtrl+Shift+H',
                     click: () => {
                         let targetPanelId = activePanel;
                         
@@ -5338,11 +5333,7 @@ async function createWindow() {
                 {
                     label: 'Afficher l\'historique',
                     accelerator: 'CmdOrCtrl+H',
-                    click: () => {
-                        // Envoie une demande à index.html pour exécuter toggleHistorySidebar()
-                        win.webContents.send('focus-url-bar', activePanel); // astuce pour redonner le focus à l'IHM
-                        win.webContents.executeJavaScript("toggleHistorySidebar()");
-                    }
+                    click: () => ipcMain.emit('open-history-window')
                 },
 
                 {
@@ -5816,14 +5807,18 @@ function detachPanelToFullscreen(panelId) {
  * @param {Object} node - Le nœud actuel de l'arbre (SplitNode ou PanelNode)
  */
 function resetTreeRatiosEqual(node) {
-    if (!node || node.type !== "split") return;
+    if (!node) return 0;
+    if (node.type === "panel") return 1;
 
-    // Réinitialise le ratio actuel au centre parfait (50/50)
-    node.ratio = 0.5;
-
-    // Continue le parcours récursif sur les enfants gauches/droits ou hauts/bas
-    resetTreeRatiosEqual(node.first);
-    resetTreeRatiosEqual(node.second);
+    const firstLeafCount = resetTreeRatiosEqual(node.first);
+    const secondLeafCount = resetTreeRatiosEqual(node.second);
+    const totalLeafCount = firstLeafCount + secondLeafCount;
+    if (totalLeafCount > 0) {
+        // Chaque panneau reçoit la même part de surface, y compris dans les arbres
+        // déséquilibrés (ex. une branche avec une tuile face à une branche avec deux).
+        node.ratio = firstLeafCount / totalLeafCount;
+    }
+    return totalLeafCount;
 }
 
 
@@ -6121,16 +6116,6 @@ ipcMain.on("set-active-panel", (event, panelId, options) => {
     if (!keepChromeFocus && panel.view && !panel.view.webContents.isDestroyed()) {
         panel.view.webContents.focus();
     }
-});
-
-// Intercepte les demandes de focus issues de la poignée injectée
-ipcMain.on("set-active-panel-from-handle", (event, panelId) => {
-    const panel = findPanelNode(rootNode, panelId);
-    if (!panel) return;
-    activePanel = panelId;
-    scheduleSessionLayoutSave();
-    win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
-    updateActiveBorder(panel.bounds);
 });
 
 // Écouteurs IPC pour que l'interface graphique puisse interagir avec les favoris
