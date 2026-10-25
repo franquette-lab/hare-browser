@@ -32,30 +32,34 @@
     const style = document.createElement("style");
     style.textContent = `
         #hare-floating-nav { position:fixed; top:6px; left:50%; transform:translateX(-50%); display:flex;
-            align-items:stretch; gap:6px; box-sizing:border-box; width:340px; height:48px;
+            align-items:center; gap:6px; box-sizing:border-box; width:340px; height:48px;
             min-width:min(220px, calc(100vw - 12px)); max-width:calc(100vw - 12px);
             min-height:min(44px, calc(100vh - 12px)); max-height:calc(100vh - 12px);
-            padding:12px 24px 10px 8px; z-index:2147483647;
+            padding:9px 24px 8px 8px; z-index:2147483647;
             font-family:system-ui,sans-serif; isolation:isolate; touch-action:none; overflow:hidden;
             user-select:none; -webkit-user-select:none;
             -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
             transition:background-color .15s,border-color .15s,box-shadow .15s; }
-        #hare-floating-nav button { flex:0 0 auto; min-width:24px; min-height:22px; height:100%; box-sizing:border-box;
-            display:flex; align-items:center; justify-content:center; padding:.25em .4em; border:0;
-            border-radius:4px; background:transparent; cursor:pointer; font-size:var(--nav-font-size, 13px); }
+        #hare-floating-nav button { flex:0 0 auto; min-width:24px; min-height:var(--nav-control-min-height, 22px); height:auto; box-sizing:border-box;
+            display:flex; align-items:center; justify-content:center; padding:var(--nav-control-padding-y, 2px) .4em; border:0;
+            border-radius:4px; background:transparent; cursor:pointer; font-size:var(--nav-font-size, 13px); line-height:1.25; }
         #hare-floating-nav button:disabled { cursor:not-allowed; }
-        #hare-floating-nav #float-url { flex:1 1 auto; min-width:60px; min-height:22px; width:auto; height:100%; box-sizing:border-box;
-            padding:.15em .6em; border-radius:6px; text-align:left; outline:none;
-            font-size:var(--nav-font-size, 13px); user-select:text; -webkit-user-select:text; }
+        #hare-floating-nav #float-url { flex:1 1 auto; min-width:60px; min-height:var(--nav-url-min-height, 25px); width:auto; height:auto; box-sizing:border-box;
+            padding:var(--nav-url-padding-y, 2px) .6em; border-radius:6px; text-align:left; outline:none;
+            font-size:var(--nav-font-size, 13px); line-height:1.25; user-select:text; -webkit-user-select:text; }
         #hare-floating-nav .float-drag-handle { position:absolute; z-index:3; top:2px; left:50%;
             width:42px; height:8px; transform:translateX(-50%); border-radius:5px; cursor:grab;
-            touch-action:none; opacity:.38; background:repeating-linear-gradient(90deg,currentColor 0 3px,transparent 3px 6px); }
+            touch-action:none; opacity:.38;
+            background:linear-gradient(90deg,transparent 16px,currentColor 16px 18px,transparent 18px 20px,
+                currentColor 20px 22px,transparent 22px 24px,currentColor 24px 26px,transparent 26px); }
         #hare-floating-nav .float-drag-handle:hover { opacity:.8; }
         #hare-floating-nav .float-drag-handle:active { cursor:grabbing; }
         #hare-floating-nav #float-close { position:absolute; z-index:4; top:0; right:0; width:18px; min-width:18px;
             height:12px; min-height:0; padding:0 1px 1px 0; font-size:14px; line-height:10px; opacity:.55; cursor:pointer;
             border-radius:0 7px 0 5px; }
         #hare-floating-nav #float-close:hover { opacity:1; }
+        #hare-floating-nav #float-close svg { display:block; width:12px; height:12px; flex:none; }
+        #hare-floating-nav #float-reload svg { display:block; width:var(--nav-icon-size, 14px); height:var(--nav-icon-size, 14px); flex:none; }
         #hare-floating-nav .float-resize-handle { position:absolute; z-index:4; right:1px; bottom:1px; width:17px; height:17px;
             cursor:nwse-resize; opacity:.58; touch-action:none;
             background:linear-gradient(135deg,transparent 43%,currentColor 45%,currentColor 50%,transparent 52%,
@@ -77,7 +81,11 @@
             </svg>
         </button>
         <input id="float-url" type="text" autocomplete="off" aria-label="Address">
-        <button id="float-close" type="button" title="Hide floating navigation" aria-label="Hide floating navigation">×</button>
+        <button id="float-close" type="button" title="Hide floating navigation" aria-label="Hide floating navigation">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M6 6L18 18M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+            </svg>
+        </button>
         <div class="float-drag-handle" role="presentation" title="Drag to move" aria-label="Drag to move"></div>
         <div class="float-resize-handle" role="presentation" title="Resize" aria-label="Resize"></div>
     `;
@@ -92,11 +100,32 @@
     const resizeHandle = navBar.querySelector(".float-resize-handle");
 
     function updateResponsiveControls(height = navBar.getBoundingClientRect().height) {
-        const normalizedHeight = Math.max(44, Math.min(215, height));
+        // Smooth, continuous scale: 11px at 44px, 13px at 48px, then progressively up to 18px at 320px.
+        const normalizedHeight = Math.max(44, Math.min(320, Number(height) || navBar.getBoundingClientRect().height));
         const fontSize = normalizedHeight <= 48
-            ? 11 + (normalizedHeight - 44) * 0.5
-            : Math.min(16, 13 + (normalizedHeight - 48) * 0.018);
+            ? 11 + ((normalizedHeight - 44) / 4) * 2
+            : 13 + ((normalizedHeight - 48) / (320 - 48)) * 5;
+        const controlPadding = Math.min(8, Math.max(2, 2 + (fontSize - 11) * 0.7));
+        const urlPadding = Math.min(7, Math.max(2, 2 + (fontSize - 11) * 0.85));
+        const iconSize = Math.min(20, Math.max(12, fontSize * 1.15));
+        const controlMinHeight = fontSize * 1.25 + controlPadding * 2;
+        const urlMinHeight = fontSize * 1.35 + urlPadding * 2 + 2;
         navBar.style.setProperty("--nav-font-size", `${fontSize.toFixed(2)}px`);
+        navBar.style.setProperty("--nav-control-padding-y", `${controlPadding.toFixed(2)}px`);
+        navBar.style.setProperty("--nav-url-padding-y", `${urlPadding.toFixed(2)}px`);
+        navBar.style.setProperty("--nav-icon-size", `${iconSize.toFixed(2)}px`);
+        navBar.style.setProperty("--nav-control-min-height", `${controlMinHeight.toFixed(2)}px`);
+        navBar.style.setProperty("--nav-url-min-height", `${urlMinHeight.toFixed(2)}px`);
+        // Direct assignment ensures the URL's computed font tracks the measured bar height in Chromium.
+        addressInput.style.fontSize = `${fontSize.toFixed(2)}px`;
+        addressInput.style.lineHeight = "1.25";
+        [backButton, forwardButton, reloadButton].forEach((button) => {
+            button.style.fontSize = `${fontSize.toFixed(2)}px`;
+            button.style.paddingTop = `${controlPadding.toFixed(2)}px`;
+            button.style.paddingBottom = `${controlPadding.toFixed(2)}px`;
+        });
+        addressInput.style.paddingTop = `${urlPadding.toFixed(2)}px`;
+        addressInput.style.paddingBottom = `${urlPadding.toFixed(2)}px`;
         navBar.style.setProperty("--nav-control-gap", `${Math.max(5, Math.min(10, 5 + (height - 48) * 0.025))}px`);
         navBar.style.gap = "var(--nav-control-gap)";
     }
@@ -234,6 +263,10 @@
         closeButton.title = currentLanguage === "en" ? "Hide floating navigation" : "Masquer la navigation flottante";
         closeButton.setAttribute("aria-label", closeButton.title);
         addressInput.setAttribute("aria-label", currentLanguage === "en" ? "Address" : "Adresse");
+        dragHandle.title = currentLanguage === "en" ? "Drag to move" : "Glisser pour déplacer";
+        dragHandle.setAttribute("aria-label", dragHandle.title);
+        resizeHandle.title = currentLanguage === "en" ? "Resize" : "Redimensionner";
+        resizeHandle.setAttribute("aria-label", resizeHandle.title);
     };
     window.tileLanguage?.get().then(updateLanguage).catch(() => {});
     window.tileLanguage?.onChanged(updateLanguage);
