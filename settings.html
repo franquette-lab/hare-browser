@@ -38,11 +38,17 @@
             <h1 data-i18n="app.settings.title">Paramètres de Hare Browser</h1>
             <button id="close-button" type="button" data-i18n-title="app.settings.close" data-i18n-aria-label="app.settings.close" aria-label="Fermer">×</button>
         </header>
-        <label for="language-select" data-i18n="app.settings.language">Langue de l’interface</label>
-        <select id="language-select">
-            <option value="fr" data-i18n="app.settings.language.fr">Français</option>
-            <option value="en" data-i18n="app.settings.language.en">English</option>
-        </select>
+
+
+        <section class="settings-section" aria-labelledby="favorites-heading">
+            <h2 id="favorites-heading" data-i18n="app.settings.language">Langue de l’interface</h2>
+            <select id="language-select">
+                <option value="fr" data-i18n="app.settings.language.fr">Français</option>
+                <option value="en" data-i18n="app.settings.language.en">English</option>
+            </select>
+        </section>
+
+
         <p data-i18n="app.settings.language.help">Le changement est appliqué immédiatement et conservé pour les prochains démarrages.</p>
         <section class="settings-section" aria-labelledby="favorites-heading">
             <h2 id="favorites-heading" data-i18n="settings.favorites.title">Favoris</h2>
@@ -50,8 +56,9 @@
                 <input id="favorites-visible" type="checkbox">
                 <span data-i18n="settings.favorites.visible">Afficher les favoris</span>
             </label>
-        </section>
+        </section>  
         <section class="settings-section" data-i18n-aria-label="settings.floatingNavigation" aria-label="Afficher la barre de navigation flottante">
+            <h2 id="favorites-heading" data-i18n="settings.floatingNavigation.title">Barre de navigation flottante</h2>
             <label class="checkbox-row" for="floating-navigation-enabled">
                 <input id="floating-navigation-enabled" type="checkbox">
                 <span data-i18n="settings.floatingNavigation">Afficher la barre de navigation flottante</span>
