@@ -47,7 +47,7 @@
         #hare-floating-nav #float-url { flex:1 1 auto; min-width:60px; min-height:var(--nav-url-min-height, 25px); width:auto; height:auto; box-sizing:border-box;
             padding:var(--nav-url-padding-y, 2px) .6em; border-radius:6px; text-align:left; outline:none;
             font-size:var(--nav-font-size, 13px); line-height:1.25; user-select:text; -webkit-user-select:text; }
-        #hare-floating-nav .float-drag-handle { position:absolute; z-index:3; top:2px; left:50%;
+        #hare-floating-nav .float-drag-handle { position:absolute; z-index:3; top:1px; left:50%;
             width:42px; height:8px; transform:translateX(-50%); border-radius:5px; cursor:grab;
             touch-action:none; opacity:.38;
             background:linear-gradient(90deg,transparent 16px,currentColor 16px 18px,transparent 18px 20px,
@@ -58,7 +58,7 @@
             height:12px; min-height:0; padding:0 1px 1px 0; font-size:14px; line-height:10px; opacity:.55; cursor:pointer;
             border-radius:0 7px 0 5px; }
         #hare-floating-nav #float-close:hover { opacity:1; }
-        #hare-floating-nav #float-close svg { display:block; width:12px; height:12px; flex:none; }
+        #hare-floating-nav #float-close svg { display:block; width:12px; height:12px; flex:none; transform:translateX(1px); }
         #hare-floating-nav #float-reload svg { display:block; width:var(--nav-icon-size, 14px); height:var(--nav-icon-size, 14px); flex:none; }
         #hare-floating-nav .float-resize-handle { position:absolute; z-index:4; right:1px; bottom:1px; width:17px; height:17px;
             cursor:nwse-resize; opacity:.58; touch-action:none;
