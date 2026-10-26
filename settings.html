@@ -44,6 +44,13 @@
             <option value="en" data-i18n="app.settings.language.en">English</option>
         </select>
         <p data-i18n="app.settings.language.help">Le changement est appliqué immédiatement et conservé pour les prochains démarrages.</p>
+        <section class="settings-section" aria-labelledby="favorites-heading">
+            <h2 id="favorites-heading" data-i18n="settings.favorites.title">Favoris</h2>
+            <label class="checkbox-row" for="favorites-visible">
+                <input id="favorites-visible" type="checkbox">
+                <span data-i18n="settings.favorites.visible">Afficher les favoris</span>
+            </label>
+        </section>
         <section class="settings-section" data-i18n-aria-label="settings.floatingNavigation" aria-label="Afficher la barre de navigation flottante">
             <label class="checkbox-row" for="floating-navigation-enabled">
                 <input id="floating-navigation-enabled" type="checkbox">
@@ -74,6 +81,7 @@
         const languageSelect = document.getElementById("language-select");
         const autoSleepDelaySelect = document.getElementById("auto-sleep-delay");
         const floatingNavigationCheckbox = document.getElementById("floating-navigation-enabled");
+        const favoritesVisibleCheckbox = document.getElementById("favorites-visible");
         const savedMessage = document.getElementById("saved");
 
         HareI18n.languages.forEach((language) => {
@@ -92,6 +100,12 @@
         window.settingsApi.getFloatingNavigationEnabled().then((enabled) => {
             floatingNavigationCheckbox.checked = enabled === true;
         });
+        window.settingsApi.getBookmarksVisible().then((visible) => {
+            favoritesVisibleCheckbox.checked = visible === true;
+        });
+        window.settingsApi.onBookmarksVisibilityChanged((visible) => {
+            favoritesVisibleCheckbox.checked = visible === true;
+        });
         languageSelect.addEventListener("change", async () => {
             const language = await window.settingsApi.setLanguage(languageSelect.value);
             languageSelect.value = language;
@@ -105,6 +119,10 @@
         });
         floatingNavigationCheckbox.addEventListener("change", async () => {
             floatingNavigationCheckbox.checked = await window.settingsApi.setFloatingNavigationEnabled(floatingNavigationCheckbox.checked);
+            savedMessage.textContent = HareI18n.t("app.settings.saved", document.documentElement.lang || "fr");
+        });
+        favoritesVisibleCheckbox.addEventListener("change", async () => {
+            favoritesVisibleCheckbox.checked = await window.settingsApi.setBookmarksVisible(favoritesVisibleCheckbox.checked);
             savedMessage.textContent = HareI18n.t("app.settings.saved", document.documentElement.lang || "fr");
         });
         document.getElementById("close-button").addEventListener("click", () => window.settingsApi.close());

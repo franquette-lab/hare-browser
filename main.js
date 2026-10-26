@@ -101,6 +101,7 @@ function tr(id, replacements = {}) {
 function translateMenuTemplate(items) {
     return items.map((item) => ({
         ...item,
+        ...(item.id === "restore-bookmarks-menu-item" ? { visible: !isBookmarksBarVisible } : {}),
         ...(item.label ? { label: HareI18n.translateText(item.label, currentLanguage) } : {}),
         ...(item.submenu ? { submenu: translateMenuTemplate(item.submenu) } : {})
     }));
@@ -109,6 +110,24 @@ function translateMenuTemplate(items) {
 function rebuildApplicationMenu() {
     if (!win || win.isDestroyed() || !applicationMenuTemplate) return;
     win.setMenu(Menu.buildFromTemplate(translateMenuTemplate(applicationMenuTemplate)));
+}
+
+function setBookmarksBarVisible(visible) {
+    if (typeof visible !== "boolean") return isBookmarksBarVisible;
+
+    isBookmarksBarVisible = visible;
+    saveBookmarksVisibilityPreference();
+    setNormalToolbarHeight(normalToolbarHeight || TOOLBAR_MIN_HEIGHT);
+    scheduleSessionLayoutSave();
+
+    if (win && !win.isDestroyed()) {
+        win.webContents.send("toggle-bookmarks-bar", isBookmarksBarVisible);
+        if (settingsWindow && !settingsWindow.isDestroyed()) {
+            settingsWindow.webContents.send("bookmarks-visibility-changed", isBookmarksBarVisible);
+        }
+    }
+    rebuildApplicationMenu();
+    return isBookmarksBarVisible;
 }
 
 function getOllamaExePath() {
@@ -652,6 +671,38 @@ function getFloatingNavigationPreferencesPath() {
     return path.join(appDataPath, 'floating-navigation.json');
 }
 
+function getBookmarksVisibilityPath() {
+    return path.join(appDataPath, 'bookmarks-visibility.json');
+}
+
+let isBookmarksBarVisible = true;
+
+function loadBookmarksVisibilityPreference() {
+    try {
+        const preference = JSON.parse(fs.readFileSync(getBookmarksVisibilityPath(), "utf-8"));
+        isBookmarksBarVisible = typeof preference.favoritesVisible === "boolean"
+            ? preference.favoritesVisible
+            : true;
+    } catch (error) {
+        isBookmarksBarVisible = true;
+        if (error.code !== "ENOENT") {
+            console.error("Impossible de lire la préférence d’affichage des favoris :", error);
+        }
+        saveBookmarksVisibilityPreference();
+    }
+    return isBookmarksBarVisible;
+}
+
+function saveBookmarksVisibilityPreference() {
+    try {
+        fs.mkdirSync(appDataPath, { recursive: true });
+        fs.writeFileSync(getBookmarksVisibilityPath(), JSON.stringify({
+            favoritesVisible: isBookmarksBarVisible
+        }, null, 2), "utf-8");
+    } catch (error) {
+        console.error("Impossible d’enregistrer la préférence d’affichage des favoris :", error);
+    }
+}
 const FLOATING_NAVIGATION_DEFAULTS = Object.freeze({ width: 340, height: 48 });
 let floatingNavigationGloballyEnabled = true;
 
@@ -812,8 +863,6 @@ let activeDownloads = {};
 let maximizedPanelId = null; 
 
 // Hauteur compacte réservée à la barre supérieure et à la zone URL.
-let isBookmarksBarVisible = true; // La barre est affichée par défaut
-
 const TOOLBAR_ROW_HEIGHT = 38;
 const URL_BAR_HEIGHT = 30;
 let TOOLBAR_HEIGHT = TOOLBAR_ROW_HEIGHT + URL_BAR_HEIGHT;
@@ -936,9 +985,9 @@ function openSettingsWindow() {
 
     settingsWindow = new BrowserWindow({
         width: 460,
-        height: 480,
+        height: 540,
         minWidth: 380,
-        minHeight: 440,
+        minHeight: 500,
         title: tr("app.settings.title"),
         parent: win,
         modal: true,
@@ -2750,6 +2799,7 @@ function persistSessionLayout() {
         const snapshot = {
             version: 1,
             activePanelId: activePanel,
+            favoritesVisible: isBookmarksBarVisible,
             tree: createPersistedSessionSnapshot(rootNode)
         };
         fs.writeFileSync(getSessionLayoutPath(), JSON.stringify(snapshot, null, 2), "utf-8");
@@ -2792,6 +2842,10 @@ async function restorePersistedSession() {
         return false;
     }
     if (storedSession?.version !== 1 || !validatePersistedTree(storedSession.tree)) return false;
+    if (typeof storedSession.favoritesVisible === "boolean") {
+        isBookmarksBarVisible = storedSession.favoritesVisible;
+        saveBookmarksVisibilityPreference();
+    }
 
     let maxPanelNumber = 0;
     const restoreNode = async (savedNode) => {
@@ -4130,6 +4184,19 @@ ipcMain.handle("set-floating-navigation-preference", (event, enabled) => {
     return setFloatingNavigationGloballyEnabled(enabled);
 });
 
+ipcMain.handle("get-bookmarks-visibility-preference", (event) => {
+    const authorized = (settingsWindow && !settingsWindow.isDestroyed() && event.sender === settingsWindow.webContents) ||
+        (win && !win.isDestroyed() && event.sender === win.webContents);
+    return authorized ? isBookmarksBarVisible : true;
+});
+
+ipcMain.handle("set-bookmarks-visibility-preference", (event, visible) => {
+    if (!settingsWindow || settingsWindow.isDestroyed() || event.sender !== settingsWindow.webContents || typeof visible !== "boolean") {
+        return isBookmarksBarVisible;
+    }
+    return setBookmarksBarVisible(visible);
+});
+
 ipcMain.on("toggle-autosleep-request", (event, enabled) => {
     if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
     const nextState = setAutoSleepEnabled(enabled);
@@ -4163,11 +4230,14 @@ ipcMain.on("cancel-download", (event, panelId) => {
     }
 });
 
-// Écouteur pour intercepter le clic sur la croix (X) de index.html
-ipcMain.on("toggle-bookmarks-bar-request", () => {
-    isBookmarksBarVisible = false;
-    setNormalToolbarHeight(TOOLBAR_MIN_HEIGHT);
-    win.webContents.send("toggle-bookmarks-bar", false);
+// Masquer uniquement la barre : la liste des favoris reste intacte en mémoire et sur disque.
+ipcMain.on("toggle-bookmarks-bar-request", (event) => {
+    if (win && !win.isDestroyed() && event.sender === win.webContents) setBookmarksBarVisible(false);
+});
+ipcMain.on("set-bookmarks-bar-visible", (event, visible) => {
+    if (win && !win.isDestroyed() && event.sender === win.webContents && typeof visible === "boolean") {
+        setBookmarksBarVisible(visible);
+    }
 });
 
 function swapPanelsInTree(idA, idB) {
@@ -5337,6 +5407,7 @@ async function createWindow() {
     await fsPromises.mkdir(appDataPath, { recursive: true });
     loadAutoSleepPreference();  
     loadFloatingNavigationPreference();
+    loadBookmarksVisibilityPreference();
     loadAiSidebarPreference();
     loadDownloadsList();
     isDarkModeForced = await getThemePreference();
@@ -5351,6 +5422,7 @@ async function createWindow() {
 */
     win.webContents.on("did-finish-load", () => {
         win.webContents.send("app-title", APP_TITLE);
+        win.webContents.send("bookmarks-initial-visibility", isBookmarksBarVisible);
     });
 
     if (!(await restorePersistedSession())) {
@@ -5368,6 +5440,17 @@ async function createWindow() {
 
     const template = [
         {
+            label: tr("main.view"),
+            submenu: [
+                {
+                    id: "restore-bookmarks-menu-item",
+                    label: tr("main.restoreBookmarks"),
+                    visible: !isBookmarksBarVisible,
+                    click: () => setBookmarksBarVisible(true)
+                }
+            ]
+        },
+        {
             label: 'Navigation',
             submenu: [
                 // === VOS RACCOURCIS DE SAUVEGARDE ET CHARGEMENT À AJOUTER ===
@@ -5377,6 +5460,7 @@ async function createWindow() {
                     click: async () => {
                         if (!rootNode) return;
                         const snapshot = createSnapshot(rootNode);
+                        snapshot.favoritesVisible = isBookmarksBarVisible;
                         const { filePath } = await dialog.showSaveDialog(win, {
                             title: tr("main.saveLayout"),
                             defaultPath: path.join(app.getPath('documents'), 'hare-browser-layout.json'),
@@ -5508,6 +5592,9 @@ async function createWindow() {
                                 const snapshot = JSON.parse(data);
 
                                 if (!snapshot || !snapshot.type) return;
+                                if (typeof snapshot.favoritesVisible === "boolean") {
+                                    setBookmarksBarVisible(snapshot.favoritesVisible);
+                                }
 
                                 saveState(); // Permet d'annuler l'import avec Ctrl+Z au besoin
 
@@ -5803,16 +5890,7 @@ async function createWindow() {
                     accelerator: 'CmdOrCtrl+Shift+B',
                     click: () => {
                         if (!win || win.isDestroyed()) return;
-
-                        // 1. On inverse l'état de visibilité
-                        isBookmarksBarVisible = !isBookmarksBarVisible;
-                        
-                        // 2. On ajuste dynamiquement la hauteur de la zone d'outils
-                        setNormalToolbarHeight(TOOLBAR_HEIGHT);
-
-                        // 3. On informe l'IHM (index.html) pour masquer la barre physiquement en CSS
-                        win.webContents.send("toggle-bookmarks-bar", isBookmarksBarVisible);
-
+                        setBookmarksBarVisible(!isBookmarksBarVisible);
                     }
                 },
 
@@ -6644,6 +6722,7 @@ ipcMain.handle('save-config-to-file', async () => {
 
     // Capture la structure actuelle de l'arbre (identique à votre système undo)
     const snapshot = createSnapshot(rootNode);
+    snapshot.favoritesVisible = isBookmarksBarVisible;
 
     const { filePath } = await dialog.showSaveDialog(win, {
         title: tr("main.saveLayout"),
@@ -6683,6 +6762,9 @@ ipcMain.handle('load-config-from-file', async () => {
 
             // Validation minimale de la structure du fichier pour éviter les crashs
             if (!snapshot || (!snapshot.type)) return false;
+            if (typeof snapshot.favoritesVisible === "boolean") {
+                setBookmarksBarVisible(snapshot.favoritesVisible);
+            }
 
             saveState(); // Permet d'annuler (Ctrl+Z) si le chargement ne plaît pas
 

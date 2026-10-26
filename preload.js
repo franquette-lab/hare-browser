@@ -226,7 +226,9 @@ onActivePanelChanged: (callback) => {
         clearFavoris: () => ipcRenderer.invoke('clear-favoris'),
         toggleFavori: (data) => ipcRenderer.invoke('toggle-favori', data),
         toggleBookmarksBarFromUI: () => ipcRenderer.send("toggle-bookmarks-bar-request"),
+        setBookmarksBarVisible: (visible) => ipcRenderer.send("set-bookmarks-bar-visible", visible === true),
         onToggleBookmarksBar: (callback) => ipcRenderer.on("toggle-bookmarks-bar", (event, visible) => callback(visible)),
+        onInitialBookmarksVisibility: (callback) => ipcRenderer.on("bookmarks-initial-visibility", (_event, visible) => callback(visible)),
         onFavorisUpdated: (callback) => ipcRenderer.on('favoris-updated', (event, favoris) => callback(favoris)),
 
         // --- IMPRESSION & TELECHARGEMENTS ---

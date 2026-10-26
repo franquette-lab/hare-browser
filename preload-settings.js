@@ -8,5 +8,8 @@ contextBridge.exposeInMainWorld("settingsApi", {
     setAutoSleepDelay: (minutes) => ipcRenderer.invoke("set-autosleep-delay-preference", minutes),
     getFloatingNavigationEnabled: () => ipcRenderer.invoke("get-floating-navigation-preference"),
     setFloatingNavigationEnabled: (enabled) => ipcRenderer.invoke("set-floating-navigation-preference", enabled),
+    getBookmarksVisible: () => ipcRenderer.invoke("get-bookmarks-visibility-preference"),
+    setBookmarksVisible: (visible) => ipcRenderer.invoke("set-bookmarks-visibility-preference", visible),
+    onBookmarksVisibilityChanged: (callback) => ipcRenderer.on("bookmarks-visibility-changed", (_event, visible) => callback(visible)),
     close: () => ipcRenderer.send("close-settings-window")
 });
