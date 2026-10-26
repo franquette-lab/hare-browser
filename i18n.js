@@ -322,7 +322,7 @@
             "ollama.selectTile": "Veuillez saisir une question avant de cliquer sur Poser une question.",
             "ollama.noVisibleText": "Aucune tuile visible ne contient de texte exploitable.",
             "ollama.noPageText": "La tuile active ne contient pas de texte exploitable.",
-            "ui.privateLabel": "Navigation Privée",
+            "ui.privateLabel": "Navigation privée",
             "ui.searchLabel": "Recherche",
             "ui.searchEngine": "Moteur de recherche Hare Browser",
             "ui.addFavorite": "Ajouter aux favoris",

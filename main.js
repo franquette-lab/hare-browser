@@ -628,6 +628,9 @@ async function saveLanguagePreference(language) {
                 // ✨ FIX RADICAL : Si la tuile affiche welcome.html ou une page locale file://, 
                 // on la force à se recharger pour reconstruire son DOM avec la bonne langue
                 const currentUrl = contents.getURL();
+                if (panel.isPrivate && currentUrl.startsWith("data:text/html")) {
+                    updatePanelUrl(panel, currentUrl);
+                }
                 if (currentUrl.includes("welcome.html") || currentUrl.startsWith("file:")) {
                     contents.reload();
                     console.log(`[Langue] Tuile locale ${panel.id} rechargée de force en : ${currentLanguage}`);
@@ -3310,8 +3313,8 @@ function updatePanelUrl(panel, url) {
 
     // Si le panneau est privé et qu'il est sur sa page d'accueil d'origine.
     if (panel.isPrivate && (url.startsWith('data:text/html') || url === panel.url)) {
-        nextUrl = "Navigation Privée";
-        panel.title = "Navigation Privée";
+        nextUrl = tr("ui.privateLabel");
+        panel.title = tr("ui.privateLabel");
     } else {
         if (panel.view && !panel.view.webContents.isDestroyed()) {
             panel.title = panel.view.webContents.getTitle();
