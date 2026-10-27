@@ -280,9 +280,11 @@
             "welcome.searchText": "Recherchez avec SearXNG, un métamoteur open source et respectueux de la vie privée.",
 
             "welcome.localAi": "✨ IA locale",
-            "welcome.localAiText": "Une IA locale, sans cloud distant, pour plus de confidentialité, moins d'impact sur l'environnement.",
+
+            "welcome.localAiText": "Une IA locale et sans cloud pour plus de confidentialité et d'écologie.",
+
             "welcome.privacy": "🔒 Confidentialité",
-            "welcome.privacyText": "Navigation privée, réduction du suivi et contrôle renforcé de vos données personnelles.",
+            "welcome.privacyText": "Une IA locale et sans cloud distant pour plus de confidentialité et d'écologie.",
             "welcome.themes": "🌗 Clair / Sombre",
             "welcome.themesText": "Basculez instantanément entre les modes clair et sombre selon vos préférences.",
             "welcome.history": "📜 Historique",
