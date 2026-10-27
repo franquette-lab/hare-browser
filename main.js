@@ -41,7 +41,8 @@ let currentLanguage = "fr";
 let applicationMenuTemplate = null;
 
 async function ouvrirVideoTutoriel(videoFile) {
-    const allowedTutorials = new Set(["Mosaic_browsing.mp4"]);
+    // ✨ CORRECTIF SÉCURITÉ : Ajout de Blocker.mp4 (et Search.mp4 par anticipation si besoin)
+    const allowedTutorials = new Set(["Mosaic_browsing.mp4", "Blocker.mp4", "Search.mp4"]);
     if (typeof videoFile !== "string" || !allowedTutorials.has(videoFile)) {
         throw new Error(`Fichier de tutoriel non autorisé : ${String(videoFile)}`);
     }
@@ -91,6 +92,59 @@ async function ouvrirVideoTutoriel(videoFile) {
         throw error;
     }
 }
+async function ouvrirVideoTutoriel(videoFile) {
+    // ✨ CORRECTIF SÉCURITÉ : Ajout de Blocker.mp4 (et Search.mp4 par anticipation si besoin)
+    const allowedTutorials = new Set(["Mosaic_browsing.mp4", "Blocker.mp4", "Search.mp4"]);
+    if (typeof videoFile !== "string" || !allowedTutorials.has(videoFile)) {
+        throw new Error(`Fichier de tutoriel non autorisé : ${String(videoFile)}`);
+    }
+
+    const videoPath = path.join(__dirname, "videos", videoFile);
+    if (!fs.existsSync(videoPath)) {
+        throw new Error(`Fichier vidéo introuvable : ${videoPath}`);
+    }
+    const videoUrl = getPathToFileURL(videoPath).href;
+    console.info("[Tutoriel] Création de la fenêtre vidéo :", videoPath);
+
+    const videoWindow = new BrowserWindow({
+        width: 1280,
+        height: 720,
+        title: "Tutoriel Hare Browser",
+        autoHideMenuBar: true,
+        backgroundColor: "#1e1e1e",
+        webPreferences: {
+            contextIsolation: true,
+            nodeIntegration: false,
+            sandbox: true
+        }
+    });
+
+    videoWindow.webContents.on("did-finish-load", () => {
+        console.info("[Tutoriel] video-player.html chargé avec succès.");
+    });
+    videoWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
+        console.error("[Tutoriel] Échec du chargement du lecteur :", {
+            errorCode, errorDescription, validatedURL
+        });
+    });
+    videoWindow.webContents.on("console-message", (_event, details) => {
+        const log = details.level >= 2 ? console.error : console.info;
+        log.call(console, `[Tutoriel player ${details.sourceId}:${details.lineNumber}] ${details.message}`);
+    });
+
+    try {
+        await videoWindow.loadFile(path.join(__dirname, "video-player.html"), {
+            query: { src: videoUrl }
+        });
+        console.info("[Tutoriel] Lecteur ouvert, source vidéo :", videoUrl);
+        return { ok: true };
+    } catch (error) {
+        console.error("[Tutoriel] Impossible de charger video-player.html :", error);
+        if (!videoWindow.isDestroyed()) videoWindow.close();
+        throw error;
+    }
+}
+    
 
 function tr(id, replacements = {}) {
     return HareI18n.t(id, currentLanguage, replacements);
