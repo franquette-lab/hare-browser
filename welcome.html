@@ -396,13 +396,27 @@ html.mw-theme-client-dark .arrow-right-icon::before {
         </p>
     </div>
 
+
+
+
+
+
     <!-- 5. Carte Confidentialité -->
-    <div class="card">
-        <h2 data-i18n="welcome.privacy">🔒 Confidentialité</h2>
+    <div class="card clickable-card" id="privacy-tile" role="button" tabindex="0">
+        <h2 class="ai-tile-header">
+            <span data-i18n="welcome.privacy">🔒 Confidentialité</span>
+            <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.openPrivate">🚀</span>
+        </h2>
         <p data-i18n="welcome.privacyText">
             Navigation privée, réduction du suivi et contrôle renforcé de vos données personnelles.
         </p>
     </div>
+
+
+
+
+    
+
 
     <!-- 6. Carte Thèmes -->
     <div class="card clickable-card" id="theme-tile">
@@ -505,7 +519,8 @@ html.mw-theme-client-dark .arrow-right-icon::before {
 
     const internalPageCards = [
         [document.getElementById("productivity-tile"), "ACTION_HELP_PRODUCTIVITY"],
-        [document.getElementById("search-tile"), "ACTION_OPEN_SEARCH_HOME"]
+        [document.getElementById("search-tile"), "ACTION_OPEN_SEARCH_HOME"],
+        [document.getElementById("privacy-tile"), "ACTION_OPEN_PRIVATE_PANEL"]
     ];
     internalPageCards.forEach(([card, action]) => {
         if (!card) return;

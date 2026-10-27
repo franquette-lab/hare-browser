@@ -1714,6 +1714,10 @@ ipcMain.handle("open-tutorial-video", async (event, videoFile) => {
 //          url: getHomePageUrl(),
             url: `${getPathToFileURL(path.join(__dirname, "home.html")).href}`,
             adjacent: true
+        },
+        ACTION_OPEN_PRIVATE_PANEL: {
+            adjacent: true,
+            createPrivatePanel: true
         }
 
     });
@@ -1744,6 +1748,23 @@ ipcMain.handle("open-tutorial-video", async (event, videoFile) => {
         }
 
         let targetPanel = sourcePanel;
+        if (internalAction.createPrivatePanel) {
+            if (maximizedPanelId !== null) return { ok: false };
+
+            const previousPanelCount = collectPanelNodes(rootNode).length;
+            ipcMain.emit("split-panel", event, sourcePanel.id, "vertical", true, null, null);
+
+            const createdPrivatePanel = findPanelNode(rootNode, activePanel);
+            if (collectPanelNodes(rootNode).length !== previousPanelCount + 1 ||
+                !createdPrivatePanel?.isPrivate || createdPrivatePanel.id === sourcePanel.id) {
+                return { ok: false };
+            }
+
+            win.focus();
+            createdPrivatePanel.view?.webContents?.focus();
+            return { ok: true };
+        }
+
         if (internalAction.adjacent) {
             const panelsList = collectPanelNodes(rootNode);
             activePanel = sourcePanel.id;
