@@ -351,10 +351,23 @@ html.mw-theme-client-dark .arrow-right-icon::before {
     </div>
         
     <!-- 2. Carte Bloqueur -->
+
+<!-- 
     <div class="card">
         <h2 data-i18n="welcome.adblock">🚫 Bloqueur intégré</h2>
         <p data-i18n="welcome.adblockText">Publicités et trackers masqués par défaut sur vos tuiles publiques et privées pour accélérer le chargement.</p>
     </div>
+ -->
+    <div class="card" data-tutorial-video="Blocker.mp4" role="button" tabindex="0">
+        <h2 class="ai-tile-header">
+            <span data-i18n="welcome.adblock">🚫 Bloqueur intégré</span>
+            <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.tutorial">🎦</span>
+        </h2>
+        <p data-i18n="welcome.adblockText">
+            Publicités et trackers masqués par défaut sur vos tuiles publiques et privées pour accélérer le chargement.
+        </p>
+    </div>
+
 
     <!-- 3. Carte Recherche -->
     <div class="card">
@@ -446,20 +459,27 @@ html.mw-theme-client-dark .arrow-right-icon::before {
 
 <script>
 (() => {
-    // --- 1. CONFIGURATION DU TUTORIEL (Existant) ---
-    const tutorialCard = document.querySelector('[data-tutorial-video]');
+
+    // --- 1. CONFIGURATION DU TUTORIEL (Corrigé pour cartes multiples) ---
+    // Utilisation de querySelectorAll pour récupérer toutes les cartes configurées
+    const tutorialCards = document.querySelectorAll('[data-tutorial-video]');
     const errorNotice = document.getElementById('tutorial-error');
-    
-    async function openTutorial() {
-        const videoFile = tutorialCard.dataset.tutorialVideo;
+
+    async function openTutorial(event) {
+        // 🎯 Modification essentielle : currentTarget cible la carte exacte cliquée
+        const currentCard = event.currentTarget;
+        const videoFile = currentCard.dataset.tutorialVideo;
+        
         console.info('[Tutoriel] Clic détecté sur la carte :', videoFile);
-        errorNotice.hidden = true;
+        if (errorNotice) errorNotice.hidden = true;
 
         if (!window.tutorials || typeof window.tutorials.openVideo !== 'function') {
             const message = 'Le pont Electron window.tutorials est indisponible (preload-tile.js non chargé).';
             console.error('[Tutoriel] ' + message);
-            errorNotice.textContent = message;
-            errorNotice.hidden = false;
+            if (errorNotice) {
+                errorNotice.textContent = message;
+                errorNotice.hidden = false;
+            }
             return;
         }
 
@@ -470,19 +490,23 @@ html.mw-theme-client-dark .arrow-right-icon::before {
             console.info('[Tutoriel] Confirmation reçue du processus principal.');
         } catch (error) {
             console.error('[Tutoriel] Échec de l’ouverture :', error);
-            errorNotice.textContent = `Impossible d’ouvrir le tutoriel : ${error.message || error}`;
-            errorNotice.hidden = false;
+            if (errorNotice) {
+                errorNotice.textContent = `Impossible d’ouvrir le tutoriel : ${error.message || error}`;
+                errorNotice.hidden = false;
+            }
         }
     }
 
-    if (tutorialCard) {
-        tutorialCard.addEventListener('click', openTutorial);
-        tutorialCard.addEventListener('keydown', (event) => {
+    // Attribution des écouteurs d'événements à chaque carte présente
+    tutorialCards.forEach(card => {
+        card.addEventListener('click', openTutorial);
+        card.addEventListener('keydown', (event) => {
             if (event.key !== 'Enter' && event.key !== ' ') return;
             event.preventDefault();
-            openTutorial();
+            openTutorial(event);
         });
-    }
+    });
+   
 
     // --- 2. CONFIGURATION DE LA TUILE IA LOCALE (Rétablie) ---
     const localAiCard = document.getElementById('local-ai-tile');

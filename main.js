@@ -43,7 +43,7 @@ let applicationMenuTemplate = null;
 
 
 async function ouvrirVideoTutoriel(videoFile) {
-    const allowedTutorials = new Set(["Mosaic_browsing.mp4"]);
+    const allowedTutorials = new Set(["Mosaic_browsing.mp4", "Blocker.mp4"]);
     if (typeof videoFile !== "string" || !allowedTutorials.has(videoFile)) {
         throw new Error(`Fichier de tutoriel non autorisé : ${String(videoFile)}`);
     }
