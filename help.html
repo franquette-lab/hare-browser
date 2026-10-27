@@ -155,6 +155,26 @@
 		margin: 15px 0;
 	}
 
+
+    h2 .hashtag-link {
+        display: inline-block;
+        margin-left: 8px;
+        color: #3b82f6;      /* Couleur bleue ou violette assortie à votre thème */
+        text-decoration: none;
+        opacity: 0;          /* Masqué par défaut */
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    /* Fait apparaître le hashtag dès que la souris survole le titre H2 */
+    h2:hover .hashtag-link {
+        opacity: 1;
+    }
+
+    /* Ajustement pour le mode sombre si nécessaire */
+    .mw-theme-client-dark h2 .hashtag-link {
+        color: #60a5fa;
+    }
+
     </style>
 </head>
 <body>
@@ -168,7 +188,10 @@
         <p data-i18n="help.mac">🍏 Configuration macOS : Pour les utilisateurs d'Apple Mac, remplacez systématiquement la touche Ctrl par la touche Cmd (Commande) pour l’ensemble des raccourcis ci-dessous.</p>
     </div>
 
-    <h2 data-i18n="help.panels">🧱 Gestion des panneaux &amp; fonctionnement du fractionnement</h2>
+    <h2 id="gestion-panneaux" data-i18n="help.panels">
+        🧱 Gestion des panneaux &amp; fonctionnement du fractionnement
+        <a href="#gestion-panneaux" class="hashtag-link">#</a>
+    </h2>
     <p data-i18n="help.panelsIntro">Le cœur de Hare Browser repose sur un arbre binaire de division (Split Nodes). Chaque panneau actif peut être subdivisé géométriquement à l'infini pour organiser votre espace de travail sans manipuler des dizaines d'onglets superposés traditionnels.</p>
     
     <h3>Schémas géométriques de fractionnement des tuiles :</h3>

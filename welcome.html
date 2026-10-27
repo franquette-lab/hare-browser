@@ -351,13 +351,6 @@ html.mw-theme-client-dark .arrow-right-icon::before {
     </div>
         
     <!-- 2. Carte Bloqueur -->
-
-<!-- 
-    <div class="card">
-        <h2 data-i18n="welcome.adblock">🚫 Bloqueur intégré</h2>
-        <p data-i18n="welcome.adblockText">Publicités et trackers masqués par défaut sur vos tuiles publiques et privées pour accélérer le chargement.</p>
-    </div>
- -->
     <div class="card" data-tutorial-video="Blocker.mp4" role="button" tabindex="0">
         <h2 class="ai-tile-header">
             <span data-i18n="welcome.adblock">🚫 Bloqueur intégré</span>
@@ -367,7 +360,6 @@ html.mw-theme-client-dark .arrow-right-icon::before {
             Publicités et trackers masqués par défaut sur vos tuiles publiques et privées pour accélérer le chargement.
         </p>
     </div>
-
 
     <!-- 3. Carte Recherche -->
     <div class="card">
@@ -418,34 +410,36 @@ html.mw-theme-client-dark .arrow-right-icon::before {
         </p>
     </div>
 
-    <!-- 8. Carte Productivité -->
-    <div class="card">
-        <h2 data-i18n="welcome.productivity">⚡ Productivité & Espaces</h2>
-        <p data-i18n="welcome.productivityText">
-            Optimisez votre multitâche : scindez les panneaux, pilotez au clavier et sauvegardez vos dispositions.	
-        </p>
-    </div>
+<div class="card clickable-card" id="productivity-tile" role="button" tabindex="0">
+    <h2 class="ai-tile-header">
+        <span data-i18n="welcome.productivity">⚡ Productivité &amp; Espaces</span>
+        <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.tutorial">▶️</span>
+    </h2>
+    <p data-i18n="welcome.productivityText">
+        Optimisez votre multitâche : scindez les panneaux, pilotez au clavier et sauvegardez vos dispositions.
+    </p>
+</div>
 
 </div>
 
-    <div id="tutorial-error" role="alert" hidden></div>
+<div id="tutorial-error" role="alert" hidden></div>
 
-		<div class="welcome-buttons-container">
-                <a href="hare://history" class="welcome-btn" data-i18n="welcome.history">📜&nbsp;Historique</a>
-            <a href="hare://close-panel" class="welcome-btn" data-i18n="welcome.close">
-                ❌&nbsp;Fermer
-			</a>
-			<a href="#"
-			   class="welcome-btn"
-			   data-i18n="welcome.themeButton"
-			   onclick="window.location.href='hare://toggle-theme'; return false;">
-				🌗&nbsp;Thème
-			</a>
-		</div>
+<div class="welcome-buttons-container">
+        <a href="hare://history" class="welcome-btn" data-i18n="welcome.history">📜&nbsp;Historique</a>
+    <a href="hare://close-panel" class="welcome-btn" data-i18n="welcome.close">
+        ❌&nbsp;Fermer
+    </a>
+    <a href="#"
+        class="welcome-btn"
+        data-i18n="welcome.themeButton"
+        onclick="window.location.href='hare://toggle-theme'; return false;">
+        🌗&nbsp;Thème
+    </a>
+</div>
 
     <div class="footer">
         <div>
-                <span data-i18n="welcome.footer">Hare Browser : productif, privé, moderne.</span>
+            <span data-i18n="welcome.footer">Hare Browser : productif, privé, moderne.</span>
         </div>
         <div class="version">
             <span data-i18n="welcome.credits">Propulsé par SearXNG • Ollama • Electron</span>
@@ -460,10 +454,45 @@ html.mw-theme-client-dark .arrow-right-icon::before {
 <script>
 (() => {
 
+
+
+
     // --- 1. CONFIGURATION DU TUTORIEL (Corrigé pour cartes multiples) ---
     // Utilisation de querySelectorAll pour récupérer toutes les cartes configurées
     const tutorialCards = document.querySelectorAll('[data-tutorial-video]');
     const errorNotice = document.getElementById('tutorial-error');
+
+    async function ouvrirAideProductivite() {
+        if (!window.tutorials || typeof window.tutorials.openVideo !== "function") {
+            const message = "Le pont Electron window.tutorials est indisponible.";
+            console.error("[Aide] " + message);
+            if (errorNotice) {
+                errorNotice.textContent = message;
+                errorNotice.hidden = false;
+            }
+            return;
+        }
+
+        try {
+            const result = await window.tutorials.openVideo("ACTION_HELP_PRODUCTIVITY");
+            if (!result?.ok) throw new Error(result?.error || "Impossible d’ouvrir l’aide.");
+            if (errorNotice) errorNotice.hidden = true;
+        } catch (error) {
+            console.error("[Aide] Échec de l’ouverture du centre d’aide :", error);
+            if (errorNotice) {
+                errorNotice.textContent = error.message || String(error);
+                errorNotice.hidden = false;
+            }
+        }
+    }
+
+    const productivityCard = document.getElementById("productivity-tile");
+    productivityCard?.addEventListener("click", ouvrirAideProductivite);
+    productivityCard?.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        ouvrirAideProductivite();
+    });
 
     async function openTutorial(event) {
         // 🎯 Modification essentielle : currentTarget cible la carte exacte cliquée

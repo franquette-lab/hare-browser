@@ -40,10 +40,8 @@ let currentLanguage = "fr";
 
 let applicationMenuTemplate = null;
 
-
-
 async function ouvrirVideoTutoriel(videoFile) {
-    const allowedTutorials = new Set(["Mosaic_browsing.mp4", "Blocker.mp4"]);
+    const allowedTutorials = new Set(["Mosaic_browsing.mp4"]);
     if (typeof videoFile !== "string" || !allowedTutorials.has(videoFile)) {
         throw new Error(`Fichier de tutoriel non autorisé : ${String(videoFile)}`);
     }
@@ -113,12 +111,24 @@ function rebuildApplicationMenu() {
 }
 
 function setBookmarksBarVisible(visible) {
+    const nextVisibility = visible === true;
+    if (nextVisibility === isBookmarksBarVisible) return;
+
+    isBookmarksBarVisible = nextVisibility;
+    setNormalToolbarHeight(normalToolbarHeight || TOOLBAR_MIN_HEIGHT);
+
+    if (win && !win.isDestroyed()) {
+        win.webContents.send("toggle-bookmarks-bar", isBookmarksBarVisible);
+    }
+    rebuildApplicationMenu();
+}
+
+function setBookmarksBarVisible(visible) {
     if (typeof visible !== "boolean") return isBookmarksBarVisible;
 
     isBookmarksBarVisible = visible;
     saveBookmarksVisibilityPreference();
     setNormalToolbarHeight(normalToolbarHeight || TOOLBAR_MIN_HEIGHT);
-    scheduleSessionLayoutSave();
 
     if (win && !win.isDestroyed()) {
         win.webContents.send("toggle-bookmarks-bar", isBookmarksBarVisible);
@@ -628,9 +638,6 @@ async function saveLanguagePreference(language) {
                 // ✨ FIX RADICAL : Si la tuile affiche welcome.html ou une page locale file://, 
                 // on la force à se recharger pour reconstruire son DOM avec la bonne langue
                 const currentUrl = contents.getURL();
-                if (panel.isPrivate && currentUrl.startsWith("data:text/html")) {
-                    updatePanelUrl(panel, currentUrl);
-                }
                 if (currentUrl.includes("welcome.html") || currentUrl.startsWith("file:")) {
                     contents.reload();
                     console.log(`[Langue] Tuile locale ${panel.id} rechargée de force en : ${currentLanguage}`);
@@ -866,6 +873,8 @@ let activeDownloads = {};
 let maximizedPanelId = null; 
 
 // Hauteur compacte réservée à la barre supérieure et à la zone URL.
+isBookmarksBarVisible = true; // La barre est affichée par défaut
+
 const TOOLBAR_ROW_HEIGHT = 38;
 const URL_BAR_HEIGHT = 30;
 let TOOLBAR_HEIGHT = TOOLBAR_ROW_HEIGHT + URL_BAR_HEIGHT;
@@ -988,9 +997,9 @@ function openSettingsWindow() {
 
     settingsWindow = new BrowserWindow({
         width: 460,
-        height: 540,
+        height: 480,
         minWidth: 380,
-        minHeight: 500,
+        minHeight: 440,
         title: tr("app.settings.title"),
         parent: win,
         modal: true,
@@ -1637,9 +1646,69 @@ app.on('ready', () => {
     enableAdBlockerForSession(session.defaultSession);
 });
 
-
 ipcMain.handle("open-tutorial-video", async (event, videoFile) => {
     console.info("[Tutoriel] IPC open-tutorial-video reçu :", videoFile);
+
+    // Ouvre le chapitre sur la tuile voisine, sans créer de fenêtre vidéo.
+    if (videoFile === "ACTION_HELP_PRODUCTIVITY") {
+        const sourcePanel = findPanelByWebContents(event.sender);
+        let senderUrl = "";
+        try {
+            if (event.senderFrame && event.senderFrame !== event.sender.mainFrame) {
+                return { ok: false, error: "Cette action doit être demandée depuis le document principal." };
+            }
+            senderUrl = event.senderFrame?.url || event.sender.getURL();
+            const parsedUrl = new URL(senderUrl);
+            const isWelcomePage = parsedUrl.protocol === "file:" &&
+                decodeURIComponent(parsedUrl.pathname).toLowerCase().endsWith("/welcome.html");
+            if (!sourcePanel || !isWelcomePage || !win || win.isDestroyed()) {
+                return { ok: false, error: "Cette action est réservée à la page d’accueil." };
+            }
+        } catch {
+            return { ok: false, error: "Impossible de vérifier la page d’origine de la demande." };
+        }
+
+        const panelsList = collectPanelNodes(rootNode);
+        // findNeighborPanel exclut le panneau actif; baser le routage sur l’émetteur.
+        activePanel = sourcePanel.id;
+        const neighborPanel = findNeighborPanel(sourcePanel.bounds, "Right", panelsList) ||
+            findNeighborPanel(sourcePanel.bounds, "Left", panelsList);
+        if (!neighborPanel) {
+            return { ok: false, error: "Aucune tuile adjacente n’est disponible pour afficher l’aide." };
+        }
+
+        const helpUrl = `${getPathToFileURL(path.join(__dirname, "help.html")).href}#gestion-panneaux`;
+        try {
+            if (neighborPanel.isSleeping) {
+                // wakePanel recrée la vue et gère déjà l’activation et le focus.
+                win.focus();
+                if (!wakePanel(neighborPanel, helpUrl)) {
+                    return { ok: false, error: "Impossible de réactiver la tuile voisine." };
+                }
+            } else {
+                const neighborContents = neighborPanel.view?.webContents;
+                if (!neighborContents || neighborContents.isDestroyed()) {
+                    return { ok: false, error: "La tuile voisine n’est pas disponible." };
+                }
+
+                await neighborContents.loadURL(helpUrl);
+                activePanel = neighborPanel.id;
+                updateActiveBorder(neighborPanel.bounds);
+                win.focus();
+                neighborContents.focus();
+                win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
+                win.webContents.send("active-panel-changed", {
+                    id: neighborPanel.id,
+                    bounds: neighborPanel.bounds
+                });
+            }
+            return { ok: true };
+        } catch (error) {
+            console.error("[Aide] Impossible de charger le chapitre dans la tuile voisine :", error);
+            return { ok: false, error: error.message || "Erreur lors de l’ouverture de l’aide." };
+        }
+    }
+
     const panel = findPanelByWebContents(event.sender);
     const isMainRenderer = win && !win.isDestroyed() && event.sender === win.webContents;
     const isWelcomeTile = panel && (() => {
@@ -1794,6 +1863,52 @@ ipcMain.on("open-password-manager-window", () => {
         pwdWindow = null;
     });
 });
+
+// Écouteur pour charger la page d'aide dans le panneau voisin
+ipcMain.on('open-help-adjacent', (event, targetHash) => {
+    // 1. Trouver le panneau web qui a émis le clic (la page welcome.html)
+    const sourcePanel = findPanelByWebContents(event.sender);
+    if (!sourcePanel) return;
+
+    // 2. Récupérer toutes les tuiles de navigation de la mosaïque
+    const panelsList = collectPanelNodes(rootNode);
+    if (panelsList.length <= 1) {
+        // S'il n'y a pas d'autre tuile à côté, on ouvre l'aide directement sur la tuile active
+        const helpUrl = getPathToFileURL(path.join(__dirname, "help.html")).href + targetHash;
+        event.sender.loadURL(helpUrl).catch(console.error);
+        return;
+    }
+
+    // 3. Trouver le panneau adjacent (le plus proche voisin de la tuile active)
+    // Nous utilisons la fonction de routage géométrique native de votre projet
+    const neighborPanel = findNeighborPanel(sourcePanel.bounds, 'Right', panelsList) 
+                       || findNeighborPanel(sourcePanel.bounds, 'Left', panelsList)
+                       || panelsList.find(p => p.id !== sourcePanel.id); // Repli de secours
+
+    if (neighborPanel) {
+        const helpUrl = getPathToFileURL(path.join(__dirname, "help.html")).href + targetHash;
+
+        // Si le panneau voisin dort, on le réveille avec l'URL cible
+        if (neighborPanel.isSleeping) {
+            wakePanel(neighborPanel, helpUrl);
+        } else if (neighborPanel.view && !neighborPanel.view.webContents.isDestroyed()) {
+            // Sinon, on charge l'adresse directement dans son instance Chromium
+            neighborPanel.view.webContents.loadURL(helpUrl).catch(console.error);
+            
+            // Met le liseré bleu de focus sur le panneau d'aide qui vient de s'ouvrir
+            activePanel = neighborPanel.id;
+            updateActiveBorder(neighborPanel.bounds);
+            neighborPanel.view.webContents.focus();
+        }
+        
+        // Rafraîchit l'interface générale du navigateur
+        if (win && !win.isDestroyed()) {
+            win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
+            win.webContents.send("active-panel-changed", { id: neighborPanel.id, bounds: neighborPanel.bounds });
+        }
+    }
+});
+
 
 // Écouteurs d'actions émis depuis passwords.html
 ipcMain.on('pwd-ui-save', async (event, entry) => {
@@ -2802,7 +2917,6 @@ function persistSessionLayout() {
         const snapshot = {
             version: 1,
             activePanelId: activePanel,
-            favoritesVisible: isBookmarksBarVisible,
             tree: createPersistedSessionSnapshot(rootNode)
         };
         fs.writeFileSync(getSessionLayoutPath(), JSON.stringify(snapshot, null, 2), "utf-8");
@@ -2845,10 +2959,6 @@ async function restorePersistedSession() {
         return false;
     }
     if (storedSession?.version !== 1 || !validatePersistedTree(storedSession.tree)) return false;
-    if (typeof storedSession.favoritesVisible === "boolean") {
-        isBookmarksBarVisible = storedSession.favoritesVisible;
-        saveBookmarksVisibilityPreference();
-    }
 
     let maxPanelNumber = 0;
     const restoreNode = async (savedNode) => {
@@ -2963,26 +3073,38 @@ function isValidUrl(text) {
 function buildNavigationTarget(input) {
     input = input.trim();
 
+    // 🕵️ Extraction de l'ancre (hash) si elle est présente (ex: #gestion-panneaux)
+    let hash = "";
+    const hashIndex = input.indexOf("#");
+    if (hashIndex !== -1) {
+        hash = input.substring(hashIndex); // Conserve le "#..."
+        input = input.substring(0, hashIndex).trim(); // Isole l'adresse principale
+    }
+
+    // Comparaison sur l'adresse principale nettoyée
     if (input.toLowerCase() === "hare://home") {
-        return getHomePageUrl();
+        return getHomePageUrl() + hash;
     }
 
     if (input.toLowerCase() === "hare://help") {
-        return getPathToFileURL(path.join(__dirname, "help.html")).href;
+        return getPathToFileURL(path.join(__dirname, "help.html")).href + hash;
     }
 
+    // Reconstitution de l'input d'origine avec son hash pour les autres vérifications
+    const fullInput = input + hash;
+
     // 1. Si c'est une URL valide ou une page locale
-    if (input.includes("://") || input.startsWith("data:") || input.startsWith("about:")) {
-        return input;
+    if (fullInput.includes("://") || fullInput.startsWith("data:") || fullInput.startsWith("about:")) {
+        return fullInput;
     }
 
     // 2. Si ça ressemble à un domaine direct sans espace (ex: google.com, wikipedia.org)
-    if (/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?(\/.*)?\$/.test(input) && !input.includes(" ")) {
-        return "https://" + input;
+    if (/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(:[0-9]+)?(\/.*)?$/.test(input) && !input.includes(" ")) {
+        return "https://" + input + hash;
     }
 
-    // 3. Sinon, c'est une recherche de mots-clés sur Google
-    return `http://129.151.254.175:8080/search?q=${encodeURIComponent(input)}`;
+    // 3. Sinon, c'est une recherche de mots-clés (on encode l'intégralité avec le hash inclus)
+    return `http://129.151.254.175:8080/search?q=${encodeURIComponent(fullInput)}`;
 }
 
 async function openHelpInPanel(panel = findPanelNode(rootNode, activePanel) || collectPanelNodes(rootNode)[0]) {
@@ -3313,8 +3435,8 @@ function updatePanelUrl(panel, url) {
 
     // Si le panneau est privé et qu'il est sur sa page d'accueil d'origine.
     if (panel.isPrivate && (url.startsWith('data:text/html') || url === panel.url)) {
-        nextUrl = tr("ui.privateLabel");
-        panel.title = tr("ui.privateLabel");
+        nextUrl = "Navigation Privée";
+        panel.title = "Navigation Privée";
     } else {
         if (panel.view && !panel.view.webContents.isDestroyed()) {
             panel.title = panel.view.webContents.getTitle();
@@ -4187,19 +4309,6 @@ ipcMain.handle("set-floating-navigation-preference", (event, enabled) => {
     return setFloatingNavigationGloballyEnabled(enabled);
 });
 
-ipcMain.handle("get-bookmarks-visibility-preference", (event) => {
-    const authorized = (settingsWindow && !settingsWindow.isDestroyed() && event.sender === settingsWindow.webContents) ||
-        (win && !win.isDestroyed() && event.sender === win.webContents);
-    return authorized ? isBookmarksBarVisible : true;
-});
-
-ipcMain.handle("set-bookmarks-visibility-preference", (event, visible) => {
-    if (!settingsWindow || settingsWindow.isDestroyed() || event.sender !== settingsWindow.webContents || typeof visible !== "boolean") {
-        return isBookmarksBarVisible;
-    }
-    return setBookmarksBarVisible(visible);
-});
-
 ipcMain.on("toggle-autosleep-request", (event, enabled) => {
     if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
     const nextState = setAutoSleepEnabled(enabled);
@@ -4234,14 +4343,8 @@ ipcMain.on("cancel-download", (event, panelId) => {
 });
 
 // Masquer uniquement la barre : la liste des favoris reste intacte en mémoire et sur disque.
-ipcMain.on("toggle-bookmarks-bar-request", (event) => {
-    if (win && !win.isDestroyed() && event.sender === win.webContents) setBookmarksBarVisible(false);
-});
-ipcMain.on("set-bookmarks-bar-visible", (event, visible) => {
-    if (win && !win.isDestroyed() && event.sender === win.webContents && typeof visible === "boolean") {
-        setBookmarksBarVisible(visible);
-    }
-});
+ipcMain.on("toggle-bookmarks-bar-request", () => setBookmarksBarVisible(false));
+ipcMain.on("set-bookmarks-bar-visible", (_event, visible) => setBookmarksBarVisible(visible));
 
 function swapPanelsInTree(idA, idB) {
 
@@ -5410,7 +5513,6 @@ async function createWindow() {
     await fsPromises.mkdir(appDataPath, { recursive: true });
     loadAutoSleepPreference();  
     loadFloatingNavigationPreference();
-    loadBookmarksVisibilityPreference();
     loadAiSidebarPreference();
     loadDownloadsList();
     isDarkModeForced = await getThemePreference();
@@ -5425,7 +5527,6 @@ async function createWindow() {
 */
     win.webContents.on("did-finish-load", () => {
         win.webContents.send("app-title", APP_TITLE);
-        win.webContents.send("bookmarks-initial-visibility", isBookmarksBarVisible);
     });
 
     if (!(await restorePersistedSession())) {
@@ -5443,11 +5544,11 @@ async function createWindow() {
 
     const template = [
         {
-            label: tr("main.view"),
+            label: 'Affichage',
             submenu: [
                 {
                     id: "restore-bookmarks-menu-item",
-                    label: tr("main.restoreBookmarks"),
+                    label: 'Afficher les favoris',
                     visible: !isBookmarksBarVisible,
                     click: () => setBookmarksBarVisible(true)
                 }
@@ -5463,7 +5564,6 @@ async function createWindow() {
                     click: async () => {
                         if (!rootNode) return;
                         const snapshot = createSnapshot(rootNode);
-                        snapshot.favoritesVisible = isBookmarksBarVisible;
                         const { filePath } = await dialog.showSaveDialog(win, {
                             title: tr("main.saveLayout"),
                             defaultPath: path.join(app.getPath('documents'), 'hare-browser-layout.json'),
@@ -5595,9 +5695,6 @@ async function createWindow() {
                                 const snapshot = JSON.parse(data);
 
                                 if (!snapshot || !snapshot.type) return;
-                                if (typeof snapshot.favoritesVisible === "boolean") {
-                                    setBookmarksBarVisible(snapshot.favoritesVisible);
-                                }
 
                                 saveState(); // Permet d'annuler l'import avec Ctrl+Z au besoin
 
@@ -6725,7 +6822,6 @@ ipcMain.handle('save-config-to-file', async () => {
 
     // Capture la structure actuelle de l'arbre (identique à votre système undo)
     const snapshot = createSnapshot(rootNode);
-    snapshot.favoritesVisible = isBookmarksBarVisible;
 
     const { filePath } = await dialog.showSaveDialog(win, {
         title: tr("main.saveLayout"),
@@ -6765,9 +6861,6 @@ ipcMain.handle('load-config-from-file', async () => {
 
             // Validation minimale de la structure du fichier pour éviter les crashs
             if (!snapshot || (!snapshot.type)) return false;
-            if (typeof snapshot.favoritesVisible === "boolean") {
-                setBookmarksBarVisible(snapshot.favoritesVisible);
-            }
 
             saveState(); // Permet d'annuler (Ctrl+Z) si le chargement ne plaît pas
 
