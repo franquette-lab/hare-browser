@@ -1709,10 +1709,13 @@ ipcMain.handle("open-tutorial-video", async (event, videoFile) => {
             url: `${getPathToFileURL(path.join(__dirname, "help.html")).href}#gestion-panneaux`,
             adjacent: true
         },
+
         ACTION_OPEN_SEARCH_HOME: {
-            url: getHomePageUrl(),
-            adjacent: false
+//          url: getHomePageUrl(),
+            url: `${getPathToFileURL(path.join(__dirname, "home.html")).href}`,
+            adjacent: true
         }
+
     });
     const internalAction = typeof videoFile === "string" &&
         Object.prototype.hasOwnProperty.call(internalPageActions, videoFile)

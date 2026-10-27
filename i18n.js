@@ -268,21 +268,29 @@
             "main.menuSwitchDown": "Intervertir avec la tuile en dessous",
             "welcome.title": "Bienvenue",
             "welcome.tileNav": "🧩 Navigation mosaïque",
-            "welcome.tileNavText": "Organisez votre navigation dans plusieurs panneaux indépendants et redimensionnables pour afficher plusieurs sites simultanément.",
+
+            "welcome.tileNavText": "Naviguez sur plusieurs sites simultanément grâce aux panneaux redimensionnables.",
+
             "welcome.adblock": "🚫 Bloqueur intégré",
-            "welcome.adblockText": "Publicités et trackers masqués par défaut sur vos tuiles publiques et privées pour accélérer le chargement.",
-            "welcome.search": "🔍 Recherche respectueuse",
-            "welcome.searchText": "Effectuez vos recherches grâce à SearXNG, un métamoteur open source respectueux de la confidentialité et sans profilage des utilisateurs.",
+
+            "welcome.adblockText": "Publicités et trackers masqués par défaut pour accélérer le chargement.",
+
+            "welcome.search": "🔍 Recherche privée",
+
+            "welcome.searchText": "Recherchez avec SearXNG, un métamoteur open source et respectueux de la vie privée.",
+
             "welcome.localAi": "✨ IA locale",
             "welcome.localAiText": "Une IA locale, sans cloud distant, pour plus de confidentialité, moins d'impact sur l'environnement.",
             "welcome.privacy": "🔒 Confidentialité",
             "welcome.privacyText": "Navigation privée, réduction du suivi et contrôle renforcé de vos données personnelles.",
-            "welcome.themes": "🌗 Thèmes clair et sombre",
+            "welcome.themes": "🌗 Clair / Sombre",
             "welcome.themesText": "Basculez instantanément entre les modes clair et sombre selon vos préférences.",
             "welcome.history": "📜 Historique",
             "welcome.historyText": "Retrouvez facilement les pages récemment visitées depuis l’historique intégré.",
             "welcome.productivity": "⚡ Productivité, espaces",
-            "welcome.productivityText": "Optimisez votre multitâche : scindez les panneaux, pilotez au clavier et sauvegardez vos dispositions.",
+
+            "welcome.productivityText": "Scindez vos panneaux, pilotez au clavier et sauvegardez vos dispositions.",
+
             "home.featureSpeed": "🐇 Rapidité",
             "home.featurePrivacy": "🔒 Confidentialité",
             "home.featureAi": "✨ IA locale",
@@ -693,8 +701,10 @@
             "welcome.tileNavText": "Organize browsing into independent, resizable panels to view several sites at once.",
             "welcome.adblock": "🚫 Built-in blocker",
             "welcome.adblockText": "Ads and trackers are blocked by default in public and private tiles to speed up loading.",
-            "welcome.search": "🔍 Privacy-friendly search",
-            "welcome.searchText": "Search with SearXNG, an open-source metasearch engine that respects your privacy and does not profile users.",
+            "welcome.search": "🔍 Private search",
+
+            "welcome.searchText": "Search privately and securely with SearXNG, the open-source metasearch engine.",
+            
             "welcome.localAi": "✨ Local AI",
             "welcome.localAiText": "A local AI, with no remote cloud, for greater privacy and a lower environmental impact.",
             "welcome.privacy": "🔒 Privacy",
@@ -702,7 +712,7 @@
             "welcome.themes": "🌗 Light and dark themes",
             "welcome.themesText": "Switch instantly between light and dark modes to suit your preference.",
             "welcome.historyText": "Easily find recently visited pages in the built-in history.",
-            "welcome.productivity": "⚡ Productivity & Workspaces",
+            "welcome.productivity": "⚡ Smart workspaces",
             "welcome.productivityText": "Make multitasking easier: split panels, use keyboard controls, and save layouts.",
             "home.featureSpeed": "🐇 Speed",
             "home.featurePrivacy": "🔒 Privacy",
@@ -768,7 +778,7 @@
             "passwords.usernameShort": "Username / Email",
             "passwords.passwordShort": "Password",
             "passwords.saveShort": "Save",
-            "welcome.searchLabel": "🔍 Privacy-friendly search",
+            "welcome.searchLabel": "🔍 Private search",
             "home.featureSearch": "🔍 Private search",
             "menu.sleepDisabled": "💤 Disable automatic sleep",
             "menu.sleepEnabled": "💤 Enable automatic sleep",
