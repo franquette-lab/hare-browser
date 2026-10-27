@@ -281,7 +281,7 @@
             "welcome.themesText": "Basculez instantanément entre les modes clair et sombre selon vos préférences.",
             "welcome.history": "📜 Historique",
             "welcome.historyText": "Retrouvez facilement les pages récemment visitées depuis l’historique intégré.",
-            "welcome.productivity": "⚡ Productivité & Espaces",
+            "welcome.productivity": "⚡ Productivité, espaces",
             "welcome.productivityText": "Optimisez votre multitâche : scindez les panneaux, pilotez au clavier et sauvegardez vos dispositions.",
             "home.featureSpeed": "🐇 Rapidité",
             "home.featurePrivacy": "🔒 Confidentialité",
@@ -418,6 +418,9 @@
             "sleep.enabledDelay": "Veille automatique activée : délai de {duration}",
             "ollama.invalidResponse": "Réponse Ollama invalide.",
             "welcome.tooltip.tutorial": "Cliquez pour lancer le tutoriel vidéo",
+            "welcome.tooltip.openHelp": "Cliquez pour ouvrir la page d'aide",
+            "welcome.tooltip.openHome": "Cliquez pour ouvrir la page d'accueil",
+            "welcome.internalPage.error": "Impossible d'ouvrir la page demandée.",
             "welcome.tooltip.ai": "Cliquez pour ouvrir l'assistant IA local",
             "welcome.tooltip.theme": "Cliquez pour basculer entre les modes clair et sombre",
             "welcome.tooltip.history": "Cliquez pour ouvrir la fenêtre d'historique"
@@ -837,6 +840,9 @@
             "sleep.enabledDelay": "Automatic sleep is on: delay is {duration}",
             "ollama.invalidResponse": "Invalid Ollama response.",
             "welcome.tooltip.tutorial": "Click to launch the video tutorial",
+            "welcome.tooltip.openHelp": "Click to open the help page",
+            "welcome.tooltip.openHome": "Click to open the home page",
+            "welcome.internalPage.error": "Could not open the requested page.",
             "welcome.tooltip.ai": "Click to open the local AI assistant",
             "welcome.tooltip.theme": "Click to toggle between light and dark modes",
             "welcome.tooltip.history": "Click to open the browsing history window"

@@ -362,18 +362,34 @@ html.mw-theme-client-dark .arrow-right-icon::before {
     </div>
 
     <!-- 3. Carte Recherche -->
+
+<!--    
     <div class="card">
         <h2 data-i18n="welcome.search">🔍 Recherche respectueuse</h2>
         <p data-i18n="welcome.searchText">
             Effectuez vos recherches grâce à SearXNG, un métamoteur open source respectueux de la confidentialité et sans profilage des utilisateurs.
         </p>
     </div>
+-->
+
+    <!-- Recherche respectueuse -->
+    <div class="card clickable-card" id="search-tile" role="button" tabindex="0">
+        <h2 class="ai-tile-header">
+            <span data-i18n="welcome.search">🔍 Recherche respectueuse</span>
+            <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.openHome">🚀</span>
+        </h2>
+        <p data-i18n="welcome.searchText">
+            Effectuez vos recherches grâce à SearXNG, un métamoteur open source respectueux de la confidentialité et sans profilage des utilisateurs.
+        </p>
+    </div>
+
+
 
     <!-- 4. Carte IA Locale -->
     <div class="card clickable-card" id="local-ai-tile">
         <h2 class="ai-tile-header">
             <span data-i18n="welcome.localAi">✨ IA locale</span>
-            <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.ai">▶️</span>
+            <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.ai">🚀</span>
         </h2>
         <p data-i18n="welcome.localAiText">
             Une IA locale, sans cloud distant, pour plus de confidentialité, moins d'impact sur l'environnement.
@@ -392,7 +408,7 @@ html.mw-theme-client-dark .arrow-right-icon::before {
     <div class="card clickable-card" id="theme-tile">
         <h2 class="ai-tile-header">
             <span data-i18n="welcome.themes">🌗 Thèmes clair et sombre</span>
-            <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.theme">▶️</span>
+            <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.theme">🚀</span>
         </h2>
         <p data-i18n="welcome.themesText">
             Basculez instantanément entre les modes clair et sombre selon vos préférences.
@@ -403,7 +419,7 @@ html.mw-theme-client-dark .arrow-right-icon::before {
     <div class="card clickable-card" id="history-tile">
         <h2 class="ai-tile-header">
             <span data-i18n="welcome.history">📜 Historique</span>
-            <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.history">▶️</span>
+            <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.history">🚀</span>
         </h2>
         <p data-i18n="welcome.historyText">
             Retrouvez facilement les pages récemment visitées depuis l’historique intégré.
@@ -412,8 +428,8 @@ html.mw-theme-client-dark .arrow-right-icon::before {
 
 <div class="card clickable-card" id="productivity-tile" role="button" tabindex="0">
     <h2 class="ai-tile-header">
-        <span data-i18n="welcome.productivity">⚡ Productivité &amp; Espaces</span>
-        <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.tutorial">▶️</span>
+        <span data-i18n="welcome.productivity">⚡ Productivité, espaces </span>
+        <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.openHelp">🚀</span>
     </h2>
     <p data-i18n="welcome.productivityText">
         Optimisez votre multitâche : scindez les panneaux, pilotez au clavier et sauvegardez vos dispositions.
@@ -462,9 +478,10 @@ html.mw-theme-client-dark .arrow-right-icon::before {
     const tutorialCards = document.querySelectorAll('[data-tutorial-video]');
     const errorNotice = document.getElementById('tutorial-error');
 
-    async function ouvrirAideProductivite() {
+
+    async function openInternalPage(action) {
         if (!window.tutorials || typeof window.tutorials.openVideo !== "function") {
-            const message = "Le pont Electron window.tutorials est indisponible.";
+            const message = HareI18n.t("welcome.internalPage.error", document.documentElement.lang || "fr");
             console.error("[Aide] " + message);
             if (errorNotice) {
                 errorNotice.textContent = message;
@@ -474,11 +491,11 @@ html.mw-theme-client-dark .arrow-right-icon::before {
         }
 
         try {
-            const result = await window.tutorials.openVideo("ACTION_HELP_PRODUCTIVITY");
-            if (!result?.ok) throw new Error(result?.error || "Impossible d’ouvrir l’aide.");
+            const result = await window.tutorials.openVideo(action);
+            if (!result?.ok) throw new Error(result?.error || HareI18n.t("welcome.internalPage.error", document.documentElement.lang || "fr"));
             if (errorNotice) errorNotice.hidden = true;
         } catch (error) {
-            console.error("[Aide] Échec de l’ouverture du centre d’aide :", error);
+            console.error("[Navigation interne] Échec de l’ouverture de la page :", error);
             if (errorNotice) {
                 errorNotice.textContent = error.message || String(error);
                 errorNotice.hidden = false;
@@ -486,12 +503,18 @@ html.mw-theme-client-dark .arrow-right-icon::before {
         }
     }
 
-    const productivityCard = document.getElementById("productivity-tile");
-    productivityCard?.addEventListener("click", ouvrirAideProductivite);
-    productivityCard?.addEventListener("keydown", (event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        ouvrirAideProductivite();
+    const internalPageCards = [
+        [document.getElementById("productivity-tile"), "ACTION_HELP_PRODUCTIVITY"],
+        [document.getElementById("search-tile"), "ACTION_OPEN_SEARCH_HOME"]
+    ];
+    internalPageCards.forEach(([card, action]) => {
+        if (!card) return;
+        card.addEventListener("click", () => openInternalPage(action));
+        card.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            openInternalPage(action);
+        });
     });
 
     async function openTutorial(event) {

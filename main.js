@@ -1700,69 +1700,85 @@ app.on('ready', () => {
     enableAdBlockerForSession(session.defaultSession);
 });
 
+
 ipcMain.handle("open-tutorial-video", async (event, videoFile) => {
     console.info("[Tutoriel] IPC open-tutorial-video reçu :", videoFile);
 
-    // Ouvre le chapitre sur la tuile voisine, sans créer de fenêtre vidéo.
-    if (videoFile === "ACTION_HELP_PRODUCTIVITY") {
+    const internalPageActions = Object.freeze({
+        ACTION_HELP_PRODUCTIVITY: {
+            url: `${getPathToFileURL(path.join(__dirname, "help.html")).href}#gestion-panneaux`,
+            adjacent: true
+        },
+        ACTION_OPEN_SEARCH_HOME: {
+            url: getHomePageUrl(),
+            adjacent: false
+        }
+    });
+    const internalAction = typeof videoFile === "string" &&
+        Object.prototype.hasOwnProperty.call(internalPageActions, videoFile)
+        ? internalPageActions[videoFile]
+        : null;
+
+    if (internalAction) {
+        if (!win || win.isDestroyed()) return { ok: false };
+
         const sourcePanel = findPanelByWebContents(event.sender);
-        let senderUrl = "";
         try {
             if (event.senderFrame && event.senderFrame !== event.sender.mainFrame) {
-                return { ok: false, error: "Cette action doit être demandée depuis le document principal." };
+                return { ok: false };
             }
-            senderUrl = event.senderFrame?.url || event.sender.getURL();
-            const parsedUrl = new URL(senderUrl);
-            const isWelcomePage = parsedUrl.protocol === "file:" &&
-                decodeURIComponent(parsedUrl.pathname).toLowerCase().endsWith("/welcome.html");
-            if (!sourcePanel || !isWelcomePage || !win || win.isDestroyed()) {
-                return { ok: false, error: "Cette action est réservée à la page d’accueil." };
+            const senderUrl = event.senderFrame?.url || event.sender.getURL();
+            const parsedSenderUrl = new URL(senderUrl);
+            const senderPath = parsedSenderUrl.protocol === "file:"
+                ? path.resolve(getNodeModule("url").fileURLToPath(parsedSenderUrl))
+                : "";
+            const welcomePath = path.resolve(__dirname, "welcome.html");
+            if (!sourcePanel || senderPath.toLowerCase() !== welcomePath.toLowerCase()) {
+                return { ok: false };
             }
         } catch {
-            return { ok: false, error: "Impossible de vérifier la page d’origine de la demande." };
+            return { ok: false };
         }
 
-        const panelsList = collectPanelNodes(rootNode);
-        // findNeighborPanel exclut le panneau actif; baser le routage sur l’émetteur.
-        activePanel = sourcePanel.id;
-        const neighborPanel = findNeighborPanel(sourcePanel.bounds, "Right", panelsList) ||
-            findNeighborPanel(sourcePanel.bounds, "Left", panelsList);
-        if (!neighborPanel) {
-            return { ok: false, error: "Aucune tuile adjacente n’est disponible pour afficher l’aide." };
+        let targetPanel = sourcePanel;
+        if (internalAction.adjacent) {
+            const panelsList = collectPanelNodes(rootNode);
+            activePanel = sourcePanel.id;
+            targetPanel = findNeighborPanel(sourcePanel.bounds, "Right", panelsList) ||
+                findNeighborPanel(sourcePanel.bounds, "Left", panelsList) ||
+                sourcePanel;
         }
 
-        const helpUrl = `${getPathToFileURL(path.join(__dirname, "help.html")).href}#gestion-panneaux`;
         try {
-            if (neighborPanel.isSleeping) {
-                // wakePanel recrée la vue et gère déjà l’activation et le focus.
+            if (targetPanel.isSleeping) {
                 win.focus();
-                if (!wakePanel(neighborPanel, helpUrl)) {
-                    return { ok: false, error: "Impossible de réactiver la tuile voisine." };
-                }
+                const awakenedView = wakePanel(targetPanel, internalAction.url);
+                if (!awakenedView) return { ok: false };
             } else {
-                const neighborContents = neighborPanel.view?.webContents;
-                if (!neighborContents || neighborContents.isDestroyed()) {
-                    return { ok: false, error: "La tuile voisine n’est pas disponible." };
+                const targetContents = targetPanel.view?.webContents;
+                if (!targetContents || targetContents.isDestroyed()) {
+                    return { ok: false };
                 }
 
-                await neighborContents.loadURL(helpUrl);
-                activePanel = neighborPanel.id;
-                updateActiveBorder(neighborPanel.bounds);
+                await targetContents.loadURL(internalAction.url);
+                activePanel = targetPanel.id;
+                updateActiveBorder(targetPanel.bounds);
                 win.focus();
-                neighborContents.focus();
+                targetContents.focus();
                 win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
                 win.webContents.send("active-panel-changed", {
-                    id: neighborPanel.id,
-                    bounds: neighborPanel.bounds
+                    id: targetPanel.id,
+                    bounds: targetPanel.bounds
                 });
             }
             return { ok: true };
         } catch (error) {
-            console.error("[Aide] Impossible de charger le chapitre dans la tuile voisine :", error);
-            return { ok: false, error: error.message || "Erreur lors de l’ouverture de l’aide." };
+            console.error("[Navigation interne] Échec du chargement :", error);
+            return { ok: false };
         }
     }
 
+    // --- Reste du code de sécurité d'origine pour les vidéos (.mp4) ---
     const panel = findPanelByWebContents(event.sender);
     const isMainRenderer = win && !win.isDestroyed() && event.sender === win.webContents;
     const isWelcomeTile = panel && (() => {
@@ -1917,52 +1933,6 @@ ipcMain.on("open-password-manager-window", () => {
         pwdWindow = null;
     });
 });
-
-// Écouteur pour charger la page d'aide dans le panneau voisin
-ipcMain.on('open-help-adjacent', (event, targetHash) => {
-    // 1. Trouver le panneau web qui a émis le clic (la page welcome.html)
-    const sourcePanel = findPanelByWebContents(event.sender);
-    if (!sourcePanel) return;
-
-    // 2. Récupérer toutes les tuiles de navigation de la mosaïque
-    const panelsList = collectPanelNodes(rootNode);
-    if (panelsList.length <= 1) {
-        // S'il n'y a pas d'autre tuile à côté, on ouvre l'aide directement sur la tuile active
-        const helpUrl = getPathToFileURL(path.join(__dirname, "help.html")).href + targetHash;
-        event.sender.loadURL(helpUrl).catch(console.error);
-        return;
-    }
-
-    // 3. Trouver le panneau adjacent (le plus proche voisin de la tuile active)
-    // Nous utilisons la fonction de routage géométrique native de votre projet
-    const neighborPanel = findNeighborPanel(sourcePanel.bounds, 'Right', panelsList) 
-                       || findNeighborPanel(sourcePanel.bounds, 'Left', panelsList)
-                       || panelsList.find(p => p.id !== sourcePanel.id); // Repli de secours
-
-    if (neighborPanel) {
-        const helpUrl = getPathToFileURL(path.join(__dirname, "help.html")).href + targetHash;
-
-        // Si le panneau voisin dort, on le réveille avec l'URL cible
-        if (neighborPanel.isSleeping) {
-            wakePanel(neighborPanel, helpUrl);
-        } else if (neighborPanel.view && !neighborPanel.view.webContents.isDestroyed()) {
-            // Sinon, on charge l'adresse directement dans son instance Chromium
-            neighborPanel.view.webContents.loadURL(helpUrl).catch(console.error);
-            
-            // Met le liseré bleu de focus sur le panneau d'aide qui vient de s'ouvrir
-            activePanel = neighborPanel.id;
-            updateActiveBorder(neighborPanel.bounds);
-            neighborPanel.view.webContents.focus();
-        }
-        
-        // Rafraîchit l'interface générale du navigateur
-        if (win && !win.isDestroyed()) {
-            win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
-            win.webContents.send("active-panel-changed", { id: neighborPanel.id, bounds: neighborPanel.bounds });
-        }
-    }
-});
-
 
 // Écouteurs d'actions émis depuis passwords.html
 ipcMain.on('pwd-ui-save', async (event, entry) => {
