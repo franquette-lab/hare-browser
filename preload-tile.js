@@ -21,6 +21,57 @@ document.addEventListener('hare-reader-mode-preferences', (event) => {
     ipcRenderer.send('reader-mode-preferences-from-tile', event.detail);
 });
 
+document.addEventListener("hare-login-form-available", () => {
+    if (process.isMainFrame) ipcRenderer.send("login-form-detected");
+});
+
+// Ne transmet que les identifiants explicitement soumis dans un formulaire de connexion.
+if (process.isMainFrame) {
+    const submittedForms = new WeakMap();
+    const isUsableField = (field) => {
+        if (!field || field.disabled || field.readOnly || field.type === "hidden") return false;
+        const style = getComputedStyle(field);
+        return style.display !== "none" && style.visibility !== "hidden" && field.getClientRects().length > 0;
+    };
+
+    document.addEventListener("submit", (event) => {
+        if (!event.isTrusted) return;
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement)) return;
+
+        const now = Date.now();
+        if (now - (submittedForms.get(form) || 0) < 1500) return;
+
+        const passwordFields = Array.from(form.querySelectorAll('input[type="password"]')).filter(isUsableField);
+        const passwordField = passwordFields.find((field) => field.autocomplete.toLowerCase() === "current-password") ||
+            passwordFields.find((field) => field.autocomplete.toLowerCase() !== "new-password");
+        if (!passwordField || !passwordField.value) return;
+
+        const usernameSelectors = [
+            'input[autocomplete~="username"]',
+            'input[type="email"]',
+            'input[type="text"]',
+            'input:not([type])'
+        ];
+        let usernameField = null;
+        for (const selector of usernameSelectors) {
+            usernameField = Array.from(form.querySelectorAll(selector)).find(isUsableField);
+            if (usernameField) break;
+        }
+
+        const username = usernameField?.value?.trim().slice(0, 2048) || "";
+        const password = passwordField.value.slice(0, 4096);
+        if (!username || !password) return;
+
+        submittedForms.set(form, now);
+        ipcRenderer.send("password-form-submitted", {
+            pageUrl: location.href,
+            username,
+            password
+        });
+    }, true);
+}
+
 
 // Permet au script injecté d'envoyer des ordres de navigation au processus principal
 contextBridge.exposeInMainWorld('tileNavigation', {

@@ -1,66 +1,89 @@
-// nanobrowser/injector.js
-(function() {
-    window.NanobrowserExecutor = {
-        clickElement(selector) {
-            const el = document.querySelector(selector);
-            if (el) {
-                el.click();
-                return "Success";
-            }
-            return "Element not found";
-        },
-        
-        getPageContent() {
-            return {
-                text: document.body.innerText || "",
-                url: window.location.href || "",
-                title: document.title || ""
-            };
-        }
+// Exécuté explicitement par le processus principal dans la BrowserView du panneau.
+(() => {
+    const isUsableField = (field) => {
+        if (!field || field.disabled || field.readOnly) return false;
+        const style = getComputedStyle(field);
+        return style.display !== "none" && style.visibility !== "hidden" && field.getClientRects().length > 0;
     };
-})();
 
+    const getLoginForm = () => {
+        const forms = Array.from(document.forms);
+        const formWithPassword = forms.find((form) =>
+            Array.from(form.querySelectorAll('input[type="password"]')).some((field) =>
+                isUsableField(field) && field.autocomplete.toLowerCase() !== "new-password"
+            )
+        );
+        if (formWithPassword) return formWithPassword;
 
+        const passwordField = Array.from(document.querySelectorAll('input[type="password"]')).find(isUsableField);
+        return passwordField && passwordField.autocomplete.toLowerCase() !== "new-password"
+            ? passwordField.form || document.body
+            : null;
+    };
 
-// nanobrowser/injector.js -> Mettre à jour le script autonome
-(function() {
     window.NanobrowserExecutor = {
         clickElement(selector) {
-            const el = document.querySelector(selector);
-            if (el) { el.click(); return "Success"; }
-            return "Element not found";
+            const element = document.querySelector(selector);
+            if (!element) return "Element not found";
+            element.click();
+            return "Success";
         },
-        
+
         getPageContent() {
             return {
-                text: document.body.innerText || "",
+                text: document.body?.innerText || "",
                 url: window.location.href || "",
                 title: document.title || ""
             };
         },
 
-        // NOUVEAU : Remplissage automatique des identifiants
+        hasLoginForm() {
+            return !!getLoginForm();
+        },
+
         autofillCredentials(username, password) {
-            // Recherche des champs de type password courants
-            const passwordInput = document.querySelector('input[type="password"]');
-            if (!passwordInput) return "No password field found";
+            const form = getLoginForm();
+            if (!form) return "No login form found";
 
-            // Remonte le DOM pour trouver l'input texte ou e-mail le plus proche (l'identifiant)
-            const form = passwordInput.closest('form') || document.body;
-            const usernameInput = form.querySelector('input[type="text"], input[type="email"], input:not([type])');
+            const passwordField = Array.from(form.querySelectorAll('input[type="password"]')).find(isUsableField);
+            if (!passwordField) return "No password field found";
 
-            if (usernameInput) {
-                usernameInput.value = username;
-                usernameInput.dispatchEvent(new Event('input', { bubbles: true }));
-                usernameInput.dispatchEvent(new Event('change', { bubbles: true }));
+            const usernameCandidates = [
+                '[autocomplete~="username"]',
+                'input[type="email"]',
+                'input[type="text"]',
+                'input:not([type])'
+            ];
+            let usernameField = null;
+            for (const selector of usernameCandidates) {
+                usernameField = Array.from(form.querySelectorAll(selector)).find(isUsableField);
+                if (usernameField) break;
             }
 
-            passwordInput.value = password;
-            passwordInput.dispatchEvent(new Event('input', { bubbles: true }));
-            passwordInput.dispatchEvent(new Event('change', { bubbles: true }));
+            const setNativeValue = (field, value) => {
+                const prototype = field instanceof HTMLTextAreaElement
+                    ? HTMLTextAreaElement.prototype
+                    : HTMLInputElement.prototype;
+                const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+                if (setter) setter.call(field, value);
+                else field.value = value;
+                field.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: value }));
+                field.dispatchEvent(new Event("change", { bubbles: true }));
+            };
 
+            if (usernameField && username) setNativeValue(usernameField, username);
+            setNativeValue(passwordField, password);
             return "Autofill Success";
         }
     };
-})();
 
+    let loginFormReported = false;
+    const reportLoginForm = () => {
+        if (loginFormReported || !getLoginForm()) return;
+        loginFormReported = true;
+        document.dispatchEvent(new CustomEvent("hare-login-form-available"));
+    };
+    reportLoginForm();
+    const loginFormObserver = new MutationObserver(reportLoginForm);
+    loginFormObserver.observe(document.documentElement, { childList: true, subtree: true });
+})();
