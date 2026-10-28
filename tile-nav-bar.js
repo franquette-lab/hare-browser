@@ -76,6 +76,7 @@
     navBar.innerHTML = `
         <button id="float-back" type="button" title="Back" aria-label="Back">◀</button>
         <button id="float-forward" type="button" title="Forward" aria-label="Forward">▶</button>
+        <button id="float-home" type="button" title="Home" aria-label="Home">🏠</button>
         <button id="float-reload" type="button" title="Reload" aria-label="Reload">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 2v6h-6"/><path d="M20.49 15A9 9 0 1 1 21 8"/>
@@ -94,6 +95,7 @@
 
     const backButton = navBar.querySelector("#float-back");
     const forwardButton = navBar.querySelector("#float-forward");
+    const homeButton = navBar.querySelector("#float-home");
     const reloadButton = navBar.querySelector("#float-reload");
     const addressInput = navBar.querySelector("#float-url");
     const closeButton = navBar.querySelector("#float-close");
@@ -256,6 +258,7 @@
     });
     backButton.addEventListener("click", () => window.tileNavigation.goBack());
     forwardButton.addEventListener("click", () => window.tileNavigation.goForward());
+    homeButton.addEventListener("click", () => window.tileNavigation.openHomePage());
     reloadButton.addEventListener("click", () => window.tileNavigation.reload());
     addressInput.addEventListener("keydown", (event) => {
         if (event.key === "Enter") window.tileNavigation.loadUrl(addressInput.value);
@@ -280,6 +283,8 @@
         currentLanguage = language === "en" ? "en" : "fr";
         backButton.title = currentLanguage === "en" ? "Back" : "Revenir";
         forwardButton.title = currentLanguage === "en" ? "Forward" : "Avancer";
+        homeButton.title = currentLanguage === "en" ? "Home" : "Accueil";
+        homeButton.setAttribute("aria-label", homeButton.title);
         reloadButton.title = currentLanguage === "en" ? "Reload" : "Actualiser";
         closeButton.title = currentLanguage === "en" ? "Hide floating navigation" : "Masquer la navigation flottante";
         closeButton.setAttribute("aria-label", closeButton.title);

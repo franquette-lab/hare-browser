@@ -26,6 +26,7 @@ document.addEventListener('hare-reader-mode-preferences', (event) => {
 contextBridge.exposeInMainWorld('tileNavigation', {
     goBack: () => ipcRenderer.invoke('go-back-current'),
     goForward: () => ipcRenderer.invoke('go-forward-current'),
+    openHomePage: () => ipcRenderer.invoke("open-home-page"),
     reload: () => ipcRenderer.invoke('refresh-current'),
     loadUrl: (url) => ipcRenderer.send('navigate-current', url),
     getNavigationState: () => ipcRenderer.invoke('get-tile-navigation-state'),

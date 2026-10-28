@@ -783,6 +783,8 @@ html.dark #pwd-modal {
     <button id="back-button" data-i18n-title="toolbar.back" title="Revenir (Alt+Flêche gauche)" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#9664;</button>
    
     <button id="forward-button" data-i18n-title="toolbar.forward" title="Avancer (Alt+Flêche droite)" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#9654;</button>
+
+    <button id="home-button" data-i18n-title="toolbar.home" title="Accueil" aria-label="Accueil" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:13px; cursor:pointer;">🏠</button>
     
     <button id="refresh-button" data-i18n-title="toolbar.refresh" title="Actualiser (Ctrl+R ou F5)" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:14px; cursor:pointer;">&#8635;</button>
     
@@ -2327,6 +2329,7 @@ addressGroup.appendChild(input);
     // --- ÉCOUTEURS DES BOUTONS DE LA BARRE D'OUTILS ---
     document.getElementById("back-button").addEventListener("click", () => window.api.goBack(activePanel));
     document.getElementById("forward-button").addEventListener("click", () => window.api.goForward(activePanel));
+    document.getElementById("home-button")?.addEventListener("click", () => window.api.openHomePage(activePanel));
     document.getElementById("refresh-button").addEventListener("click", () => window.api.refresh(activePanel));
 
     const fullscreenToggleButton = document.getElementById("fullscreen-toggle-button");

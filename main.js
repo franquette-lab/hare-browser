@@ -3229,6 +3229,55 @@ function findPanelByWebContents(webContents) {
     return walk(rootNode);
 }   
 
+async function navigatePanelToHome(panel) {
+    if (!panel || !win || win.isDestroyed()) return false;
+    const homeUrl = getHomePageUrl();
+
+    try {
+        if (panel.isSleeping) {
+            win.focus();
+            return !!wakePanel(panel, homeUrl);
+        }
+
+        const contents = panel.view?.webContents;
+        if (!contents || contents.isDestroyed()) return false;
+
+        await contents.loadURL(homeUrl);
+        activePanel = panel.id;
+        updateActiveBorder(panel.bounds);
+        win.focus();
+        contents.focus();
+        win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
+        win.webContents.send("active-panel-changed", {
+            id: panel.id,
+            bounds: panel.bounds
+        });
+        return true;
+    } catch (error) {
+        console.error("[Navigation] Impossible d’ouvrir la page d’accueil :", error);
+        return false;
+    }
+}
+
+function getLeftmostPanel() {
+    const panels = collectPanelNodes(rootNode).filter(Boolean);
+    return panels.filter((panel) => panel.bounds)
+        .sort((a, b) => a.bounds.x - b.bounds.x || a.bounds.y - b.bounds.y)[0] || panels[0] || null;
+}
+
+ipcMain.handle("open-home-page", async (event, requestedPanelId) => {
+    if (!win || win.isDestroyed()) return false;
+
+    let targetPanel = findPanelByWebContents(event.sender);
+    if (!targetPanel && event.sender === win.webContents) {
+        targetPanel = findPanelNode(rootNode, requestedPanelId) ||
+            findPanelNode(rootNode, activePanel) ||
+            getLeftmostPanel();
+    }
+    if (!targetPanel) return false;
+    return navigatePanelToHome(targetPanel);
+});
+
 function clearPanelIdleTimer(panelId) {
     const timer = panelIdleTimers.get(panelId);
     if (timer) clearTimeout(timer);
@@ -5988,6 +6037,14 @@ async function createWindow() {
                                 updateNavigationButtons();
                             }
                         }
+                    }
+                },
+                {
+                    label: tr("toolbar.home"),
+                    accelerator: 'Alt+Home',
+                    click: () => {
+                        const targetPanel = findPanelNode(rootNode, activePanel) || getLeftmostPanel();
+                        void navigatePanelToHome(targetPanel);
                     }
                 },
 

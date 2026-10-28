@@ -130,6 +130,7 @@ onActivePanelChanged: (callback) => {
 
         // --- NAVIGATION ET ADRESSES ---
         navigate: (panelId, url) => ipcRenderer.send('navigate', panelId, url),
+        openHomePage: (panelId) => ipcRenderer.invoke("open-home-page", panelId),
         goBack: (panelId) => ipcRenderer.invoke("go-back", panelId),
         goForward: (panelId) => ipcRenderer.invoke("go-forward", panelId),
         refresh: (panelId) => ipcRenderer.invoke("refresh", panelId),
