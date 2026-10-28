@@ -3167,12 +3167,22 @@ function isValidUrl(text) {
 function buildNavigationTarget(input) {
     input = input.trim();
 
+    // 🛡️ CORRECTIF : Si l'entrée est complètement vide ou ne contient que des espaces
+    if (!input) {
+        return getHomePageUrl();
+    }
+
     // 🕵️ Extraction de l'ancre (hash) si elle est présente (ex: #gestion-panneaux)
     let hash = "";
     const hashIndex = input.indexOf("#");
     if (hashIndex !== -1) {
         hash = input.substring(hashIndex); // Conserve le "#..."
         input = input.substring(0, hashIndex).trim(); // Isole l'adresse principale
+    }
+
+    // 🛡️ CORRECTIF SECONDAIRE : Si l'utilisateur a saisi uniquement un hash (ex: "#" ou "#top")
+    if (!input) {
+        return getHomePageUrl() + hash;
     }
 
     // Comparaison sur l'adresse principale nettoyée
@@ -3200,6 +3210,7 @@ function buildNavigationTarget(input) {
     // 3. Sinon, c'est une recherche de mots-clés (on encode l'intégralité avec le hash inclus)
     return `http://129.151.254.175:8080/search?q=${encodeURIComponent(fullInput)}`;
 }
+
 
 async function openHelpInPanel(panel = findPanelNode(rootNode, activePanel) || collectPanelNodes(rootNode)[0]) {
     if (!panel?.view || panel.view.webContents.isDestroyed()) {
@@ -3679,9 +3690,21 @@ function setupNavigationTracking(panel) {
         });
     });
 
+    // ====== VERSION CORRIGÉE ET SÉCURISÉE DE L'ÉCOUTEUR ======
     panel.view.webContents.on("will-navigate", (event, targetUrl) => {
         try {
             const target = new URL(targetUrl);
+
+            // 🛡️ Sécurité : Bloquer les soumissions de recherches vides (espaces seuls) issues de home.html
+            if (target.hostname === SEARCH_ENGINE_HOST && (target.pathname === "/search" || target.pathname.endsWith("/search"))) {
+                const queryParam = target.searchParams.get("q");
+                if (!queryParam || !queryParam.trim()) {
+                    event.preventDefault(); // Annule la navigation Chromium instable
+                    panel.view.webContents.loadURL(getHomePageUrl()).catch(() => {}); // Force le retour à l'accueil
+                    console.info(`[SÉCURITÉ] Recherche SearXNG vide bloquée pour la tuile ${panel.id}`);
+                    return;
+                }
+            }
 
             // 1. 🔒 SÉCURITÉ : Liste blanche des protocoles autorisés pour la navigation web standard
             const allowedProtocols = ['http:', 'https:', 'data:', 'about:'];
