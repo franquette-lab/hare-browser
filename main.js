@@ -165,19 +165,6 @@ function rebuildApplicationMenu() {
 }
 
 function setBookmarksBarVisible(visible) {
-    const nextVisibility = visible === true;
-    if (nextVisibility === isBookmarksBarVisible) return;
-
-    isBookmarksBarVisible = nextVisibility;
-    setNormalToolbarHeight(normalToolbarHeight || TOOLBAR_MIN_HEIGHT);
-
-    if (win && !win.isDestroyed()) {
-        win.webContents.send("toggle-bookmarks-bar", isBookmarksBarVisible);
-    }
-    rebuildApplicationMenu();
-}
-
-function setBookmarksBarVisible(visible) {
     if (typeof visible !== "boolean") return isBookmarksBarVisible;
 
     isBookmarksBarVisible = visible;
@@ -739,8 +726,12 @@ function getBookmarksVisibilityPath() {
     return path.join(appDataPath, 'bookmarks-visibility.json');
 }
 
+// ====== VERSION CORRIGÉE SANS CONFLIT D'INITIALISATION ======
+
+// 1. Déclarez la variable avec une valeur par défaut standard
 let isBookmarksBarVisible = true;
 
+// 2. Laissez la fonction s'exécuter de façon autonome sans auto-affectation circulaire
 function loadBookmarksVisibilityPreference() {
     try {
         const preference = JSON.parse(fs.readFileSync(getBookmarksVisibilityPath(), "utf-8"));
@@ -961,11 +952,14 @@ let activeDownloads = {};
 let maximizedPanelId = null; 
 
 // Hauteur compacte réservée à la barre supérieure et à la zone URL.
-isBookmarksBarVisible = true; // La barre est affichée par défaut
 
+// ====== CALCUL DYNAMIQUE DE LA HAUTEUR INITIALE ======
 const TOOLBAR_ROW_HEIGHT = 38;
-const URL_BAR_HEIGHT = 30;
+const URL_BAR_HEIGHT = isBookmarksBarVisible ? 30 : 0; // Vaut 0 si masqué
 let TOOLBAR_HEIGHT = TOOLBAR_ROW_HEIGHT + URL_BAR_HEIGHT;
+
+
+
 const TOOLBAR_MIN_HEIGHT = TOOLBAR_HEIGHT;
 const FULLSCREEN_COLLAPSED_TOOLBAR_HEIGHT = 8;
 let normalToolbarHeight = TOOLBAR_HEIGHT;
@@ -1861,6 +1855,24 @@ ipcMain.handle("open-tutorial-video", async (event, videoFile) => {
         console.error("[Tutoriel] Erreur pendant l'ouverture de la vidéo :", error);
         return { ok: false, error: error.message || "Erreur inconnue lors de l'ouverture du tutoriel." };
     }
+});
+
+// ====== CORRECTIF VALIDE : GESTIONNAIRES VISIBILITÉ DES FAVORIS (BOOKMARKS) ======
+
+ipcMain.handle("get-bookmarks-visibility-preference", (event) => {
+    // Vérifie si l'émetteur provient d'une de vos fenêtres UI autorisées
+    const isAuthorizedSender = (settingsWindow && !settingsWindow.isDestroyed() && event.sender === settingsWindow.webContents) ||
+        (win && !win.isDestroyed() && event.sender === win.webContents);
+        
+    return isAuthorizedSender ? isBookmarksBarVisible : true;
+});
+
+ipcMain.handle("set-bookmarks-visibility-preference", (event, visible) => {
+    if (!settingsWindow || settingsWindow.isDestroyed() || event.sender !== settingsWindow.webContents || typeof visible !== "boolean") {
+        return isBookmarksBarVisible;
+    }
+    // Appelle votre fonction globale existante qui modifie l'état et synchronise les fenêtres
+    return setBookmarksBarVisible(visible);
 });
 
 
@@ -5616,6 +5628,8 @@ async function createWindow() {
     loadDownloadsList();
     isDarkModeForced = await getThemePreference();
     nativeTheme.themeSource = isDarkModeForced ? "dark" : "light";
+    //  AJOUTEZ CETTE LIGNE ICI :
+    loadBookmarksVisibilityPreference();     
 
  /*
     process.on("warning", (warning) => {
@@ -6194,6 +6208,9 @@ async function createWindow() {
         const title = win.webContents.getTitle();
 
         addToHistory(url, title);
+
+        // ✨ AJOUTEZ CETTE LIGNE ICI :
+        win.webContents.send("toggle-bookmarks-bar", isBookmarksBarVisible);
 
         win.webContents.send(
             "panels-updated",
