@@ -18,6 +18,13 @@
         select { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: inherit; font: inherit; }
         .checkbox-row { display: flex; align-items: center; gap: 10px; margin: 0; font-weight: 600; }
         .checkbox-row input { width: 17px; height: 17px; accent-color: #2563eb; }
+        .opacity-setting { margin-top: 14px; }
+        .opacity-setting label { margin-bottom: 6px; }
+        .opacity-control { display: flex; align-items: center; gap: 12px; }
+        .opacity-control input { flex: 1; min-width: 0; accent-color: #2563eb; }
+        .opacity-control output { min-width: 42px; color: #475569; font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; }
+        .secondary-button { margin-top: 8px; padding: 5px 9px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
+        .secondary-button:hover { background: #f1f5f9; }
         p { color: #64748b; font-size: 13px; line-height: 1.5; }
         #saved { min-height: 20px; color: #15803d; }
         .settings-section { margin-top: 22px; }
@@ -27,6 +34,9 @@
             body { background: #252526; color: #e5e7eb; }
             #close-button:hover { background: #3f3f46; }
             select { background: #2d2d30; border-color: #52525b; }
+            .opacity-control output { color: #cbd5e1; }
+            .secondary-button { background: #2d2d30; border-color: #52525b; }
+            .secondary-button:hover { background: #3f3f46; }
             p { color: #a1a1aa; }
             #saved { color: #4ade80; }
         }
@@ -40,8 +50,8 @@
         </header>
 
 
-        <section class="settings-section" aria-labelledby="favorites-heading">
-            <h2 id="favorites-heading" data-i18n="app.settings.language">Langue de l’interface</h2>
+        <section class="settings-section" aria-labelledby="language-heading">
+            <h2 id="language-heading" data-i18n="app.settings.language">Langue de l’interface</h2>
             <select id="language-select">
                 <option value="fr" data-i18n="app.settings.language.fr">Français</option>
                 <option value="en" data-i18n="app.settings.language.en">English</option>
@@ -57,13 +67,24 @@
                 <span data-i18n="settings.favorites.visible">Afficher les favoris</span>
             </label>
         </section>  
-        <section class="settings-section" data-i18n-aria-label="settings.floatingNavigation" aria-label="Afficher la barre de navigation flottante">
-            <h2 id="favorites-heading" data-i18n="settings.floatingNavigation.title">Barre de navigation flottante</h2>
+        <section class="settings-section" aria-labelledby="floating-navigation-heading">
+            <h2 id="floating-navigation-heading" data-i18n="settings.floatingNavigation.title">Barre de navigation flottante</h2>
             <label class="checkbox-row" for="floating-navigation-enabled">
                 <input id="floating-navigation-enabled" type="checkbox">
                 <span data-i18n="settings.floatingNavigation">Afficher la barre de navigation flottante</span>
             </label>
             <p data-i18n="settings.floatingNavigation.description">Contrôle l’affichage global ; les préférences propres à chaque tuile sont conservées.</p>
+            <div class="opacity-setting">
+                <label for="floating-navigation-opacity">
+                    <span data-i18n="settings.floatingNavigation.opacity">Transparence de la barre flottante</span>
+                    <span aria-hidden="true">: </span>
+                    <output id="floating-navigation-opacity-value" for="floating-navigation-opacity" aria-live="polite">86 %</output>
+                </label>
+                <div class="opacity-control">
+                    <input id="floating-navigation-opacity" type="range" min="0" max="100" step="1" value="86">
+                </div>
+                <button id="floating-navigation-opacity-reset" class="secondary-button" type="button" data-i18n="settings.floatingNavigation.opacity.reset">Réinitialiser</button>
+            </div>
         </section>
         <section class="settings-section" aria-labelledby="auto-sleep-heading">
             <h2 id="auto-sleep-heading" data-i18n="app.settings.autoSleep">Mise en veille automatique</h2>
@@ -88,6 +109,8 @@
         const languageSelect = document.getElementById("language-select");
         const autoSleepDelaySelect = document.getElementById("auto-sleep-delay");
         const floatingNavigationCheckbox = document.getElementById("floating-navigation-enabled");
+        const floatingNavigationOpacitySlider = document.getElementById("floating-navigation-opacity");
+        const floatingNavigationOpacityValue = document.getElementById("floating-navigation-opacity-value");
         const favoritesVisibleCheckbox = document.getElementById("favorites-visible");
         const savedMessage = document.getElementById("saved");
 
@@ -107,6 +130,13 @@
         window.settingsApi.getFloatingNavigationEnabled().then((enabled) => {
             floatingNavigationCheckbox.checked = enabled === true;
         });
+        const renderFloatingNavigationOpacity = (opacity) => {
+            const percentage = Math.round(Math.max(0, Math.min(1, Number(opacity))) * 100);
+            floatingNavigationOpacitySlider.value = String(percentage);
+            floatingNavigationOpacityValue.value = `${percentage} %`;
+            floatingNavigationOpacityValue.textContent = `${percentage} %`;
+        };
+        window.settingsApi.getFloatingNavigationOpacity().then(renderFloatingNavigationOpacity);
         window.settingsApi.getBookmarksVisible().then((visible) => {
             favoritesVisibleCheckbox.checked = visible === true;
         });
@@ -127,6 +157,16 @@
         floatingNavigationCheckbox.addEventListener("change", async () => {
             floatingNavigationCheckbox.checked = await window.settingsApi.setFloatingNavigationEnabled(floatingNavigationCheckbox.checked);
             savedMessage.textContent = HareI18n.t("app.settings.saved", document.documentElement.lang || "fr");
+        });
+        floatingNavigationOpacitySlider.addEventListener("input", async () => {
+            const opacity = Number(floatingNavigationOpacitySlider.value) / 100;
+            renderFloatingNavigationOpacity(opacity);
+            const savedOpacity = await window.settingsApi.setFloatingNavigationOpacity(opacity);
+            renderFloatingNavigationOpacity(savedOpacity);
+        });
+        document.getElementById("floating-navigation-opacity-reset").addEventListener("click", async () => {
+            const defaultOpacity = await window.settingsApi.setFloatingNavigationOpacity(null);
+            renderFloatingNavigationOpacity(defaultOpacity);
         });
         favoritesVisibleCheckbox.addEventListener("change", async () => {
             favoritesVisibleCheckbox.checked = await window.settingsApi.setBookmarksVisible(favoritesVisibleCheckbox.checked);

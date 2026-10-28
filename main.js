@@ -768,7 +768,23 @@ function saveBookmarksVisibilityPreference() {
     }
 }
 const FLOATING_NAVIGATION_DEFAULTS = Object.freeze({ width: 340, height: 48 });
+const FLOATING_NAVIGATION_OPACITY_DEFAULTS = Object.freeze({ light: 0.86, dark: 0.82 });
 let floatingNavigationGloballyEnabled = true;
+let floatingNavigationOpacity = null;
+
+function normalizeFloatingNavigationOpacity(value) {
+    return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : null;
+}
+
+function getDefaultFloatingNavigationOpacity() {
+    return isDarkModeForced
+        ? FLOATING_NAVIGATION_OPACITY_DEFAULTS.dark
+        : FLOATING_NAVIGATION_OPACITY_DEFAULTS.light;
+}
+
+function getFloatingNavigationOpacity() {
+    return floatingNavigationOpacity ?? getDefaultFloatingNavigationOpacity();
+}
 
 function normalizeFloatingNavigationSize(width, height) {
     return {
@@ -781,8 +797,12 @@ function loadFloatingNavigationPreference() {
     try {
         const preference = JSON.parse(fs.readFileSync(getFloatingNavigationPreferencesPath(), "utf-8"));
         floatingNavigationGloballyEnabled = typeof preference.enabled === "boolean" ? preference.enabled : true;
+        floatingNavigationOpacity = normalizeFloatingNavigationOpacity(
+            preference.floatingToolbarOpacity ?? preference.opacity
+        );
     } catch (error) {
         floatingNavigationGloballyEnabled = true;
+        floatingNavigationOpacity = null;
         if (error.code !== "ENOENT") console.error("Impossible de lire la préférence de navigation flottante :", error);
     }
     return floatingNavigationGloballyEnabled;
@@ -791,7 +811,10 @@ function loadFloatingNavigationPreference() {
 function saveFloatingNavigationPreference() {
     try {
         fs.mkdirSync(appDataPath, { recursive: true });
-        fs.writeFileSync(getFloatingNavigationPreferencesPath(), JSON.stringify({ enabled: floatingNavigationGloballyEnabled }, null, 2), "utf-8");
+        fs.writeFileSync(getFloatingNavigationPreferencesPath(), JSON.stringify({
+            enabled: floatingNavigationGloballyEnabled,
+            floatingToolbarOpacity: floatingNavigationOpacity
+        }, null, 2), "utf-8");
     } catch (error) {
         console.error("Impossible d’enregistrer la préférence de navigation flottante :", error);
     }
@@ -806,6 +829,17 @@ function setFloatingNavigationGloballyEnabled(enabled) {
         }
     });
     return floatingNavigationGloballyEnabled;
+}
+
+function setFloatingNavigationOpacity(value) {
+    floatingNavigationOpacity = normalizeFloatingNavigationOpacity(value);
+    saveFloatingNavigationPreference();
+    collectPanelNodes(rootNode).forEach((panel) => {
+        if (panel.view?.webContents && !panel.view.webContents.isDestroyed()) {
+            panel.view.webContents.send("floating-navigation-opacity-changed", floatingNavigationOpacity);
+        }
+    });
+    return getFloatingNavigationOpacity();
 }
 
 let saveLayoutOnExit = true;
@@ -1051,9 +1085,9 @@ function openSettingsWindow() {
 
     settingsWindow = new BrowserWindow({
         width: 460,
-        height: 480,
+        height: 560,
         minWidth: 380,
-        minHeight: 440,
+        minHeight: 520,
         title: tr("app.settings.title"),
         parent: win,
         modal: true,
@@ -4292,7 +4326,8 @@ ipcMain.handle("get-floating-navigation-state", (event) => {
         height: panel.floatingNavigationHeight,
         x: panel.floatingNavigationX,
         y: panel.floatingNavigationY,
-        globallyEnabled: floatingNavigationGloballyEnabled
+        globallyEnabled: floatingNavigationGloballyEnabled,
+        opacity: floatingNavigationOpacity
     };
 });
 
@@ -4355,6 +4390,22 @@ ipcMain.handle("set-floating-navigation-preference", (event, enabled) => {
         return floatingNavigationGloballyEnabled;
     }
     return setFloatingNavigationGloballyEnabled(enabled);
+});
+
+ipcMain.handle("get-floating-navigation-opacity", (event) => {
+    const authorized = (settingsWindow && !settingsWindow.isDestroyed() && event.sender === settingsWindow.webContents) ||
+        (win && !win.isDestroyed() && event.sender === win.webContents);
+    return authorized ? getFloatingNavigationOpacity() : getDefaultFloatingNavigationOpacity();
+});
+
+ipcMain.handle("set-floating-navigation-opacity", (event, opacity) => {
+    if (!settingsWindow || settingsWindow.isDestroyed() || event.sender !== settingsWindow.webContents) {
+        return getFloatingNavigationOpacity();
+    }
+    if (opacity !== null && (typeof opacity !== "number" || !Number.isFinite(opacity))) {
+        return getFloatingNavigationOpacity();
+    }
+    return setFloatingNavigationOpacity(opacity);
 });
 
 ipcMain.on("toggle-autosleep-request", (event, enabled) => {

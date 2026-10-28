@@ -5,6 +5,7 @@
     let currentLanguage = "fr";
     let localVisible = true;
     let globallyEnabled = true;
+    let floatingNavigationOpacity = null;
 
     function getDisplayUrl(url, fallbackQuery = "") {
         try {
@@ -133,11 +134,27 @@
     function applyTheme() {
         const isDark = document.documentElement.classList.contains("dark") ||
             document.body?.classList.contains("dark") || window.matchMedia("(prefers-color-scheme: dark)").matches;
-        navBar.style.backgroundColor = isDark ? "rgba(33,33,33,.82)" : "rgba(244,244,245,.86)";
+        const opacity = Number.isFinite(floatingNavigationOpacity)
+            ? floatingNavigationOpacity
+            : isDark ? 0.82 : 0.86;
+        const defaultOpacity = isDark ? 0.82 : 0.86;
+        const opacityScale = opacity / defaultOpacity;
+        navBar.style.backgroundColor = isDark
+            ? `rgba(33,33,33,${opacity})`
+            : `rgba(244,244,245,${opacity})`;
+        navBar.style.backdropFilter = opacity > 0 ? "blur(10px)" : "none";
+        navBar.style.webkitBackdropFilter = opacity > 0 ? "blur(10px)" : "none";
         navBar.style.border = isDark ? "1px solid rgba(255,255,255,.16)" : "1px solid rgba(31,41,55,.18)";
         navBar.style.borderRadius = "8px";
-        navBar.style.boxShadow = isDark ? "0 4px 12px rgba(0,0,0,.5)" : "0 4px 12px rgba(0,0,0,.1)";
-        addressInput.style.backgroundColor = isDark ? "rgba(33,33,33,.58)" : "rgba(255,255,255,.65)";
+        navBar.style.boxShadow = opacity > 0
+            ? (isDark
+                ? `0 4px 12px rgba(0,0,0,${Math.min(1, 0.5 * opacityScale)})`
+                : `0 4px 12px rgba(0,0,0,${Math.min(1, 0.1 * opacityScale)})`)
+            : "none";
+        const inputBackgroundOpacity = Math.min(1, (isDark ? 0.58 : 0.65) * opacityScale);
+        addressInput.style.backgroundColor = isDark
+            ? `rgba(33,33,33,${inputBackgroundOpacity})`
+            : `rgba(255,255,255,${inputBackgroundOpacity})`;
         addressInput.style.color = isDark ? "#f3f4f6" : "#374151";
         addressInput.style.border = isDark ? "1px solid rgba(255,255,255,.16)" : "1px solid rgba(31,41,55,.18)";
         navBar.querySelectorAll("button, .float-drag-handle, .float-resize-handle").forEach((control) => control.style.color = isDark ? "#f3f4f6" : "#374151");
@@ -254,6 +271,10 @@
         globallyEnabled = enabled === true;
         applyVisibility();
     });
+    window.tileFloatingNavigation?.onOpacityChanged((opacity) => {
+        floatingNavigationOpacity = Number.isFinite(opacity) ? Math.max(0, Math.min(1, opacity)) : null;
+        applyTheme();
+    });
 
     const updateLanguage = (language) => {
         currentLanguage = language === "en" ? "en" : "fr";
@@ -275,6 +296,9 @@
         if (!state) return;
         localVisible = state.visible !== false;
         globallyEnabled = state.globallyEnabled !== false;
+        floatingNavigationOpacity = Number.isFinite(state.opacity)
+            ? Math.max(0, Math.min(1, state.opacity))
+            : null;
         navBar.style.width = `${state.width}px`;
         navBar.style.height = `${state.height}px`;
         applyPosition(state.x, state.y);
