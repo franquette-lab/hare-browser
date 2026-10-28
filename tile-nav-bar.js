@@ -264,6 +264,15 @@
         if (event.key === "Enter") window.tileNavigation.loadUrl(addressInput.value);
     });
 
+    // ====== CORRECTIF : SÉLECTION DU TEXTE AU CLIC SUR L'INPUT ======
+    addressInput.addEventListener("focus", () => {
+        // Une micro-temporisation (0ms / setTimeout) est requise pour contourner
+        // le repositionnement par défaut du curseur par Chromium lors du focus initial
+        setTimeout(() => {
+            addressInput.select();
+        }, 0);
+    });
+
     window.tileNavigation?.onNavigationState(updateNavigationState);
     window.tileNavigation?.getNavigationState().then(updateNavigationState).catch(() => updateNavigationState());
     window.tileFloatingNavigation?.onVisibilityChanged((visible) => {

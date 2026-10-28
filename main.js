@@ -3751,7 +3751,7 @@ function setupNavigationTracking(panel) {
             console.debug("Impossible de vérifier l’URL d’accueil du moteur :", error);
         }
     });
-
+    
     const syncSearchQueryFromPage = async () => {
         if (!panel.view || panel.view.webContents.isDestroyed()) return;
         try {
