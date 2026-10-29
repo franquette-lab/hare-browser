@@ -2148,18 +2148,37 @@ ipcMain.on("password-form-submitted", async (event, submitted = {}) => {
     const trackedSite = normalizeCredentialUrl(panel.url || "");
     if (currentSite?.hostname !== submittedSite.hostname && trackedSite?.hostname !== submittedSite.hostname) return;
 
-    const existing = getStoredPasswords().some((entry) => {
+    const storedEntry = getStoredPasswords().find((entry) => {
         const entrySite = normalizeCredentialUrl(entry.url || "");
-        return entrySite?.hostname === currentSite.hostname && entry.username === username;
+        return entrySite?.hostname === submittedSite.hostname && entry.username === username;
     });
-    const saveLabel = existing ? tr("passwordPrompt.update") : tr("passwordPrompt.save");
+    if (storedEntry && !storedEntry.password) {
+        // Ne pas proposer une mise à jour si l'ancien secret n'a pas pu être déchiffré.
+        console.warn("[PWD] Identifiants existants détectés, comparaison impossible (mot de passe indisponible après déchiffrement).");
+        return;
+    }
+
+    // safeStorage.decryptString() renvoie ici la chaîne d'origine : comparer exactement,
+    // sans trim ni changement de casse, car ces caractères peuvent faire partie du secret.
+    const passwordChanged = !!storedEntry && storedEntry.password !== password;
+    console.info("[PWD] Soumission analysée :", {
+        hostname: submittedSite.hostname,
+        accountExists: !!storedEntry,
+        passwordChanged
+    });
+    if (storedEntry && !passwordChanged) return;
+
+    if (panel.passwordSavePromptInProgress) return;
+    panel.passwordSavePromptInProgress = true;
+
+    const saveLabel = passwordChanged ? tr("passwordPrompt.update") : tr("passwordPrompt.save");
     const buttons = [saveLabel, tr("passwordPrompt.later"), tr("passwordPrompt.never")];
 
     try {
         const result = await dialog.showMessageBox(win, {
             type: "question",
-            title: tr(existing ? "passwordPrompt.updateTitle" : "passwordPrompt.title"),
-            message: tr(existing ? "passwordPrompt.updateMessage" : "passwordPrompt.message", {
+            title: tr(passwordChanged ? "passwordPrompt.updateTitle" : "passwordPrompt.title"),
+            message: tr(passwordChanged ? "passwordPrompt.updateMessage" : "passwordPrompt.message", {
                 site: submittedSite.hostname,
                 username
             }),
@@ -2170,7 +2189,7 @@ ipcMain.on("password-form-submitted", async (event, submitted = {}) => {
         });
 
         if (result.response === 2) {
-            await excludePasswordDomain(currentSite.hostname);
+            await excludePasswordDomain(submittedSite.hostname);
             return;
         }
         if (result.response !== 0) return;
@@ -2188,6 +2207,8 @@ ipcMain.on("password-form-submitted", async (event, submitted = {}) => {
         });
     } catch (error) {
         console.error("[PWD] Impossible de traiter la demande d’enregistrement.", error);
+    } finally {
+        panel.passwordSavePromptInProgress = false;
     }
 });
 
