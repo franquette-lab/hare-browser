@@ -14,6 +14,7 @@
 	"license": "ISC",
 	"type": "commonjs",
 	"dependencies": {
+		"@napi-rs/keyring": "^2.1.2",
 		"react": "^19.2.8",
 		"react-dom": "^19.2.8",
 		"react-mosaic-component": "^7.0.0",
@@ -27,6 +28,9 @@
 "build": {
   "appId": "com.harebrowser.app",
   "productName": "Hare Browser",
+  "asarUnpack": [
+    "node_modules/@napi-rs/**/*.node"
+  ],
 
   "win": {
     "target": [

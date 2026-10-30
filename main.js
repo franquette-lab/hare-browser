@@ -1198,9 +1198,11 @@ function setFullscreenToolbarVisible(visible) {
     resizeViews();
 }
 
-function updatePasswordWindowContent() {
+async function updatePasswordWindowContent() {
     if (pwdWindow && !pwdWindow.isDestroyed()) {
-        const passwordList = getStoredPasswords();
+        const targetWindow = pwdWindow;
+        const passwordList = await getStoredPasswords();
+        if (pwdWindow !== targetWindow || targetWindow.isDestroyed()) return;
         pwdWindow.webContents.send('render-passwords', {
             list: passwordList,
             isDarkMode: isDarkModeForced
@@ -1700,14 +1702,30 @@ let passwordExcludedDomains = null;
 function normalizeCredentialUrl(value) {
     try {
         if (typeof value !== "string" || !value.trim()) return null;
-        const candidate = /^[a-z][a-z\d+.-]*:/i.test(value.trim()) ? value.trim() : `https://${value.trim()}`;
+        
+        let candidate = value.trim();
+        
+        // ✨ ACCROCHE ET SÉCURITÉ : Si la chaîne contient déjà un protocole valide, on la conserve
+        // Évite de doubler le protocole si la page web renvoie une adresse absolue (ex: http://...)
+        if (!/^[a-z][a-z\d+.-]*:/i.test(candidate)) {
+            candidate = `https://${candidate}`;
+        }
+        
         const parsed = new URL(candidate);
+        
+        // Autorise nativement le HTTP standard pour le développement et vos tuiles de test
         if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+        
         parsed.username = "";
         parsed.password = "";
         parsed.hash = "";
-        return { origin: parsed.origin, hostname: parsed.hostname.toLowerCase().replace(/^www\./, "") };
-    } catch {
+        
+        return { 
+            origin: parsed.origin, 
+            hostname: parsed.hostname.toLowerCase().replace(/^www\./, "") 
+        };
+    } catch (e) {
+        console.error("[PWD-URL-VALIDATION-ERROR] Échec d'analyse de l'origine :", e.message);
         return null;
     }
 }
@@ -1953,82 +1971,254 @@ ipcMain.handle('adblock-toggle-exception', async (event, requestedHost) => {
     return updatedExceptions;
 });
 
-function getStoredPasswords() {
-    try {
-        // Sécurité absolue : si le fichier n'existe pas, on le crée tout de suite proprement
-        if (!fs.existsSync(getPasswordsPath())) {
-            fs.writeFileSync(getPasswordsPath(), JSON.stringify([], null, 2), 'utf-8');
-            return [];
-        }
-        
-        const rawData = fs.readFileSync(getPasswordsPath(), 'utf-8');
-        if (!rawData || !rawData.trim()) return [];
-        
-        const encryptedList = JSON.parse(rawData);
-        if (!Array.isArray(encryptedList)) return [];
-        
-        return encryptedList.filter((item) => item && typeof item === "object").map(item => {
-            try {
-                if (safeStorage && safeStorage.isEncryptionAvailable() && item.password && item.password.startsWith('encrypted:')) {
-                    const buffer = Buffer.from(item.password.replace('encrypted:', ''), 'base64');
-                    return { ...item, password: safeStorage.decryptString(buffer) };
-                }
-            } catch (e) { 
-                console.error("[PWD] Échec du déchiffrement d’une entrée.");
-                return { ...item, password: "" };
-            }
-            // Conserve la compatibilité avec les anciennes entrées en clair pour migration à la prochaine sauvegarde.
-            if (typeof item.password === "string" && item.password.startsWith("encrypted:")) {
-                return { ...item, password: "" };
-            }
-            return { ...item, password: typeof item.password === "string" ? item.password : "" };
-        });
-    } catch (e) {
-        console.error("[PWD] Erreur critique lecture fichier, reinitialisation :", e);
-        return [];
-    }
+// -----------------------------------------------------------------
+// COFFRE-FORT NATIF & CRYPTOGRAPHIE AVANCÉE (AES-256-GCM + KEYCHAIN)
+// -----------------------------------------------------------------
+const crypto = require('crypto');
+const { AsyncEntry } = require('@napi-rs/keyring');
+const PASSWORD_KEYRING_SERVICE = 'com.harebrowser.passwords.v1';
+
+/** Lit l'index non secret des identifiants enregistrés. */
+function readPasswordMetadata() {
+    if (!fs.existsSync(getPasswordsPath())) return [];
+    const rawData = fs.readFileSync(getPasswordsPath(), 'utf-8');
+    if (!rawData.trim()) return [];
+    const metadata = JSON.parse(rawData);
+    if (!Array.isArray(metadata)) throw new Error('Le fichier de métadonnées des mots de passe est invalide.');
+    return metadata.filter((item) => item && typeof item === 'object');
 }
 
-async function savePasswordsSecurely(passwordList) {
+function isSecureCredentialOrigin(site) {
+    if (!site) return false;
     try {
-        if (!safeStorage || !safeStorage.isEncryptionAvailable()) {
-            console.error("[PWD] Stockage annulé : le chiffrement système n’est pas disponible.");
-            return false;
-        }
-        const encryptedList = passwordList.map(item => {
-            if (item.password) {
-                const encryptedBuffer = safeStorage.encryptString(item.password);
-                return { ...item, password: 'encrypted:' + encryptedBuffer.toString('base64') };
-            }
-            return { ...item, password: "" };
-        });
-        // Utilisation de la méthode robuste safeWriteJsonAsync de votre projet
-        return await safeWriteJsonAsync(getPasswordsPath(), encryptedList);
-    } catch (e) {
-        console.error("[PWD] Erreur écriture securisee :", e);
+        const parsed = new URL(site.origin);
+        return parsed.protocol === 'https:' ||
+            (parsed.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname));
+    } catch {
         return false;
     }
 }
 
+function passwordEntryFor(url, username) {
+    const site = normalizeCredentialUrl(url);
+    if (!site || !isSecureCredentialOrigin(site) || typeof username !== 'string' || !username.trim()) {
+        throw new Error('Origine ou identifiant invalide.');
+    }
+    return new AsyncEntry(`${PASSWORD_KEYRING_SERVICE}:${site.origin}`, username, {
+        // Exige Secret Service sous Linux et échoue si le trousseau n'est pas disponible.
+        linux: { store: 'secret-service' }
+    });
+}
+
+function isEncryptedLegacyPassword(value) {
+    return typeof value === 'string' && value.startsWith('encrypted:');
+}
+
+function hasPlaintextLegacyPasswords() {
+    try {
+        return readPasswordMetadata().some((meta) =>
+            typeof meta.password === 'string' && meta.password.length > 0 && !isEncryptedLegacyPassword(meta.password)
+        );
+    } catch {
+        return false;
+    }
+}
+
+function sanitizePasswordMetadata(meta) {
+    const site = normalizeCredentialUrl(meta?.url || '');
+    const username = typeof meta?.username === 'string' ? meta.username : '';
+    if (!site || !username) return null;
+    const clean = { url: site.origin, username };
+    if (typeof meta.vaultKey === 'string') clean.vaultKey = meta.vaultKey;
+    if (isEncryptedLegacyPassword(meta.password)) clean.password = meta.password;
+    return clean;
+}
+
+function hasLegacyPassword(meta) {
+    return !!(meta && (
+        typeof meta.vaultKey === 'string' ||
+        typeof meta.password === 'string'
+    ));
+}
+
+function decryptLegacyPassword(meta) {
+    if (!safeStorage) return null;
+    try {
+        if (typeof meta.vaultKey === 'string' && meta.vaultKey) {
+            const serialized = safeStorage.decryptString(Buffer.from(meta.vaultKey, 'base64'));
+            const payload = JSON.parse(serialized);
+            const salt = Buffer.from('HareBrowserSecretSaltForAES256GCMOptimization', 'utf8');
+            const keyMaterial = safeStorage.encryptString('HareBrowserHardwareEntropySeed');
+            const key = crypto.hkdfSync('sha256', keyMaterial, salt, Buffer.alloc(0), 32);
+            const decipher = crypto.createDecipheriv(
+                'aes-256-gcm',
+                key,
+                Buffer.from(payload.iv, 'base64')
+            );
+            decipher.setAuthTag(Buffer.from(payload.authTag, 'base64'));
+            return decipher.update(payload.cipherText, 'base64', 'utf8') + decipher.final('utf8');
+        }
+
+        if (isEncryptedLegacyPassword(meta.password)) {
+            return safeStorage.decryptString(Buffer.from(meta.password.slice('encrypted:'.length), 'base64'));
+        }
+
+        // Migration d'anciennes versions : ce texte n'est jamais réécrit dans le JSON.
+        if (typeof meta.password === 'string' && meta.password) return meta.password;
+    } catch {
+        return null;
+    }
+    return null;
+}
+
+/** Retourne les secrets depuis le coffre-fort système; le JSON ne sert que d'index. */
+async function getStoredPasswords() {
+    let metadata;
+    try {
+        metadata = readPasswordMetadata();
+    } catch (error) {
+        console.error('[PWD] Impossible de lire l’index des identifiants.');
+        return [];
+    }
+
+    const result = [];
+    const nextMetadata = [];
+    let metadataChanged = false;
+    let plaintextMigrationPending = false;
+
+    for (const meta of metadata) {
+        const site = normalizeCredentialUrl(meta.url || '');
+        const username = typeof meta.username === 'string' ? meta.username : '';
+        if (!site || !username) continue;
+
+        let password = null;
+        let entry = null;
+        try {
+            entry = passwordEntryFor(site.origin, username);
+            password = await entry.getPassword();
+        } catch {
+            // Un coffre verrouillé ou absent ne doit pas provoquer de repli vers un fichier.
+        }
+
+        if ((password === null || password === '') && hasLegacyPassword(meta) && entry) {
+            const legacyPassword = decryptLegacyPassword(meta);
+            if (legacyPassword) {
+                try {
+                    await entry.setPassword(legacyPassword);
+                    password = legacyPassword;
+                    metadataChanged = true;
+                } catch {
+                    if (typeof meta.password === 'string' && !isEncryptedLegacyPassword(meta.password)) {
+                        plaintextMigrationPending = true;
+                    }
+                }
+            } else if (typeof meta.password === 'string' && !isEncryptedLegacyPassword(meta.password)) {
+                plaintextMigrationPending = true;
+            }
+        } else if (password && hasLegacyPassword(meta)) {
+            metadataChanged = true;
+        }
+        if (!entry && typeof meta.password === 'string' && !isEncryptedLegacyPassword(meta.password)) {
+            plaintextMigrationPending = true;
+        }
+
+        result.push({ url: site.origin, username, password: typeof password === 'string' ? password : '' });
+        if (password) {
+            nextMetadata.push({ url: site.origin, username });
+        } else {
+            const preserved = { url: site.origin, username };
+            // Garde uniquement les anciens blocs chiffrés si leur migration n'a pas abouti.
+            if (typeof meta.vaultKey === 'string') preserved.vaultKey = meta.vaultKey;
+            if (isEncryptedLegacyPassword(meta.password)) preserved.password = meta.password;
+            nextMetadata.push(preserved);
+        }
+    }
+
+    if (metadataChanged && !plaintextMigrationPending) {
+        await safeWriteJsonAsync(getPasswordsPath(), nextMetadata).catch(() => false);
+    }
+    return result;
+}
+
+let passwordMutationQueue = Promise.resolve();
+
+function serializePasswordMutation(operation) {
+    const result = passwordMutationQueue.then(operation, operation);
+    passwordMutationQueue = result.then(() => undefined, () => undefined);
+    return result;
+}
+
 async function upsertStoredPassword({ url, username, password }) {
     const site = normalizeCredentialUrl(url);
-    const normalizedUsername = typeof username === "string" ? username.trim().slice(0, 2048) : "";
-    if (!site || !normalizedUsername || typeof password !== "string" || !password || password.length > 4096) {
+    const normalizedUsername = typeof username === 'string' ? username.slice(0, 2048) : '';
+    if (!site || !isSecureCredentialOrigin(site) || !normalizedUsername.trim() ||
+        typeof password !== 'string' || !password || password.length > 4096) {
         return { ok: false, updated: false };
     }
 
-    const passwords = getStoredPasswords();
-    const existingIndex = passwords.findIndex((entry) => {
-        const entrySite = normalizeCredentialUrl(entry.url || "");
-        return entrySite?.hostname === site.hostname && entry.username === normalizedUsername;
-    });
-    const updated = existingIndex >= 0;
-    const entry = { url: site.origin, username: normalizedUsername, password };
-    if (updated) passwords[existingIndex] = entry;
-    else passwords.push(entry);
+    return serializePasswordMutation(async () => {
+        let metadata;
+        let entry;
+        let previousPassword;
+        try {
+            await getStoredPasswords(); // migration best effort des anciennes entrées avant toute écriture
+            metadata = readPasswordMetadata();
+            if (metadata.some((item) => typeof item.password === 'string' && !isEncryptedLegacyPassword(item.password))) {
+                return { ok: false, updated: false };
+            }
+            entry = passwordEntryFor(site.origin, normalizedUsername);
+            previousPassword = await entry.getPassword();
+            await entry.setPassword(password);
+        } catch {
+            return { ok: false, updated: false };
+        }
 
-    const saved = await savePasswordsSecurely(passwords);
-    return { ok: saved, updated };
+        const existing = metadata.some((item) =>
+            normalizeCredentialUrl(item.url || '')?.origin === site.origin && item.username === normalizedUsername
+        );
+        const nextMetadata = metadata
+            .filter((item) => normalizeCredentialUrl(item.url || '')?.origin !== site.origin || item.username !== normalizedUsername)
+            .map(sanitizePasswordMetadata)
+            .filter(Boolean);
+        nextMetadata.push({ url: site.origin, username: normalizedUsername });
+
+        const saved = await safeWriteJsonAsync(getPasswordsPath(), nextMetadata);
+        if (!saved) {
+            try {
+                if (previousPassword === null) await entry.deletePassword();
+                else await entry.setPassword(previousPassword);
+            } catch {}
+            return { ok: false, updated: existing || previousPassword !== null };
+        }
+        return { ok: true, updated: existing || previousPassword !== null };
+    });
+}
+
+async function deleteStoredPassword(record) {
+    const site = normalizeCredentialUrl(record?.url || '');
+    const username = typeof record?.username === 'string' ? record.username : '';
+    if (!site || !username) return false;
+
+    return serializePasswordMutation(async () => {
+        let metadata;
+        try {
+            await getStoredPasswords();
+            metadata = readPasswordMetadata();
+            if (metadata.some((item) => typeof item.password === 'string' && !isEncryptedLegacyPassword(item.password))) {
+                return false;
+            }
+            const entry = passwordEntryFor(site.origin, username);
+            await entry.deletePassword();
+        } catch {
+            return false;
+        }
+
+        const nextMetadata = metadata
+            .filter((item) => normalizeCredentialUrl(item.url || '')?.origin !== site.origin || item.username !== username)
+            .map(sanitizePasswordMetadata)
+            .filter(Boolean);
+        return safeWriteJsonAsync(getPasswordsPath(), nextMetadata);
+    });
 }
 
 async function offerSavedCredentials(panel) {
@@ -2037,7 +2227,7 @@ async function offerSavedCredentials(panel) {
 
     const requestedUrl = contents.getURL();
     const site = normalizeCredentialUrl(requestedUrl);
-    if (!site || isPasswordExcluded(site.hostname)) return;
+    if (!site || !isSecureCredentialOrigin(site) || isPasswordExcluded(site.hostname)) return;
     if (panel.passwordPromptInProgress) return;
     panel.passwordPromptInProgress = true;
 
@@ -2051,8 +2241,8 @@ async function offerSavedCredentials(panel) {
         );
         if (!hasLoginForm) return;
 
-        const matches = getStoredPasswords().filter((entry) =>
-            normalizeCredentialUrl(entry.url || "")?.hostname === site.hostname && entry.password
+        const matches = (await getStoredPasswords()).filter((entry) =>
+            normalizeCredentialUrl(entry.url || "")?.origin === site.origin && entry.password
         );
         if (!matches.length) return;
 
@@ -2071,7 +2261,7 @@ async function offerSavedCredentials(panel) {
             : null;
         const currentSite = normalizeCredentialUrl(contents.getURL());
         if (!credential || findPanelNode(rootNode, panel.id) !== panel ||
-            panel.view?.webContents !== contents || contents.isDestroyed() || currentSite?.hostname !== site.hostname) return;
+            panel.view?.webContents !== contents || contents.isDestroyed() || currentSite?.origin !== site.origin) return;
 
         await contents.executeJavaScript(
             `window.NanobrowserExecutor?.autofillCredentials?.(${JSON.stringify(credential.username)}, ${JSON.stringify(credential.password)}); void 0;`
@@ -2082,9 +2272,6 @@ async function offerSavedCredentials(panel) {
         panel.passwordPromptInProgress = false;
     }
 }
-
-
-
 
 ipcMain.on("open-password-manager-window", () => {
     console.info("[PWD] Demande d’ouverture du gestionnaire de mots de passe reçue.");
@@ -2116,9 +2303,17 @@ ipcMain.on("open-password-manager-window", () => {
         if (pwdWindow && !pwdWindow.isDestroyed()) pwdWindow.close();
     });
 
+    // ✨ CONFIGURATION ET TIMING PARFAITEMENT RE-SÉCURISÉS :
     pwdWindow.webContents.on('did-finish-load', () => {
         console.info("[PWD] Interface du gestionnaire chargée.");
+        
+        // 1. Premier envoi au moment où le DOM est prêt
         updatePasswordWindowContent();
+        
+        // 2. Léger délai pour s'assurer de l'initialisation du pont contextBridge
+        setTimeout(() => {
+            updatePasswordWindowContent();
+        }, 80);
     });
 
     pwdWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
@@ -2134,82 +2329,175 @@ ipcMain.on("open-password-manager-window", () => {
     });
 });
 
-ipcMain.on("password-form-submitted", async (event, submitted = {}) => {
-    const panel = findPanelByWebContents(event.sender);
-    if (!panel || panel.isPrivate || !win || win.isDestroyed()) return;
-    if (event.senderFrame && event.senderFrame !== event.sender.mainFrame) return;
+function clearPendingPasswordCandidate(panel, candidate) {
+    const pending = candidate || panel?.pendingPasswordCandidate;
+    if (!panel || !pending) return;
+    if (pending.expiryTimer) clearTimeout(pending.expiryTimer);
+    if (panel.pendingPasswordCandidate === pending) panel.pendingPasswordCandidate = null;
+    pending.password = '';
+}
 
-    const submittedSite = normalizeCredentialUrl(submitted.pageUrl);
-    const username = typeof submitted.username === "string" ? submitted.username.trim().slice(0, 2048) : "";
-    const password = typeof submitted.password === "string" ? submitted.password.slice(0, 4096) : "";
-    if (!submittedSite || !username || !password || isPasswordExcluded(submittedSite.hostname)) return;
+function looksLikeLoginPath(pathname) {
+    return /(?:^|\/)(?:login|log-in|signin|sign-in|authenticate|auth)(?:\/|$)/i.test(pathname);
+}
 
-    const currentSite = normalizeCredentialUrl(event.sender.getURL());
-    const trackedSite = normalizeCredentialUrl(panel.url || "");
-    if (currentSite?.hostname !== submittedSite.hostname && trackedSite?.hostname !== submittedSite.hostname) return;
-
-    const storedEntry = getStoredPasswords().find((entry) => {
-        const entrySite = normalizeCredentialUrl(entry.url || "");
-        return entrySite?.hostname === submittedSite.hostname && entry.username === username;
-    });
-    if (storedEntry && !storedEntry.password) {
-        // Ne pas proposer une mise à jour si l'ancien secret n'a pas pu être déchiffré.
-        console.warn("[PWD] Identifiants existants détectés, comparaison impossible (mot de passe indisponible après déchiffrement).");
+async function offerSubmittedPassword(panel, candidate) {
+    let password = candidate.password;
+    if (!password || !win || win.isDestroyed() || panel.isPrivate || isPasswordExcluded(candidate.hostname)) {
+        password = '';
+        clearPendingPasswordCandidate(panel, candidate);
         return;
     }
-
-    // safeStorage.decryptString() renvoie ici la chaîne d'origine : comparer exactement,
-    // sans trim ni changement de casse, car ces caractères peuvent faire partie du secret.
-    const passwordChanged = !!storedEntry && storedEntry.password !== password;
-    console.info("[PWD] Soumission analysée :", {
-        hostname: submittedSite.hostname,
-        accountExists: !!storedEntry,
-        passwordChanged
-    });
-    if (storedEntry && !passwordChanged) return;
-
-    if (panel.passwordSavePromptInProgress) return;
+    if (panel.passwordSavePromptInProgress) {
+        password = '';
+        clearPendingPasswordCandidate(panel, candidate);
+        return;
+    }
     panel.passwordSavePromptInProgress = true;
 
-    const saveLabel = passwordChanged ? tr("passwordPrompt.update") : tr("passwordPrompt.save");
-    const buttons = [saveLabel, tr("passwordPrompt.later"), tr("passwordPrompt.never")];
-
     try {
+        const storedEntry = (await getStoredPasswords()).find((entry) => {
+            const entrySite = normalizeCredentialUrl(entry.url || '');
+            return entrySite?.origin === candidate.origin && entry.username === candidate.username;
+        });
+        if (storedEntry && !storedEntry.password) return;
+        const passwordChanged = !!storedEntry && storedEntry.password !== password;
+        if (storedEntry && !passwordChanged) return;
+
+        const saveLabel = passwordChanged ? tr('passwordPrompt.update') : tr('passwordPrompt.save');
         const result = await dialog.showMessageBox(win, {
-            type: "question",
-            title: tr(passwordChanged ? "passwordPrompt.updateTitle" : "passwordPrompt.title"),
-            message: tr(passwordChanged ? "passwordPrompt.updateMessage" : "passwordPrompt.message", {
-                site: submittedSite.hostname,
-                username
+            type: 'question',
+            title: tr(passwordChanged ? 'passwordPrompt.updateTitle' : 'passwordPrompt.title'),
+            message: tr(passwordChanged ? 'passwordPrompt.updateMessage' : 'passwordPrompt.message', {
+                site: candidate.hostname,
+                username: candidate.username
             }),
-            buttons,
+            buttons: [saveLabel, tr('passwordPrompt.later'), tr('passwordPrompt.never')],
             defaultId: 0,
             cancelId: 1,
             noLink: true
         });
 
         if (result.response === 2) {
-            await excludePasswordDomain(submittedSite.hostname);
+            await excludePasswordDomain(candidate.hostname);
             return;
         }
         if (result.response !== 0) return;
 
         const saveResult = await upsertStoredPassword({
-            url: submittedSite.origin,
-            username,
+            url: candidate.origin,
+            username: candidate.username,
             password
         });
-        if (saveResult.ok) updatePasswordWindowContent();
-        else dialog.showMessageBox(win, {
-            type: "warning",
-            title: tr("passwordPrompt.storageUnavailableTitle"),
-            message: tr("passwordPrompt.storageUnavailable")
-        });
-    } catch (error) {
-        console.error("[PWD] Impossible de traiter la demande d’enregistrement.", error);
+        if (saveResult.ok) {
+            void updatePasswordWindowContent();
+        } else {
+            await dialog.showMessageBox(win, {
+                type: 'warning',
+                title: tr('passwordPrompt.storageUnavailableTitle'),
+                message: tr('passwordPrompt.storageUnavailable')
+            });
+        }
+    } catch {
+        console.error('[PWD] La proposition de sauvegarde n’a pas pu être traitée.');
     } finally {
+        password = '';
+        clearPendingPasswordCandidate(panel, candidate);
         panel.passwordSavePromptInProgress = false;
     }
+}
+
+async function maybeOfferPasswordCandidate(panel, signal) {
+    const candidate = panel?.pendingPasswordCandidate;
+    if (!candidate) return;
+    if (Date.now() - candidate.submittedAt > 45000) {
+        clearPendingPasswordCandidate(panel, candidate);
+        return;
+    }
+
+    let destination;
+    try {
+        destination = new URL(signal.url);
+    } catch {
+        return;
+    }
+    if (destination.origin !== candidate.origin) return;
+
+    const routeChanged = destination.pathname !== candidate.path;
+    let probableSuccess = false;
+    if (signal.kind === 'navigation') {
+        const status = Number(signal.statusCode);
+        probableSuccess = Number.isInteger(status) && status >= 200 && status < 400 &&
+            routeChanged && !looksLikeLoginPath(destination.pathname);
+    } else if (signal.kind === 'committed-route') {
+        probableSuccess = routeChanged && !looksLikeLoginPath(destination.pathname);
+    } else if (signal.kind === 'page-state') {
+        probableSuccess = signal.passwordFormVisible === false &&
+            (routeChanged || !looksLikeLoginPath(destination.pathname));
+    }
+    if (!probableSuccess) return;
+
+    // Pour un site inconnu, navigation et état DOM restent des indices; le dialogue est obligatoire.
+    panel.pendingPasswordCandidate = null;
+    if (candidate.expiryTimer) clearTimeout(candidate.expiryTimer);
+    await offerSubmittedPassword(panel, candidate);
+}
+
+ipcMain.on('password-form-submitted', (event, submitted = {}) => {
+    const panel = findPanelByWebContents(event.sender);
+    const frame = event.senderFrame;
+    if (!panel || panel.isPrivate || !frame || frame !== event.sender.mainFrame || !win || win.isDestroyed()) return;
+    if (!submitted || typeof submitted !== 'object' || !['post', 'spa'].includes(submitted.method)) return;
+
+    const submittedSite = normalizeCredentialUrl(submitted.origin);
+    const frameSite = normalizeCredentialUrl(frame.url);
+    const actionSite = normalizeCredentialUrl(submitted.actionOrigin);
+    const username = typeof submitted.username === 'string' ? submitted.username.slice(0, 2048) : '';
+    const password = typeof submitted.password === 'string' ? submitted.password.slice(0, 4096) : '';
+    const pagePath = typeof submitted.path === 'string' ? submitted.path.slice(0, 2000) : '';
+
+    if (!submittedSite || !frameSite || !actionSite || !isSecureCredentialOrigin(submittedSite) ||
+        submittedSite.origin !== frameSite.origin || actionSite.origin !== submittedSite.origin ||
+        !pagePath.startsWith('/') || !username.trim() || !password || panel.passwordSavePromptInProgress ||
+        isPasswordExcluded(submittedSite.hostname)) return;
+
+    clearPendingPasswordCandidate(panel);
+    const candidate = {
+        origin: submittedSite.origin,
+        hostname: submittedSite.hostname,
+        path: pagePath,
+        username,
+        password,
+        submittedAt: Date.now()
+    };
+    panel.pendingPasswordCandidate = candidate;
+    candidate.expiryTimer = setTimeout(() => clearPendingPasswordCandidate(panel, candidate), 45000);
+    if (typeof candidate.expiryTimer.unref === 'function') candidate.expiryTimer.unref();
+    const submittedContents = event.sender;
+    setImmediate(() => {
+        if (panel.pendingPasswordCandidate !== candidate || submittedContents.isDestroyed()) return;
+        void maybeOfferPasswordCandidate(panel, {
+            kind: 'committed-route',
+            url: submittedContents.getURL()
+        });
+    });
+});
+
+ipcMain.on('password-auth-state', (event, state = {}) => {
+    const panel = findPanelByWebContents(event.sender);
+    const candidate = panel?.pendingPasswordCandidate;
+    const frame = event.senderFrame;
+    if (!panel || panel.isPrivate || !candidate || !frame || frame !== event.sender.mainFrame) return;
+    if (typeof state.path !== 'string' || !state.path.startsWith('/') ||
+        typeof state.passwordFormVisible !== 'boolean') return;
+
+    const stateSite = normalizeCredentialUrl(state.origin);
+    if (!stateSite || stateSite.origin !== candidate.origin || frame.origin !== candidate.origin) return;
+    void maybeOfferPasswordCandidate(panel, {
+        kind: 'page-state',
+        url: candidate.origin + state.path.slice(0, 2000),
+        passwordFormVisible: state.passwordFormVisible
+    });
 });
 
 ipcMain.on("login-form-detected", (event) => {
@@ -2218,20 +2506,33 @@ ipcMain.on("login-form-detected", (event) => {
     void offerSavedCredentials(panel);
 });
 
+
+
 // Écouteurs d'actions émis depuis passwords.html
 ipcMain.on('pwd-ui-save', async (event, entry) => {
     if (!pwdWindow || pwdWindow.isDestroyed() || event.sender !== pwdWindow.webContents) return;
+    
+    // 👇 AJOUTEZ CE BLOC DE VÉRIFICATION POUR NOTRE PING DE TIMING :
+    if (entry && entry.url === "INTERNAL_PING_REFRESH") {
+        console.info("[PWD] L'IHM a demandé un rafraîchissement, renvoi immédiat des données.");
+        updatePasswordWindowContent();
+        return;
+    }
+    // 👆 FIN DU BLOC DE TIMING
+
+    // Votre logique d'insertion existante :
     const result = await upsertStoredPassword(entry || {});
     if (result.ok) updatePasswordWindowContent();
 });
 
+
 ipcMain.on('pwd-ui-delete', async (event, index) => {
     if (!pwdWindow || pwdWindow.isDestroyed() || event.sender !== pwdWindow.webContents) return;
-    let list = getStoredPasswords();
+    const list = await getStoredPasswords();
     if (index >= 0 && index < list.length) {
-        list.splice(index, 1);
-        await savePasswordsSecurely(list);
-        updatePasswordWindowContent(); // Rafraîchit l'affichage de la popup
+        if (await deleteStoredPassword(list[index])) {
+            void updatePasswordWindowContent();
+        }
     }
 });
 
@@ -2534,12 +2835,18 @@ ipcMain.on('open-downloads-window', () => {
     thisWindow.loadFile(path.join(__dirname, 'downloads.html'));
     
     // 📥 APPARITION : Informe l'IHM que la fenêtre est active pour enfoncer le bouton
-    thisWindow.webContents.on('did-finish-load', () => {
-        updateDownloadsWindowContent();
-        if (win && !win.isDestroyed()) {
-            win.webContents.send("downloads-window-state", true);
-        }
+    pwdWindow.webContents.on('did-finish-load', () => {
+        console.info("[PWD] Interface du gestionnaire chargée.");
+        
+        // 1. Premier envoi standard
+        updatePasswordWindowContent();
+        
+        // 2. ⚡ SÉCURITÉ TIMING : Un second envoi léger pour s'assurer que le preload a eu le temps de s'interfacer
+        setTimeout(() => {
+            updatePasswordWindowContent();
+        }, 80);
     });
+
     
     // 📥 DISPARITION : Informe l'IHM qu'elle se ferme pour relâcher le bouton
     thisWindow.on('closed', () => {
@@ -3869,6 +4176,16 @@ function setupNavigationTracking(panel) {
     if (!panel || !panel.view) return;
     markPanelActivity(panel);
 
+    const trackedContents = panel.view.webContents;
+    trackedContents.on('did-navigate', (_event, url, httpResponseCode) => {
+        void maybeOfferPasswordCandidate(panel, {
+            kind: 'navigation',
+            url,
+            statusCode: httpResponseCode
+        });
+    });
+    trackedContents.on('destroyed', () => clearPendingPasswordCandidate(panel));
+
     let initialLoadFinished = false;
 
     panel.view.webContents.on("before-input-event", (event, input) => {
@@ -4065,28 +4382,55 @@ function setupNavigationTracking(panel) {
     });
 
     panel.view.webContents.on("did-finish-load", async () => {
+        // 1. Propose les identifiants déjà existants si la tuile est éligible
         if (!panel.isPrivate) await offerSavedCredentials(panel);
 
+        // 2. ✨ RÉ-INJECTION DE L'INJECTEUR DE FORMULAIRES DURCI
+        try {
+            const injectorPath = path.join(__dirname, "nanobrowser", "injector.js");
+            if (fs.existsSync(injectorPath)) {
+                const injectorCode = fs.readFileSync(injectorPath, "utf8");
+                
+                // Exécution isolée et sécurisée au sein du DOM de la tuile active
+//              await panel.view.webContents.executeJavaScript(injectorCode + "; void 0;");
+                try {
+                    await panel.view.webContents.executeJavaScript(injectorCode + "; void 0;");
+                } catch (err) {
+                    console.error("[PWD] Injection échouée :", err);
+                }
 
-    // ✨ INJECTION DE LA BARRE FLOUTANTE INDIVIDUELLE
-    try {
-        const scriptPath = path.join(__dirname, "tile-nav-bar.js");
-        if (fs.existsSync(scriptPath)) {
-            const navBarCode = fs.readFileSync(scriptPath, "utf8");
-            await panel.view.webContents.executeJavaScript(navBarCode + "; void 0;");
+
+
+                console.log(`[SÉCURITÉ] Injecteur de formulaires activé sur la tuile ${panel.id}`);
+await panel.view.webContents.executeJavaScript(`
+    console.log("injector.js chargé dans la page");
+`);                
+                // Vérification immédiate : si la page contient déjà un formulaire rempli, on lève l'alerte
+                const hasForm = await panel.view.webContents.executeJavaScript("window.NanobrowserExecutor?.hasLoginForm() === true");
+                if (hasForm && !panel.isPrivate) {
+                    ipcMain.emit('login-form-detected', { sender: panel.view.webContents });
+                }
+            } else {
+                console.error(`[SÉCURITÉ-ERREUR] Fichier introuvable à l'emplacement : ${injectorPath}`);
+            }
+        } catch (err) {
+            console.error("Erreur lors de l'exécution cryptographique de l'injecteur :", err);
         }
-    } catch (err) {
-        console.error("Erreur injection mini-barre de navigation :", err);
-    }
 
-        
+        // 3. Injection de votre barre floutante individuelle (Conservée !)
+        try {
+            const scriptPath = path.join(__dirname, "tile-nav-bar.js");
+            if (fs.existsSync(scriptPath)) {
+                const navBarCode = fs.readFileSync(scriptPath, "utf8");
+                await panel.view.webContents.executeJavaScript(navBarCode + "; void 0;");
+            }
+        } catch (err) {
+            console.error("Erreur injection mini-barre de navigation :", err);
+        }
 
-        // Certains moteurs envoient le terme via POST : la requête n'est alors
-        // pas dans l'URL et doit être lue dans le formulaire de la page.
+        // Maintien de votre logique pour le moteur de recherche
         await syncSearchQueryFromPage();
 
-        // Un rechargement conserve Reader si l’URL est identique; au réveil,
-        // readerModeRestorePending autorise également les redirections canoniques.
         if (panel.readerModeActive) {
             const status = await applyReaderModeToPanel(panel);
             if (status === 'opened') {
@@ -8057,6 +8401,22 @@ ipcMain.on("request-open-settings", (event) => {
 app.whenReady().then(async () => {
 
     try {
+
+        // Migre les anciens secrets avant d'ouvrir l'interface. Si un secret reste
+        // en clair parce que le coffre système est indisponible, on échoue fermé.
+        await getStoredPasswords();
+        if (hasPlaintextLegacyPasswords()) {
+            await dialog.showMessageBox({
+                type: 'error',
+                title: tr('passwordPrompt.legacyMigrationBlockedTitle'),
+                message: tr('passwordPrompt.legacyMigrationBlocked'),
+                buttons: [tr('passwordPrompt.legacyMigrationBlockedButton')],
+                defaultId: 0,
+                noLink: true
+            });
+            app.exit(1);
+            return;
+        }
 
         startEmbeddedOllama();
 
