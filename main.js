@@ -6158,6 +6158,20 @@ async function createWindow() {
             if (win && !win.isDestroyed()) {
                 win.show();  // Affiche la fenêtre principale proprement stabilisée
                 win.focus(); // Donne le focus au navigateur
+                setTimeout(() => {
+                    if (!win || win.isDestroyed()) return;
+                    const startupActive = activePanel && findPanelNode(rootNode, activePanel);
+                    if (startupActive) {
+                        win.webContents.send('active-panel-changed', {
+                            id: startupActive.id,
+                            bounds: startupActive.bounds,
+                            isPrivate: startupActive.isPrivate === true
+                        });
+                        if (startupActive.view && !startupActive.view.webContents.isDestroyed()) {
+                            startupActive.view.webContents.focus();
+                        }
+                    }
+                }, 0);
             }
         }, 600); 
     });
@@ -6770,7 +6784,10 @@ async function createWindow() {
         // Le renderer peut charger après le focus initial : on réémet le panneau actif.
         const startupActive = activePanel && findPanelNode(rootNode, activePanel);
         if (startupActive) {
-            win.webContents.send("active-panel-changed", { id: startupActive.id, bounds: startupActive.bounds });
+            win.webContents.send("active-panel-changed", {
+                id: startupActive.id,
+                bounds: startupActive.bounds
+            });
         }
 
         win.webContents.send("app-title-changed", APP_TITLE);
