@@ -89,7 +89,8 @@
         <section class="settings-section" aria-labelledby="auto-sleep-heading">
             <h2 id="auto-sleep-heading" data-i18n="app.settings.autoSleep">● Mise en veille automatique</h2>
             <label for="auto-sleep-delay" data-i18n="app.settings.autoSleep.delay">Délai avant mise en veille</label>
-            <select id="auto-sleep-delay">
+            <select id="auto-sleep-delay" aria-describedby="auto-sleep-help">
+                <option value="1" data-i18n="app.settings.autoSleep.delay.1">Immédiate</option>
                 <option value="5" data-i18n="app.settings.autoSleep.delay.5">5 minutes</option>
                 <option value="10" data-i18n="app.settings.autoSleep.delay.10">10 minutes</option>
                 <option value="15" data-i18n="app.settings.autoSleep.delay.15">15 minutes</option>
@@ -99,7 +100,7 @@
                 <option value="120" data-i18n="app.settings.autoSleep.delay.120">2 heures</option>
                 <option value="0" data-i18n="app.settings.autoSleep.delay.0">Jamais</option>
             </select>
-            <p data-i18n="app.settings.autoSleep.help">Choisissez après combien de temps d’inactivité les tuiles sont mises en veille.</p>
+            <p id="auto-sleep-help" data-i18n="app.settings.autoSleep.help">Choisissez après combien de temps d’inactivité les tuiles sont mises en veille.</p>
         </section>
         <p id="saved" aria-live="polite"></p>
     </main>

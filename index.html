@@ -2237,12 +2237,7 @@ addressGroup.appendChild(input);
                 e.stopPropagation();
                 const currentUrl = input.dataset.url || panel.url || "";
             if (!isFavoriteAllowedUrl(currentUrl)) return;
-                const currentTitle = panel.title || input.value;
-
-                const isAdded = await window.api.toggleFavori({
-                    url: currentUrl,
-                    title: currentTitle
-                });
+                const isAdded = await window.api.toggleFavori({ url: currentUrl });
 
                 starBtn.style.color = isAdded ? "#eab308" : "#6b7280";
             });
@@ -2901,12 +2896,15 @@ async function rebuildBookmarksBar() {
 // ====== À PURGER DANS LA FONCTION rebuildBookmarksBar() DE INDEX.HTML ======
 
 favoris.forEach(fav => {
+    const favoriteUrl = typeof fav?.url === "string" ? fav.url : "";
+    if (!favoriteUrl) return;
+
     const btn = document.createElement("div");
     btn.className = "bookmark-item";
     
-    // Remplace le "?" par une vraie icône étoile
-    btn.innerText = "⭐ " + fav.title.replace("? ", "").replace("? ", "");
-    btn.title = fav.url;
+    // Le libellé visible et l'infobulle reprennent l'URL enregistrée.
+    btn.textContent = favoriteUrl;
+    btn.title = favoriteUrl;
 
     // L'écouteur de clic reste identique
     btn.addEventListener("click", () => {
@@ -2915,7 +2913,7 @@ favoris.forEach(fav => {
             targetPanelId = currentPanels[0].id;
         }
         if (targetPanelId) {
-            window.api.navigate(targetPanelId, fav.url);
+            window.api.navigate(targetPanelId, favoriteUrl);
         }
     });
 

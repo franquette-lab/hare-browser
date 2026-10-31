@@ -1,5 +1,8 @@
 // Exécuté explicitement par le processus principal dans la BrowserView du panneau.
 (() => {
+    const injectorInitializedKey = Symbol.for("hare-browser.nanobrowser-injector.v1");
+    if (window[injectorInitializedKey]) return;
+
     const isUsableField = (field) => {
         if (!field || field.disabled || field.readOnly) return false;
         const style = getComputedStyle(field);
@@ -86,4 +89,11 @@
     reportLoginForm();
     const loginFormObserver = new MutationObserver(reportLoginForm);
     loginFormObserver.observe(document.documentElement, { childList: true, subtree: true });
+
+    Object.defineProperty(window, injectorInitializedKey, {
+        value: true,
+        configurable: false,
+        enumerable: false,
+        writable: false
+    });
 })();

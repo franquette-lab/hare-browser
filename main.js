@@ -414,7 +414,7 @@ function getContextLinkHost(linkUrl) {
 function openContextLinkInPanel(panelId, linkUrl) {
     const panel = findPanelNode(rootNode, panelId);
     if (!panel || !linkUrl) return;
-    activePanel = panel.id;
+    setActivePanelId(panel.id);
 
     if (panel.isSleeping) {
         wakePanel(panel, linkUrl);
@@ -893,6 +893,10 @@ let handleViews = {};
 let win;
 let rootNode = null;
 let activePanel = null;
+const navigationTrackedContents = new WeakSet();
+const savedCredentialPromptCache = new Map();
+let savedCredentialPromptQueue = Promise.resolve();
+let activeSavedCredentialPromptKey = null;
 let nextPanelNumber = 4;
 let draggedSplitter = null;
 let splitterViews = [];
@@ -907,24 +911,67 @@ let currentOllamaRequest = null; // Stocke la requête HTTP Ollama en cours
 // ✨ PLACEZ LES DEUX LIGNES ICI TOUT EN HAUT
 // ==========================================
 
-  const panelIdleTimers = new Map();
-const AUTO_SLEEP_DELAY_OPTIONS = [5, 10, 15, 30, 45, 60, 120, 0];
-let autoSleepDelayMinutes = 15;
+const panelIdleTimers = new Map();
+// 1 est un marqueur de mode « immédiat », pas une durée d'une minute.
+const AUTO_SLEEP_DELAY_IMMEDIATE = 1;
+const AUTO_SLEEP_DELAY_NEVER = 0;
+const AUTO_SLEEP_DELAY_OPTIONS = [AUTO_SLEEP_DELAY_IMMEDIATE, 5, 10, 15, 30, 45, 60, 120, AUTO_SLEEP_DELAY_NEVER];
+const AUTO_SLEEP_DEFAULT_DELAY = 15;
+let autoSleepDelayMinutes = AUTO_SLEEP_DEFAULT_DELAY;
 
-//let autoSleepEnabled = true;
-  let autoSleepEnabled = false;
+let autoSleepEnabled = false;
+
+function normalizeAutoSleepDelay(value) {
+    // Les préférences historiques sont numériques. Les chaînes numériques sont aussi
+    // acceptées pour rester compatibles avec les valeurs issues d'anciens formulaires.
+    if (typeof value !== "number" && !(typeof value === "string" && value.trim() !== "")) return null;
+    const normalizedValue = typeof value === "number" ? value : Number(value);
+    return Number.isInteger(normalizedValue) && AUTO_SLEEP_DELAY_OPTIONS.includes(normalizedValue)
+        ? normalizedValue
+        : null;
+}
+
+function getAutoSleepTimeoutMs(delay = autoSleepDelayMinutes) {
+    if (delay === AUTO_SLEEP_DELAY_NEVER) return null;
+    if (delay === AUTO_SLEEP_DELAY_IMMEDIATE) return 0;
+    return delay * 60 * 1000;
+}
+
+function isPanelEligibleForAutoSleep(panel, expectedLastActivityAt = panel?.lastActivityAt) {
+    const timeoutMs = getAutoSleepTimeoutMs();
+    if (!autoSleepEnabled || timeoutMs === null || !panel || panel.isSleeping) return false;
+    if (findPanelNode(rootNode, panel.id) !== panel || !Number.isFinite(expectedLastActivityAt)) return false;
+    if (panel.lastActivityAt !== expectedLastActivityAt) return false;
+
+    // En mode immédiat, seule une tuile inactive (en arrière-plan) doit dormir.
+    if (autoSleepDelayMinutes === AUTO_SLEEP_DELAY_IMMEDIATE && (!activePanel || panel.id === activePanel)) return false;
+    return Date.now() - expectedLastActivityAt >= timeoutMs;
+}
+
+function refreshImmediateAutoSleepTimers() {
+    if (!autoSleepEnabled || autoSleepDelayMinutes !== AUTO_SLEEP_DELAY_IMMEDIATE) return;
+    panelIdleTimers.forEach((timer) => clearTimeout(timer));
+    panelIdleTimers.clear();
+    collectPanelNodes(rootNode).forEach((panel) => {
+        if (!panel.isSleeping) schedulePanelIdleTimer(panel);
+    });
+}
+
+function setActivePanelId(panelId) {
+    const panelChanged = activePanel !== panelId;
+    activePanel = panelId;
+    if (panelChanged) refreshImmediateAutoSleepTimers();
+    return panelChanged;
+}
 
 function loadAutoSleepPreference() {
     try {
         const settings = JSON.parse(fs.readFileSync(getAutoSleepPath(), "utf-8"));
-        // Remplacez le fallback ": true" par ": false"
         autoSleepEnabled = typeof settings.enabled === "boolean" ? settings.enabled : false;
-        autoSleepDelayMinutes = AUTO_SLEEP_DELAY_OPTIONS.includes(settings.delayMinutes)
-            ? settings.delayMinutes
-            : 15;
+        autoSleepDelayMinutes = normalizeAutoSleepDelay(settings.delayMinutes) ?? AUTO_SLEEP_DEFAULT_DELAY;
     } catch (error) {
-        autoSleepEnabled = false; // <-- Changez true par false ici
-        autoSleepDelayMinutes = 15;
+        autoSleepEnabled = false;
+        autoSleepDelayMinutes = AUTO_SLEEP_DEFAULT_DELAY;
         if (error.code !== "ENOENT") {
             console.error("Impossible de lire la préférence de veille automatique :", error);
         }
@@ -1270,8 +1317,11 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
         { role: "copy", label: `   📋 ${tr("context.copy")}` },
         { role: "paste", label: `   📌 ${tr("context.paste")}` },
         { role: "delete", label: `   🗑️ ${tr("context.delete")}` },
+
         { type: "separator" },
+
         { role: "selectAll", label: `   ${tr("context.selectAll")}` },
+
         ...(adBlockHost ? [
             { type: "separator" },
             {
@@ -1292,55 +1342,13 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
 
         { type: "separator" },
 
-        {
-            label: `   ${tr("context.splitVertical")}`,
-            enabled: !isZoomActive, // Grisé si zoom actif
-            click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', false)
-        },
-        {
-            label: `   ${tr("context.splitHorizontal")}`,
-            enabled: !isZoomActive, // Grisé si zoom actif
-            click: () => ipcMain.emit('split-panel', null, panelId, 'horizontal', false)
-        },
-
-
-
 
 
         {
-            label: `   ${tr(isPrivate ? "context.publicTile" : "context.privateSplit")}`,
-            enabled: !isZoomActive,
-            click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', !isPrivate)
-        },
-        {
-            label: `   ${tr("context.containers")}`,
-            enabled: !isZoomActive && !isPrivate,
-            submenu: Object.entries(TILE_CONTAINERS).map(([id, container]) => ({
-                label: tr(`container.${id === "perso" ? "personal" : id === "travail" ? "work" : id === "compte2" ? "account2" : "account3"}`),
-                click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', false, id)
-            }))
-        },
-        
-        // === AJOUT : DUPLICATION DE TUILE À LA VOLÉE ===
-        {
-            label: `   ${tr("context.duplicate")}`,
-            enabled: !isZoomActive,
-            click: () => {
-                if (webContents && !webContents.isDestroyed()) {
-                    const currentUrl = webContents.getURL();
-                    // On transmet l'ID du panneau cible, l'URL à cloner, et le statut privé
-                    ipcMain.emit('duplicate-panel', panelId, currentUrl, isPrivate);
-                }
-            }
-        },
-
-
-        { type: "separator" },
-
-        {
-            label: tr("context.floatingNavigation"),
+            label: tr("context.displayOptions"),
             enabled: false
         },
+
         {
             label: tr("context.floatingNavigation.show"),
             type: "checkbox",
@@ -1361,8 +1369,6 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
             enabled: false
         }] : []),
 
-        { type: "separator" },
-
         // =========================================================================
         // ✨ VERSION CORRIGÉE : ÉVITE LE CRASH IPC EN MODIFIANT DIRECTEMENT L'ÉTAT
         // =========================================================================
@@ -1379,11 +1385,32 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
             }
         },
 
+
+
+        {
+            label: `   ${tr("context.reader")}`,
+            type: "checkbox",
+            checked: targetPanel?.readerModeActive === true,
+            click: async () => {
+                const status = await toggleReaderModeForPanel(panelId);
+
+                // Mise à jour immédiate de l'état du panneau
+                if (targetPanel && (status === "opened" || status === "closed")) {
+                    targetPanel.readerModeActive = (status === "opened");
+                }
+
+                if (win && !win.isDestroyed()) {
+                    win.webContents.send("reader-mode-result", { panelId, status });
+                }
+            }
+        },
+
+
         { type: "separator" },
 
 
         {
-            label: `   ${tr("main.menuMosaicEqual")}`,
+            label: `${tr("main.menuMosaicEqual")}`,
             // Calcul direct et sécurisé : désactivé si zoom actif OU s'il y a 1 tuile ou moins
             enabled: !(maximizedPanelId !== null || collectPanelNodes(rootNode).length <= 1),
             click: () => {
@@ -1439,8 +1466,42 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
             enabled: false
         },
 
-
-
+        {
+            label: `   ${tr("context.splitVertical")}`,
+            enabled: !isZoomActive, // Grisé si zoom actif
+            click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', false)
+        },
+        {
+            label: `   ${tr("context.splitHorizontal")}`,
+            enabled: !isZoomActive, // Grisé si zoom actif
+            click: () => ipcMain.emit('split-panel', null, panelId, 'horizontal', false)
+        },
+        {
+            label: `   ${tr(isPrivate ? "context.publicTile" : "context.privateSplit")}`,
+            enabled: !isZoomActive,
+            click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', !isPrivate)
+        },
+        {
+            label: `   ${tr("context.containers")}`,
+            enabled: !isZoomActive && !isPrivate,
+            submenu: Object.entries(TILE_CONTAINERS).map(([id, container]) => ({
+                label: tr(`container.${id === "perso" ? "personal" : id === "travail" ? "work" : id === "compte2" ? "account2" : "account3"}`),
+                click: () => ipcMain.emit('split-panel', null, panelId, 'vertical', false, id)
+            }))
+        },
+        
+        // DUPLICATION DE TUILE À LA VOLÉE ===
+        {
+            label: `   ${tr("context.duplicate")}`,
+            enabled: !isZoomActive,
+            click: () => {
+                if (webContents && !webContents.isDestroyed()) {
+                    const currentUrl = webContents.getURL();
+                    // On transmet l'ID du panneau cible, l'URL à cloner, et le statut privé
+                    ipcMain.emit('duplicate-panel', panelId, currentUrl, isPrivate);
+                }
+            }
+        },
 
         {
             label: maximizedPanelId === panelId ? `   ${tr("panel.restoreMosaic")}` : `    ${tr("panel.maximize")}`,
@@ -1453,34 +1514,19 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
             }
         },
 
-        {
-            label: `   ${tr("context.reader")}`,
-            type: "checkbox",
-            checked: targetPanel?.readerModeActive === true,
-            click: async () => {
-                const status = await toggleReaderModeForPanel(panelId);
 
-                // Mise à jour immédiate de l'état du panneau
-                if (targetPanel && (status === "opened" || status === "closed")) {
-                    targetPanel.readerModeActive = (status === "opened");
-                }
-
-                if (win && !win.isDestroyed()) {
-                    win.webContents.send("reader-mode-result", { panelId, status });
-                }
-            }
-        },
+        { type: "separator" },
 
 
         {
-            label: `   ${tr("context.print")}`,
+            label: `${tr("context.print")}`,
             click: () => ipcMain.emit('print-panel', null, panelId)
         },
 
         { type: "separator" },
 
         {
-            label: `   ${tr("context.close")}`,
+            label: `${tr("context.close")}`,
             click: () => ipcMain.emit('close-panel', null, panelId)
         }
     ];
@@ -1863,7 +1909,7 @@ ipcMain.handle("open-tutorial-video", async (event, videoFile) => {
 
         if (internalAction.adjacent) {
             const panelsList = collectPanelNodes(rootNode);
-            activePanel = sourcePanel.id;
+            setActivePanelId(sourcePanel.id);
             targetPanel = findNeighborPanel(sourcePanel.bounds, "Right", panelsList) ||
                 findNeighborPanel(sourcePanel.bounds, "Left", panelsList) ||
                 sourcePanel;
@@ -1881,7 +1927,7 @@ ipcMain.handle("open-tutorial-video", async (event, videoFile) => {
                 }
 
                 await targetContents.loadURL(internalAction.url);
-                activePanel = targetPanel.id;
+                setActivePanelId(targetPanel.id);
                 updateActiveBorder(targetPanel.bounds);
                 win.focus();
                 targetContents.focus();
@@ -2221,56 +2267,114 @@ async function deleteStoredPassword(record) {
     });
 }
 
+function canonicalizePasswordPromptUrl(value) {
+    try {
+        const url = new URL(value);
+        url.hash = "";
+        return url.href;
+    } catch {
+        return null;
+    }
+}
+
+function clearSavedCredentialPromptCacheForPanel(panel) {
+    for (const [key, entry] of savedCredentialPromptCache) {
+        if (entry.panel === panel) savedCredentialPromptCache.delete(key);
+    }
+}
+
 async function offerSavedCredentials(panel) {
     const contents = panel?.view?.webContents;
     if (!panel || panel.isPrivate || !contents || contents.isDestroyed() || !win || win.isDestroyed()) return;
 
-    const requestedUrl = contents.getURL();
-    const site = normalizeCredentialUrl(requestedUrl);
-    if (!site || !isSecureCredentialOrigin(site) || isPasswordExcluded(site.hostname)) return;
-    if (panel.passwordPromptInProgress) return;
-    panel.passwordPromptInProgress = true;
+    const requestedUrl = canonicalizePasswordPromptUrl(contents.getURL());
+    const site = normalizeCredentialUrl(requestedUrl || "");
+    if (!requestedUrl || !site || !isSecureCredentialOrigin(site) || isPasswordExcluded(site.hostname)) return;
 
-    try {
-        const injectorPath = path.join(__dirname, "nanobrowser", "injector.js");
-        if (!fs.existsSync(injectorPath)) return;
-        const injectorCode = fs.readFileSync(injectorPath, "utf8");
-        await contents.executeJavaScript(injectorCode + "; void 0;");
-        const hasLoginForm = await contents.executeJavaScript(
-            "window.NanobrowserExecutor?.hasLoginForm?.() === true"
-        );
-        if (!hasLoginForm) return;
-
-        const matches = (await getStoredPasswords()).filter((entry) =>
-            normalizeCredentialUrl(entry.url || "")?.origin === site.origin && entry.password
-        );
-        if (!matches.length) return;
-
-        const result = await dialog.showMessageBox(win, {
-            type: "question",
-            title: tr("passwordPrompt.autofillTitle"),
-            message: tr("passwordPrompt.autofillMessage", { site: site.hostname }),
-            detail: tr("passwordPrompt.autofillDetail"),
-            buttons: [...matches.map((entry) => entry.username || tr("passwordPrompt.unknownUsername")), tr("passwordPrompt.later")],
-            defaultId: 0,
-            cancelId: matches.length,
-            noLink: true
-        });
-        const credential = result.response >= 0 && result.response < matches.length
-            ? matches[result.response]
-            : null;
-        const currentSite = normalizeCredentialUrl(contents.getURL());
-        if (!credential || findPanelNode(rootNode, panel.id) !== panel ||
-            panel.view?.webContents !== contents || contents.isDestroyed() || currentSite?.origin !== site.origin) return;
-
-        await contents.executeJavaScript(
-            `window.NanobrowserExecutor?.autofillCredentials?.(${JSON.stringify(credential.username)}, ${JSON.stringify(credential.password)}); void 0;`
-        );
-    } catch (error) {
-        console.error("[PWD] Erreur lors de la proposition de remplissage :", error);
-    } finally {
-        panel.passwordPromptInProgress = false;
+    const documentGeneration = Number.isSafeInteger(panel.passwordPromptDocumentGeneration)
+        ? panel.passwordPromptDocumentGeneration
+        : 0;
+    for (const [cachedKey, cachedRequest] of savedCredentialPromptCache) {
+        if (cachedRequest.panel === panel && cachedRequest.documentGeneration === documentGeneration &&
+            cachedRequest.url !== requestedUrl) {
+            savedCredentialPromptCache.delete(cachedKey);
+        }
     }
+    const promptKey = JSON.stringify([panel.id, documentGeneration, requestedUrl]);
+    if (savedCredentialPromptCache.has(promptKey)) return;
+    savedCredentialPromptCache.set(promptKey, { panel, documentGeneration, url: requestedUrl, status: "queued" });
+
+    const showPrompt = async () => {
+        const cachedRequest = savedCredentialPromptCache.get(promptKey);
+        if (!cachedRequest) return;
+
+        let dialogOpened = false;
+        try {
+            if (activeSavedCredentialPromptKey || panel.passwordPromptInProgress) return;
+            const requestIsCurrent = () => {
+                if (findPanelNode(rootNode, panel.id) !== panel || panel.view?.webContents !== contents || contents.isDestroyed()) {
+                    return false;
+                }
+                const currentGeneration = Number.isSafeInteger(panel.passwordPromptDocumentGeneration)
+                    ? panel.passwordPromptDocumentGeneration
+                    : 0;
+                if (currentGeneration !== documentGeneration) return false;
+                return canonicalizePasswordPromptUrl(contents.getURL()) === requestedUrl;
+            };
+            if (!requestIsCurrent() || !win || win.isDestroyed()) return;
+
+            panel.passwordPromptInProgress = true;
+            const injectorPath = path.join(__dirname, "nanobrowser", "injector.js");
+            if (!fs.existsSync(injectorPath)) return;
+            const injectorCode = fs.readFileSync(injectorPath, "utf8");
+            await contents.executeJavaScript(injectorCode + "; void 0;");
+            if (!requestIsCurrent()) return;
+
+            const hasLoginForm = await contents.executeJavaScript(
+                "window.NanobrowserExecutor?.hasLoginForm?.() === true"
+            );
+            if (!hasLoginForm || !requestIsCurrent()) return;
+
+            const matches = (await getStoredPasswords()).filter((entry) =>
+                normalizeCredentialUrl(entry.url || "")?.origin === site.origin && entry.password
+            );
+            if (!matches.length || !requestIsCurrent() || !win || win.isDestroyed()) return;
+
+            activeSavedCredentialPromptKey = promptKey;
+            cachedRequest.status = "visible";
+            const result = await dialog.showMessageBox(win, {
+                type: "question",
+                title: tr("passwordPrompt.autofillTitle"),
+                message: tr("passwordPrompt.autofillMessage", { site: site.hostname }),
+                detail: tr("passwordPrompt.autofillDetail"),
+                buttons: [...matches.map((entry) => entry.username || tr("passwordPrompt.unknownUsername")), tr("passwordPrompt.later")],
+                defaultId: 0,
+                cancelId: matches.length,
+                noLink: true
+            });
+            dialogOpened = true;
+            cachedRequest.status = "shown";
+
+            const credential = result.response >= 0 && result.response < matches.length
+                ? matches[result.response]
+                : null;
+            if (!credential || !requestIsCurrent()) return;
+
+            await contents.executeJavaScript(
+                `window.NanobrowserExecutor?.autofillCredentials?.(${JSON.stringify(credential.username)}, ${JSON.stringify(credential.password)}); void 0;`
+            );
+        } catch (error) {
+            console.error("[PWD] Erreur lors de la proposition de remplissage :", error);
+        } finally {
+            if (activeSavedCredentialPromptKey === promptKey) activeSavedCredentialPromptKey = null;
+            panel.passwordPromptInProgress = false;
+            if (!dialogOpened) savedCredentialPromptCache.delete(promptKey);
+        }
+    };
+
+    const queuedPrompt = savedCredentialPromptQueue.then(showPrompt, showPrompt);
+    savedCredentialPromptQueue = queuedPrompt.then(() => undefined, () => undefined);
+    return queuedPrompt;
 }
 
 ipcMain.on("open-password-manager-window", () => {
@@ -2612,7 +2716,28 @@ function getFavoris() {
             return [];
         }
         
-        return JSON.parse(data);
+        const storedFavorites = JSON.parse(data);
+        if (!Array.isArray(storedFavorites)) throw new Error("Le fichier des favoris doit contenir un tableau.");
+
+        const favoris = storedFavorites
+            .map((item) => {
+                const url = typeof item === "string" ? item : item?.url;
+                return typeof url === "string" && url.trim() ? { url } : null;
+            })
+            .filter(Boolean);
+
+        const needsMigration = storedFavorites.length !== favoris.length || storedFavorites.some((item, index) =>
+            !item || typeof item !== "object" || Object.keys(item).length !== 1 || item.url !== favoris[index]?.url
+        );
+        if (needsMigration) {
+            try {
+                fs.writeFileSync(getFavorisPath(), JSON.stringify(favoris, null, 2), "utf-8");
+            } catch (error) {
+                console.error("Impossible de retirer les anciens titres des favoris :", error);
+            }
+        }
+
+        return favoris;
     } catch (e) {
         console.error("Erreur lors de la lecture des favoris (Fichier corrompu ou vide), réinitialisation :", e);
         // Réparation automatique en cas de fichier JSON corrompu
@@ -2831,23 +2956,27 @@ ipcMain.on('open-downloads-window', () => {
             sandbox: true
         }
     });
-    const thisWindow = downloadsWindow;
-    thisWindow.loadFile(path.join(__dirname, 'downloads.html'));
-    
-    // 📥 APPARITION : Informe l'IHM que la fenêtre est active pour enfoncer le bouton
-    pwdWindow.webContents.on('did-finish-load', () => {
-        console.info("[PWD] Interface du gestionnaire chargée.");
-        
-        // 1. Premier envoi standard
-        updatePasswordWindowContent();
-        
-        // 2. ⚡ SÉCURITÉ TIMING : Un second envoi léger pour s'assurer que le preload a eu le temps de s'interfacer
-        setTimeout(() => {
-            updatePasswordWindowContent();
-        }, 80);
-    });
 
-    
+    const thisWindow = downloadsWindow; 
+    thisWindow.loadFile(path.join(__dirname, 'downloads.html'));
+
+    // 📥 APPARITION : Informe l'IHM si la fenêtre pwdWindow existe
+    if (pwdWindow && !pwdWindow.isDestroyed()) {
+        pwdWindow.webContents.on('did-finish-load', () => { 
+            console.info("[PWD] Interface du gestionnaire chargée.");
+            
+            // 1. Premier envoi standard 
+            updatePasswordWindowContent(); 
+            
+            // 2. ⚡ SÉCURITÉ TIMING
+            setTimeout(() => { 
+                if (pwdWindow && !pwdWindow.isDestroyed()) {
+                    updatePasswordWindowContent(); 
+                }
+            }, 80); 
+        });
+    }
+
     // 📥 DISPARITION : Informe l'IHM qu'elle se ferme pour relâcher le bouton
     thisWindow.on('closed', () => {
         if (downloadsWindow === thisWindow) downloadsWindow = null;
@@ -3307,7 +3436,7 @@ function updatePanelHandles() {
         hView.webContents.on("page-title-updated", (event, title) => {
             event.preventDefault();
             if (title === "drag-start") {
-                activePanel = panel.id;
+                setActivePanelId(panel.id);
                 win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
                 updateActiveBorder(panel.bounds);
                 handleDraggedPanelId = panel.id;
@@ -3611,7 +3740,7 @@ async function restorePersistedSession() {
         nextPanelNumber = Math.max(nextPanelNumber, maxPanelNumber + 1);
         maximizedPanelId = null;
         const savedActivePanel = findPanelNode(rootNode, storedSession.activePanelId);
-        activePanel = savedActivePanel ? savedActivePanel.id : findFirstPanel(rootNode).id;
+        setActivePanelId(savedActivePanel ? savedActivePanel.id : findFirstPanel(rootNode).id);
         forceRebuildSplitters = true;
         resizeViews();
         updateNavigationButtons();
@@ -3733,7 +3862,7 @@ async function openHelpInPanel(panel = findPanelNode(rootNode, activePanel) || c
         return false;
     }
 
-    activePanel = panel.id;
+    setActivePanelId(panel.id);
     await panel.view.webContents.loadFile(path.join(__dirname, "help.html"));
     return true;
 }
@@ -3770,7 +3899,7 @@ async function navigatePanelToHome(panel) {
         if (!contents || contents.isDestroyed()) return false;
 
         await contents.loadURL(homeUrl);
-        activePanel = panel.id;
+        setActivePanelId(panel.id);
         updateActiveBorder(panel.bounds);
         win.focus();
         contents.focus();
@@ -3813,17 +3942,29 @@ function clearPanelIdleTimer(panelId) {
 
 function schedulePanelIdleTimer(panel) {
     clearPanelIdleTimer(panel.id);
-    if (!autoSleepEnabled || autoSleepDelayMinutes === 0 || panel.isSleeping) return;
+    const timeoutMs = getAutoSleepTimeoutMs();
+    if (!autoSleepEnabled || timeoutMs === null || panel.isSleeping || panel.isPreparingSleep) return;
 
-    const timeoutMs = autoSleepDelayMinutes * 60 * 1000;
+    // Le délai immédiat ne s'applique qu'aux tuiles en arrière-plan. Tant qu'aucune
+    // tuile active n'est déterminée (restauration initiale), le rafraîchissement final
+    // des timers sera effectué une fois la session reconstruite.
+    if (autoSleepDelayMinutes === AUTO_SLEEP_DELAY_IMMEDIATE && (!activePanel || panel.id === activePanel)) return;
+
     const lastActivityAt = Number.isFinite(panel.lastActivityAt) ? panel.lastActivityAt : Date.now();
+    panel.lastActivityAt = lastActivityAt;
     const remainingMs = Math.max(0, timeoutMs - (Date.now() - lastActivityAt));
-    panelIdleTimers.set(panel.id, setTimeout(() => {
+    const timer = setTimeout(() => {
+        if (panelIdleTimers.get(panel.id) !== timer) return;
         panelIdleTimers.delete(panel.id);
-        if (autoSleepEnabled && autoSleepDelayMinutes > 0 && findPanelNode(rootNode, panel.id) === panel) {
-            sleepPanel(panel);
+        if (panel.lastActivityAt !== lastActivityAt) {
+            schedulePanelIdleTimer(panel);
+            return;
         }
-    }, remainingMs));
+        if (isPanelEligibleForAutoSleep(panel, lastActivityAt)) {
+            void sleepPanel(panel, lastActivityAt);
+        }
+    }, remainingMs);
+    panelIdleTimers.set(panel.id, timer);
 }
 
 function markPanelActivity(panelOrId) {
@@ -3837,12 +3978,13 @@ function markPanelActivity(panelOrId) {
 }
 
 function setAutoSleepDelay(minutes) {
-    if (!AUTO_SLEEP_DELAY_OPTIONS.includes(minutes)) return autoSleepDelayMinutes;
-    autoSleepDelayMinutes = minutes;
+    const normalizedDelay = normalizeAutoSleepDelay(minutes);
+    if (normalizedDelay === null) return autoSleepDelayMinutes;
+    autoSleepDelayMinutes = normalizedDelay;
 
     panelIdleTimers.forEach((timer) => clearTimeout(timer));
     panelIdleTimers.clear();
-    if (autoSleepEnabled && autoSleepDelayMinutes > 0) {
+    if (autoSleepEnabled && autoSleepDelayMinutes !== AUTO_SLEEP_DELAY_NEVER) {
         collectPanelNodes(rootNode).forEach((panel) => {
             if (!panel.isSleeping) schedulePanelIdleTimer(panel);
         });
@@ -3894,8 +4036,12 @@ function readerUrlsMatch(leftUrl, rightUrl) {
     }
 }
 
-async function sleepPanel(panel) {
+async function sleepPanel(panel, expectedLastActivityAt = panel?.lastActivityAt) {
     if (!panel || panel.isSleeping || panel.isPreparingSleep || !panel.view || !win || win.isDestroyed()) return;
+    if (!isPanelEligibleForAutoSleep(panel, expectedLastActivityAt)) {
+        schedulePanelIdleTimer(panel);
+        return;
+    }
     if (activeDownloads[panel.id]) {
         markPanelActivity(panel);
         return;
@@ -3937,6 +4083,15 @@ async function sleepPanel(panel) {
         return;
     }
 
+    // La capture Reader peut être asynchrone : revérifier le délai, l'activité et le
+    // focus avant de détruire la vue afin qu'un réveil ou un changement de préférence
+    // survenu entre-temps annule la mise en veille.
+    if (!isPanelEligibleForAutoSleep(panel, expectedLastActivityAt)) {
+        panel.isPreparingSleep = false;
+        schedulePanelIdleTimer(panel);
+        return;
+    }
+
     panel.sleepingUrl = savedUrl;
     panel.session = contents.session;
     panel.isSleeping = true;
@@ -3972,7 +4127,10 @@ async function sleepPanel(panel) {
         try { win.setTopBrowserView(handleViews[panel.id]); } catch (error) {}
     }
     if (panel.id === activePanel && panel.bounds) updateActiveBorder(panel.bounds);
-    console.log(`[Tab Sleeping] Tuile ${panel.id} mise en veille après ${autoSleepDelayMinutes} minute(s) d’inactivité.`);
+    const delayDescription = autoSleepDelayMinutes === AUTO_SLEEP_DELAY_IMMEDIATE
+        ? "immédiatement"
+        : `après ${autoSleepDelayMinutes} minute(s)`;
+    console.log(`[Tab Sleeping] Tuile ${panel.id} mise en veille ${delayDescription} d’inactivité.`);
 }
 
 
@@ -3993,6 +4151,7 @@ function wakePanel(panel, targetUrl = null) {
     panel.readerModeRestorePending = panel.readerModeActive;
     destroyPanelBrowserView(placeholder);
 
+    setActivePanelId(panel.id);
     const view = createSandboxedBrowserView({
         webPreferences: panel.session ? { session: panel.session } : {}
     });
@@ -4000,7 +4159,6 @@ function wakePanel(panel, targetUrl = null) {
     win.addBrowserView(view);
     setupNavigationTracking(panel);
     markPanelActivity(panel);
-    activePanel = panel.id;
 
     view.webContents.loadURL(originalUrl).catch((error) => {
         console.error(`[Tab Sleeping] Échec du rechargement de la tuile ${panel.id} :`, error);
@@ -4177,6 +4335,14 @@ function setupNavigationTracking(panel) {
     markPanelActivity(panel);
 
     const trackedContents = panel.view.webContents;
+    if (navigationTrackedContents.has(trackedContents)) return;
+    navigationTrackedContents.add(trackedContents);
+
+    trackedContents.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => {
+        if (!isMainFrame || isInPlace) return;
+        panel.passwordPromptDocumentGeneration = (panel.passwordPromptDocumentGeneration || 0) + 1;
+        clearSavedCredentialPromptCacheForPanel(panel);
+    });
     trackedContents.on('did-navigate', (_event, url, httpResponseCode) => {
         void maybeOfferPasswordCandidate(panel, {
             kind: 'navigation',
@@ -4184,7 +4350,10 @@ function setupNavigationTracking(panel) {
             statusCode: httpResponseCode
         });
     });
-    trackedContents.on('destroyed', () => clearPendingPasswordCandidate(panel));
+    trackedContents.on('destroyed', () => {
+        clearPendingPasswordCandidate(panel);
+        clearSavedCredentialPromptCacheForPanel(panel);
+    });
 
     let initialLoadFinished = false;
 
@@ -4195,7 +4364,7 @@ function setupNavigationTracking(panel) {
         }
         if (input.type === "keyDown" && (input.control || input.meta) && input.key.toLowerCase() === "f") {
             event.preventDefault();
-            activePanel = panel.id;
+            setActivePanelId(panel.id);
             if (win && !win.isDestroyed()) {
                 win.webContents.focus();
                 win.webContents.send("open-find-bar", panel.id);
@@ -4252,7 +4421,7 @@ function setupNavigationTracking(panel) {
                 } else if (target.hostname === "history") {
                     ipcMain.emit("open-history-window");
                 } else if (target.hostname === "private") {
-                    activePanel = panel.id;
+                    setActivePanelId(panel.id);
                     ipcMain.emit("split-panel", null, panel.id, "vertical", true);
                 } else if (target.hostname === "close-panel") {
                     ipcMain.emit("close-panel", null, panel.id);
@@ -4313,7 +4482,7 @@ function setupNavigationTracking(panel) {
         event.preventDefault();
         
         // === CORRECTIF : Forcer le focus sur ce panneau lors du clic droit ===
-        activePanel = panel.id;
+        setActivePanelId(panel.id);
         if (win && !win.isDestroyed()) {
             // Met à jour le rectangle bleu de focus visuel autour de la tuile
             win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
@@ -4332,7 +4501,7 @@ function setupNavigationTracking(panel) {
         event.preventDefault();
         
         // Forcer le focus et l'activation visuelle sur ce panneau
-        activePanel = panel.id;
+        setActivePanelId(panel.id);
         if (win && !win.isDestroyed()) {
             win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
             win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
@@ -4383,7 +4552,6 @@ function setupNavigationTracking(panel) {
 
     panel.view.webContents.on("did-finish-load", async () => {
         // 1. Propose les identifiants déjà existants si la tuile est éligible
-        if (!panel.isPrivate) await offerSavedCredentials(panel);
 
         // 2. ✨ RÉ-INJECTION DE L'INJECTEUR DE FORMULAIRES DURCI
         try {
@@ -4408,7 +4576,7 @@ await panel.view.webContents.executeJavaScript(`
                 // Vérification immédiate : si la page contient déjà un formulaire rempli, on lève l'alerte
                 const hasForm = await panel.view.webContents.executeJavaScript("window.NanobrowserExecutor?.hasLoginForm() === true");
                 if (hasForm && !panel.isPrivate) {
-                    ipcMain.emit('login-form-detected', { sender: panel.view.webContents });
+                    void offerSavedCredentials(panel);
                 }
             } else {
                 console.error(`[SÉCURITÉ-ERREUR] Fichier introuvable à l'emplacement : ${injectorPath}`);
@@ -4496,8 +4664,7 @@ await panel.view.webContents.executeJavaScript(`
 panel.view.webContents.on("focus", () => {
     panel.lastActivityAt = Date.now();
 
-    const panelChanged = activePanel !== panel.id;
-    activePanel = panel.id;
+    const panelChanged = setActivePanelId(panel.id);
     if (panelChanged) scheduleSessionLayoutSave();
     
     if (win && !win.isDestroyed() && win.webContents && !win.webContents.isDestroyed()) {
@@ -4775,7 +4942,7 @@ ipcMain.on("reset-workspace", async () => {
         maximizedPanelId = null;
         nextPanelNumber = 4;
         rootNode = null;
-        activePanel = null;
+        setActivePanelId(null);
         win.webContents.send("undo-available", false);
 
         await createDefaultLayout();
@@ -4922,7 +5089,7 @@ ipcMain.handle("get-autosleep-preference", (event) => {
 ipcMain.handle("get-autosleep-delay-preference", (event) => {
     const isAuthorizedSender = (settingsWindow && !settingsWindow.isDestroyed() && event.sender === settingsWindow.webContents) ||
         (win && !win.isDestroyed() && event.sender === win.webContents);
-    return isAuthorizedSender ? autoSleepDelayMinutes : 15;
+    return isAuthorizedSender ? autoSleepDelayMinutes : AUTO_SLEEP_DEFAULT_DELAY;
 });
 
 ipcMain.handle("set-autosleep-delay-preference", (event, minutes) => {
@@ -5024,7 +5191,7 @@ function swapPanelsInTree(idA, idB) {
     else parentB.second = nodeA;
 
     // 3. On maintient le focus sur le panneau déplacé (idA)
-    activePanel = idA; 
+    setActivePanelId(idA);
 
     // 4. On force la reconstruction géométrique complète
     forceRebuildSplitters = true;
@@ -5205,7 +5372,7 @@ ipcMain.on("close-panel", (event, panelId) => {
     win.webContents.send("undo-available", true);        
 
     const newActivePanel = findFirstPanel(sibling);
-    activePanel = newActivePanel.id;
+    setActivePanelId(newActivePanel.id);
 
     win.webContents.send("active-panel-changed", { id: newActivePanel.id, bounds: newActivePanel.bounds });        
     forceRebuildSplitters = true;
@@ -5245,7 +5412,7 @@ ipcMain.on("undo", (event) => {
     }
 
     // 6. On applique le focus sur le panneau rouvert
-    activePanel = lastClosedPanel.id;
+    setActivePanelId(lastClosedPanel.id);
 
     // 7. On nettoie la variable et on désactive le bouton dans l'IHM
     lastClosedPanel = null;
@@ -5589,7 +5756,7 @@ ipcMain.on("duplicate-panel", (panelId, urlToClone, isPrivate) => {
 
     // Sauvegarde de l'état (permet Ctrl+Z), focus et rafraîchissement géométrique
     saveState();
-    activePanel = newPanelId;
+    setActivePanelId(newPanelId);
     forceRebuildSplitters = true;
     resizeViews();
     
@@ -5998,7 +6165,7 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false, contain
     }
 
     saveState();
-    activePanel = newPanelId;
+    setActivePanelId(newPanelId);
     forceRebuildSplitters = true;
     resizeViews();
     
@@ -6038,6 +6205,7 @@ async function createDefaultLayout() {
     // Reconstruction de la structure de l'arbre en 2 panneaux verticaux (50/50)
     rootNode = new SplitNode("vertical");
     rootNode.ratio = 0.5; // Division parfaite au milieu de l'écran utile
+    if (!activePanel) setActivePanelId("panel1");
 
 //  rootNode.first = new PanelNode("panel1", leftView, homePageUrl);
 //  rootNode.second = new PanelNode("panel2", centerView, welcomePageUrl);
@@ -6072,7 +6240,7 @@ async function createDefaultLayout() {
         console.error("Erreur de chargement de la tuile de bienvenue :", error);
     }
 
-    if (!activePanel) activePanel = "panel1";
+    refreshImmediateAutoSleepTimers();
     updateNavigationButtons();
 }
 
@@ -6408,7 +6576,7 @@ async function createWindow() {
                                 maximizedPanelId = null; 
 
                                 const firstPanel = findFirstPanel(rootNode);
-                                if (firstPanel) activePanel = firstPanel.id;
+                                if (firstPanel) setActivePanelId(firstPanel.id);
 
                                 // 4. Recalcul géométrique et notifications à l'IHM
                                 forceRebuildSplitters = true;
@@ -6592,7 +6760,7 @@ async function createWindow() {
 
                         if (nextPanel) {
                             // Active le panneau et met à jour l'IHM + la bordure bleue
-                            activePanel = nextPanel.id;
+                            setActivePanelId(nextPanel.id);
                             win.webContents.send("active-panel-changed", { id: nextPanel.id, bounds: nextPanel.bounds });
                             updateActiveBorder(nextPanel.bounds);
                             if (nextPanel.view) nextPanel.view.webContents.focus();
@@ -6612,7 +6780,7 @@ async function createWindow() {
                         const prevPanel = panelsList[prevIndex];
 
                         if (prevPanel) {
-                            activePanel = prevPanel.id;
+                            setActivePanelId(prevPanel.id);
                             win.webContents.send("active-panel-changed", { id: prevPanel.id, bounds: prevPanel.bounds });
                             updateActiveBorder(prevPanel.bounds);
                             if (prevPanel.view) prevPanel.view.webContents.focus();
@@ -7129,7 +7297,7 @@ function detachPanelToFullscreen(panelId) {
         delete handleViews[panelId];
 
         const newActivePanel = findFirstPanel(sibling);
-        activePanel = newActivePanel.id;
+        setActivePanelId(newActivePanel.id);
 
         win.webContents.send("active-panel-changed", { id: newActivePanel.id, bounds: newActivePanel.bounds });        
         forceRebuildSplitters = true;
@@ -7444,7 +7612,7 @@ ipcMain.on("set-active-panel", (event, panelId, options) => {
         return;
     }
 
-    activePanel = panelId;
+    setActivePanelId(panelId);
     scheduleSessionLayoutSave();
     
     // ✨ MODIFICATION ICI : On ajoute 'isPrivate' dans le message envoyé à index.html
@@ -7600,7 +7768,7 @@ ipcMain.handle('load-config-from-file', async () => {
 
             // Définition automatique du focus sur la toute première tuile trouvée
             const firstPanel = findFirstPanel(rootNode);
-            if (firstPanel) activePanel = firstPanel.id;
+            if (firstPanel) setActivePanelId(firstPanel.id);
 
             // Recalcul géométrique complet et notification immédiate à l'IHM
             forceRebuildSplitters = true;
@@ -8287,7 +8455,7 @@ function isInternalFavoriteUrl(url) {
 }
 
 // Remplacement du gestionnaire d'ajout/suppression des favoris
-ipcMain.handle('toggle-favori', async (event, { url, title }) => {
+ipcMain.handle('toggle-favori', async (event, { url } = {}) => {
     try {
         let favoris = getFavoris();
         const index = favoris.findIndex(f => f.url === url);
@@ -8297,7 +8465,7 @@ ipcMain.handle('toggle-favori', async (event, { url, title }) => {
         } else if (isInternalFavoriteUrl(url)) {
             return false;
         } else {
-            favoris.push({ url, title: title || url });
+            favoris.push({ url });
         }
 
         // Sauvegarde sécurisée, asynchrone et atomique (.tmp -> renommé)
