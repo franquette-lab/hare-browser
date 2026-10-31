@@ -936,6 +936,11 @@ html.dark #pwd-modal {
         </div>
         <span id="close-ai-sidebar" data-i18n-title="ai.close" style="cursor: pointer; color: #9ca3af; font-weight: bold; font-size: 16px; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#9ca3af'">×</span>
     </div>
+
+    <div id="ai-ollama-status" role="status" aria-live="polite" data-state="checking" title=""
+        style="display:flex; align-items:center; gap:7px; flex:0 0 auto; margin:-6px 0 12px; font-size:11px; line-height:1.4; color:#64748b;">
+        <span aria-hidden="true">●</span><span id="ai-ollama-status-text">Vérification d’Ollama…</span>
+    </div>
     
     <!-- Zone d'affichage des réponses (Conteneur de texte) -->
     <div id="ai-response-container"
@@ -3465,6 +3470,53 @@ document.getElementById("ai-summary-btn").addEventListener("click", () => {
 // let isAiRequestRunning = false; 
 const summaryBtn = document.getElementById("ai-summary-btn"); // Votre bouton vert / rouge Stop
 
+const aiOllamaStatus = document.getElementById("ai-ollama-status");
+const aiOllamaStatusText = document.getElementById("ai-ollama-status-text");
+let lastOllamaStatus = null;
+
+function renderOllamaStatus(status) {
+    if (!aiOllamaStatus || !aiOllamaStatusText || !status) return;
+    lastOllamaStatus = status;
+
+    const model = status.model || "qwen2.5:1.5b";
+    const endpoint = status.endpoint || "http://127.0.0.1:11434";
+    const messages = {
+        checking: translateUi("ai.ollamaChecking", { url: endpoint }),
+        unavailable: translateUi("ai.ollamaUnavailable", { url: endpoint }),
+        "model-missing": translateUi("ai.ollamaModelMissing", { model }),
+        "model-installed": translateUi("ai.ollamaModelInstalled", { model }),
+        loading: translateUi("ai.ollamaModelLoading", { model }),
+        ready: translateUi("ai.ollamaReady", { model })
+    };
+
+    aiOllamaStatus.dataset.state = status.state || "checking";
+    aiOllamaStatusText.textContent = messages[status.state] || messages.checking;
+    aiOllamaStatus.title = status.error?.message || `${endpoint} · ${status.state || "checking"}`;
+
+    const colors = {
+        checking: "#64748b",
+        unavailable: "#dc2626",
+        "model-missing": "#d97706",
+        "model-installed": "#d97706",
+        loading: "#2563eb",
+        ready: "#16a34a"
+    };
+    aiOllamaStatus.style.color = colors[status.state] || colors.checking;
+}
+
+window.api.nanobrowser.onOllamaStatusChanged?.(renderOllamaStatus);
+renderOllamaStatus({ state: "checking", endpoint: "http://127.0.0.1:11434", model: "qwen2.5:1.5b" });
+window.api.nanobrowser.getOllamaStatus?.()
+    .then(renderOllamaStatus)
+    .catch((error) => {
+        console.error("[Assistant IA] Échec du contrôle de disponibilité Ollama", error, error.stack);
+        renderOllamaStatus({
+            state: "unavailable",
+            endpoint: "http://127.0.0.1:11434",
+            error: { message: error.message }
+        });
+    });
+
 function refreshAiSidebarTranslations(language = document.documentElement.lang || "fr") {
     if (aiSidebar) HareI18n.apply(aiSidebar, language);
 
@@ -3492,6 +3544,7 @@ function refreshAiSidebarTranslations(language = document.documentElement.lang |
             ? `⏳ ${message}`
             : message;
     }
+    if (lastOllamaStatus) renderOllamaStatus(lastOllamaStatus);
 }
 
 refreshAiSidebarTranslations();

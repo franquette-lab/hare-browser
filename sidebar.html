@@ -285,7 +285,8 @@ console.log("disabled =", sendBtn.disabled);
                     appendBubble(response, 'ai');
                 }
             } catch (err) {
-                appendBubble("❌ Impossible de joindre l'instance Ollama locale. Vérifiez qu'Ollama est démarré sur le port 11434.", 'ai');
+                console.error("[Assistant IA] Échec de la requête via IPC", err, err.stack);
+                appendBubble(`❌ Échec de la requête IA locale : ${err.message || String(err)}`, 'ai');
             }
         }
 

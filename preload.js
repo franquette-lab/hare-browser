@@ -211,8 +211,16 @@ onActivePanelChanged: (callback) => {
         nanobrowser: {
             getContext: () => ipcRenderer.invoke("nanobrowser-get-context"),
             executeAction: (actionType, argument) => ipcRenderer.invoke("nanobrowser-execute-action", { actionType, argument }),
-            askOllama: (prompt, model, compareVisiblePanels = false, fullMode = false) =>
-                ipcRenderer.invoke("nanobrowser-ask-ollama", { prompt, model, compareVisiblePanels, fullMode })
+            askOllama: (promptOrOptions, model, compareVisiblePanels = false, fullMode = false) => {
+                // Accepte les deux formes utilisées par l'interface : objet d'options ou arguments positionnels.
+                const options = promptOrOptions && typeof promptOrOptions === "object"
+                    ? promptOrOptions
+                    : { prompt: promptOrOptions, model, compareVisiblePanels, fullMode };
+                return ipcRenderer.invoke("nanobrowser-ask-ollama", options);
+            },
+            getOllamaStatus: (model) => ipcRenderer.invoke("ollama-get-status", model),
+            onOllamaStatusChanged: (callback) =>
+                ipcRenderer.on("ollama-status-changed", (_event, status) => callback(status))
         },
 
         // --- HISTORIQUE ---

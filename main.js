@@ -36,7 +36,18 @@ const OLLAMA_BUNDLE_DIR = app.isPackaged
     : path.join(__dirname, "ollama-bundle");
 
 const DEFAULT_OLLAMA_MODEL = "qwen2.5:1.5b";
+const OLLAMA_BASE_URL = "http://127.0.0.1:11434";
+const OLLAMA_REQUEST_TIMEOUT_MS = 15 * 60 * 1000;
+const OLLAMA_MODEL_LOAD_TIMEOUT_MS = 5 * 60 * 1000;
+const OLLAMA_STARTUP_TIMEOUT_MS = 30 * 1000;
 let currentLanguage = "fr";
+let ollamaStatus = {
+    state: "checking",
+    endpoint: OLLAMA_BASE_URL,
+    model: DEFAULT_OLLAMA_MODEL,
+    checkedAt: null
+};
+let ollamaRequestSequence = 0;
 
 let applicationMenuTemplate = null;
 
@@ -197,98 +208,184 @@ function getOllamaExePath() {
 }
 
 
-function startEmbeddedOllama() {
+function requestOllama({ method = "GET", route, payload = null, timeoutMs = OLLAMA_REQUEST_TIMEOUT_MS, log = true } = {}) {
+    const http = getNodeModule("http");
+    const requestId = ++ollamaRequestSequence;
+    const url = new URL(route, OLLAMA_BASE_URL);
+    const body = payload === null ? null : JSON.stringify(payload);
+    const startedAt = Date.now();
+    const headers = { Accept: "application/json" };
 
-    const ollamaPath = getOllamaExePath();
-
-    if (!ollamaPath) {
-        console.error("[OLLAMA] ollama.exe introuvable");
-        return;
+    if (body !== null) {
+        headers["Content-Type"] = "application/json";
+        headers["Content-Length"] = Buffer.byteLength(body);
     }
 
-/*
-    console.log(`[OLLAMA] Démarrage : ${ollamaPath}`);
-*/
-
-    const bundledModels = path.join(OLLAMA_BUNDLE_DIR, "models");
-
-    ollamaProcess = spawn(
-        ollamaPath,
-        ["serve"],
-        {
-            windowsHide: true,
-            env: {
-                ...process.env,
-                OLLAMA_ORIGINS: "*",
-                OLLAMA_HOST: "127.0.0.1:11434",
-                ...(fs.existsSync(bundledModels) ? { OLLAMA_MODELS: bundledModels } : {})
-            }
-        }
-    );
-
-    ollamaProcess.on("spawn", () => {
-//      console.log("[OLLAMA] Processus démarré");
-    });
-
-    ollamaProcess.stdout.on("data", (data) => {
-//      console.log("[OLLAMA STDOUT]", data.toString());
-    });
-
-    ollamaProcess.stderr.on("data", (data) => {
-//      console.error("[OLLAMA STDERR]", data.toString());
-    });
-
-    ollamaProcess.on("error", (err) => {
-        console.error("[OLLAMA ERROR]", err);
-    });
-
-    ollamaProcess.on("close", (code) => {
-//      console.log("[OLLAMA CLOSE]", code);
-    });
-}
-
-function waitForOllama(timeoutMs = 30000) {
+    if (log) {
+        console.info(`[OLLAMA][${requestId}] Requête`, {
+            method,
+            url: url.href,
+            host: url.hostname,
+            port: Number(url.port || 80),
+            route: `${url.pathname}${url.search}`,
+            headers,
+            timeoutMs,
+            payload,
+            payloadBytes: body === null ? 0 : Buffer.byteLength(body)
+        });
+    }
 
     return new Promise((resolve, reject) => {
+        let settled = false;
+        let responseBody = "";
+        let absoluteTimeout = null;
 
-        const http = require("http");
-        const start = Date.now();
+        const finish = (error, result) => {
+            if (settled) return;
+            settled = true;
+            if (absoluteTimeout) clearTimeout(absoluteTimeout);
+            if (typeof req !== "undefined" && currentOllamaRequest === req) {
+                currentOllamaRequest = null;
+            }
+            if (error) reject(error);
+            else resolve(result);
+        };
 
-        const check = () => {
-
-            const req = http.get(
-                "http://127.0.0.1:11434/api/tags",
-                (res) => {
-
-                    if (res.statusCode === 200) {
-//                      console.log("[OLLAMA] Port 11434 disponible");
-                        resolve(true);
-                        return;
-                    }
-
-                    retry();
+        const req = http.request({
+            hostname: url.hostname,
+            port: Number(url.port || 80),
+            path: `${url.pathname}${url.search}`,
+            method,
+            headers
+        }, (res) => {
+            res.setEncoding("utf8");
+            res.on("data", (chunk) => { responseBody += chunk; });
+            res.on("error", (error) => {
+                error.message = `Erreur pendant la lecture de la réponse HTTP : ${error.message}`;
+                if (log) console.error(`[OLLAMA][${requestId}] Réponse interrompue`, error, error.stack);
+                finish(error);
+            });
+            res.on("end", () => {
+                const durationMs = Date.now() - startedAt;
+                if (log) {
+                    console.info(`[OLLAMA][${requestId}] Réponse HTTP`, {
+                        method,
+                        url: url.href,
+                        statusCode: res.statusCode,
+                        statusMessage: res.statusMessage,
+                        headers: res.headers,
+                        durationMs,
+                        body: responseBody
+                    });
                 }
-            );
 
-            req.on("error", retry);
-
-            function retry() {
-
-                if (Date.now() - start > timeoutMs) {
-                    reject(
-                        new Error(
-                            "Timeout d'attente du serveur Ollama"
-                        )
-                    );
+                if (res.statusCode < 200 || res.statusCode >= 300) {
+                    const error = new Error(`HTTP ${res.statusCode} ${res.statusMessage || ""}: ${responseBody}`.trim());
+                    error.statusCode = res.statusCode;
+                    error.responseBody = responseBody;
+                    finish(error);
                     return;
                 }
 
-                setTimeout(check, 1000);
-            }
-        };
+                try {
+                    finish(null, responseBody ? JSON.parse(responseBody) : {});
+                } catch (error) {
+                    error.message = `Réponse JSON invalide de ${url.href} : ${error.message}`;
+                    error.responseBody = responseBody;
+                    if (log) console.error(`[OLLAMA][${requestId}] JSON invalide`, error, error.stack);
+                    finish(error);
+                }
+            });
+        });
 
-        check();
+        if (route === "/api/generate") currentOllamaRequest = req;
+
+        // ClientRequest.setTimeout() mesure le silence de la socket, ce qui est normal
+        // pendant une génération stream:false. On applique donc une échéance totale.
+        absoluteTimeout = setTimeout(() => {
+            const error = new Error(`Timeout après ${Math.round(timeoutMs / 1000)} secondes (échéance totale)`);
+            error.code = "OLLAMA_TIMEOUT";
+            if (log) console.error(`[OLLAMA][${requestId}] Délai total dépassé`, error, error.stack);
+            req.destroy(error);
+        }, timeoutMs);
+
+        req.on("error", (error) => {
+            const durationMs = Date.now() - startedAt;
+            if (log) {
+                console.error(`[OLLAMA][${requestId}] Erreur réseau`, {
+                    method,
+                    url: url.href,
+                    durationMs,
+                    code: error.code,
+                    message: error.message,
+                    stack: error.stack
+                });
+            }
+            finish(error);
+        });
+
+        if (body !== null) req.write(body);
+        req.end();
     });
+}
+
+function startEmbeddedOllama() {
+    if (ollamaProcess && !ollamaProcess.killed) return ollamaProcess;
+
+    const ollamaPath = getOllamaExePath();
+    if (!ollamaPath) {
+        console.error("[OLLAMA] Runtime introuvable : aucun ollama.exe embarqué ou installé.");
+        return null;
+    }
+
+    const bundledModels = path.join(OLLAMA_BUNDLE_DIR, "models");
+    console.info("[OLLAMA] Démarrage du serveur embarqué", {
+        executable: ollamaPath,
+        host: OLLAMA_BASE_URL,
+        modelsDirectory: fs.existsSync(bundledModels) ? bundledModels : (process.env.OLLAMA_MODELS || "défaut Ollama")
+    });
+
+    ollamaProcess = spawn(ollamaPath, ["serve"], {
+        windowsHide: true,
+        env: {
+            ...process.env,
+            OLLAMA_ORIGINS: "*",
+            OLLAMA_HOST: "127.0.0.1:11434",
+            ...(fs.existsSync(bundledModels) ? { OLLAMA_MODELS: bundledModels } : {})
+        }
+    });
+
+    ollamaProcess.on("spawn", () => console.info("[OLLAMA] Processus serveur démarré", { pid: ollamaProcess.pid }));
+    ollamaProcess.stdout.on("data", (data) => console.info("[OLLAMA][stdout]", data.toString().trimEnd()));
+    ollamaProcess.stderr.on("data", (data) => console.warn("[OLLAMA][stderr]", data.toString().trimEnd()));
+    ollamaProcess.on("error", (error) => console.error("[OLLAMA] Échec du processus serveur", error, error.stack));
+    ollamaProcess.on("close", (code, signal) => {
+        console.info("[OLLAMA] Processus serveur arrêté", { code, signal });
+        ollamaProcess = null;
+    });
+    return ollamaProcess;
+}
+
+async function waitForOllama(timeoutMs = OLLAMA_STARTUP_TIMEOUT_MS) {
+    const startedAt = Date.now();
+    let lastError = null;
+    console.info("[OLLAMA] Vérification du serveur", { url: `${OLLAMA_BASE_URL}/api/tags`, timeoutMs });
+
+    while (Date.now() - startedAt < timeoutMs) {
+        try {
+            await requestOllama({ route: "/api/tags", timeoutMs: 2000, log: false });
+            console.info("[OLLAMA] Serveur disponible", { url: OLLAMA_BASE_URL, durationMs: Date.now() - startedAt });
+            return true;
+        } catch (error) {
+            lastError = error;
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+    }
+
+    const error = new Error(`Impossible de contacter Ollama sur ${OLLAMA_BASE_URL} après ${Math.round(timeoutMs / 1000)} secondes${lastError ? ` : ${lastError.message}` : ""}`);
+    error.cause = lastError;
+    console.error("[OLLAMA] Serveur non disponible au démarrage", error, error.stack);
+    throw error;
 }
 ``
 
@@ -1537,52 +1634,113 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
 
 
 async function isModelInstalled(modelName) {
+    const status = await inspectOllamaStatus(modelName, { publish: false });
+    return status.installed === true;
+}
 
-    return new Promise((resolve) => {
+function ollamaModelNameMatches(candidate, expected) {
+    if (typeof candidate !== "string" || typeof expected !== "string") return false;
+    const normalize = (name) => name.includes(":") ? name : `${name}:latest`;
+    return candidate === expected || normalize(candidate) === normalize(expected);
+}
 
-        const http = getNodeModule("http");
+function publishOllamaStatus(status) {
+    ollamaStatus = { ...status, checkedAt: new Date().toISOString() };
+    if (win && !win.isDestroyed() && !win.webContents.isDestroyed()) {
+        win.webContents.send("ollama-status-changed", ollamaStatus);
+    }
+    return ollamaStatus;
+}
 
-        const req = http.get(
-            "http://127.0.0.1:11434/api/tags",
-            (res) => {
-
-                let body = "";
-
-                res.on("data", chunk => {
-                    body += chunk;
-                });
-
-                res.on("end", () => {
-
-                    try {
-
-                        const result = JSON.parse(body);
-
-                        const found =
-                            result.models?.some(
-                                m => m.name === modelName
-                            );
-
-                        resolve(Boolean(found));
-
-                    } catch (e) {
-
-                        console.error(
-                            "[OLLAMA] Erreur lecture modèles :",
-                            e
-                        );
-
-                        resolve(false);
-                    }
-                });
-            }
+async function inspectOllamaStatus(modelName = DEFAULT_OLLAMA_MODEL, { publish = true } = {}) {
+    const checkedAt = new Date().toISOString();
+    try {
+        const [tags, running] = await Promise.all([
+            requestOllama({ route: "/api/tags", timeoutMs: 5000 }),
+            requestOllama({ route: "/api/ps", timeoutMs: 5000 })
+        ]);
+        const installedModels = Array.isArray(tags.models) ? tags.models : [];
+        const loadedModels = Array.isArray(running.models) ? running.models : [];
+        const installed = installedModels.some((entry) =>
+            ollamaModelNameMatches(entry.name || entry.model, modelName)
         );
+        const loaded = loadedModels.some((entry) =>
+            ollamaModelNameMatches(entry.name || entry.model, modelName)
+        );
+        const state = !installed ? "model-missing" : loaded ? "ready" : "model-installed";
+        const status = {
+            state,
+            endpoint: OLLAMA_BASE_URL,
+            model: modelName,
+            installed,
+            loaded,
+            models: installedModels.map((entry) => entry.name || entry.model).filter(Boolean),
+            loadedModels: loadedModels.map((entry) => entry.name || entry.model).filter(Boolean),
+            checkedAt
+        };
+        console.info("[OLLAMA] État de disponibilité", status);
+        return publish ? publishOllamaStatus(status) : status;
+    } catch (error) {
+        const status = {
+            state: "unavailable",
+            endpoint: OLLAMA_BASE_URL,
+            model: modelName,
+            installed: false,
+            loaded: false,
+            error: { message: error.message, code: error.code || null },
+            checkedAt
+        };
+        console.error("[OLLAMA] Échec du contrôle de disponibilité", error, error.stack);
+        return publish ? publishOllamaStatus(status) : status;
+    }
+}
 
-        req.on("error", () => {
-            resolve(false);
-        });
+ipcMain.handle("ollama-get-status", async (_event, modelName = DEFAULT_OLLAMA_MODEL) => {
+    const requestedModel = typeof modelName === "string" && modelName.trim()
+        ? modelName.trim()
+        : DEFAULT_OLLAMA_MODEL;
+    return inspectOllamaStatus(requestedModel);
+});
 
+async function ensureOllamaModelLoaded(modelName) {
+    let status = await inspectOllamaStatus(modelName);
+    if (status.state === "unavailable") {
+        throw new Error(`Impossible de contacter Ollama sur ${OLLAMA_BASE_URL}. Vérifiez qu’Ollama est démarré et qu’un modèle est installé. ${status.error?.message || ""}`.trim());
+    }
+    if (!status.installed) {
+        const error = new Error(`Le modèle ${modelName} n’est pas installé dans Ollama.`);
+        error.code = "OLLAMA_MODEL_MISSING";
+        throw error;
+    }
+    if (status.loaded) return status;
+
+    publishOllamaStatus({ ...status, state: "loading", model: modelName });
+    console.info("[OLLAMA] Chargement préalable du modèle avant génération", {
+        model: modelName,
+        url: `${OLLAMA_BASE_URL}/api/generate`,
+        timeoutMs: OLLAMA_MODEL_LOAD_TIMEOUT_MS
     });
+    try {
+        await requestOllama({
+            method: "POST",
+            route: "/api/generate",
+            payload: { model: modelName, prompt: "", stream: false, keep_alive: "5m" },
+            timeoutMs: OLLAMA_MODEL_LOAD_TIMEOUT_MS
+        });
+    } catch (error) {
+        // Réactualise l'état même si le chargement échoue ou est annulé, pour éviter
+        // de laisser l'interface bloquée sur « chargement ».
+        await inspectOllamaStatus(modelName);
+        throw error;
+    }
+
+    status = await inspectOllamaStatus(modelName);
+    if (!status.loaded) {
+        const error = new Error(`Ollama a répondu, mais le modèle ${modelName} n’apparaît pas comme chargé dans /api/ps.`);
+        error.code = "OLLAMA_MODEL_NOT_LOADED";
+        throw error;
+    }
+    return status;
 }
 
 async function pullOllamaModel(modelName) {
@@ -7934,10 +8092,17 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, {
 
 } = {}) => {
 
-    // ✨ 1. AJOUT DU BLOC DE SÉCURITÉ CONTRE LES REQUÊTES VIDES
-    if (!prompt || !prompt.trim()) {
+    if (typeof prompt !== "string" || !prompt.trim()) {
         return tr("ollama.selectTile");
     }
+
+    console.info("[OLLAMA][IPC] Demande reçue", {
+        senderId: event.sender.id,
+        model,
+        promptLength: prompt.length,
+        compareVisiblePanels: compareVisiblePanelsArg === true,
+        fullMode: fullMode === true
+    });
 
     // ✨ 2. LA CORRECTION : Déclaration explicite de la variable avec 'let' pour éviter le crash
     let compareVisiblePanels = compareVisiblePanelsArg;
@@ -7954,6 +8119,13 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, {
 
         if (!installed) {
             return tr("ollama.notInstalled");
+        }
+
+        // S'assurer que le serveur est joignable avant de consulter sa liste de modèles.
+        if (!(await isOllamaRunning())) {
+            console.warn("[OLLAMA] Serveur absent, tentative de démarrage embarqué", { url: OLLAMA_BASE_URL });
+            startEmbeddedOllama();
+            await waitForOllama(OLLAMA_STARTUP_TIMEOUT_MS);
         }
 
         const modelInstalled =
@@ -8005,33 +8177,9 @@ if (!modelInstalled) {
     }
 }
 
-        // Vérifie que le serveur Ollama répond
-        const running = await isOllamaRunning();
-
-        if (!running) {
-
-            // Tentative de démarrage automatique
-            try {
-                startEmbeddedOllama();
-
-                await new Promise(resolve =>
-                    setTimeout(resolve, 5000)
-                );
-
-            } catch (e) {
-                console.error(
-                    "[OLLAMA] Impossible de démarrer Ollama :",
-                    e
-                );
-            }
-
-            const runningAfterStart =
-                await isOllamaRunning();
-
-            if (!runningAfterStart) {
-                return tr("ollama.notRunning");
-            }
-        }
+        // /api/tags prouve l'installation; /api/ps confirme le chargement effectif.
+        // Si le modèle est froid, on le charge avant d'envoyer le contexte et la question.
+        await ensureOllamaModelLoaded(model);
 
 
 
@@ -8135,7 +8283,7 @@ if (!modelInstalled) {
                         : `${currentLanguage === "fr" ? "Tu es un assistant IA intégré au navigateur. Réponds en français à la demande en te basant exclusivement sur le contenu de la page active." : "You are an AI assistant integrated into the browser. Reply in English, using only the content of the active page."}\n\n${combinedContext}`;
                 }
 
-                const postData = JSON.stringify({
+                const ollamaPayload = {
                     model,
                     prompt,
                     system: systemInstruction,
@@ -8143,7 +8291,8 @@ if (!modelInstalled) {
                     ...(fullMode
                         ? { options: { num_ctx: 16384 } }
                         : {})
-                });
+                };
+                const payloadBytes = Buffer.byteLength(JSON.stringify(ollamaPayload));
 
 
 
@@ -8169,67 +8318,51 @@ if (!modelInstalled) {
 
 
 
-                const http = getNodeModule("http");
-
-                const req = http.request({
-                    hostname: "127.0.0.1",
-                    port: 11434,
-                    path: "/api/generate",
+                const generationStartedAt = Date.now();
+                requestOllama({
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Content-Length": Buffer.byteLength(postData)
+                    route: "/api/generate",
+                    payload: ollamaPayload,
+                    timeoutMs: OLLAMA_REQUEST_TIMEOUT_MS
+                }).then((result) => {
+                    console.info("[OLLAMA] Génération terminée", {
+                        url: `${OLLAMA_BASE_URL}/api/generate`,
+                        statusCode: 200,
+                        model,
+                        payloadBytes,
+                        durationMs: Date.now() - generationStartedAt,
+                        totalDurationMs: result.total_duration,
+                        loadDurationMs: result.load_duration,
+                        promptEvalCount: result.prompt_eval_count,
+                        evalCount: result.eval_count
+                    });
+                    resolve(result.response || tr("ai.empty"));
+                }).catch((error) => {
+                    console.error("[OLLAMA] Échec de la génération", {
+                        url: `${OLLAMA_BASE_URL}/api/generate`,
+                        method: "POST",
+                        port: 11434,
+                        route: "/api/generate",
+                        model,
+                        payloadBytes,
+                        durationMs: Date.now() - generationStartedAt,
+                        message: error.message,
+                        code: error.code || null,
+                        stack: error.stack
+                    });
+                    if (error.message.includes("Annulé par l'utilisateur")) {
+                        resolve(tr("ai.cancelled"));
+                    } else if (error.statusCode) {
+                        resolve(tr("ai.ollamaError", {
+                            status: error.statusCode,
+                            error: error.responseBody || error.message
+                        }));
+                    } else {
+                        resolve(tr("ai.localUnavailable", {
+                            error: `${OLLAMA_BASE_URL}/api/generate — ${error.message}`
+                        }));
                     }
-                }, (res) => { // 🟢 DEBUT DU CALLBACK DE RÉPONSE
-
-                    let responseBody = "";
-
-                    res.setEncoding("utf8");
-
-                    res.on("data", chunk => {
-                        responseBody += chunk;
-                    });
-
-                    res.on("end", () => {
-                        if (res.statusCode < 200 || res.statusCode >= 300) {
-                            try {
-                                const errorJson = JSON.parse(responseBody);
-                                resolve(tr("ai.ollamaError", { status: res.statusCode, error: errorJson.error || responseBody }));
-                            } catch {
-                                resolve(tr("ai.ollamaError", { status: res.statusCode, error: responseBody }));
-                            }
-                            return;
-                        }
-
-                        try {
-                            const result = JSON.parse(responseBody);
-                            resolve(result.response || tr("ai.empty"));
-                        } catch (error) {
-                            console.error("[OLLAMA] Erreur JSON :", error);
-                            resolve(tr("ollama.invalidResponse"));
-                        }
-                    });
-
-                }); // 🔴 FIN DU CALLBACK DE RÉPONSE (L'intrus a été supprimé d'ici !)
-
-                // ✨ AJOUT : On mémorise la requête globalement pour pouvoir l'annuler depuis l'IHM
-                currentOllamaRequest = req;
-
-                req.setTimeout(120000, () => {
-                    console.error("[OLLAMA] Timeout après 120 secondes");
-                    req.destroy(new Error("Timeout"));
                 });
-
-                req.on("error", error => {
-                    console.error("[OLLAMA] Erreur HTTP :", error);
-                    resolve(tr("ai.localUnavailable", { error: error.message }));
-                });
-
-                // 🌟 LE SEUL ET UNIQUE ENDROIT OÙ L'ON ÉCRIT LES DONNÉES (Tout en bas, à l'extérieur)
-                if (req && !req.destroyed) {
-                    req.write(postData);
-                    req.end();
-                }
 
             } catch (innerError) {
                 console.error("[OLLAMA] Exception interne :", innerError);
@@ -8246,13 +8379,34 @@ if (!modelInstalled) {
 
     } catch (err) {
 
-        console.error(
-            "[IA RAG] Erreur générale :",
-            err
-        );
+        console.error("[IA RAG] Erreur générale :", err, err.stack);
 
-        console.error(err.stack);
-
+        if (err.message.includes("Annulé par l'utilisateur")) {
+            return tr("ai.cancelled");
+        }
+        if (err.statusCode) {
+            return tr("ai.ollamaError", {
+                status: err.statusCode,
+                error: err.responseBody || err.message
+            });
+        }
+        if (err.code === "OLLAMA_MODEL_MISSING") {
+            return tr("ai.modelMissing", { model });
+        }
+        if (err.code === "OLLAMA_TIMEOUT" || err.code === "OLLAMA_MODEL_NOT_LOADED") {
+            return tr("ai.localUnavailable", {
+                error: `${OLLAMA_BASE_URL}/api/generate — ${err.message}`
+            });
+        }
+        if (
+            err.code?.startsWith("OLLAMA") ||
+            ["ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "ENOTFOUND", "EPIPE"].includes(err.code) ||
+            err.message.includes("Impossible de contacter Ollama")
+        ) {
+            return tr("ai.localUnavailable", {
+                error: `${OLLAMA_BASE_URL} — ${err.message}`
+            });
+        }
         return tr("ai.internalError", { error: err.message });
 
     } finally {
@@ -8272,30 +8426,12 @@ if (!modelInstalled) {
 });
 
 async function isOllamaRunning() {
-
-    return new Promise(resolve => {
-
-        const http = getNodeModule("http");
-
-        const req = http.get(
-            "http://127.0.0.1:11434/api/tags",
-            res => {
-                resolve(
-                    res.statusCode >= 200 &&
-                    res.statusCode < 300
-                );
-            }
-        );
-
-        req.on("error", () => {
-            resolve(false);
-        });
-
-        req.setTimeout(3000, () => {
-            req.destroy();
-            resolve(false);
-        });
-    });
+    try {
+        await requestOllama({ route: "/api/tags", timeoutMs: 3000, log: false });
+        return true;
+    } catch {
+        return false;
+    }
 }
 // L'interface IA demande à exécuter une action (ex: cliquer sur un bouton)
 ipcMain.handle("nanobrowser-execute-action", async (event, { actionType, argument }) => {
@@ -8603,33 +8739,32 @@ app.whenReady().then(async () => {
             return;
         }
 
-        startEmbeddedOllama();
+        // Réutiliser un Ollama déjà démarré évite un conflit de port sur 11434.
+        if (await isOllamaRunning()) {
+            console.info("[OLLAMA] Serveur déjà actif, réutilisation", { url: OLLAMA_BASE_URL });
+        } else {
+            startEmbeddedOllama();
+        }
 
-        /*
-        console.log(
-            "[OLLAMA] Attente du serveur sur le port 11434..."
-        );
-*/
-
-        await waitForOllama();
-
-/*
-        console.log(
-            "[OLLAMA] Serveur prêt"
-        );
-*/
+        try {
+            await waitForOllama(OLLAMA_STARTUP_TIMEOUT_MS);
+        } catch (error) {
+            publishOllamaStatus({
+                state: "unavailable",
+                endpoint: OLLAMA_BASE_URL,
+                model: DEFAULT_OLLAMA_MODEL,
+                installed: false,
+                loaded: false,
+                error: { message: error.message, code: error.code || null }
+            });
+        }
 
         createWindow();
+        // Contrôle automatique au démarrage : serveur, modèles installés et modèle actif.
+        void inspectOllamaStatus(DEFAULT_OLLAMA_MODEL);
 
     } catch (err) {
-
-/*        
-        console.error(
-            "[OLLAMA] Erreur démarrage :",
-            err
-        );
-*/
-
+        console.error("[DÉMARRAGE] Initialisation incomplète", err, err.stack);
         createWindow();
     }
 });
