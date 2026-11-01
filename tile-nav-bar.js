@@ -6,6 +6,7 @@
     let localVisible = true;
     let globallyEnabled = true;
     let floatingNavigationOpacity = null;
+    let floatingNavigationOpacityDefaults = null;
 
     function getDisplayUrl(url, fallbackQuery = "") {
         try {
@@ -232,11 +233,12 @@
     function applyTheme() {
         const isDark = document.documentElement.classList.contains("dark") ||
             document.body?.classList.contains("dark") || window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const themeOpacityDefault = floatingNavigationOpacityDefaults?.[isDark ? "dark" : "light"];
+        const defaultOpacity = Number.isFinite(themeOpacityDefault) ? themeOpacityDefault : 1;
         const opacity = Number.isFinite(floatingNavigationOpacity)
             ? floatingNavigationOpacity
-            : isDark ? 0.82 : 0.86;
-        const defaultOpacity = isDark ? 0.82 : 0.86;
-        const opacityScale = opacity / defaultOpacity;
+            : defaultOpacity;
+        const opacityScale = defaultOpacity > 0 ? opacity / defaultOpacity : 0;
         navBar.style.setProperty("background-color", isDark ? `rgba(33,33,33,${opacity})` : `rgba(244,244,245,${opacity})`, "important");
         navBar.style.setProperty("backdrop-filter", opacity > 0 ? "blur(10px)" : "none", "important");
         navBar.style.setProperty("-webkit-backdrop-filter", opacity > 0 ? "blur(10px)" : "none", "important");
@@ -395,10 +397,12 @@
         localVisible = state.visible !== false;
         globallyEnabled = state.globallyEnabled !== false;
         floatingNavigationOpacity = Number.isFinite(state.opacity) ? Math.max(0, Math.min(1, state.opacity)) : null;
+        floatingNavigationOpacityDefaults = state.opacityDefaults || null;
         navBar.style.setProperty("width", `${state.width}px`, "important");
         navBar.style.setProperty("height", `${state.height}px`, "important");
         applyPosition(state.x, state.y);
         updateResponsiveControls(state.height);
+        applyTheme();
         applyVisibility();
     }).catch(() => applyVisibility());
 

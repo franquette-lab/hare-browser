@@ -1008,6 +1008,7 @@ let win;
 let rootNode = null;
 let activePanel = null;
 const navigationTrackedContents = new WeakSet();
+const panelByWebContents = new WeakMap();
 const savedCredentialPromptCache = new Map();
 let savedCredentialPromptQueue = Promise.resolve();
 let activeSavedCredentialPromptKey = null;
@@ -4040,6 +4041,9 @@ async function openHelpInPanel(panel = findPanelNode(rootNode, activePanel) || c
 }
 
 function findPanelByWebContents(webContents) {
+    const registeredPanel = webContents ? panelByWebContents.get(webContents) : null;
+    if (registeredPanel?.view?.webContents === webContents) return registeredPanel;
+
     function walk(node) {
         if (!node) return null;
 
@@ -4575,6 +4579,7 @@ function setupNavigationTracking(panel) {
     markPanelActivity(panel);
 
     const trackedContents = panel.view.webContents;
+    panelByWebContents.set(trackedContents, panel);
     if (navigationTrackedContents.has(trackedContents)) return;
     navigationTrackedContents.add(trackedContents);
 
@@ -5287,7 +5292,8 @@ ipcMain.handle("get-floating-navigation-state", (event) => {
         x: panel.floatingNavigationX,
         y: panel.floatingNavigationY,
         globallyEnabled: floatingNavigationGloballyEnabled,
-        opacity: floatingNavigationOpacity
+        opacity: floatingNavigationOpacity,
+        opacityDefaults: FLOATING_NAVIGATION_OPACITY_DEFAULTS
     };
 });
 
