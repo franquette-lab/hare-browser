@@ -616,6 +616,61 @@ html.dark #url-bar {
     color: #000000 !important;
 }
 
+.bookmark-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bookmark-remove-btn {
+    display: inline-flex;
+    flex: 0 0 16px;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    line-height: 1;
+    cursor: pointer;
+}
+
+#toolbar-buttons #bookmarks-list .bookmark-remove-btn {
+    width: 16px !important;
+    min-width: 16px !important;
+    height: 16px !important;
+    min-height: 16px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 4px !important;
+    background: transparent !important;
+    font-size: 12px !important;
+    font-weight: normal !important;
+}
+
+.bookmark-remove-btn:hover {
+    color: #b91c1c;
+}
+
+#toolbar-buttons #bookmarks-list .bookmark-remove-btn:hover:not(:disabled) {
+    background: transparent !important;
+    color: #b91c1c !important;
+}
+
+html.dark .bookmark-remove-btn:hover {
+    color: #f87171;
+}
+
+html.dark #toolbar-buttons #bookmarks-list .bookmark-remove-btn:hover:not(:disabled) {
+    color: #f87171 !important;
+}
+
 html.dark .bookmark-item {
     background: #2d2d30 !important;
     border: 1px solid #3c3c3c !important;
@@ -2916,16 +2971,43 @@ async function rebuildBookmarksBar() {
 
 // ====== À PURGER DANS LA FONCTION rebuildBookmarksBar() DE INDEX.HTML ======
 
-favoris.forEach(fav => {
-    const favoriteUrl = typeof fav?.url === "string" ? fav.url : "";
+favoris.forEach(favori => {
+    console.log("[FAVORIS] Rendu favori :", favori);
+    const favoriteUrl = typeof favori?.url === "string" ? favori.url : "";
     if (!favoriteUrl) return;
 
     const btn = document.createElement("div");
     btn.className = "bookmark-item";
     
     // Le libellé visible et l'infobulle reprennent l'URL enregistrée.
-    btn.textContent = favoriteUrl;
     btn.title = favoriteUrl;
+
+    const label = document.createElement("span");
+    label.className = "bookmark-label";
+    label.textContent = favoriteUrl;
+    btn.appendChild(label);
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.className = "bookmark-remove-btn";
+    removeButton.textContent = "×";
+    removeButton.title = translateUi("bookmarks.removeOne");
+    removeButton.setAttribute("aria-label", translateUi("bookmarks.removeOne"));
+    removeButton.addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        console.log("[FAVORIS] Suppression :", favori);
+        btn.remove();
+
+        try {
+            const removed = await window.api.removeFavori(favoriteUrl);
+            if (removed !== true) await rebuildBookmarksBar();
+        } catch (error) {
+            console.error("[FAVORIS] Échec de suppression du favori :", error);
+            await rebuildBookmarksBar();
+        }
+    });
+    btn.appendChild(removeButton);
 
     // L'écouteur de clic reste identique
     btn.addEventListener("click", () => {
@@ -2936,6 +3018,12 @@ favoris.forEach(fav => {
         if (targetPanelId) {
             window.api.navigate(targetPanelId, favoriteUrl);
         }
+    });
+
+    btn.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        window.api.showBookmarkContextMenu?.(favoriteUrl);
     });
 
     listContainer.appendChild(btn);

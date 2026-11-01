@@ -233,7 +233,9 @@ onActivePanelChanged: (callback) => {
         // --- FAVORIS (BOOKMARKS) ---
         getFavoris: () => ipcRenderer.invoke('get-favoris'),
         clearFavoris: () => ipcRenderer.invoke('clear-favoris'),
+        removeFavori: (url) => ipcRenderer.invoke('remove-favori', url),
         toggleFavori: (data) => ipcRenderer.invoke('toggle-favori', data),
+        showBookmarkContextMenu: (url) => ipcRenderer.send('show-bookmark-context-menu', url),
         toggleBookmarksBarFromUI: () => ipcRenderer.send("toggle-bookmarks-bar-request"),
         setBookmarksBarVisible: (visible) => ipcRenderer.send("set-bookmarks-bar-visible", visible === true),
         onToggleBookmarksBar: (callback) => ipcRenderer.on("toggle-bookmarks-bar", (event, visible) => callback(visible)),

@@ -8678,6 +8678,44 @@ function isInternalFavoriteUrl(url) {
     }
 }
 
+async function removeFavoriByUrl(url) {
+    if (typeof url !== "string" || !url.trim()) return false;
+
+    const favoris = getFavoris();
+    const index = favoris.findIndex((favori) => favori.url === url);
+    if (index < 0) return false;
+
+    const favori = favoris[index];
+    console.log("[FAVORIS] Suppression :", favori);
+    favoris.splice(index, 1);
+    const saved = await safeWriteJsonAsync(getFavorisPath(), favoris);
+    if (!saved) {
+        console.error(`[Favoris] Échec de la sauvegarde après suppression de ${url}`);
+        return false;
+    }
+
+    if (win && !win.isDestroyed()) {
+        win.webContents.send("favoris-updated", favoris);
+    }
+    return true;
+}
+
+ipcMain.handle("remove-favori", (event, url) => {
+    if (!win || win.isDestroyed() || event.sender !== win.webContents) return false;
+    return removeFavoriByUrl(url);
+});
+
+ipcMain.on("show-bookmark-context-menu", (event, url) => {
+    if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
+    if (typeof url !== "string" || !url.trim()) return;
+
+    const menu = Menu.buildFromTemplate([{
+        label: tr("bookmarks.removeOne"),
+        click: () => { void removeFavoriByUrl(url); }
+    }]);
+    menu.popup({ window: win });
+});
+
 // Remplacement du gestionnaire d'ajout/suppression des favoris
 ipcMain.handle('toggle-favori', async (event, { url } = {}) => {
     try {
