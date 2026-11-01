@@ -718,6 +718,24 @@ html.dark #pwd-modal {
     color: #6b7280 !important; /* Descriptif en gris*/
     line-height: 1.2 !important;
 }
+.ai-sidebar-native .ai-list-item {
+    display: flex;
+    align-items: center;
+}
+.ai-sidebar-native .ai-list-marker {
+    flex: 0 0 12px;
+    width: 12px;
+}
+.ai-sidebar-native .ai-list-item-content {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.ai-sidebar-native #ai-response-container .ai-instruction-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    white-space: normal;
+}
 /* Forçage de l'encadré du bas en gris clair (plus de rectangle noir) */
 .ai-sidebar-native .ai-footer-box {
     background: #e5e7eb !important; /* Fond gris clair */
@@ -944,17 +962,17 @@ html.dark #pwd-modal {
     </div>
     -->
 
-    <div id="ai-ollama-status" role="status" aria-live="polite" data-state="checking" title=""
-        style="display:flex; align-items:center; gap:7px; flex:0 0 auto; margin:-6px 0 12px; font-size:12.5px; line-height:1.4; color:#64748b;">
-        <span aria-hidden="true">●</span><span id="ai-ollama-status-text">Vérification d’Ollama…</span>
+    <div id="ai-ollama-status" class="ai-list-item" role="status" aria-live="polite" data-state="checking" title=""
+        style="flex:0 0 auto; margin:-6px 0 12px; font-size:12.5px; line-height:1.4; color:#64748b;">
+        <span class="ai-list-marker" aria-hidden="true">●</span><span id="ai-ollama-status-text" class="ai-list-item-content">Vérification d’Ollama…</span>
     </div>
     
 
     <!-- Zone d'affichage des réponses (Conteneur de texte) -->
     <div id="ai-response-container"
-        style="flex: 1; overflow-y: auto; font-size: 12.5px; line-height: 1.6; padding-right: 4px; white-space: pre-wrap; margin-bottom: 16px; text-align: left; color: #e2e8f0;"><div><span data-i18n="ai.instructions.enter">Saisissez un texte pour</span> <strong data-i18n="ai.ask">Poser une question</strong>.</div>
-        <div><span data-i18n="ai.instructions.click">● Cliquer sur</span> <strong data-i18n="ai.summary">Résumer</strong> <span data-i18n="ai.instructions.analyze">pour analyser la tuile active.</span></div>
-        <div><span data-i18n="ai.instructions.use">● Utiliser</span> <strong data-i18n="ai.compareButton">Comparer les tuiles</strong> <span data-i18n="ai.instructions.compare">pour demander une analyse croisée des pages visibles.</span></div></div>
+        style="flex: 1; overflow-y: auto; font-size: 12.5px; line-height: 1.6; padding-right: 4px; white-space: pre-wrap; margin-bottom: 16px; text-align: left; color: #e2e8f0;"><div class="ai-instruction-list"><div class="ai-list-item"><span class="ai-list-marker" aria-hidden="true">●</span><span class="ai-list-item-content"><span data-i18n="ai.instructions.enter">Saisissez un texte pour</span> <strong data-i18n="ai.ask">Poser une question</strong>.</span></div>
+        <div class="ai-list-item"><span class="ai-list-marker" aria-hidden="true">●</span><span class="ai-list-item-content"><span data-i18n="ai.instructions.click">Cliquer sur</span> <strong data-i18n="ai.summary">Résumer</strong> <span data-i18n="ai.instructions.analyze">pour analyser la tuile active.</span></span></div>
+        <div class="ai-list-item"><span class="ai-list-marker" aria-hidden="true">●</span><span class="ai-list-item-content"><span data-i18n="ai.instructions.use">Utiliser</span> <strong data-i18n="ai.compareButton">Comparer les tuiles</strong> <span data-i18n="ai.instructions.compare">pour demander une analyse croisée des pages visibles.</span></span></div></div></div>
 
         <!-- Zone de saisie et Commandes -->
         <!-- Dans index.html -> Dans la div #ai-sidebar, remplacez la ligne de l'encadré du bas par celle-ci : -->
