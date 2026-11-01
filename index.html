@@ -937,11 +937,19 @@ html.dark #pwd-modal {
         <span id="close-ai-sidebar" data-i18n-title="ai.close" style="cursor: pointer; color: #9ca3af; font-weight: bold; font-size: 16px; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#9ca3af'">×</span>
     </div>
 
+    <!--
     <div id="ai-ollama-status" role="status" aria-live="polite" data-state="checking" title=""
         style="display:flex; align-items:center; gap:7px; flex:0 0 auto; margin:-6px 0 12px; font-size:11px; line-height:1.4; color:#64748b;">
         <span aria-hidden="true">●</span><span id="ai-ollama-status-text">Vérification d’Ollama…</span>
     </div>
+    -->
+
+    <div id="ai-ollama-status" role="status" aria-live="polite" data-state="checking" title=""
+        style="display:flex; align-items:center; gap:7px; flex:0 0 auto; margin:-6px 0 12px; font-size:12.5px; line-height:1.4; color:#64748b;">
+        <span aria-hidden="true">●</span><span id="ai-ollama-status-text">Vérification d’Ollama…</span>
+    </div>
     
+
     <!-- Zone d'affichage des réponses (Conteneur de texte) -->
     <div id="ai-response-container"
         style="flex: 1; overflow-y: auto; font-size: 12.5px; line-height: 1.6; padding-right: 4px; white-space: pre-wrap; margin-bottom: 16px; text-align: left; color: #e2e8f0;"><div><span data-i18n="ai.instructions.enter">Saisissez un texte pour</span> <strong data-i18n="ai.ask">Poser une question</strong>.</div>
@@ -1336,20 +1344,10 @@ function updateAutoSleepToggle(enabled, delayMinutes = autoSleepUiDelayMinutes) 
     if (!autoSleepToggle) return;
     autoSleepToggle.disabled = false;
     autoSleepToggle.setAttribute("aria-pressed", String(autoSleepUiEnabled));
-//  autoSleepToggle.textContent = autoSleepUiEnabled ? "💤" : "⏸";
     autoSleepToggle.textContent = autoSleepUiEnabled ? "⏸" : "💤";
-
-/*
     autoSleepToggle.title = autoSleepUiEnabled
-        ? translateUi("sleep.enabledDelay", {
-            duration: HareI18n.t(`app.settings.autoSleep.delay.${autoSleepUiDelayMinutes}`, document.documentElement.lang || "fr")
-        })
-        : translateUi("sleep.disabled");
-*/
-autoSleepToggle.title = autoSleepUiEnabled
-    ? translateUi("toolbar.autoSleep.enabled")
-    : translateUi("toolbar.autoSleep.disabled");
-
+        ? translateUi("toolbar.autoSleep.enabled")
+        : translateUi("toolbar.autoSleep.disabled");
     autoSleepToggle.style.color = autoSleepUiEnabled ? "#4ade80" : "#9ca3af";
     autoSleepToggle.style.opacity = autoSleepUiEnabled ? "1" : "0.65";
 }

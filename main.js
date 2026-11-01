@@ -175,6 +175,23 @@ function rebuildApplicationMenu() {
     win.setMenu(Menu.buildFromTemplate(translateMenuTemplate(applicationMenuTemplate)));
 }
 
+function refreshApplicationMenuAutoSleepItem() {
+    if (!applicationMenuTemplate) return;
+    let itemFound = false;
+    const updateItems = (items = []) => {
+        for (const item of items) {
+            if (item.id === "auto-sleep-menu-item") {
+                item.checked = autoSleepEnabled;
+                item.label = tr(autoSleepEnabled ? "menu.sleepOn" : "menu.sleepOff");
+                itemFound = true;
+            }
+            if (item.submenu) updateItems(item.submenu);
+        }
+    };
+    updateItems(applicationMenuTemplate);
+    if (itemFound) rebuildApplicationMenu();
+}
+
 function setBookmarksBarVisible(visible) {
     if (typeof visible !== "boolean") return isBookmarksBarVisible;
 
@@ -1476,9 +1493,6 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
             click: () => {
                 setAutoSleepEnabled(!autoSleepEnabled);
                 console.log(`[Auto-Sleep Menu] Mode changé : ${autoSleepEnabled ? "ACTIVÉ" : "DÉSACTIVÉ"}`);
-                if (win && !win.isDestroyed()) {
-                    win.webContents.send('autosleep-state-changed', autoSleepEnabled, autoSleepDelayMinutes);
-                }
             }
         },
 
@@ -4156,21 +4170,83 @@ function setAutoSleepDelay(minutes) {
 }
 
 
+function wakeAllSleepingTiles() {
+    if (!rootNode || !win || win.isDestroyed()) return 0;
+
+    const activePanelId = activePanel;
+    const sleepingPanels = collectPanelNodes(rootNode).filter((panel) => panel.isSleeping);
+
+    // Seules les tuiles en veille nécessitent une nouvelle BrowserView et un loadURL.
+    // Les autres conservent leur page et leur état Chromium en mémoire.
+    sleepingPanels.forEach((panel) => {
+        wakePanel(panel, null, { activate: false, focus: false, notify: false });
+    });
+
+    const activityAt = Date.now();
+    collectPanelNodes(rootNode).forEach((panel) => {
+        if (panel.isSleeping) return;
+        panel.lastActivityAt = activityAt;
+        if (autoSleepEnabled) {
+            schedulePanelIdleTimer(panel);
+        } else {
+            clearPanelIdleTimer(panel.id);
+        }
+    });
+
+    if (sleepingPanels.length > 0) {
+        const currentPanel = findPanelNode(rootNode, activePanelId);
+        if (currentPanel && !currentPanel.isSleeping && currentPanel.view?.webContents && !currentPanel.view.webContents.isDestroyed()) {
+            currentPanel.view.webContents.focus();
+            if (currentPanel.bounds) updateActiveBorder(currentPanel.bounds);
+            win.webContents.send("active-panel-changed", {
+                id: currentPanel.id,
+                bounds: currentPanel.bounds,
+                isPrivate: currentPanel.isPrivate === true
+            });
+        }
+        // Une seule notification rafraîchit l'état de toutes les tuiles et retire
+        // les overlays dans l'interface principale.
+        win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
+    }
+
+    if (sleepingPanels.length > 0) {
+        console.info(`[Auto-Sleep] Réveil de ${sleepingPanels.length} tuile(s) en veille.`);
+    }
+    return sleepingPanels.length;
+}
+
+function initializeAutoSleepForRestoredPanels() {
+    panelIdleTimers.forEach((timer) => clearTimeout(timer));
+    panelIdleTimers.clear();
+    // L'état de veille n'est pas conservé à travers la restauration : reconstruire
+    // d'éventuelles tuiles endormies et initialiser les compteurs selon la préférence.
+    wakeAllSleepingTiles();
+}
+
 function setAutoSleepEnabled(enabled) {
+    const wasEnabled = autoSleepEnabled;
     autoSleepEnabled = enabled === true;
     panelIdleTimers.forEach((timer) => clearTimeout(timer));
     panelIdleTimers.clear();
 
-    if (autoSleepEnabled) {
+    if (wasEnabled && !autoSleepEnabled) {
+        // C'est la transition de désactivation qui doit supprimer immédiatement
+        // les overlays en passant par la même fonction que le réveil manuel.
+        wakeAllSleepingTiles();
+    } else if (autoSleepEnabled) {
+        const activityAt = Date.now();
         collectPanelNodes(rootNode).forEach((panel) => {
-            if (!panel.isSleeping) {
-                if (!Number.isFinite(panel.lastActivityAt)) panel.lastActivityAt = Date.now();
-                schedulePanelIdleTimer(panel);
-            }
+            if (panel.isSleeping) return;
+            panel.lastActivityAt = activityAt;
+            schedulePanelIdleTimer(panel);
         });
     }
 
     saveAutoSleepPreference();
+    if (win && !win.isDestroyed()) {
+        win.webContents.send("autosleep-state-changed", autoSleepEnabled, autoSleepDelayMinutes);
+    }
+    refreshApplicationMenuAutoSleepItem();
     return autoSleepEnabled;
 }
 
@@ -4292,7 +4368,7 @@ async function sleepPanel(panel, expectedLastActivityAt = panel?.lastActivityAt)
 }
 
 
-function wakePanel(panel, targetUrl = null) {
+function wakePanel(panel, targetUrl = null, { activate = true, focus = true, notify = true } = {}) {
     if (!panel || !panel.isSleeping || !win || win.isDestroyed()) return panel?.view || null;
 
     clearPanelIdleTimer(panel.id);
@@ -4309,7 +4385,7 @@ function wakePanel(panel, targetUrl = null) {
     panel.readerModeRestorePending = panel.readerModeActive;
     destroyPanelBrowserView(placeholder);
 
-    setActivePanelId(panel.id);
+    if (activate) setActivePanelId(panel.id);
     const view = createSandboxedBrowserView({
         webPreferences: panel.session ? { session: panel.session } : {}
     });
@@ -4325,10 +4401,16 @@ function wakePanel(panel, targetUrl = null) {
     if (handleViews[panel.id]) {
         try { win.setTopBrowserView(handleViews[panel.id]); } catch (error) {}
     }
-    if (panel.bounds) updateActiveBorder(panel.bounds);
-    view.webContents.focus();
-    win.webContents.send('active-panel-changed', { id: panel.id, bounds: panel.bounds });
-    win.webContents.send('panels-updated', collectPanels(rootNode), maximizedPanelId);
+    if (activate && panel.bounds) updateActiveBorder(panel.bounds);
+    if (focus) view.webContents.focus();
+    if (notify) {
+        win.webContents.send('active-panel-changed', {
+            id: panel.id,
+            bounds: panel.bounds,
+            isPrivate: panel.isPrivate === true
+        });
+        win.webContents.send('panels-updated', collectPanels(rootNode), maximizedPanelId);
+    }
     return view;
 }
 
@@ -5288,8 +5370,7 @@ ipcMain.handle("set-floating-navigation-opacity", (event, opacity) => {
 
 ipcMain.on("toggle-autosleep-request", (event, enabled) => {
     if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
-    const nextState = setAutoSleepEnabled(enabled);
-    win.webContents.send("autosleep-state-changed", nextState, autoSleepDelayMinutes);
+    setAutoSleepEnabled(enabled);
 });
 
 ipcMain.on("navigate", (event, panelId, input) => {
@@ -6398,7 +6479,6 @@ async function createDefaultLayout() {
         console.error("Erreur de chargement de la tuile de bienvenue :", error);
     }
 
-    refreshImmediateAutoSleepTimers();
     updateNavigationButtons();
 }
 
@@ -6526,6 +6606,7 @@ async function createWindow() {
     if (!(await restorePersistedSession())) {
         await createDefaultLayout();
     }
+    initializeAutoSleepForRestoredPanels();
 
     collectPanelNodes(rootNode).forEach(panel => {
         if (
@@ -6545,6 +6626,13 @@ async function createWindow() {
                     label: 'Afficher les favoris',
                     visible: !isBookmarksBarVisible,
                     click: () => setBookmarksBarVisible(true)
+                },
+                {
+                    id: "auto-sleep-menu-item",
+                    label: tr(autoSleepEnabled ? "menu.sleepOn" : "menu.sleepOff"),
+                    type: "checkbox",
+                    checked: autoSleepEnabled,
+                    click: () => setAutoSleepEnabled(!autoSleepEnabled)
                 }
             ]
         },
