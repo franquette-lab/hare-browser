@@ -4583,6 +4583,27 @@ function setupNavigationTracking(panel) {
     if (navigationTrackedContents.has(trackedContents)) return;
     navigationTrackedContents.add(trackedContents);
 
+    trackedContents.on("console-message", (consoleEvent) => {
+        const message = consoleEvent?.message;
+        if (typeof message !== "string") return;
+        const isNavigationDiagnostic = message.includes("[HARE NAV]") ||
+            /TrustedHTML|Trusted Types|Content Security Policy|Refused to apply inline style/i.test(message);
+        if (!isNavigationDiagnostic) return;
+
+        const diagnostic = {
+            panelId: panel.id,
+            level: consoleEvent?.level,
+            line: consoleEvent?.lineNumber,
+            source: consoleEvent?.sourceId,
+            message
+        };
+        if (diagnostic.level === "error" || diagnostic.level === 3) {
+            console.error("[HARE NAV][renderer]", diagnostic);
+        } else {
+            console.info("[HARE NAV][renderer]", diagnostic);
+        }
+    });
+
     trackedContents.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => {
         if (!isMainFrame || isInPlace) return;
         panel.passwordPromptDocumentGeneration = (panel.passwordPromptDocumentGeneration || 0) + 1;
@@ -4796,6 +4817,11 @@ function setupNavigationTracking(panel) {
     });
 
     panel.view.webContents.on("did-finish-load", async () => {
+        console.info("[HARE NAV] did-finish-load reçu", {
+            panelId: panel.id,
+            url: panel.view.webContents.getURL(),
+            readyState: "document loaded"
+        });
         // 1. Propose les identifiants déjà existants si la tuile est éligible
 
         // 2. ✨ RÉ-INJECTION DE L'INJECTEUR DE FORMULAIRES DURCI
@@ -4830,15 +4856,56 @@ await panel.view.webContents.executeJavaScript(`
             console.error("Erreur lors de l'exécution cryptographique de l'injecteur :", err);
         }
 
-        // 3. Injection de votre barre floutante individuelle (Conservée !)
+        // 3. Injection de la barre de navigation flottante dans le monde de la page.
         try {
             const scriptPath = path.join(__dirname, "tile-nav-bar.js");
-            if (fs.existsSync(scriptPath)) {
+            const injectionUrl = panel.view.webContents.getURL();
+            console.info("[HARE NAV] Préparation de l’injection", {
+                panelId: panel.id,
+                injectionUrl,
+                scriptPath,
+                scriptExists: fs.existsSync(scriptPath)
+            });
+            if (!fs.existsSync(scriptPath)) {
+                console.error("[HARE NAV] Script d’injection introuvable", {
+                    panelId: panel.id,
+                    scriptPath,
+                    url: injectionUrl
+                });
+            } else {
                 const navBarCode = fs.readFileSync(scriptPath, "utf8");
-                await panel.view.webContents.executeJavaScript(navBarCode + "; void 0;");
+                console.info("[HARE NAV] Exécution du script", {
+                    panelId: panel.id,
+                    url: injectionUrl,
+                    scriptBytes: Buffer.byteLength(navBarCode, "utf8"),
+                    method: "webContents.executeJavaScript",
+                    contextIsolation: true,
+                    sandbox: true
+                });
+                const result = await panel.view.webContents.executeJavaScript(navBarCode);
+                if (result?.ok === false) {
+                    console.error("[HARE NAV] Script exécuté avec un diagnostic d’échec", {
+                        panelId: panel.id,
+                        url: injectionUrl,
+                        result
+                    });
+                } else {
+                    console.info("[HARE NAV] Injection exécutée", {
+                        panelId: panel.id,
+                        url: injectionUrl,
+                        result
+                    });
+                }
             }
         } catch (err) {
-            console.error("Erreur injection mini-barre de navigation :", err);
+            console.error("[HARE NAV] Rejet de executeJavaScript", {
+                panelId: panel.id,
+                url: panel.view?.webContents?.isDestroyed() ? "<webContents détruit>" : panel.view?.webContents?.getURL(),
+                name: err?.name || "Error",
+                message: err?.message || String(err),
+                stack: err?.stack || "Stack trace indisponible",
+                error: err
+            });
         }
 
         // Maintien de votre logique pour le moteur de recherche

@@ -1,5 +1,53 @@
-(function () {
-    if (document.getElementById("hare-floating-nav")) return;
+(function installHareFloatingNavigation() {
+    const log = (stage, details = {}) => {
+        console.info(`[HARE NAV] ${stage} ${JSON.stringify({
+            url: window.location.href,
+            readyState: document.readyState,
+            ...details
+        })}`);
+    };
+    const logError = (stage, error) => {
+        console.error(`[HARE NAV] Échec à l’étape « ${stage} » ${JSON.stringify({
+            name: error?.name || "Error",
+            message: error?.message || String(error),
+            stack: error?.stack || "Stack trace indisponible",
+            url: window.location.href,
+            readyState: document.readyState
+        })}`);
+    };
+    const runStage = (stage, callback, fallback) => {
+        log(`${stage} : début`);
+        try {
+            const result = callback();
+            log(`${stage} : terminé`);
+            return result;
+        } catch (error) {
+            logError(stage, error);
+            return fallback;
+        }
+    };
+
+    log("Démarrage de l’injection");
+
+    const existingNavBar = document.getElementById("hare-floating-nav");
+    if (existingNavBar?.dataset.hareFloatingNavState === "ready") {
+        log("Barre déjà initialisée ; aucune seconde injection");
+        return { ok: true, alreadyInstalled: true };
+    }
+    if (existingNavBar) {
+        log("Barre partielle détectée ; nettoyage avant réinitialisation");
+        runStage("Nettoyage de la barre partielle", () => existingNavBar.remove());
+    }
+    if (!document.documentElement) {
+        log("DOM pas encore créé ; reprise différée à DOMContentLoaded");
+        document.addEventListener("DOMContentLoaded", () => {
+            runStage("Nouvelle tentative après DOMContentLoaded", () => installHareFloatingNavigation());
+        }, { once: true });
+        return { ok: false, deferred: true, stage: "validation du DOM" };
+    }
+
+    try {
+    log("DOM prêt pour l’injection", { hasBody: Boolean(document.body) });
 
     const applicationTitle = window.applicationTitle || "Hare Browser";
     let currentLanguage = "fr";
@@ -32,6 +80,7 @@
     }
 
     const style = document.createElement("style");
+    style.id = "hare-floating-nav-style";
     style.textContent = `
         #hare-floating-nav { 
             position: fixed !important; 
@@ -156,40 +205,95 @@
         }
         #hare-floating-nav .float-resize-handle:hover { opacity: .9 !important; }
     `;
-    document.documentElement.appendChild(style);
+    runStage("Ajout des styles de la barre", () => {
+        document.getElementById(style.id)?.remove();
+        document.documentElement.appendChild(style);
+    });
 
     const navBar = document.createElement("div");
     navBar.id = "hare-floating-nav";
     navBar.style.visibility = "hidden";
     navBar.setAttribute("role", "toolbar");
-    navBar.innerHTML = `
-        <button id="float-back" type="button" title="Back" aria-label="Back">◀</button>
-        <button id="float-forward" type="button" title="Forward" aria-label="Forward">▶</button>
-        <button id="float-home" type="button" title="Home" aria-label="Home">🏠</button>
-        <button id="float-reload" type="button" title="Reload" aria-label="Reload">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 2v6h-6"/><path d="M20.49 15A9 9 0 1 1 21 8"/>
-            </svg>
-        </button>
-        <input id="float-url" type="text" autocomplete="off" aria-label="Address">
-        <button id="float-close" type="button" title="Hide floating navigation" aria-label="Hide floating navigation">
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M6 6L18 18M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-            </svg>
-        </button>
-        <div class="float-drag-handle" role="presentation" title="Drag to move" aria-label="Drag to move"></div>
-        <div class="float-resize-handle" role="presentation" title="Resize" aria-label="Resize"></div>
-    `;
-    document.documentElement.appendChild(navBar);
+    const makeButton = (id, title, label, text = "") => {
+        const button = document.createElement("button");
+        button.id = id;
+        button.type = "button";
+        button.title = title;
+        button.setAttribute("aria-label", label);
+        if (text) button.textContent = text;
+        return button;
+    };
+    const makeSvg = (viewBox, paths, attributes = {}) => {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", viewBox);
+        for (const [name, value] of Object.entries(attributes)) svg.setAttribute(name, value);
+        for (const pathAttributes of paths) {
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            for (const [name, value] of Object.entries(pathAttributes)) path.setAttribute(name, value);
+            svg.appendChild(path);
+        }
+        return svg;
+    };
 
-    const backButton = navBar.querySelector("#float-back");
-    const forwardButton = navBar.querySelector("#float-forward");
-    const homeButton = navBar.querySelector("#float-home");
-    const reloadButton = navBar.querySelector("#float-reload");
-    const addressInput = navBar.querySelector("#float-url");
-    const closeButton = navBar.querySelector("#float-close");
-    const dragHandle = navBar.querySelector(".float-drag-handle");
-    const resizeHandle = navBar.querySelector(".float-resize-handle");
+    const backButton = makeButton("float-back", "Back", "Back", "◀");
+    const forwardButton = makeButton("float-forward", "Forward", "Forward", "▶");
+    const homeButton = makeButton("float-home", "Home", "Home", "🏠");
+    const reloadButton = makeButton("float-reload", "Reload", "Reload");
+    const reloadIcon = runStage("Création de l’icône actualiser", () => makeSvg("0 0 24 24", [
+        { d: "M21 2v6h-6" },
+        { d: "M20.49 15A9 9 0 1 1 21 8" }
+    ], {
+        xmlns: "http://www.w3.org/2000/svg",
+        width: "14",
+        height: "14",
+        fill: "none",
+        stroke: "currentColor",
+        "stroke-width": "2.5",
+        "stroke-linecap": "round",
+        "stroke-linejoin": "round"
+    }), null);
+    if (reloadIcon) runStage("Ajout de l’icône actualiser", () => reloadButton.appendChild(reloadIcon));
+
+    const addressInput = document.createElement("input");
+    addressInput.id = "float-url";
+    addressInput.type = "text";
+    addressInput.autocomplete = "off";
+    addressInput.setAttribute("aria-label", "Address");
+
+    const closeButton = makeButton("float-close", "Hide floating navigation", "Hide floating navigation");
+    const closeIcon = runStage("Création de l’icône fermeture", () => makeSvg("0 0 24 24", [{
+        d: "M6 6L18 18M18 6L6 18",
+        fill: "none",
+        stroke: "currentColor",
+        "stroke-width": "2.2",
+        "stroke-linecap": "round"
+    }], { "aria-hidden": "true", focusable: "false" }), null);
+    if (closeIcon) runStage("Ajout de l’icône fermeture", () => closeButton.appendChild(closeIcon));
+
+    const dragHandle = document.createElement("div");
+    dragHandle.className = "float-drag-handle";
+    dragHandle.setAttribute("role", "presentation");
+    dragHandle.title = "Drag to move";
+    dragHandle.setAttribute("aria-label", "Drag to move");
+
+    const resizeHandle = document.createElement("div");
+    resizeHandle.className = "float-resize-handle";
+    resizeHandle.setAttribute("role", "presentation");
+    resizeHandle.title = "Resize";
+    resizeHandle.setAttribute("aria-label", "Resize");
+
+    const controls = [backButton, forwardButton, homeButton, reloadButton, addressInput, closeButton, dragHandle, resizeHandle];
+    for (const control of controls) {
+        const controlName = control.id || control.className || control.tagName;
+        runStage(`Ajout du contrôle ${controlName}`, () => navBar.appendChild(control));
+    }
+    runStage("Ajout de la barre au document", () => document.documentElement.appendChild(navBar));
+    navBar.dataset.hareFloatingNavState = "initializing";
+
+    log("Éléments DOM créés sans innerHTML", {
+        controls: navBar.children.length,
+        trustedTypesSafeConstruction: true
+    });
 
     function updateResponsiveControls(height = null) {
         let rawHeight = height;
@@ -231,6 +335,7 @@
     }
 
     function applyTheme() {
+        runStage("Application du thème et de l’opacité", () => {
         const isDark = document.documentElement.classList.contains("dark") ||
             document.body?.classList.contains("dark") || window.matchMedia("(prefers-color-scheme: dark)").matches;
         const themeOpacityDefault = floatingNavigationOpacityDefaults?.[isDark ? "dark" : "light"];
@@ -251,6 +356,7 @@
         addressInput.style.setProperty("border", isDark ? "1px solid rgba(255,255,255,.16)" : "1px solid rgba(31,41,55,.18)", "important");
         navBar.querySelectorAll("button, .float-drag-handle, .float-resize-handle").forEach((control) => control.style.setProperty("color", isDark ? "#f3f4f6" : "#374151", "important"));
         resizeHandle.style.setProperty("color", isDark ? "#f3f4f6" : "#374151", "important");
+        });
     }
 
     function applyVisibility() {
@@ -276,6 +382,7 @@
 
     let dragOffsetX = 0;
     let dragOffsetY = 0;
+    runStage("Activation des interactions de déplacement", () => {
     dragHandle.addEventListener("pointerdown", (event) => {
         if (event.button !== 0) return;
         const bounds = navBar.getBoundingClientRect();
@@ -313,8 +420,10 @@
         navBar.style.setProperty("transform", "translateX(-50%)", "important");
         window.tileFloatingNavigation?.setPosition({ x: null, y: null });
     });
+    });
 
     let resizeStart = null;
+    runStage("Activation des interactions de redimensionnement", () => {
     resizeHandle.addEventListener("pointerdown", (event) => {
         if (event.button !== 0) return;
         const bounds = navBar.getBoundingClientRect();
@@ -341,7 +450,9 @@
     };
     resizeHandle.addEventListener("pointerup", finishResizing);
     resizeHandle.addEventListener("pointercancel", finishResizing);
+    });
 
+    runStage("Activation des boutons de navigation", () => {
     closeButton.addEventListener("click", () => {
         localVisible = false;
         applyVisibility();
@@ -358,9 +469,14 @@
     addressInput.addEventListener("focus", () => {
         setTimeout(() => { addressInput.select(); }, 0);
     });
+    });
 
+    runStage("Connexion aux API sécurisées du preload", () => {
     window.tileNavigation?.onNavigationState(updateNavigationState);
-    window.tileNavigation?.getNavigationState().then(updateNavigationState).catch(() => updateNavigationState());
+    window.tileNavigation?.getNavigationState().then(updateNavigationState).catch((error) => {
+        logError("récupération de l’état de navigation", error);
+        updateNavigationState();
+    });
     window.tileFloatingNavigation?.onVisibilityChanged((visible) => {
         localVisible = visible === true;
         applyVisibility();
@@ -373,7 +489,9 @@
         floatingNavigationOpacity = Number.isFinite(opacity) ? Math.max(0, Math.min(1, opacity)) : null;
         applyTheme();
     });
+    });
 
+    runStage("Configuration des libellés et de la langue", () => {
     const updateLanguage = (language) => {
         currentLanguage = language === "en" ? "en" : "fr";
         backButton.title = currentLanguage === "en" ? "Back" : "Revenir";
@@ -389,11 +507,19 @@
         resizeHandle.title = currentLanguage === "en" ? "Resize" : "Redimensionner";
         resizeHandle.setAttribute("aria-label", resizeHandle.title);
     };
-    window.tileLanguage?.get().then(updateLanguage).catch(() => {});
+    window.tileLanguage?.get().then(updateLanguage).catch((error) => {
+        logError("récupération de la langue", error);
+    });
     window.tileLanguage?.onChanged(updateLanguage);
+    });
 
+    runStage("Récupération des préférences de la barre", () => {
     window.tileFloatingNavigation?.getState().then((state) => {
-        if (!state) return;
+        if (!state) {
+            log("Aucune préférence reçue ; affichage avec les valeurs par défaut");
+            applyVisibility();
+            return;
+        }
         localVisible = state.visible !== false;
         globallyEnabled = state.globallyEnabled !== false;
         floatingNavigationOpacity = Number.isFinite(state.opacity) ? Math.max(0, Math.min(1, state.opacity)) : null;
@@ -404,8 +530,18 @@
         updateResponsiveControls(state.height);
         applyTheme();
         applyVisibility();
-    }).catch(() => applyVisibility());
+        log("Préférences de la barre appliquées", {
+            opacity: floatingNavigationOpacity,
+            visible: localVisible,
+            globallyEnabled
+        });
+    }).catch((error) => {
+        logError("récupération des préférences de la barre", error);
+        applyVisibility();
+    });
+    });
 
+    runStage("Installation des observateurs de thème et de taille", () => {
     window.addEventListener("theme-changed", applyTheme);
     const observer = new MutationObserver(applyTheme);
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
@@ -418,12 +554,26 @@
         }
     });
     sizeObserver.observe(navBar);
+    });
     
-    applyTheme();
-    updateResponsiveControls(48);
-    addressInput.value = getDisplayUrl(window.location.href);
+    runStage("Affichage initial de la barre", applyVisibility);
+    runStage("Initialisation du thème", applyTheme);
+    runStage("Initialisation des dimensions", () => updateResponsiveControls(48));
+    runStage("Initialisation de l’adresse affichée", () => {
+        addressInput.value = getDisplayUrl(window.location.href);
+    });
+    navBar.dataset.hareFloatingNavState = "ready";
+    log("Injection terminée ; barre prête", {
+        controls: navBar.children.length,
+        visible: navBar.style.display !== "none"
+    });
     
     setInterval(() => {
         if (document.activeElement !== addressInput) addressInput.value = getDisplayUrl(window.location.href);
     }, 2000);
+    return { ok: true, installed: true, controls: navBar.children.length };
+    } catch (error) {
+        logError("initialisation globale de la mini-barre", error);
+        return { ok: false, stage: "initialisation globale", message: error?.message || String(error) };
+    }
 })();
