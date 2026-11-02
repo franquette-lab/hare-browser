@@ -418,7 +418,11 @@
         navBar.style.setProperty("left", "50%", "important");
         navBar.style.setProperty("top", "6px", "important");
         navBar.style.setProperty("transform", "translateX(-50%)", "important");
+        navBar.style.setProperty("width", "340px", "important");
+        navBar.style.setProperty("height", "48px", "important");
+        window.tileFloatingNavigation?.setSize({ width: 340, height: 48 });
         window.tileFloatingNavigation?.setPosition({ x: null, y: null });
+        updateResponsiveControls(48);
     });
     });
 
