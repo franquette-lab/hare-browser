@@ -1003,6 +1003,7 @@ function restoreSessionLayoutBaseline() {
 let borderViews = []; 
 
 let handleViews = {}; 
+let closeViews = {};
 
 let win;
 let rootNode = null;
@@ -3432,22 +3433,48 @@ function updateActiveBorder(bounds) {
 
 let handleDraggedPanelId = null;
 
+function removePanelHandleViews(panelId) {
+    for (const view of [handleViews[panelId], closeViews[panelId]]) {
+        if (!view) continue;
+        try { win.removeBrowserView(view); } catch (error) {}
+        try {
+            if (!view.webContents.isDestroyed()) view.webContents.destroy();
+        } catch (error) {}
+    }
+    delete handleViews[panelId];
+    delete closeViews[panelId];
+}
+
 function updatePanelHandles() {
     if (!win || win.isDestroyed()) return;
 
     const panelsList = collectPanelNodes(rootNode);
     const activeIds = panelsList.map(p => p.id);
+    const controlButtonStyles = `
+        :root {
+            --control-background: ${isDarkModeForced ? "#2d2d30" : "#ffffff"};
+            --control-foreground: ${isDarkModeForced ? "#cfcfcf" : "#1f2937"};
+            --control-hover-background: ${isDarkModeForced ? "#3f3f46" : "#f3f4f6"};
+            --control-hover-foreground: ${isDarkModeForced ? "#ffffff" : "#000000"};
+        }
+        .btn {
+            flex: 1; height: 100%; color: var(--control-foreground);
+            background: var(--control-background);
+            display: flex; align-items: center; justify-content: center;
+            font-family: sans-serif; font-size: 11px; user-select: none;
+        }
+        .btn:hover {
+            background: var(--control-hover-background);
+            color: var(--control-hover-foreground);
+        }
+        .action { cursor: pointer; }
+        .trailing-control { border-radius: 0 4px 4px 0; }
+    `;
 
     // 1. Nettoyer proprement les poignées des panneaux fermés
-    Object.keys(handleViews).forEach(id => {
+    [...new Set([...Object.keys(handleViews), ...Object.keys(closeViews)])].forEach(id => {
         if (!activeIds.includes(id)) {
-            try { 
-                win.removeBrowserView(handleViews[id]); 
-                if (!handleViews[id].webContents.isDestroyed()) {
-                    handleViews[id].webContents.destroy();
-                }
-            } catch(e) {}
-            delete handleViews[id];
+            removePanelHandleViews(id);
         }
     });
 
@@ -3468,35 +3495,32 @@ function updatePanelHandles() {
     panelsList.forEach((panel) => {
         // Si le panneau est masqué par le mode maximisé, on retire sa poignée
         if (maximizedPanelId && panel.id !== maximizedPanelId) {
-            if (handleViews[panel.id]) {
-                try {
-                    win.removeBrowserView(handleViews[panel.id]);
-                    if (!handleViews[panel.id].webContents.isDestroyed()) {
-                        handleViews[panel.id].webContents.destroy();
-                    }
-                } catch(e) {}
-                delete handleViews[panel.id];
-            }
+            removePanelHandleViews(panel.id);
             return;
         }
 
         if (!panel.bounds) return;
 
         const isMaximized = (maximizedPanelId === panel.id);
-        const expectedWidth = isLastRemaining ? 24 : (isMaximized ? 60 : 80);
+        const expectedWidth = isLastRemaining ? 0 : (isMaximized ? 40 : 60);
         const handleWidth = Math.min(expectedWidth, Math.max(0, panel.bounds.width - 12));
         const handleHeight = Math.min(24, Math.max(0, panel.bounds.height - 12));
+        const buttonCount = isMaximized ? 2 : 3;
+        const referenceHandleWidth = handleWidth || 60;
+        const closeButtonWidth = Math.min(
+            Math.floor(Math.max(0, referenceHandleWidth - 2) / buttonCount),
+            Math.max(0, panel.bounds.width - 4)
+        );
+        const closeButtonHeight = Math.max(0, handleHeight - 2);
+        const closeViewBounds = {
+            x: panel.bounds.x + panel.bounds.width - closeButtonWidth - 4,
+            y: panel.bounds.y + 3,
+            width: closeButtonWidth + 4,
+            height: closeButtonHeight + 4
+        };
 
-        if (handleWidth === 0 || handleHeight === 0) {
-            if (handleViews[panel.id]) {
-                try {
-                    win.removeBrowserView(handleViews[panel.id]);
-                    if (!handleViews[panel.id].webContents.isDestroyed()) {
-                        handleViews[panel.id].webContents.destroy();
-                    }
-                } catch (e) {}
-                delete handleViews[panel.id];
-            }
+        if (closeButtonWidth === 0 || closeButtonHeight === 0) {
+            removePanelHandleViews(panel.id);
             return;
         }
 
@@ -3507,35 +3531,31 @@ function updatePanelHandles() {
             height: handleHeight
         };
 
-        // =============================================================
-        // CHANGEMENT CRUCIAL AJUSTÉ : Si la vue existe déjà, on met à jour 
-        // ses dimensions MAIS on ne s'arrête pas là si la largeur a changé !
-        // =============================================================
+        let recreateHandleView = handleWidth > 0 && !handleViews[panel.id];
         if (handleViews[panel.id]) {
             try {
-                // On récupère les dimensions actuelles de la poignée stockée
                 const currentBounds = handleViews[panel.id].getBounds();
                 handleViews[panel.id].setBounds(handleBounds);
-                
-                // Si la poignée est déjà là mais que sa taille a changé (ex: passage de 24px à 60px après le mode sombre),
-                // il faut détruire l'ancienne pour forcer la re-création complète du HTML ci-dessous.
                 if (currentBounds.width === handleBounds.width) {
-                    return; // Même taille, on s'arrête là sans recréer.
+                    recreateHandleView = false;
                 } else {
-                    win.removeBrowserView(handleViews[panel.id]);
-                    handleViews[panel.id].webContents.destroy();
+                    try { win.removeBrowserView(handleViews[panel.id]); } catch (error) {}
+                    try { handleViews[panel.id].webContents.destroy(); } catch (error) {}
                     delete handleViews[panel.id];
+                    recreateHandleView = handleWidth > 0;
                 }
-            } catch(e) {}
+            } catch (error) {
+                recreateHandleView = handleWidth > 0;
+            }
         }
 
-        // Création initiale UNIQUE (S'exécute si handleViews[panel.id] n'existe pas ou vient d'être nettoyée)
-        const hView = createSandboxedBrowserView();
-        win.addBrowserView(hView);
-        
-        const containerClass = isLastRemaining ? 'flex-1-btn' : (isMaximized ? 'flex-3-btns' : '');
+        if (recreateHandleView) {
+            const hView = createSandboxedBrowserView();
+            win.addBrowserView(hView);
 
-        hView.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(`
+            const containerClass = isMaximized ? 'flex-3-btns' : '';
+
+            hView.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(`
             <html>
             <head>
                 <meta charset="utf-8">
@@ -3543,47 +3563,30 @@ function updatePanelHandles() {
                 html, body { margin: 0; padding: 0; overflow: hidden !important; width: 100%; height: 100%; background: transparent; }
                 #container {
                     display: flex; width: 100%; height: 100%;
-                    background: #ffffff; border: 1px solid #d1d5db; border-radius: 4px;
+                    background: var(--control-background); border: 1px solid #d1d5db; border-radius: 4px;
                     box-shadow: 0 1px 3px rgba(0,0,0,0.1); box-sizing: border-box; overflow: hidden;
                 }
-                .btn {
-                    flex: 1; height: 100%; color: #1f2937;
-                    display: flex; align-items: center; justify-content: center;
-                    font-family: sans-serif; font-size: 11px; user-select: none;
-                }
+                ${controlButtonStyles}
                 #drag-btn { cursor: grab; font-size: 13px; border-right: 1px solid #d1d5db; }
-                #drag-btn:hover { background: #f3f4f6; color: #000000; }
-                .action { cursor: pointer; }
-                #zoom-btn:hover { background: #dcfce7; color: #15803d; }
                 #fullscreen-btn { border-left: 1px solid #d1d5db; border-right: 1px solid #d1d5db; }
-                #fullscreen-btn:hover { background: #dbeafe; color: #1d4ed8; }
-                #close-btn:hover { background: #fee2e2; color: #b91c1c; }
                 
                 ${isDarkModeForced ? `
-                    #container { background: #2d2d30; border: 1px solid #3c3c3c; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-                    .btn { color: #cfcfcf; }
+                    #container { border: 1px solid #3c3c3c; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
                     #drag-btn { border-right: 1px solid #3c3c3c; }
-                    #drag-btn:hover { background: #3f3f46; color: #ffffff; }
-                    #zoom-btn:hover { background: #15803d; color: #4ade80; }
                     #fullscreen-btn { border-left: 1px solid #3c3c3c; border-right: 1px solid #3c3c3c; }
-                    #fullscreen-btn:hover { background: #1e3a8a; color: #3b82f6; }
-                    #close-btn:hover { background: #991b1b; color: #fca5a5; }
                 ` : ''}
 
                 .flex-3-btns #drag-btn { display: none !important; }
                 .flex-3-btns #zoom-btn { background: ${isDarkModeForced ? '#15803d' : '#dcfce7'}; color: ${isDarkModeForced ? '#4ade80' : '#15803d'}; }
+                .flex-3-btns #zoom-btn:hover { background: var(--control-hover-background); color: var(--control-hover-foreground); }
                 .flex-3-btns .action { flex: 1 1 33.33% !important; }
-                
-                .flex-1-btn #drag-btn, .flex-1-btn #zoom-btn, .flex-1-btn #fullscreen-btn { display: none !important; }
-                .flex-1-btn #close-btn { display: flex !important; flex: 1 1 100% !important; border: none !important; border-radius: 4px; }
                 </style>
             </head>
             <body>
             <div id="container" class="${containerClass}">
                 <div id="drag-btn" class="btn" title="${tr("panel.drag")}">&#9776;</div>
                 <div id="zoom-btn" class="btn action" title="${tr(isMaximized ? "panel.restore" : "panel.enlarge")}">${isMaximized ? '&#128471;' : '&#128470;'}</div>
-                <div id="fullscreen-btn" class="btn action" title="${tr("panel.detach")}">&#8599;</div>
-                <div id="close-btn" class="btn action" title="${tr("panel.close")}">&#10006;</div>
+                <div id="fullscreen-btn" class="btn action trailing-control" title="${tr("panel.detach")}">&#8599;</div>
             </div>
             <script>
                 let dragging = false;
@@ -3600,11 +3603,10 @@ function updatePanelHandles() {
                 });
                 document.getElementById("zoom-btn").addEventListener("click", () => { document.title = "action-toggle-zoom"; });
                 document.getElementById("fullscreen-btn").addEventListener("click", () => { document.title = "action-fullscreen"; });
-                document.getElementById("close-btn").addEventListener("click", () => { document.title = "action-close"; });
             </script>
             </body>
             </html>
-        `));
+            `));
 
         hView.webContents.on("page-title-updated", (event, title) => {
             event.preventDefault();
@@ -3652,9 +3654,56 @@ function updatePanelHandles() {
             }
         });
 
-        handleViews[panel.id] = hView;
-        hView.setBounds(handleBounds);
-        try { win.setTopBrowserView(hView); } catch(e) {}
+            handleViews[panel.id] = hView;
+            hView.setBounds(handleBounds);
+            try { win.setTopBrowserView(hView); } catch(e) {}
+        }
+
+        if (closeViews[panel.id]) {
+            closeViews[panel.id].setBounds(closeViewBounds);
+            try { win.setTopBrowserView(closeViews[panel.id]); } catch (error) {}
+        } else {
+            const closeView = createSandboxedBrowserView();
+            win.addBrowserView(closeView);
+            closeView.webContents.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(`
+                <!doctype html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <style>
+                    html, body { margin: 0; padding: 0; overflow: hidden !important; width: 100%; height: 100%; background: transparent; }
+                    #container { position: relative; width: 100%; height: 100%; }
+                    ${controlButtonStyles}
+                    #close-btn {
+                        position: absolute; top: 4px; right: 4px; z-index: 1000;
+                        width: calc(100% - 4px); height: calc(100% - 4px);
+                        box-sizing: border-box;
+                    }
+                    </style>
+                </head>
+                <body>
+                    <div id="container">
+                        <div id="close-btn" class="btn action trailing-control" title="${tr("panel.close")}">&#10006;</div>
+                    </div>
+                    <script>
+                        document.getElementById("close-btn").addEventListener("click", () => { document.title = "action-close"; });
+                    </script>
+                </body>
+                </html>
+            `));
+            closeView.webContents.on("page-title-updated", (event, title) => {
+                event.preventDefault();
+                if (title !== "action-close") return;
+                if (collectPanelNodes(rootNode).length === 1) {
+                    app.quit();
+                } else {
+                    ipcMain.emit("close-panel", null, panel.id);
+                }
+            });
+            closeViews[panel.id] = closeView;
+            closeView.setBounds(closeViewBounds);
+            try { win.setTopBrowserView(closeView); } catch (error) {}
+        }
     });
 }
 
@@ -4364,6 +4413,9 @@ async function sleepPanel(panel, expectedLastActivityAt = panel?.lastActivityAt)
     if (handleViews[panel.id]) {
         try { win.setTopBrowserView(handleViews[panel.id]); } catch (error) {}
     }
+    if (closeViews[panel.id]) {
+        try { win.setTopBrowserView(closeViews[panel.id]); } catch (error) {}
+    }
     if (panel.id === activePanel && panel.bounds) updateActiveBorder(panel.bounds);
     const delayDescription = autoSleepDelayMinutes === AUTO_SLEEP_DELAY_IMMEDIATE
         ? "immédiatement"
@@ -4404,6 +4456,9 @@ function wakePanel(panel, targetUrl = null, { activate = true, focus = true, not
     resizeViews();
     if (handleViews[panel.id]) {
         try { win.setTopBrowserView(handleViews[panel.id]); } catch (error) {}
+    }
+    if (closeViews[panel.id]) {
+        try { win.setTopBrowserView(closeViews[panel.id]); } catch (error) {}
     }
     if (activate && panel.bounds) updateActiveBorder(panel.bounds);
     if (focus) view.webContents.focus();
@@ -5100,10 +5155,7 @@ function layoutNode(node, x, y, width, height) {
                         }
                     } catch (e) {}
                 }
-                if (handleViews[node.id]) {
-                    try { win.removeBrowserView(handleViews[node.id]); } catch(e) {}
-                    delete handleViews[node.id];
-                }
+                removePanelHandleViews(node.id);
             }
             return;
         }
@@ -6820,10 +6872,7 @@ async function createWindow() {
 
                             win.webContents.send("zoom-changed", maximizedPanelId);
 
-                            if (handleViews[panelIdToRestore]) {
-                                try { win.removeBrowserView(handleViews[panelIdToRestore]); } catch(e){}
-                                delete handleViews[panelIdToRestore];
-                            }
+                            removePanelHandleViews(panelIdToRestore);
                         }
 
                         if (geometryChanged) {
@@ -6986,10 +7035,7 @@ async function createWindow() {
                             win.webContents.send("zoom-changed", maximizedPanelId);
 
                             // 3. Recrée proprement la poignée flottante pour mettre à jour son icône (🗖 ou 🗗)
-                            if (handleViews[activePanel]) {
-                                try { win.removeBrowserView(handleViews[activePanel]); } catch(e){}
-                                delete handleViews[activePanel];
-                            }
+                            removePanelHandleViews(activePanel);
                             updatePanelHandles();
                         }
                     }
@@ -7512,10 +7558,7 @@ win.on('close', (e) => {
                 geometryChanged = true;
                 win.webContents.send("zoom-changed", maximizedPanelId);
 
-                if (handleViews[panelIdToRestore]) {
-                    try { win.removeBrowserView(handleViews[panelIdToRestore]); } catch(e){}
-                    delete handleViews[panelIdToRestore];
-                }
+                removePanelHandleViews(panelIdToRestore);
             }
 
             if (geometryChanged) {
@@ -7612,8 +7655,7 @@ function detachPanelToFullscreen(panelId) {
         }
 
         // Supprimer définitivement sa poignée graphique
-        try { win.removeBrowserView(handleViews[panelId]); } catch(e) {}
-        delete handleViews[panelId];
+        removePanelHandleViews(panelId);
 
         const newActivePanel = findFirstPanel(sibling);
         setActivePanelId(newActivePanel.id);
@@ -8687,12 +8729,8 @@ ipcMain.on("toggle-dark-mode-request", (_event, enabled) => {
             applyThemeToView(panel.view);
         });
 
-        Object.entries(handleViews).forEach(([panelId, handleView]) => {
-            try { win.removeBrowserView(handleView); } catch (error) {}
-            if (handleView.webContents && !handleView.webContents.isDestroyed()) {
-                try { handleView.webContents.destroy(); } catch (error) {}
-            }
-            delete handleViews[panelId];
+        [...new Set([...Object.keys(handleViews), ...Object.keys(closeViews)])].forEach((panelId) => {
+            removePanelHandleViews(panelId);
         });
 
         forceRebuildSplitters = true;
