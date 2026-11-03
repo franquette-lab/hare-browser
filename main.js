@@ -3507,15 +3507,17 @@ function updatePanelHandles() {
         const handleHeight = Math.min(24, Math.max(0, panel.bounds.height - 12));
         const buttonCount = isMaximized ? 2 : 3;
         const referenceHandleWidth = handleWidth || 60;
+        const closeButtonRightInset = 16; // 4 px existing inset plus a 12 px scrollbar clearance shift.
+        const closeViewButtonGap = 1; // Keep the overlay itself to the left of a 15 px scrollbar.
         const closeButtonWidth = Math.min(
-            Math.floor(Math.max(0, referenceHandleWidth - 2) / buttonCount),
-            Math.max(0, panel.bounds.width - 4)
+            Math.max(0, referenceHandleWidth - 2) / buttonCount,
+            Math.max(0, panel.bounds.width - closeButtonRightInset)
         );
         const closeButtonHeight = Math.max(0, handleHeight - 2);
         const closeViewBounds = {
-            x: panel.bounds.x + panel.bounds.width - closeButtonWidth - 4,
+            x: panel.bounds.x + panel.bounds.width - closeButtonWidth - closeButtonRightInset,
             y: panel.bounds.y + 3,
-            width: closeButtonWidth + 4,
+            width: closeButtonWidth + closeViewButtonGap,
             height: closeButtonHeight + 4
         };
 
@@ -3675,8 +3677,8 @@ function updatePanelHandles() {
                     #container { position: relative; width: 100%; height: 100%; }
                     ${controlButtonStyles}
                     #close-btn {
-                        position: absolute; top: 4px; right: 4px; z-index: 1000;
-                        width: calc(100% - 4px); height: calc(100% - 4px);
+                        position: absolute; top: 4px; right: ${closeViewButtonGap}px; z-index: 1000;
+                        width: calc(100% - ${closeViewButtonGap}px); height: calc(100% - 4px);
                         box-sizing: border-box;
                     }
                     </style>
@@ -6731,6 +6733,7 @@ async function createWindow() {
     if (!(await restorePersistedSession())) {
         await createDefaultLayout();
     }
+    console.log("[STARTUP] activePanel =", activePanel);
     initializeAutoSleepForRestoredPanels();
 
     collectPanelNodes(rootNode).forEach(panel => {
@@ -7308,14 +7311,23 @@ async function createWindow() {
         // ✨ AJOUTEZ CETTE LIGNE ICI :
         win.webContents.send("toggle-bookmarks-bar", isBookmarksBarVisible);
 
+        const startupActive = activePanel && findPanelNode(rootNode, activePanel);
+        if (startupActive) {
+            console.info(`[DÉMARRAGE] Tuile active : ${startupActive.id}.`);
+        } else {
+            console.warn("[DÉMARRAGE] Aucun panneau actif détecté après création/restauration de la session.");
+        }
+
+        // La liste et l'identifiant actif arrivent ensemble pour que la sélection
+        // visuelle soit appliquée même si la barre URL doit encore être reconstruite.
         win.webContents.send(
             "panels-updated",
             collectPanels(rootNode),
-            maximizedPanelId
+            maximizedPanelId,
+            startupActive?.id ?? null
         );
 
         // Le renderer peut charger après le focus initial : on réémet le panneau actif.
-        const startupActive = activePanel && findPanelNode(rootNode, activePanel);
         if (startupActive) {
             win.webContents.send("active-panel-changed", {
                 id: startupActive.id,

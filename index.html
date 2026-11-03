@@ -1463,7 +1463,7 @@ if (darkModeBtn) {
 
 });}
 
-function refreshTabBorders() {
+function refreshTabBorders(reason = "appel direct") {
     const container = document.getElementById("url-bar");
     if (!container) return;
 
@@ -1487,6 +1487,11 @@ function refreshTabBorders() {
         tabWrapper.classList.toggle("private-url-tab", isPrivateTab);
         addressGroup?.classList.toggle("active-url-address", isActiveTab);
 
+        if (isActiveTab && addressGroup) {
+            console.log("[STARTUP] sélection URL appliquée", { panelId, reason });
+            console.log("[STARTUP] classe CSS présente =", addressGroup.classList.value);
+        }
+
         if (isPrivateTab) {
             tabWrapper.style.background = isDark
                 ? (isActiveTab ? "#2a193d" : "#1e112c")
@@ -1501,6 +1506,32 @@ function refreshTabBorders() {
                 : "#f3f4f6";
         }
     }
+}
+
+function applyActiveUrlSelection(reason) {
+    refreshTabBorders(reason);
+
+    if (!activePanel) {
+        console.warn(`[URLBAR] Aucun panneau actif détecté (${reason}).`);
+        return false;
+    }
+
+    const input = document.getElementById(`${activePanel}-url`);
+    const tab = input?.closest(".url-tab");
+    const addressGroup = tab?.querySelector(".url-address-group");
+    if (!input || !tab || !addressGroup) {
+        console.info(`[URLBAR] Sélection de ${activePanel} en attente : son champ URL n'est pas encore construit (${reason}).`);
+        return false;
+    }
+
+    const isVisuallySelected = tab.classList.contains("active-url-tab") &&
+        addressGroup.classList.contains("active-url-address");
+    if (isVisuallySelected) {
+        console.info(`[URLBAR] Sélection visuelle appliquée à ${activePanel} (${reason}).`);
+    } else {
+        console.warn(`[URLBAR] Le champ URL de ${activePanel} existe mais n'a pas reçu la classe de sélection (${reason}).`);
+    }
+    return isVisuallySelected;
 }
 
 function alignUrlTabsToPanels(panels = currentPanels) {
@@ -1675,7 +1706,7 @@ function attachUrlHandler(panelId) {
 }
 
 // 2. L'unique écouteur de mise à jour des panneaux global
-window.api.onPanelsUpdated((panelsList, zoomPanelId) => {
+window.api.onPanelsUpdated((panelsList, zoomPanelId, activePanelId) => {
     // 1. Log d'IHM sécurisé
     console.log("Mise à jour des panneaux reçue par l'IHM.");
     
@@ -1699,6 +1730,15 @@ window.api.onPanelsUpdated((panelsList, zoomPanelId) => {
     // 2. Assignation sécurisée aux variables globales sans jamais écrire le mot "panel" au singulier
     currentPanels = Array.isArray(panelsList) ? panelsList : [];
     currentMaximizedId = zoomPanelId || null;
+    if (activePanelId !== undefined) {
+        const activePanelExists = activePanelId && currentPanels.some(panel => panel?.id === activePanelId);
+        activePanel = activePanelExists ? activePanelId : null;
+        if (!activePanel) {
+            console.warn(`[DÉMARRAGE] Aucun panneau actif valide dans la mise à jour des panneaux (reçu : ${activePanelId || "aucun"}).`);
+        } else {
+            console.info(`[DÉMARRAGE] Tuile active reçue avec la liste des panneaux : ${activePanel}.`);
+        }
+    }
     updateReaderModeButtons();
 
     // 3. Exécution compartimentée pour isoler et identifier les bugs
@@ -1780,6 +1820,10 @@ window.api.onPanelsUpdated((panelsList, zoomPanelId) => {
     }
 
     alignUrlTabsToPanels(currentPanels);
+
+    if (activePanelId !== undefined) {
+        applyActiveUrlSelection("panels-updated");
+    }
 
     // 5. Rafraîchissements secondaires
     try {
@@ -1958,6 +2002,8 @@ function refreshUrlBarLanguage(panels = currentPanels) {
 }
 
 function rebuildUrlBar(panels) {
+    console.log("[STARTUP] updateAddressBar appelé", { activePanel, panelCount: panels?.length ?? 0 });
+
     // 1. Ciblage de votre élément conteneur d'origine
     const urlBar = document.getElementById("url-bar");
     const isDark = applicationDarkMode;
@@ -2188,7 +2234,7 @@ input.addEventListener("click", (e) => {
 
     const panelChanged = activePanel !== panel.id;
     activePanel = panel.id;
-    if (typeof refreshTabBorders === "function") refreshTabBorders();
+    if (typeof refreshTabBorders === "function") refreshTabBorders("clic URL");
     if (panelChanged) {
         window.api.setActivePanel(panel.id, { keepChromeFocus: true });
     }
@@ -2212,7 +2258,7 @@ input.addEventListener("focus", () => {
         if (input.value !== realUrl) input.value = realUrl;
     }
 
-    if (typeof refreshTabBorders === "function") refreshTabBorders();
+    if (typeof refreshTabBorders === "function") refreshTabBorders("focus URL");
 
     if (panelChanged) {
         window.api.setActivePanel(panel.id, { keepChromeFocus: true });
@@ -2340,6 +2386,7 @@ addressGroup.appendChild(input);
         btnSplit.style.justifyContent = "center";
         btnSplit.style.width = "18px";
         btnSplit.style.marginLeft = "3px";
+        btnSplit.style.marginRight = "12px"; // Same leftward shift as the floating close control.
         btnSplit.style.flex = "0 0 auto";
         btnSplit.setAttribute("role", "button");
         btnSplit.setAttribute("aria-haspopup", "menu");
@@ -2661,10 +2708,14 @@ window.api.onFocusUrlBar((panelId) => {
 
 window.api.onActivePanelChanged((data) => {
 
-    if (!data || !data.id) return;
+    if (!data || !data.id) {
+        console.warn("[URLBAR] active-panel-changed reçu sans identifiant de panneau actif.");
+        return;
+    }
 
     const previousFindPanelId = findPanelId;
     activePanel = data.id;
+    console.log("[STARTUP] active-panel-changed reçu", activePanel);
     updateReaderModeButtons();
 
     if (findBar?.classList.contains("open") && previousFindPanelId !== data.id) {
@@ -2677,9 +2728,7 @@ window.api.onActivePanelChanged((data) => {
     }
 
 
-    if (typeof refreshTabBorders === "function") {
-        refreshTabBorders();
-    }
+    applyActiveUrlSelection("active-panel-changed");
 
     const input = document.getElementById(`${data.id}-url`);
     if (data.selectUrl && input && !input.readOnly) {
@@ -3242,6 +3291,9 @@ function applyAppTheme(isDark) {
     }
 
     rebuildUrlBar(currentPanels);
+    // La reconstruction remplace les éléments et retire leurs classes actives.
+    // Réappliquer le même état visuel que lors du clic sur une tuile.
+    refreshTabBorders("applyAppTheme après rebuildUrlBar");
     rebuildBookmarksBar();
 
     updateToolbarTheme();

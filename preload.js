@@ -90,9 +90,9 @@ onActivePanelChanged: (callback) => {
         openHistoryWindow: () => ipcRenderer.send("open-history-window"),
 
         onPanelsUpdated: (callback) => {
-            ipcRenderer.on("panels-updated", (_event, panelsList, zoomPanelId) => {
+            ipcRenderer.on("panels-updated", (_event, panelsList, zoomPanelId, activePanelId) => {
                 if (typeof callback === "function") {
-                    callback(panelsList, zoomPanelId);
+                    callback(panelsList, zoomPanelId, activePanelId);
                 }
             });
         },
