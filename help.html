@@ -182,22 +182,22 @@
 <div class="container">
     <h1 data-i18n="help.title">Centre d'aide</h1>
     
-    <p data-i18n="help.welcome">Bienvenue dans le centre d'aide officiel de <strong>Hare Browser</strong>. Ce navigateur web combine un environnement de navigation multi-panneaux avancé (mode mosaïque dynamique), un moteur de recherche SearXNG respectueux de la vie privée et un assistant d'intelligence artificielle locale propulsé par Ollama.</p>
+    <p data-i18n-html="help.welcome">Bienvenue dans le centre d'aide officiel de <strong>Hare Browser</strong>. Ce navigateur web combine un environnement de navigation multi-panneaux avancé (mode mosaïque dynamique), un moteur de recherche SearXNG respectueux de la vie privée et un assistant d'intelligence artificielle locale propulsé par Ollama.</p>
 
     <div class="info-box">
         <p data-i18n="help.mac">🍏 Configuration macOS : Pour les utilisateurs d'Apple Mac, remplacez systématiquement la touche Ctrl par la touche Cmd (Commande) pour l’ensemble des raccourcis ci-dessous.</p>
     </div>
 
-    <h2 id="gestion-panneaux" data-i18n="help.panels">
-        🧱 Gestion des panneaux &amp; fonctionnement du fractionnement
+    <h2 id="gestion-panneaux">
+        <span data-i18n="help.panels">🧱 Gestion des panneaux &amp; fonctionnement du fractionnement</span>
         <a href="#gestion-panneaux" class="hashtag-link">#</a>
     </h2>
     <p data-i18n="help.panelsIntro">Le cœur de Hare Browser repose sur un arbre binaire de division (Split Nodes). Chaque panneau actif peut être subdivisé géométriquement à l'infini pour organiser votre espace de travail sans manipuler des dizaines d'onglets superposés traditionnels.</p>
     
-    <h3>Schémas géométriques de fractionnement des tuiles :</h3>
+    <h3 data-i18n="help.diagramsTitle">Schémas géométriques de fractionnement des tuiles :</h3>
     
-    <p><strong>1. Scission Verticale Initiale (Ctrl&nbsp;+&nbsp;T) :</strong> Divise l'espace actif en deux colonnes égales et ouvre une nouvelle tuile indépendante sur le flanc droit.</p>
-    <pre>
+    <p data-i18n-html="help.splitV.desc"><strong>1. Scission Verticale Initiale (Ctrl&nbsp;+&nbsp;T) :</strong> Divise l'espace actif en deux colonnes égales et ouvre une nouvelle tuile indépendante sur le flanc droit.</p>
+    <pre data-i18n="help.diagram.splitV">
     ┌──────────────────────────────────────┐          ┌──────────────────┬──────────────────┐
     │                                      │          │                  │                  │
     │                                      │ Ctrl&nbsp;+&nbsp;T │                  │                  │
@@ -207,8 +207,8 @@
     └──────────────────────────────────────┘          └──────────────────┴──────────────────┘
                                                                  </pre>
 	
-    <p><strong>2. Scission Horizontale Subsidiaire (Ctrl + H) :</strong> Sélectionne un panneau spécifique et le fracture en deux rangées horizontales, créant une nouvelle tuile en contrebas.</p>
-    <pre>
+    <p data-i18n-html="help.splitH.desc"><strong>2. Scission Horizontale Subsidiaire (Ctrl + H) :</strong> Sélectionne un panneau spécifique et le fracture en deux rangées horizontales, créant une nouvelle tuile en contrebas.</p>
+    <pre data-i18n="help.diagram.splitH">
     ┌──────────────────┬───────────────────┐          ┌──────────────────┬──────────────────┐
     │                  │      FOCUS        │          │                  │   TUILE DU HAUT  │
     │                  │     (Actif)       │ Ctrl&nbsp;+&nbsp;H │                  ├──────────────────┤
@@ -217,21 +217,21 @@
     │                  │                   │          │                  │     (En bas)     │
     └──────────────────┴───────────────────┘          └──────────────────┴──────────────────┘
                                                                  </pre>
-<h3>➕ Scinder un panneau avec le bouton +</h3>
+<h3 data-i18n="help.plus.title">➕ Scinder un panneau avec le bouton +</h3>
 
-<p>
+<p data-i18n-html="help.plus.intro">
 Vous pouvez créer rapidement un nouveau panneau sans utiliser le clavier.
 Cliquez simplement sur le bouton <strong>+</strong> situé à droite de la barre
 d'adresse du panneau actif.
 </p>
 
 <div class="info-box">
-    <p>
+    <p data-i18n-html="help.plus.news">
         💡 <strong>Nouveauté</strong> : un clic sur le bouton <strong>+</strong> fait désormais apparaître un sous-menu contextuel vous laissant le choix entre <strong>"Scinder à droite"</strong> (division verticale) ou <strong>"Scinder vers le bas"</strong> (division horizontale).
     </p>
 </div>
 
-<pre>
+<pre data-i18n="help.diagram.plus">
         ┌──────────────────────────────┐
         │                          [+] │
         │                              │
@@ -253,12 +253,12 @@ d'adresse du panneau actif.
                                   └──────────────────────────────┘
 </pre>
 
-<p>
+<p data-i18n-html="help.plus.outro">
 Le bouton <strong>+</strong> combine à la souris les mêmes actions que les raccourcis clavier <code>Ctrl + T</code> et <code>Ctrl + Shift + H</code>. Cette approche visuelle est idéale pour partitionner à la volée votre espace de travail et configurer votre mosaïque de sites entièrement à la souris.
 </p>
-<h3>🖱️ Menu contextuel des panneaux</h3>
+<h3 data-i18n="help.ctx.title">🖱️ Menu contextuel des panneaux</h3>
 
-<p>
+<p data-i18n-html="help.ctx.intro">
 Chaque panneau de navigation dispose d'un menu contextuel accessible par
 <strong>clic droit</strong>. Ce menu regroupe les principales actions de gestion
 du contenu, les fonctions d'intelligence artificielle et les outils
@@ -266,49 +266,49 @@ d'agencement de la mosaïque.
 </p>
 
 <div class="info-box">
-    <p>
+    <p data-i18n="help.ctx.tip">
         💡 Astuce : un clic droit dans un panneau permet d'accéder rapidement
         aux commandes les plus courantes sans utiliser les raccourcis clavier.
     </p>
 </div>
 
-<h4>✏️ Édition</h4>
+<h4 data-i18n="help.ctx.editTitle">✏️ Édition</h4>
 
 <ul>
-    <li><strong>Couper</strong> (Ctrl + X)</li>
-    <li><strong>Copier</strong> (Ctrl + C)</li>
-    <li><strong>Coller</strong> (Ctrl + V)</li>
-    <li><strong>Supprimer</strong></li>
-    <li><strong>Sélectionner tout</strong> (Ctrl + A)</li>
+    <li data-i18n-html="help.ctx.cut"><strong>Couper</strong> (Ctrl + X)</li>
+    <li data-i18n-html="help.ctx.copy"><strong>Copier</strong> (Ctrl + C)</li>
+    <li data-i18n-html="help.ctx.paste"><strong>Coller</strong> (Ctrl + V)</li>
+    <li data-i18n-html="help.ctx.delete"><strong>Supprimer</strong></li>
+    <li data-i18n-html="help.ctx.selectAll"><strong>Sélectionner tout</strong> (Ctrl + A)</li>
 </ul>
 
-<h4>✨ Actions IA (Assistant)</h4>
+<h4 data-i18n="help.ctx.aiTitle">✨ Actions IA (Assistant)</h4>
 
 <ul>
-    <li><strong>Résumer cette tuile web</strong> : génère un résumé rapide de la page affichée.</li>
-    <li><strong>Analyser les mots-clés de la page</strong> : extrait les principaux thèmes et mots importants du contenu.</li>
+    <li data-i18n-html="help.ctx.summarize"><strong>Résumer cette tuile web</strong> : génère un résumé rapide de la page affichée.</li>
+    <li data-i18n-html="help.ctx.keywords"><strong>Analyser les mots-clés de la page</strong> : extrait les principaux thèmes et mots importants du contenu.</li>
 </ul>
 
-<h4>🧱 Agencement de la mosaïque</h4>
+<h4 data-i18n="help.ctx.layoutTitle">🧱 Agencement de la mosaïque</h4>
 
 <ul>
-    <li><strong>Scinder verticalement</strong> (Ctrl + T) : crée un nouveau panneau à droite.</li>
-    <li><strong>Scinder horizontalement</strong> (Ctrl + H) : crée un nouveau panneau en dessous.</li>
-    <li><strong>Scinder en Navigation Privée</strong> (Ctrl + Shift + N) : ouvre un nouveau panneau privé isolé.</li>
-    <li><strong>Scinder dans un conteneur isolé</strong> (🗂️ dans la barre d'outils) : ouvre un nouveau panneau dans un conteneur (Personnel, Travail, Compte 2, Compte 3) pour se connecter à plusieurs comptes simultanément.</li>
-    <li><strong>Dupliquer cette tuile</strong> (Ctrl + Shift + D, 📋 dans la barre d'outils, ou clic droit sur la tuile) : ouvre une copie du panneau à sa droite, sur la même adresse. La copie d'une tuile privée reste privée ; celle d'une tuile conteneur est créée dans la session par défaut.</li>
+    <li data-i18n-html="help.ctx.splitV"><strong>Scinder verticalement</strong> (Ctrl + T) : crée un nouveau panneau à droite.</li>
+    <li data-i18n-html="help.ctx.splitH"><strong>Scinder horizontalement</strong> (Ctrl + H) : crée un nouveau panneau en dessous.</li>
+    <li data-i18n-html="help.ctx.splitPrivate"><strong>Scinder en Navigation Privée</strong> (Ctrl + Shift + N) : ouvre un nouveau panneau privé isolé.</li>
+    <li data-i18n-html="help.ctx.splitContainer"><strong>Scinder dans un conteneur isolé</strong> (🗂️ dans la barre d'outils) : ouvre un nouveau panneau dans un conteneur (Personnel, Travail, Compte 2, Compte 3) pour se connecter à plusieurs comptes simultanément.</li>
+    <li data-i18n-html="help.ctx.duplicate"><strong>Dupliquer cette tuile</strong> (Ctrl + Shift + D, 📋 dans la barre d'outils, ou clic droit sur la tuile) : ouvre une copie du panneau à sa droite, sur la même adresse. La copie d'une tuile privée reste privée ; celle d'une tuile conteneur est créée dans la session par défaut.</li>
 </ul>
 
-<h4>📌 Gestion du panneau</h4>
+<h4 data-i18n="help.ctx.panelTitle">📌 Gestion du panneau</h4>
 
 <ul>
-    <li><strong>Maximiser cette tuile</strong> (Ctrl + M) : agrandit temporairement le panneau sélectionné.</li>
-    <li><strong>Imprimer le contenu de la page</strong> (Ctrl + P).</li>
-    <li><strong>Fermer cette tuile</strong> (Ctrl + W).</li>
+    <li data-i18n-html="help.ctx.maximize"><strong>Maximiser cette tuile</strong> (Ctrl + M) : agrandit temporairement le panneau sélectionné.</li>
+    <li data-i18n-html="help.ctx.print"><strong>Imprimer le contenu de la page</strong> (Ctrl + P).</li>
+    <li data-i18n-html="help.ctx.close"><strong>Fermer cette tuile</strong> (Ctrl + W).</li>
 </ul>
 
 <div class="diagram">
-<pre>			    
+<pre data-i18n="help.diagram.menu">			    
 					         │ Clic droit sur un panneau
 					         │
 					         ▼
@@ -321,7 +321,7 @@ d'agencement de la mosaïque.
 </pre>
 </div>
 
-<p>
+<p data-i18n-html="help.ctx.outro">
 Le menu contextuel constitue le point d'accès central à la plupart des
 fonctionnalités de gestion des panneaux. Il permet notamment de construire
 rapidement un espace de travail en mosaïque, d'analyser une page avec
@@ -334,39 +334,39 @@ l'assistant IA et de gérer le contenu affiché sans quitter le panneau actif.
     <table>
         <thead>
             <tr>
-                <th>Raccourci Clavier</th>
-                <th>Action Système &amp; Comportement Géométrique</th>
+                <th data-i18n="help.th.shortcut">Raccourci Clavier</th>
+                <th data-i18n="help.th.layout">Action Système &amp; Comportement Géométrique</th>
             </tr>
         </thead>
         <tbody>
             <tr>
                 <td><code>Ctrl&nbsp;+&nbsp;T</code></td>
-                <td><strong>Scinder verticalement</strong> — Divise le panneau actif en deux verticalement et ouvre une nouvelle tuile à droite.</td>
+                <td data-i18n-html="help.row.splitV"><strong>Scinder verticalement</strong> — Divise le panneau actif en deux verticalement et ouvre une nouvelle tuile à droite.</td>
             </tr>
             <tr>
                 <td><code>Ctrl&nbsp;+&nbsp;H</code></td>
-                <td><strong>Scinder horizontalement</strong> — Divise le panneau actif en deux horizontalement et ouvre une nouvelle tuile en bas.</td>
+                <td data-i18n-html="help.row.splitH"><strong>Scinder horizontalement</strong> — Divise le panneau actif en deux horizontalement et ouvre une nouvelle tuile en bas.</td>
             </tr>
             <tr>
                 <td><code>Ctrl&nbsp;+&nbsp;W</code></td>
-                <td><strong>Fermer la tuile active</strong> — Ferme immédiatement le panneau sur lequel vous vous trouvez et réajuste les ratios des tuiles voisines. Si une seule tuile reste ouverte, ferme l'application.</td>
+                <td data-i18n-html="help.row.close"><strong>Fermer la tuile active</strong> — Ferme immédiatement le panneau sur lequel vous vous trouvez et réajuste les ratios des tuiles voisines. Si une seule tuile reste ouverte, ferme l'application.</td>
             </tr>
             <tr>
                 <td><code>Ctrl&nbsp;+&nbsp;Z</code></td>
-                <td><strong>Annuler la fermeture</strong> — Rouvre instantanément le tout dernier panneau fermé en restaurant son URL et son emplacement exact dans la mosaïque.</td>
+                <td data-i18n-html="help.row.undo"><strong>Annuler la fermeture</strong> — Rouvre instantanément le tout dernier panneau fermé en restaurant son URL et son emplacement exact dans la mosaïque.</td>
             </tr>
             <tr>
-                <td><code>Cmd&nbsp;ou&nbsp;Ctrl&nbsp;+&nbsp;S</code></td>
-                <td><strong>Sauvegarder l'agencement</strong> — Exporte la structure actuelle de votre mosaïque de tuiles dans un fichier JSON pour la recharger plus tard.</td>
+                <td data-i18n-html="help.key.save"><code>Cmd&nbsp;ou&nbsp;Ctrl&nbsp;+&nbsp;S</code></td>
+                <td data-i18n-html="help.row.save"><strong>Sauvegarder l'agencement</strong> — Exporte la structure actuelle de votre mosaïque de tuiles dans un fichier JSON pour la recharger plus tard.</td>
             </tr>
             <tr>
-                <td><code>Cmd&nbsp;ou&nbsp;Ctrl&nbsp;+&nbsp;O</code></td>
-                <td><strong>Charger un agencement</strong> — Importe un fichier de configuration JSON pour restaurer instantanément un espace de travail complet.</td>
+                <td data-i18n-html="help.key.load"><code>Cmd&nbsp;ou&nbsp;Ctrl&nbsp;+&nbsp;O</code></td>
+                <td data-i18n-html="help.row.load"><strong>Charger un agencement</strong> — Importe un fichier de configuration JSON pour restaurer instantanément un espace de travail complet.</td>
             </tr>
 			
 			<tr>
-                <td><code>Cmd&nbsp;ou&nbsp;Ctrl&nbsp;+&nbsp;R</code></td>
-				<td><strong>Égaliser la mosaïque</strong> — Réinitialise instantanément l'intégralité de la mosaïque à des tailles égales, peu importe le nombre de tuiles actives, en repositionnant tous les séparateurs au centre.</td>
+                <td data-i18n-html="help.key.equalize"><code>Cmd&nbsp;ou&nbsp;Ctrl&nbsp;+&nbsp;R</code></td>
+				<td data-i18n-html="help.row.equalize"><strong>Égaliser la mosaïque</strong> — Réinitialise instantanément l'intégralité de la mosaïque à des tailles égales, peu importe le nombre de tuiles actives, en repositionnant tous les séparateurs au centre.</td>
 			</tr>
 
 			
@@ -375,31 +375,31 @@ l'assistant IA et de gérer le contenu affiché sans quitter le panneau actif.
 
 
 
-    <h3>🔄 Réorganisation des Tuiles au Clavier</h3>
-    <p>Permet d'intervertir instantanément l'emplacement physique du panneau actif avec le panneau adjacent dans la direction ciblée, sans utiliser la poignée de glissement à la souris.</p>
+    <h3 data-i18n="help.swap.title">🔄 Réorganisation des Tuiles au Clavier</h3>
+    <p data-i18n="help.swap.intro">Permet d'intervertir instantanément l'emplacement physique du panneau actif avec le panneau adjacent dans la direction ciblée, sans utiliser la poignée de glissement à la souris.</p>
     <table>
         <thead>
             <tr>
-                <th>Raccourci Clavier</th>
-                <th>Direction de la Permutation dans la Mosaïque</th>
+                <th data-i18n="help.th.shortcut">Raccourci Clavier</th>
+                <th data-i18n="help.th.swap">Direction de la Permutation dans la Mosaïque</th>
             </tr>
         </thead>
         <tbody>
             <tr>
                 <td><code>Alt&nbsp;+&nbsp;Shift&nbsp;+&nbsp;←</code></td>
-                <td><strong>Intervertir à gauche</strong> — Échange la position du panneau actif avec la tuile située immédiatement sur sa gauche.</td>
+                <td data-i18n-html="help.row.swapLeft"><strong>Intervertir à gauche</strong> — Échange la position du panneau actif avec la tuile située immédiatement sur sa gauche.</td>
             </tr>
             <tr>
                 <td><code>Alt&nbsp;+&nbsp;Shift&nbsp;+&nbsp;→</code></td>
-                <td><strong>Intervertir à droite</strong> — Échange la position du panneau actif avec la tuile située immédiatement sur sa droite.</td>
+                <td data-i18n-html="help.row.swapRight"><strong>Intervertir à droite</strong> — Échange la position du panneau actif avec la tuile située immédiatement sur sa droite.</td>
             </tr>
             <tr>
                 <td><code>Alt&nbsp;+&nbsp;Shift&nbsp;+&nbsp;↑</code></td>
-                <td><strong>Intervertir au-dessus</strong> — Échange la position du panneau actif avec la tuile située immédiatement au-dessus.</td>
+                <td data-i18n-html="help.row.swapUp"><strong>Intervertir au-dessus</strong> — Échange la position du panneau actif avec la tuile située immédiatement au-dessus.</td>
             </tr>
             <tr>
                 <td><code>Alt&nbsp;+&nbsp;Shift&nbsp;+&nbsp;↓</code></td>
-                <td><strong>Intervertir en dessous</strong> — Échange la position du panneau actif avec la tuile située immédiatement en dessous.</td>
+                <td data-i18n-html="help.row.swapDown"><strong>Intervertir en dessous</strong> — Échange la position du panneau actif avec la tuile située immédiatement en dessous.</td>
             </tr>
         </tbody>
     </table>
@@ -409,31 +409,31 @@ l'assistant IA et de gérer le contenu affiché sans quitter le panneau actif.
 
 
 
-<h3>🔍 Mode Agrandi & Zoom Géométrique</h3>
+<h3 data-i18n="help.zoom.title">🔍 Mode Agrandi & Zoom Géométrique</h3>
 <table>
     <thead>
         <tr>
-            <th>Raccourci Clavier</th>
-            <th>Effet sur la Zone d'Affichage utile</th>
+            <th data-i18n="help.th.shortcut">Raccourci Clavier</th>
+            <th data-i18n="help.th.zoom">Effet sur la Zone d'Affichage utile</th>
         </tr>
     </thead>
     <tbody>
         <tr>
             <td><code>F11</code></td>
-            <td><strong>Plein écran de l'application</strong> — Masque les bordures, la barre de titre et la barre d'outils. Déplacez la souris tout en haut de l'écran pour afficher temporairement les outils sans quitter le plein écran; ils se replient après quelques instants. Appuyez de nouveau sur F11 pour revenir au mode fenêtre normal.</td>
+            <td data-i18n-html="help.row.fullscreen"><strong>Plein écran de l'application</strong> — Masque les bordures, la barre de titre et la barre d'outils. Déplacez la souris tout en haut de l'écran pour afficher temporairement les outils sans quitter le plein écran; ils se replient après quelques instants. Appuyez de nouveau sur F11 pour revenir au mode fenêtre normal.</td>
         </tr>
         <tr>
             <td><code>Ctrl&nbsp;+&nbsp;M</code></td>
-            <td><strong>Maximiser / Restaurer une tuile</strong> — Alterne entre le mode agrandi pour la tuile active (100 % de l'espace utile de la mosaïque) et le mode mosaïque d'origine. Les autres tuiles sont temporairement masquées mais la fenêtre de l'application reste visible.</td>
+            <td data-i18n-html="help.row.maximize"><strong>Maximiser / Restaurer une tuile</strong> — Alterne entre le mode agrandi pour la tuile active (100 % de l'espace utile de la mosaïque) et le mode mosaïque d'origine. Les autres tuiles sont temporairement masquées mais la fenêtre de l'application reste visible.</td>
         </tr>
         <tr>
             <td><code>Escape</code></td>
-			<td><strong>Quitter le mode agrandi / Restaurer la tuile</strong> — Raccourci global qui sort de l'affichage plein écran (F11) de l'application, mais qui restaure également la mosaïque d'origine si une tuile était maximisée (Ctrl+M).</td>
+			<td data-i18n-html="help.row.escape"><strong>Quitter le mode agrandi / Restaurer la tuile</strong> — Raccourci global qui sort de l'affichage plein écran (F11) de l'application, mais qui restaure également la mosaïque d'origine si une tuile était maximisée (Ctrl+M).</td>
         </tr>
 		
 		<tr>
-            <td><code>Cmd&nbsp;ou&nbsp;Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;A</code></td>
-			<td><strong>Masquer/Afficher l'Assistant IA</strong> — Alterne l'affichage du volet latéral de l'Assistant IA et réajuste dynamiquement la géométrie de la mosaïque.</td>
+            <td data-i18n-html="help.key.aiToggle"><code>Cmd&nbsp;ou&nbsp;Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;A</code></td>
+			<td data-i18n-html="help.row.aiToggle"><strong>Masquer/Afficher l'Assistant IA</strong> — Alterne l'affichage du volet latéral de l'Assistant IA et réajuste dynamiquement la géométrie de la mosaïque.</td>
 		</tr>
 		
     </tbody>
@@ -449,96 +449,96 @@ l'assistant IA et de gérer le contenu affiché sans quitter le panneau actif.
 
 
 
-    <h3>🧭 Navigation entre les Tuiles (Focus clavier)</h3>
+    <h3 data-i18n="help.focus.title">🧭 Navigation entre les Tuiles (Focus clavier)</h3>
     <table>
         <thead>
             <tr>
-                <th>Raccourci Clavier</th>
-                <th>Déplacement du Focus Applicatif</th>
+                <th data-i18n="help.th.shortcut">Raccourci Clavier</th>
+                <th data-i18n="help.th.focus">Déplacement du Focus Applicatif</th>
             </tr>
         </thead>
         <tbody>
             <tr>
                 <td><code>Ctrl&nbsp;+&nbsp;Tab</code></td>
-                <td><strong>Tuile suivante</strong> — Alterne le focus et le liseré bleu vers le panneau suivant (dans le sens des aiguilles d'une montre).</td>
+                <td data-i18n-html="help.row.nextTile"><strong>Tuile suivante</strong> — Alterne le focus et le liseré bleu vers le panneau suivant (dans le sens des aiguilles d'une montre).</td>
             </tr>
             <tr>
                 <td><code>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;Tab</code></td>
-                <td><strong>Tuile précédente</strong> — Alterne le focus et le liseré bleu vers le panneau précédent (sens inverse des aiguilles d'une montre).</td>
+                <td data-i18n-html="help.row.prevTile"><strong>Tuile précédente</strong> — Alterne le focus et le liseré bleu vers le panneau précédent (sens inverse des aiguilles d'une montre).</td>
             </tr>
         </tbody>
     </table>
-	    <h3>🌐 Navigation Web (Dans la tuile ayant le focus)</h3>
-    <p>Ces commandes s'appliquent directement au contenu internet affiché dans le panneau actif possédant le focus visuel (liseré bleu).</p>
+	    <h3 data-i18n="help.web.title">🌐 Navigation Web (Dans la tuile ayant le focus)</h3>
+    <p data-i18n="help.web.intro">Ces commandes s'appliquent directement au contenu internet affiché dans le panneau actif possédant le focus visuel (liseré bleu).</p>
     <table>
         <thead>
             <tr>
-                <th>Raccourci Clavier</th>
-                <th>Action de Navigation Internet &amp; Comportement</th>
+                <th data-i18n="help.th.shortcut">Raccourci Clavier</th>
+                <th data-i18n="help.th.web">Action de Navigation Internet &amp; Comportement</th>
             </tr>
         </thead>
         <tbody>
             <tr>
                 <td><code>Ctrl&nbsp;+&nbsp;L</code></td>
-                <td><strong>Cibler la barre d'adresse</strong> — Donne instantanément le focus au champ de saisie d'URL du panneau actif et sélectionne l'intégralité du texte pour taper une nouvelle adresse.</td>
+                <td data-i18n-html="help.row.address"><strong>Cibler la barre d'adresse</strong> — Donne instantanément le focus au champ de saisie d'URL du panneau actif et sélectionne l'intégralité du texte pour taper une nouvelle adresse.</td>
             </tr>
             <tr>
                 <td><code>Alt&nbsp;+&nbsp;←</code></td>
-                <td><strong>Page précédente</strong> — Recule d'un niveau dans l'historique de navigation de la page web active.</td>
+                <td data-i18n-html="help.row.back"><strong>Page précédente</strong> — Recule d'un niveau dans l'historique de navigation de la page web active.</td>
             </tr>
             <tr>
                 <td><code>Alt&nbsp;+&nbsp;→</code></td>
-                <td><strong>Page suivante</strong> — Avance d'un niveau dans l'historique de navigation de la page web active.</td>
+                <td data-i18n-html="help.row.forward"><strong>Page suivante</strong> — Avance d'un niveau dans l'historique de navigation de la page web active.</td>
             </tr>
             <tr>
-                <td><code>F5</code>&nbsp;&nbsp;ou&nbsp;&nbsp;<code>Ctrl&nbsp;+&nbsp;R</code></td>
-                <td><strong>Actualiser la page</strong> — Recharge le contenu du site internet chargé dans la tuile active.</td>
+                <td data-i18n-html="help.key.refresh"><code>F5</code>&nbsp;&nbsp;ou&nbsp;&nbsp;<code>Ctrl&nbsp;+&nbsp;R</code></td>
+                <td data-i18n-html="help.row.refresh"><strong>Actualiser la page</strong> — Recharge le contenu du site internet chargé dans la tuile active.</td>
             </tr>
             <tr>
                 <td><code>Ctrl&nbsp;+&nbsp;P</code></td>
-                <td><strong>Imprimer la tuile active</strong> — Ouvre la boîte de dialogue d'impression du système d'exploitation pour le document en cours de consultation.</td>
+                <td data-i18n-html="help.row.print"><strong>Imprimer la tuile active</strong> — Ouvre la boîte de dialogue d'impression du système d'exploitation pour le document en cours de consultation.</td>
             </tr>
             <tr>
-                <td><code>F1</code>&nbsp;&nbsp;ou&nbsp;&nbsp;<code>Alt&nbsp;+&nbsp;Home</code></td>
-                <td><strong>Aide</strong> — Charge instantanément ce centre d'aide au sein du panneau actif.</td>
+                <td data-i18n-html="help.key.help"><code>F1</code>&nbsp;&nbsp;ou&nbsp;&nbsp;<code>Alt&nbsp;+&nbsp;Home</code></td>
+                <td data-i18n-html="help.row.help"><strong>Aide</strong> — Charge instantanément ce centre d'aide au sein du panneau actif.</td>
             </tr>
         </tbody>
     </table>
 
-    <h3>❌ Système &amp; Sécurité</h3>
-    <p>Commandes globales affectant l'interface générale de l'application, la gestion des données de navigation et la sécurité du cycle de vie du navigateur.</p>
+    <h3 data-i18n="help.sys.title">❌ Système &amp; Sécurité</h3>
+    <p data-i18n="help.sys.intro">Commandes globales affectant l'interface générale de l'application, la gestion des données de navigation et la sécurité du cycle de vie du navigateur.</p>
     <table>
         <thead>
             <tr>
-                <th>Raccourci Clavier</th>
-                <th>Action Globale de l'Application &amp; Cycle de vie</th>
+                <th data-i18n="help.th.shortcut">Raccourci Clavier</th>
+                <th data-i18n="help.th.system">Action Globale de l'Application &amp; Cycle de vie</th>
             </tr>
         </thead>
         <tbody>
             <tr>
                 <td><code>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;N</code></td>
-                <td><strong>Nouvelle tuile privée</strong> — Crée une scission verticale isolée en mode de navigation privée. Les cookies et le cache sont détruits dès la fermeture de ce panneau.</td>
+                <td data-i18n-html="help.row.private"><strong>Nouvelle tuile privée</strong> — Crée une scission verticale isolée en mode de navigation privée. Les cookies et le cache sont détruits dès la fermeture de ce panneau.</td>
             </tr>
             <tr>
                 <td><code>Ctrl&nbsp;+&nbsp;J</code></td>
-                <td><strong>Téléchargements</strong> — Ouvre la fenêtre du gestionnaire de téléchargements (bouton 📥 de la barre d'outils).</td>
+                <td data-i18n-html="help.row.downloads"><strong>Téléchargements</strong> — Ouvre la fenêtre du gestionnaire de téléchargements (bouton 📥 de la barre d'outils).</td>
             </tr>
             <tr>
                 <td><code>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;D</code></td>
-                <td><strong>Dupliquer la tuile active</strong> — Ouvre une copie du panneau actif à sa droite, sur la même adresse. La copie d'une tuile privée reste privée.</td>
+                <td data-i18n-html="help.row.duplicate"><strong>Dupliquer la tuile active</strong> — Ouvre une copie du panneau actif à sa droite, sur la même adresse. La copie d'une tuile privée reste privée.</td>
             </tr>
             <tr>
                 <td><code>Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;B</code></td>
-                <td><strong>Masquer/Afficher les favoris</strong> — Alterne l'affichage de la barre de favoris supérieure et réajuste dynamiquement la géométrie de la mosaïque.</td>
+                <td data-i18n-html="help.row.bookmarks"><strong>Masquer/Afficher les favoris</strong> — Alterne l'affichage de la barre de favoris supérieure et réajuste dynamiquement la géométrie de la mosaïque.</td>
             </tr>
             <tr>
-                <td><code>Ctrl&nbsp;+&nbsp;H</code>&nbsp;(global)</td>
-                <td><strong>Afficher l'historique</strong> — Ouvre et bascule le focus vers le volet latéral dédié à l'historique global de navigation.</td>
+                <td data-i18n-html="help.key.history"><code>Ctrl&nbsp;+&nbsp;H</code>&nbsp;(global)</td>
+                <td data-i18n-html="help.row.history"><strong>Afficher l'historique</strong> — Ouvre et bascule le focus vers le volet latéral dédié à l'historique global de navigation.</td>
             </tr>
 
             <tr>
                 <td><code>Ctrl&nbsp;+&nbsp;,</code></td>
-                <td>
+                <td data-i18n-html="help.row.settings">
                     <strong>Paramètres</strong>
                     — Ouvre instantanément la fenêtre des paramètres de l'application,
                     accessible également via le bouton 🛠️ de la barre d'outils.
@@ -547,56 +547,56 @@ l'assistant IA et de gérer le contenu affiché sans quitter le panneau actif.
 
             <tr>
                 <td><code>Ctrl&nbsp;+&nbsp;Q</code></td>
-                <td><strong>Quitter l'application</strong> — Interrompt proprement les processus de Hare Browser. Une boîte de dialogue de confirmation de sécurité vous est présentée pour éviter la perte accidentelle de vos tuiles en cours.</td>
+                <td data-i18n-html="help.row.quit"><strong>Quitter l'application</strong> — Interrompt proprement les processus de Hare Browser. Une boîte de dialogue de confirmation de sécurité vous est présentée pour éviter la perte accidentelle de vos tuiles en cours.</td>
             </tr>
         </tbody>
     </table>
 
 
 
-    <h2>🏗️ Fonctions Avancées</h2>
+    <h2 data-i18n="help.adv.title">🏗️ Fonctions Avancées</h2>
     
-    <h3>✨ Assistant IA Ollama Local</h3>
-    <p>Hare Browser embarque un agent conversationnel autonome connecté à votre instance locale d'Ollama. Il est capable d'analyser le contenu textuel de votre page web active pour générer des résumés concis en trois points clés ou en extraire des mots-clés spécifiques, garantissant une confidentialité totale (aucune donnée n'est transmise à un serveur tiers ou Cloud externe).</p>
+    <h3 data-i18n="help.ai.title">✨ Assistant IA Ollama Local</h3>
+    <p data-i18n="help.ai.body">Hare Browser embarque un agent conversationnel autonome connecté à votre instance locale d'Ollama. Il est capable d'analyser le contenu textuel de votre page web active pour générer des résumés concis en trois points clés ou en extraire des mots-clés spécifiques, garantissant une confidentialité totale (aucune donnée n'est transmise à un serveur tiers ou Cloud externe).</p>
 
-    <h3>🕵️ Cyber-Sécurité et Navigation Privée</h3>
-    <p>Lorsque vous ouvrez une tuile privée, le navigateur instancie une partition en mémoire pure volatile (session <code>incognito</code> isolée). Lors de la fermeture de cette tuile, un script détruit automatiquement toutes les traces locales résiduelles de manière irréversible : cookies, LocalStorage, bases IndexedDB, session et cache d'historique de rendu HTTP de Chromium.</p>
-    <h3>👓 Mode Lecture</h3>
-    <p>Le bouton 👓 transforme la page affichée en une vue épurée : seuls le titre, le texte, les images et les tableaux de l'article sont conservés, sans menus, publicités, bandeaux ni commentaires. Il est disponible à trois endroits : dans la barre d'outils (il agit sur la tuile active), dans la barre d'adresse de chaque tuile, et dans le menu contextuel (clic droit, « Mode lecture »).</p>
+    <h3 data-i18n="help.sec.title">🕵️ Cyber-Sécurité et Navigation Privée</h3>
+    <p data-i18n-html="help.sec.body">Lorsque vous ouvrez une tuile privée, le navigateur instancie une partition en mémoire pure volatile (session <code>incognito</code> isolée). Lors de la fermeture de cette tuile, un script détruit automatiquement toutes les traces locales résiduelles de manière irréversible : cookies, LocalStorage, bases IndexedDB, session et cache d'historique de rendu HTTP de Chromium.</p>
+    <h3 data-i18n="help.reader.title">👓 Mode Lecture</h3>
+    <p data-i18n="help.reader.body">Le bouton 👓 transforme la page affichée en une vue épurée : seuls le titre, le texte, les images et les tableaux de l'article sont conservés, sans menus, publicités, bandeaux ni commentaires. Il est disponible à trois endroits : dans la barre d'outils (il agit sur la tuile active), dans la barre d'adresse de chaque tuile, et dans le menu contextuel (clic droit, « Mode lecture »).</p>
     <ul>
-        <li><strong>Confort de lecture</strong> : texte centré en police à empattements, adapté au mode clair ou sombre de l'application. Les boutons <strong>A−</strong> / <strong>A+</strong> ajustent la taille du texte.</li>
-        <li><strong>Quitter</strong> : cliquez sur ✕ dans la barre du mode lecture, ou sur � à nouveau. La page d'origine n'est pas rechargée : vous retrouvez exactement votre position.</li>
-        <li><strong>Limites</strong> : indisponible sur les pages internes ou en veille. Si la page contient trop peu de texte, l'icône affiche brièvement ⚠️.</li>
+        <li data-i18n-html="help.reader.comfort"><strong>Confort de lecture</strong> : texte centré en police à empattements, adapté au mode clair ou sombre de l'application. Les boutons <strong>A−</strong> / <strong>A+</strong> ajustent la taille du texte.</li>
+        <li data-i18n-html="help.reader.exit"><strong>Quitter</strong> : cliquez sur ✕ dans la barre du mode lecture, ou sur 👓 à nouveau. La page d'origine n'est pas rechargée : vous retrouvez exactement votre position.</li>
+        <li data-i18n-html="help.reader.limits"><strong>Limites</strong> : indisponible sur les pages internes ou en veille. Si la page contient trop peu de texte, l'icône affiche brièvement ⚠️.</li>
     </ul>
 
-    <h3>📥 Gestionnaire de Téléchargements</h3>
-    <p>Le bouton 📥 de la barre d'outils (ou <code>Ctrl + J</code>) ouvre une fenêtre qui liste vos téléchargements en cours et passés, avec le nom du fichier, la taille et le site d'origine.</p>
+    <h3 data-i18n="help.dl.title">📥 Gestionnaire de Téléchargements</h3>
+    <p data-i18n-html="help.dl.body">Le bouton 📥 de la barre d'outils (ou <code>Ctrl + J</code>) ouvre une fenêtre qui liste vos téléchargements en cours et passés, avec le nom du fichier, la taille et le site d'origine.</p>
     <ul>
-        <li><strong>En cours</strong> : une barre de progression est affichée et le bouton « Annuler » interrompt le téléchargement.</li>
-        <li><strong>Terminés</strong> : le bouton « Ouvrir le dossier » affiche le fichier dans l'Explorateur. Si le fichier a été déplacé ou supprimé, la ligne l'indique.</li>
-        <li><strong>Liste</strong> : ✕ retire une ligne, « Effacer la liste » retire tous les téléchargements terminés (les fichiers ne sont jamais supprimés). L'historique est conservé entre les lancements, sauf pour les tuiles privées : leurs téléchargements ne sont jamais enregistrés sur disque.</li>
+        <li data-i18n-html="help.dl.running"><strong>En cours</strong> : une barre de progression est affichée et le bouton « Annuler » interrompt le téléchargement.</li>
+        <li data-i18n-html="help.dl.done"><strong>Terminés</strong> : le bouton « Ouvrir le dossier » affiche le fichier dans l'Explorateur. Si le fichier a été déplacé ou supprimé, la ligne l'indique.</li>
+        <li data-i18n-html="help.dl.list"><strong>Liste</strong> : ✕ retire une ligne, « Effacer la liste » retire tous les téléchargements terminés (les fichiers ne sont jamais supprimés). L'historique est conservé entre les lancements, sauf pour les tuiles privées : leurs téléchargements ne sont jamais enregistrés sur disque.</li>
     </ul>
-    <h3>️ Tuiles Conteneurs (Multi-Comptes)</h3>
-    <p>Chaque conteneur dispose de sa propre partition persistante : cookies, LocalStorage et sessions y sont isolés des autres conteneurs et de la session par défaut. Vous pouvez ainsi ouvrir deux tuiles côte à côte et vous connecter à deux comptes Google ou Outlook différents en même temps. Contrairement à la navigation privée, les connexions sont conservées entre les lancements.</p>
+    <h3 data-i18n="help.cont.title">🗂️ Tuiles Conteneurs (Multi-Comptes)</h3>
+    <p data-i18n="help.cont.body">Chaque conteneur dispose de sa propre partition persistante : cookies, LocalStorage et sessions y sont isolés des autres conteneurs et de la session par défaut. Vous pouvez ainsi ouvrir deux tuiles côte à côte et vous connecter à deux comptes Google ou Outlook différents en même temps. Contrairement à la navigation privée, les connexions sont conservées entre les lancements.</p>
     <ul>
-        <li><strong>Ouverture</strong> : bouton 🗂️ de la barre d'outils, ou clic droit sur une tuile puis « Scinder dans un conteneur isolé (comptes multiples) », puis choix du conteneur.</li>
-        <li><strong>Repérage</strong> : l'onglet d'une tuile conteneur est surmonté d'un liseré coloré ; le nom du conteneur s'affiche au survol.</li>
-        <li><strong>Limites</strong> : indisponible depuis une tuile privée ou en mode agrandi. « Dupliquer cette tuile » crée la copie dans la session par défaut, pas dans le même conteneur.</li>
-    </ul>
-
-    <h3>🚫 Bloqueur de Publicités & Trackers Intégré</h3>
-    <p>Chaque requête réseau émise par une tuile (qu'elle soit publique ou privée) est analysée à la volée par le processus principal de l'application via l'API <code>webRequest</code> d'Electron.</p>
-    <ul>
-        <li><strong>Vitesse accrue</strong> : Les scripts publicitaires lourds et les images intrusives sont annulés <strong>avant</strong> leur téléchargement.</li>
-        <li><strong>Respect total de la vie privée</strong> : Bloque nativement les mouchards de suivi comportementaux des régies publicitaires majeures.</li>
-        <li><strong>Protection Incognito</strong> : Le filtrage s'applique de manière hermétique sur vos partitions volatiles sans laisser de traces en mémoire.</li>
-        <li><strong>Désactiver le bloqueur sur un site</strong> : si un site fonctionne mal, cliquez sur l'icône 🛡️ de sa barre d'adresse, ou faites un clic droit sur la tuile puis « Désactiver le bloqueur sur <em>nom-du-site</em> ». La page est rechargée sans filtrage. L'icône devient verte pour indiquer l'exception ; un nouveau clic réactive le bloqueur. Les exceptions sont enregistrées par site et conservées entre les lancements.</li>
+        <li data-i18n-html="help.cont.open"><strong>Ouverture</strong> : bouton 🗂️ de la barre d'outils, ou clic droit sur une tuile puis « Scinder dans un conteneur isolé (comptes multiples) », puis choix du conteneur.</li>
+        <li data-i18n-html="help.cont.mark"><strong>Repérage</strong> : l'onglet d'une tuile conteneur est surmonté d'un liseré coloré ; le nom du conteneur s'affiche au survol.</li>
+        <li data-i18n-html="help.cont.limits"><strong>Limites</strong> : indisponible depuis une tuile privée ou en mode agrandi. « Dupliquer cette tuile » crée la copie dans la session par défaut, pas dans le même conteneur.</li>
     </ul>
 
-    <h3>🔑 Gestionnaire de Mots de Passe Sécurisé</h3>
-    <p>Vos identifiants et mots de passe enregistrés sont protégés par chiffrement fort. En mode développement ou sur les systèmes cibles compatibles, le navigateur s'appuie sur le module <code>safeStorage</code> pour appliquer un chiffrement asymétrique interne (Alternative Encryption), bloquant toute lecture non autorisée du fichier de stockage par des applications tierces.</p>
+    <h3 data-i18n="help.block.title">🚫 Bloqueur de Publicités & Trackers Intégré</h3>
+    <p data-i18n-html="help.block.body">Chaque requête réseau émise par une tuile (qu'elle soit publique ou privée) est analysée à la volée par le processus principal de l'application via l'API <code>webRequest</code> d'Electron.</p>
+    <ul>
+        <li data-i18n-html="help.block.speed"><strong>Vitesse accrue</strong> : Les scripts publicitaires lourds et les images intrusives sont annulés <strong>avant</strong> leur téléchargement.</li>
+        <li data-i18n-html="help.block.privacy"><strong>Respect total de la vie privée</strong> : Bloque nativement les mouchards de suivi comportementaux des régies publicitaires majeures.</li>
+        <li data-i18n-html="help.block.incognito"><strong>Protection Incognito</strong> : Le filtrage s'applique de manière hermétique sur vos partitions volatiles sans laisser de traces en mémoire.</li>
+        <li data-i18n-html="help.block.disable"><strong>Désactiver le bloqueur sur un site</strong> : si un site fonctionne mal, cliquez sur l'icône 🛡️ de sa barre d'adresse, ou faites un clic droit sur la tuile puis « Désactiver le bloqueur sur <em>nom-du-site</em> ». La page est rechargée sans filtrage. L'icône devient verte pour indiquer l'exception ; un nouveau clic réactive le bloqueur. Les exceptions sont enregistrées par site et conservées entre les lancements.</li>
+    </ul>
 
-    <div class="footer">
+    <h3 data-i18n="help.pwd.title">🔑 Gestionnaire de Mots de Passe Sécurisé</h3>
+    <p data-i18n-html="help.pwd.body">Vos identifiants et mots de passe enregistrés sont protégés par chiffrement fort. En mode développement ou sur les systèmes cibles compatibles, le navigateur s'appuie sur le module <code>safeStorage</code> pour appliquer un chiffrement asymétrique interne (Alternative Encryption), bloquant toute lecture non autorisée du fichier de stockage par des applications tierces.</p>
+
+    <div class="footer" data-i18n="help.footer">
         Hare Browser • Bâti sur Electron • Moteur IA Ollama • Recherche SearXNG
     </div>
 </div>

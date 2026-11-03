@@ -320,12 +320,169 @@
             "home.featureSpeed": "🐇 Rapidité",
             "home.featurePrivacy": "🔒 Confidentialité",
             "home.featureAi": "✨ IA locale",
-            "help.welcome": "Bienvenue dans le centre d’aide officiel de Hare Browser. Ce navigateur web combine un environnement de navigation multi-panneaux avancé (mode mosaïque dynamique), un moteur de recherche SearXNG respectueux de la vie privée et un assistant d’intelligence artificielle locale propulsé par Ollama.",
+            "help.welcome": "Bienvenue dans le centre d’aide officiel de <strong>Hare Browser</strong>. Ce navigateur web combine un environnement de navigation multi-panneaux avancé (mode mosaïque dynamique), un moteur de recherche SearXNG respectueux de la vie privée et un assistant d’intelligence artificielle locale propulsé par Ollama.",
             "help.mac": "🍏 Configuration macOS : Pour les utilisateurs d’Apple Mac, remplacez systématiquement la touche Ctrl par la touche Cmd (Commande) pour l’ensemble des raccourcis ci-dessous.",
             "help.panels": "🧱 Gestion des panneaux & fonctionnement du fractionnement",
             "help.panelsIntro": "Le cœur de Hare Browser repose sur un arbre binaire de division (Split Nodes). Chaque panneau actif peut être subdivisé géométriquement à l’infini pour organiser votre espace de travail sans manipuler des dizaines d’onglets superposés traditionnels.",
             "help.shortcuts": "⌨️ Répertoire Exhaustif des Raccourcis Clavier",
             "help.panelLayout": "🧱 Gestion des Panneaux & Agencement",
+            "help.diagramsTitle": "Schémas géométriques de fractionnement des tuiles :",
+            "help.splitV.desc": "<strong>1. Scission Verticale Initiale (Ctrl&nbsp;+&nbsp;T) :</strong> Divise l'espace actif en deux colonnes égales et ouvre une nouvelle tuile indépendante sur le flanc droit.",
+            "help.diagram.splitV": `    ┌──────────────────────────────────────┐          ┌──────────────────┬──────────────────┐
+    │                                      │          │                  │                  │
+    │                                      │ Ctrl + T │                  │                  │
+    │            PANNEAU INITIAL           │ ───────> │  PANNEAU INITIAL │  NOUVELLE TUILE  │
+    │               (Actif)                │          │                  │     (À droite)   │
+    │                                      │          │                  │                  │
+    └──────────────────────────────────────┘          └──────────────────┴──────────────────┘
+`,
+            "help.splitH.desc": "<strong>2. Scission Horizontale Subsidiaire (Ctrl + H) :</strong> Sélectionne un panneau spécifique et le fracture en deux rangées horizontales, créant une nouvelle tuile en contrebas.",
+            "help.diagram.splitH": `    ┌──────────────────┬───────────────────┐          ┌──────────────────┬──────────────────┐
+    │                  │      FOCUS        │          │                  │   TUILE DU HAUT  │
+    │                  │     (Actif)       │ Ctrl + H │                  ├──────────────────┤
+    │ PANNEAU INITIAL  ├───────────────────┤ ───────> │ PANNEAU INITIAL  │                  │
+    │                  │                   │          │                  │  NOUVELLE TUILE  │
+    │                  │                   │          │                  │     (En bas)     │
+    └──────────────────┴───────────────────┘          └──────────────────┴──────────────────┘
+`,
+            "help.plus.title": "➕ Scinder un panneau avec le bouton +",
+            "help.plus.intro": "Vous pouvez créer rapidement un nouveau panneau sans utiliser le clavier. Cliquez simplement sur le bouton <strong>+</strong> situé à droite de la barre d'adresse du panneau actif.",
+            "help.plus.news": "💡 <strong>Nouveauté</strong> : un clic sur le bouton <strong>+</strong> fait désormais apparaître un sous-menu contextuel vous laissant le choix entre <strong>\"Scinder à droite\"</strong> (division verticale) ou <strong>\"Scinder vers le bas\"</strong> (division horizontale).",
+            "help.diagram.plus": `        ┌──────────────────────────────┐
+        │                          [+] │
+        │                              │
+        │      PANNEAU ACTIF           │
+        │                              │
+        │                              │
+        └──────────────────────────────┘
+                       │
+         Clic sur +    │
+      ┌────────────────┴────────────────┐
+      ▼ (Scinder à droite)              ▼ (Scinder vers le bas)
+┌───────────────┬───────────────┐ ┌──────────────────────────────┐
+│               │               │ │                              │
+│               │ NOUVEAU       │ │        PANNEAU ACTIF         │
+│ PANNEAU ACTIF │ PANNEAU       │ │                              │
+│               │ (À droite)    │ ├──────────────────────────────┤
+│               │               │ │       NOUVEAU PANNEAU        │
+└───────────────┴───────────────┘ │          (En bas)            │
+                                  └──────────────────────────────┘
+`,
+            "help.plus.outro": "Le bouton <strong>+</strong> combine à la souris les mêmes actions que les raccourcis clavier <code>Ctrl + T</code> et <code>Ctrl + Shift + H</code>. Cette approche visuelle est idéale pour partitionner à la volée votre espace de travail et configurer votre mosaïque de sites entièrement à la souris.",
+            "help.ctx.title": "🖱️ Menu contextuel des panneaux",
+            "help.ctx.intro": "Chaque panneau de navigation dispose d'un menu contextuel accessible par <strong>clic droit</strong>. Ce menu regroupe les principales actions de gestion du contenu, les fonctions d'intelligence artificielle et les outils d'agencement de la mosaïque.",
+            "help.ctx.tip": "💡 Astuce : un clic droit dans un panneau permet d'accéder rapidement aux commandes les plus courantes sans utiliser les raccourcis clavier.",
+            "help.ctx.editTitle": "✏️ Édition",
+            "help.ctx.cut": "<strong>Couper</strong> (Ctrl + X)",
+            "help.ctx.copy": "<strong>Copier</strong> (Ctrl + C)",
+            "help.ctx.paste": "<strong>Coller</strong> (Ctrl + V)",
+            "help.ctx.delete": "<strong>Supprimer</strong>",
+            "help.ctx.selectAll": "<strong>Sélectionner tout</strong> (Ctrl + A)",
+            "help.ctx.aiTitle": "✨ Actions IA (Assistant)",
+            "help.ctx.summarize": "<strong>Résumer cette tuile web</strong> : génère un résumé rapide de la page affichée.",
+            "help.ctx.keywords": "<strong>Analyser les mots-clés de la page</strong> : extrait les principaux thèmes et mots importants du contenu.",
+            "help.ctx.layoutTitle": "🧱 Agencement de la mosaïque",
+            "help.ctx.splitV": "<strong>Scinder verticalement</strong> (Ctrl + T) : crée un nouveau panneau à droite.",
+            "help.ctx.splitH": "<strong>Scinder horizontalement</strong> (Ctrl + H) : crée un nouveau panneau en dessous.",
+            "help.ctx.splitPrivate": "<strong>Scinder en Navigation Privée</strong> (Ctrl + Shift + N) : ouvre un nouveau panneau privé isolé.",
+            "help.ctx.splitContainer": "<strong>Scinder dans un conteneur isolé</strong> (🗂️ dans la barre d'outils) : ouvre un nouveau panneau dans un conteneur (Personnel, Travail, Compte 2, Compte 3) pour se connecter à plusieurs comptes simultanément.",
+            "help.ctx.duplicate": "<strong>Dupliquer cette tuile</strong> (Ctrl + Shift + D, 📋 dans la barre d'outils, ou clic droit sur la tuile) : ouvre une copie du panneau à sa droite, sur la même adresse. La copie d'une tuile privée reste privée ; celle d'une tuile conteneur est créée dans la session par défaut.",
+            "help.ctx.panelTitle": "📌 Gestion du panneau",
+            "help.ctx.maximize": "<strong>Maximiser cette tuile</strong> (Ctrl + M) : agrandit temporairement le panneau sélectionné.",
+            "help.ctx.print": "<strong>Imprimer le contenu de la page</strong> (Ctrl + P).",
+            "help.ctx.close": "<strong>Fermer cette tuile</strong> (Ctrl + W).",
+            "help.diagram.menu": `                         │ Clic droit sur un panneau
+                         │
+                         ▼
+        ┌───────────────────────────────┐
+        │ ✏️ Édition                    │
+        │ ✨ Actions IA                 │
+        │ 🧱 Agencement de la mosaïque  │
+        │ 📌 Gestion du panneau         │
+        └───────────────────────────────┘
+`,
+            "help.ctx.outro": "Le menu contextuel constitue le point d'accès central à la plupart des fonctionnalités de gestion des panneaux. Il permet notamment de construire rapidement un espace de travail en mosaïque, d'analyser une page avec l'assistant IA et de gérer le contenu affiché sans quitter le panneau actif.",
+            "help.th.shortcut": "Raccourci Clavier",
+            "help.th.layout": "Action Système & Comportement Géométrique",
+            "help.th.swap": "Direction de la Permutation dans la Mosaïque",
+            "help.th.zoom": "Effet sur la Zone d'Affichage utile",
+            "help.th.focus": "Déplacement du Focus Applicatif",
+            "help.th.web": "Action de Navigation Internet & Comportement",
+            "help.th.system": "Action Globale de l'Application & Cycle de vie",
+            "help.row.splitV": "<strong>Scinder verticalement</strong> — Divise le panneau actif en deux verticalement et ouvre une nouvelle tuile à droite.",
+            "help.row.splitH": "<strong>Scinder horizontalement</strong> — Divise le panneau actif en deux horizontalement et ouvre une nouvelle tuile en bas.",
+            "help.row.close": "<strong>Fermer la tuile active</strong> — Ferme immédiatement le panneau sur lequel vous vous trouvez et réajuste les ratios des tuiles voisines. Si une seule tuile reste ouverte, ferme l'application.",
+            "help.row.undo": "<strong>Annuler la fermeture</strong> — Rouvre instantanément le tout dernier panneau fermé en restaurant son URL et son emplacement exact dans la mosaïque.",
+            "help.key.save": "<code>Cmd&nbsp;ou&nbsp;Ctrl&nbsp;+&nbsp;S</code>",
+            "help.row.save": "<strong>Sauvegarder l'agencement</strong> — Exporte la structure actuelle de votre mosaïque de tuiles dans un fichier JSON pour la recharger plus tard.",
+            "help.key.load": "<code>Cmd&nbsp;ou&nbsp;Ctrl&nbsp;+&nbsp;O</code>",
+            "help.row.load": "<strong>Charger un agencement</strong> — Importe un fichier de configuration JSON pour restaurer instantanément un espace de travail complet.",
+            "help.key.equalize": "<code>Cmd&nbsp;ou&nbsp;Ctrl&nbsp;+&nbsp;R</code>",
+            "help.row.equalize": "<strong>Égaliser la mosaïque</strong> — Réinitialise instantanément l'intégralité de la mosaïque à des tailles égales, peu importe le nombre de tuiles actives, en repositionnant tous les séparateurs au centre.",
+            "help.swap.title": "🔄 Réorganisation des Tuiles au Clavier",
+            "help.swap.intro": "Permet d'intervertir instantanément l'emplacement physique du panneau actif avec le panneau adjacent dans la direction ciblée, sans utiliser la poignée de glissement à la souris.",
+            "help.row.swapLeft": "<strong>Intervertir à gauche</strong> — Échange la position du panneau actif avec la tuile située immédiatement sur sa gauche.",
+            "help.row.swapRight": "<strong>Intervertir à droite</strong> — Échange la position du panneau actif avec la tuile située immédiatement sur sa droite.",
+            "help.row.swapUp": "<strong>Intervertir au-dessus</strong> — Échange la position du panneau actif avec la tuile située immédiatement au-dessus.",
+            "help.row.swapDown": "<strong>Intervertir en dessous</strong> — Échange la position du panneau actif avec la tuile située immédiatement en dessous.",
+            "help.zoom.title": "🔍 Mode Agrandi & Zoom Géométrique",
+            "help.row.fullscreen": "<strong>Plein écran de l'application</strong> — Masque les bordures, la barre de titre et la barre d'outils. Déplacez la souris tout en haut de l'écran pour afficher temporairement les outils sans quitter le plein écran; ils se replient après quelques instants. Appuyez de nouveau sur F11 pour revenir au mode fenêtre normal.",
+            "help.row.maximize": "<strong>Maximiser / Restaurer une tuile</strong> — Alterne entre le mode agrandi pour la tuile active (100 % de l'espace utile de la mosaïque) et le mode mosaïque d'origine. Les autres tuiles sont temporairement masquées mais la fenêtre de l'application reste visible.",
+            "help.row.escape": "<strong>Quitter le mode agrandi / Restaurer la tuile</strong> — Raccourci global qui sort de l'affichage plein écran (F11) de l'application, mais qui restaure également la mosaïque d'origine si une tuile était maximisée (Ctrl+M).",
+            "help.key.aiToggle": "<code>Cmd&nbsp;ou&nbsp;Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;A</code>",
+            "help.row.aiToggle": "<strong>Masquer/Afficher l'Assistant IA</strong> — Alterne l'affichage du volet latéral de l'Assistant IA et réajuste dynamiquement la géométrie de la mosaïque.",
+            "help.focus.title": "🧭 Navigation entre les Tuiles (Focus clavier)",
+            "help.row.nextTile": "<strong>Tuile suivante</strong> — Alterne le focus et le liseré bleu vers le panneau suivant (dans le sens des aiguilles d'une montre).",
+            "help.row.prevTile": "<strong>Tuile précédente</strong> — Alterne le focus et le liseré bleu vers le panneau précédent (sens inverse des aiguilles d'une montre).",
+            "help.web.title": "🌐 Navigation Web (Dans la tuile ayant le focus)",
+            "help.web.intro": "Ces commandes s'appliquent directement au contenu internet affiché dans le panneau actif possédant le focus visuel (liseré bleu).",
+            "help.row.address": "<strong>Cibler la barre d'adresse</strong> — Donne instantanément le focus au champ de saisie d'URL du panneau actif et sélectionne l'intégralité du texte pour taper une nouvelle adresse.",
+            "help.row.back": "<strong>Page précédente</strong> — Recule d'un niveau dans l'historique de navigation de la page web active.",
+            "help.row.forward": "<strong>Page suivante</strong> — Avance d'un niveau dans l'historique de navigation de la page web active.",
+            "help.key.refresh": "<code>F5</code>&nbsp;&nbsp;ou&nbsp;&nbsp;<code>Ctrl&nbsp;+&nbsp;R</code>",
+            "help.row.refresh": "<strong>Actualiser la page</strong> — Recharge le contenu du site internet chargé dans la tuile active.",
+            "help.row.print": "<strong>Imprimer la tuile active</strong> — Ouvre la boîte de dialogue d'impression du système d'exploitation pour le document en cours de consultation.",
+            "help.key.help": "<code>F1</code>&nbsp;&nbsp;ou&nbsp;&nbsp;<code>Alt&nbsp;+&nbsp;Home</code>",
+            "help.row.help": "<strong>Aide</strong> — Charge instantanément ce centre d'aide au sein du panneau actif.",
+            "help.sys.title": "❌ Système & Sécurité",
+            "help.sys.intro": "Commandes globales affectant l'interface générale de l'application, la gestion des données de navigation et la sécurité du cycle de vie du navigateur.",
+            "help.row.private": "<strong>Nouvelle tuile privée</strong> — Crée une scission verticale isolée en mode de navigation privée. Les cookies et le cache sont détruits dès la fermeture de ce panneau.",
+            "help.row.downloads": "<strong>Téléchargements</strong> — Ouvre la fenêtre du gestionnaire de téléchargements (bouton 📥 de la barre d'outils).",
+            "help.row.duplicate": "<strong>Dupliquer la tuile active</strong> — Ouvre une copie du panneau actif à sa droite, sur la même adresse. La copie d'une tuile privée reste privée.",
+            "help.row.bookmarks": "<strong>Masquer/Afficher les favoris</strong> — Alterne l'affichage de la barre de favoris supérieure et réajuste dynamiquement la géométrie de la mosaïque.",
+            "help.key.history": "<code>Ctrl&nbsp;+&nbsp;H</code>&nbsp;(global)",
+            "help.row.history": "<strong>Afficher l'historique</strong> — Ouvre et bascule le focus vers le volet latéral dédié à l'historique global de navigation.",
+            "help.row.settings": "<strong>Paramètres</strong> — Ouvre instantanément la fenêtre des paramètres de l'application, accessible également via le bouton 🛠️ de la barre d'outils.",
+            "help.row.quit": "<strong>Quitter l'application</strong> — Interrompt proprement les processus de Hare Browser. Une boîte de dialogue de confirmation de sécurité vous est présentée pour éviter la perte accidentelle de vos tuiles en cours.",
+            "help.adv.title": "🏗️ Fonctions Avancées",
+            "help.ai.title": "✨ Assistant IA Ollama Local",
+            "help.ai.body": "Hare Browser embarque un agent conversationnel autonome connecté à votre instance locale d'Ollama. Il est capable d'analyser le contenu textuel de votre page web active pour générer des résumés concis en trois points clés ou en extraire des mots-clés spécifiques, garantissant une confidentialité totale (aucune donnée n'est transmise à un serveur tiers ou Cloud externe).",
+            "help.sec.title": "🕵️ Cyber-Sécurité et Navigation Privée",
+            "help.sec.body": "Lorsque vous ouvrez une tuile privée, le navigateur instancie une partition en mémoire pure volatile (session <code>incognito</code> isolée). Lors de la fermeture de cette tuile, un script détruit automatiquement toutes les traces locales résiduelles de manière irréversible : cookies, LocalStorage, bases IndexedDB, session et cache d'historique de rendu HTTP de Chromium.",
+            "help.reader.title": "👓 Mode Lecture",
+            "help.reader.body": "Le bouton 👓 transforme la page affichée en une vue épurée : seuls le titre, le texte, les images et les tableaux de l'article sont conservés, sans menus, publicités, bandeaux ni commentaires. Il est disponible à trois endroits : dans la barre d'outils (il agit sur la tuile active), dans la barre d'adresse de chaque tuile, et dans le menu contextuel (clic droit, « Mode lecture »).",
+            "help.reader.comfort": "<strong>Confort de lecture</strong> : texte centré en police à empattements, adapté au mode clair ou sombre de l'application. Les boutons <strong>A−</strong> / <strong>A+</strong> ajustent la taille du texte.",
+            "help.reader.exit": "<strong>Quitter</strong> : cliquez sur ✕ dans la barre du mode lecture, ou sur 👓 à nouveau. La page d'origine n'est pas rechargée : vous retrouvez exactement votre position.",
+            "help.reader.limits": "<strong>Limites</strong> : indisponible sur les pages internes ou en veille. Si la page contient trop peu de texte, l'icône affiche brièvement ⚠️.",
+            "help.dl.title": "📥 Gestionnaire de Téléchargements",
+            "help.dl.body": "Le bouton 📥 de la barre d'outils (ou <code>Ctrl + J</code>) ouvre une fenêtre qui liste vos téléchargements en cours et passés, avec le nom du fichier, la taille et le site d'origine.",
+            "help.dl.running": "<strong>En cours</strong> : une barre de progression est affichée et le bouton « Annuler » interrompt le téléchargement.",
+            "help.dl.done": "<strong>Terminés</strong> : le bouton « Ouvrir le dossier » affiche le fichier dans l'Explorateur. Si le fichier a été déplacé ou supprimé, la ligne l'indique.",
+            "help.dl.list": "<strong>Liste</strong> : ✕ retire une ligne, « Effacer la liste » retire tous les téléchargements terminés (les fichiers ne sont jamais supprimés). L'historique est conservé entre les lancements, sauf pour les tuiles privées : leurs téléchargements ne sont jamais enregistrés sur disque.",
+            "help.cont.title": "🗂️ Tuiles Conteneurs (Multi-Comptes)",
+            "help.cont.body": "Chaque conteneur dispose de sa propre partition persistante : cookies, LocalStorage et sessions y sont isolés des autres conteneurs et de la session par défaut. Vous pouvez ainsi ouvrir deux tuiles côte à côte et vous connecter à deux comptes Google ou Outlook différents en même temps. Contrairement à la navigation privée, les connexions sont conservées entre les lancements.",
+            "help.cont.open": "<strong>Ouverture</strong> : bouton 🗂️ de la barre d'outils, ou clic droit sur une tuile puis « Scinder dans un conteneur isolé (comptes multiples) », puis choix du conteneur.",
+            "help.cont.mark": "<strong>Repérage</strong> : l'onglet d'une tuile conteneur est surmonté d'un liseré coloré ; le nom du conteneur s'affiche au survol.",
+            "help.cont.limits": "<strong>Limites</strong> : indisponible depuis une tuile privée ou en mode agrandi. « Dupliquer cette tuile » crée la copie dans la session par défaut, pas dans le même conteneur.",
+            "help.block.title": "🚫 Bloqueur de Publicités & Trackers Intégré",
+            "help.block.body": "Chaque requête réseau émise par une tuile (qu'elle soit publique ou privée) est analysée à la volée par le processus principal de l'application via l'API <code>webRequest</code> d'Electron.",
+            "help.block.speed": "<strong>Vitesse accrue</strong> : Les scripts publicitaires lourds et les images intrusives sont annulés <strong>avant</strong> leur téléchargement.",
+            "help.block.privacy": "<strong>Respect total de la vie privée</strong> : Bloque nativement les mouchards de suivi comportementaux des régies publicitaires majeures.",
+            "help.block.incognito": "<strong>Protection Incognito</strong> : Le filtrage s'applique de manière hermétique sur vos partitions volatiles sans laisser de traces en mémoire.",
+            "help.block.disable": "<strong>Désactiver le bloqueur sur un site</strong> : si un site fonctionne mal, cliquez sur l'icône 🛡️ de sa barre d'adresse, ou faites un clic droit sur la tuile puis « Désactiver le bloqueur sur <em>nom-du-site</em> ». La page est rechargée sans filtrage. L'icône devient verte pour indiquer l'exception ; un nouveau clic réactive le bloqueur. Les exceptions sont enregistrées par site et conservées entre les lancements.",
+            "help.pwd.title": "🔑 Gestionnaire de Mots de Passe Sécurisé",
+            "help.pwd.body": "Vos identifiants et mots de passe enregistrés sont protégés par chiffrement fort. En mode développement ou sur les systèmes cibles compatibles, le navigateur s'appuie sur le module <code>safeStorage</code> pour appliquer un chiffrement asymétrique interne (Alternative Encryption), bloquant toute lecture non autorisée du fichier de stockage par des applications tierces.",
+            "help.footer": "Hare Browser • Bâti sur Electron • Moteur IA Ollama • Recherche SearXNG",
             "welcome.footer": "Hare Browser : productif, privé, moderne.",
             "welcome.credits": "Propulsé par SearXNG • Ollama • Electron",
             "welcome.themeButton": "🌗 Thème",
@@ -774,12 +931,169 @@
             "home.featureSpeed": "🐇 Speed",
             "home.featurePrivacy": "🔒 Privacy",
             "home.featureAi": "✨ Local AI",
-            "help.welcome": "Welcome to the official Hare Browser help center. This web browser combines an advanced multi-panel browsing environment (dynamic mosaic mode), a privacy-friendly SearXNG search engine, and a local AI assistant powered by Ollama.",
+            "help.welcome": "Welcome to the official <strong>Hare Browser</strong> help center. This web browser combines an advanced multi-panel browsing environment (dynamic mosaic mode), a privacy-friendly SearXNG search engine, and a local AI assistant powered by Ollama.",
             "help.mac": "🍏 macOS setup: On Apple Mac, replace Ctrl with Cmd (Command) for all the keyboard shortcuts below.",
             "help.panels": "🧱 Panel management & splitting",
             "help.panelsIntro": "Hare Browser is built around a binary split tree (split nodes). Each active panel can be split repeatedly to organize your workspace without managing dozens of traditional overlapping tabs.",
             "help.shortcuts": "⌨️ Complete Keyboard Shortcut Reference",
             "help.panelLayout": "🧱 Panel Management & Layout",
+            "help.diagramsTitle": "Geometric tile-splitting diagrams:",
+            "help.splitV.desc": "<strong>1. Initial Vertical Split (Ctrl&nbsp;+&nbsp;T):</strong> Divides the active space into two equal columns and opens a new, independent tile on the right side.",
+            "help.diagram.splitV": `    ┌──────────────────────────────────────┐          ┌──────────────────┬──────────────────┐
+    │                                      │          │                  │                  │
+    │                                      │ Ctrl + T │                  │                  │
+    │            INITIAL PANEL             │ ───────> │  INITIAL PANEL   │     NEW TILE     │
+    │               (Active)               │          │                  │      (Right)     │
+    │                                      │          │                  │                  │
+    └──────────────────────────────────────┘          └──────────────────┴──────────────────┘
+`,
+            "help.splitH.desc": "<strong>2. Secondary Horizontal Split (Ctrl + H):</strong> Selects a specific panel and splits it into two horizontal rows, creating a new tile below.",
+            "help.diagram.splitH": `    ┌──────────────────┬───────────────────┐          ┌──────────────────┬──────────────────┐
+    │                  │      FOCUS        │          │                  │      TOP TILE    │
+    │                  │     (Active)      │ Ctrl + H │                  ├──────────────────┤
+    │ INITIAL PANEL    ├───────────────────┤ ───────> │ INITIAL PANEL    │                  │
+    │                  │                   │          │                  │     NEW TILE     │
+    │                  │                   │          │                  │     (Bottom)     │
+    └──────────────────┴───────────────────┘          └──────────────────┴──────────────────┘
+`,
+            "help.plus.title": "➕ Split a panel with the + button",
+            "help.plus.intro": "You can quickly create a new panel without using the keyboard. Simply click the <strong>+</strong> button located to the right of the active panel's address bar.",
+            "help.plus.news": "💡 <strong>New</strong>: clicking the <strong>+</strong> button now opens a context submenu that lets you choose between <strong>“Split to the right”</strong> (vertical split) or <strong>“Split downward”</strong> (horizontal split).",
+            "help.diagram.plus": `        ┌──────────────────────────────┐
+        │                          [+] │
+        │                              │
+        │       ACTIVE PANEL           │
+        │                              │
+        │                              │
+        └──────────────────────────────┘
+                       │
+         Click on +    │
+      ┌────────────────┴────────────────┐
+      ▼ (Split right)                   ▼ (Split down)
+┌───────────────┬───────────────┐ ┌──────────────────────────────┐
+│               │               │ │                              │
+│               │ NEW           │ │         ACTIVE PANEL         │
+│ ACTIVE PANEL  │ PANEL         │ │                              │
+│               │ (Right)       │ ├──────────────────────────────┤
+│               │               │ │          NEW PANEL           │
+└───────────────┴───────────────┘ │          (Bottom)            │
+                                  └──────────────────────────────┘
+`,
+            "help.plus.outro": "The <strong>+</strong> button provides the same actions as the <code>Ctrl + T</code> and <code>Ctrl + Shift + H</code> keyboard shortcuts, using the mouse. This visual approach is ideal for partitioning your workspace on the fly and setting up your mosaic of sites entirely with the mouse.",
+            "help.ctx.title": "🖱️ Panel context menu",
+            "help.ctx.intro": "Each browsing panel has a context menu available by <strong>right-clicking</strong>. This menu groups the main content management actions, the artificial intelligence features, and the mosaic layout tools.",
+            "help.ctx.tip": "💡 Tip: a right-click inside a panel gives quick access to the most common commands without using keyboard shortcuts.",
+            "help.ctx.editTitle": "✏️ Edit",
+            "help.ctx.cut": "<strong>Cut</strong> (Ctrl + X)",
+            "help.ctx.copy": "<strong>Copy</strong> (Ctrl + C)",
+            "help.ctx.paste": "<strong>Paste</strong> (Ctrl + V)",
+            "help.ctx.delete": "<strong>Delete</strong>",
+            "help.ctx.selectAll": "<strong>Select all</strong> (Ctrl + A)",
+            "help.ctx.aiTitle": "✨ AI actions (Assistant)",
+            "help.ctx.summarize": "<strong>Summarize this web tile</strong>: generates a quick summary of the displayed page.",
+            "help.ctx.keywords": "<strong>Analyze page keywords</strong>: extracts the main themes and important words from the content.",
+            "help.ctx.layoutTitle": "🧱 Mosaic layout",
+            "help.ctx.splitV": "<strong>Split vertically</strong> (Ctrl + T): creates a new panel on the right.",
+            "help.ctx.splitH": "<strong>Split horizontally</strong> (Ctrl + H): creates a new panel below.",
+            "help.ctx.splitPrivate": "<strong>Split into private browsing</strong> (Ctrl + Shift + N): opens a new isolated private panel.",
+            "help.ctx.splitContainer": "<strong>Split into an isolated container</strong> (🗂️ in the toolbar): opens a new panel in a container (Personal, Work, Account 2, Account 3) so you can sign in to several accounts at the same time.",
+            "help.ctx.duplicate": "<strong>Duplicate this tile</strong> (Ctrl + Shift + D, 📋 in the toolbar, or right-click the tile): opens a copy of the panel to its right, on the same address. A copy of a private tile stays private; a copy of a container tile is created in the default session.",
+            "help.ctx.panelTitle": "📌 Panel management",
+            "help.ctx.maximize": "<strong>Maximize this tile</strong> (Ctrl + M): temporarily enlarges the selected panel.",
+            "help.ctx.print": "<strong>Print page content</strong> (Ctrl + P).",
+            "help.ctx.close": "<strong>Close this tile</strong> (Ctrl + W).",
+            "help.diagram.menu": `                         │ Right-click on a panel
+                         │
+                         ▼
+        ┌───────────────────────────────┐
+        │ ✏️ Edit                       │
+        │ ✨ AI actions                 │
+        │ 🧱 Mosaic layout              │
+        │ 📌 Panel management           │
+        └───────────────────────────────┘
+`,
+            "help.ctx.outro": "The context menu is the central access point for most panel management features. It lets you quickly build a mosaic workspace, analyze a page with the AI assistant, and manage the displayed content without leaving the active panel.",
+            "help.th.shortcut": "Keyboard Shortcut",
+            "help.th.layout": "System Action & Geometric Behavior",
+            "help.th.swap": "Swap Direction in the Mosaic",
+            "help.th.zoom": "Effect on the Usable Display Area",
+            "help.th.focus": "Application Focus Movement",
+            "help.th.web": "Web Navigation Action & Behavior",
+            "help.th.system": "Global Application Action & Lifecycle",
+            "help.row.splitV": "<strong>Split vertically</strong> — Splits the active panel in two vertically and opens a new tile on the right.",
+            "help.row.splitH": "<strong>Split horizontally</strong> — Splits the active panel in two horizontally and opens a new tile at the bottom.",
+            "help.row.close": "<strong>Close the active tile</strong> — Immediately closes the panel you are on and readjusts the ratios of the neighboring tiles. If only one tile remains open, closes the application.",
+            "help.row.undo": "<strong>Undo close</strong> — Instantly reopens the most recently closed panel, restoring its URL and its exact position in the mosaic.",
+            "help.key.save": "<code>Cmd&nbsp;or&nbsp;Ctrl&nbsp;+&nbsp;S</code>",
+            "help.row.save": "<strong>Save layout</strong> — Exports the current structure of your tile mosaic to a JSON file so you can reload it later.",
+            "help.key.load": "<code>Cmd&nbsp;or&nbsp;Ctrl&nbsp;+&nbsp;O</code>",
+            "help.row.load": "<strong>Load a layout</strong> — Imports a JSON configuration file to instantly restore a complete workspace.",
+            "help.key.equalize": "<code>Cmd&nbsp;or&nbsp;Ctrl&nbsp;+&nbsp;R</code>",
+            "help.row.equalize": "<strong>Equalize the mosaic</strong> — Instantly resets the entire mosaic to equal sizes, regardless of the number of active tiles, by repositioning all separators to the center.",
+            "help.swap.title": "🔄 Reordering Tiles with the Keyboard",
+            "help.swap.intro": "Instantly swaps the physical position of the active panel with the adjacent panel in the targeted direction, without using the drag handle with the mouse.",
+            "help.row.swapLeft": "<strong>Swap left</strong> — Swaps the position of the active panel with the tile immediately to its left.",
+            "help.row.swapRight": "<strong>Swap right</strong> — Swaps the position of the active panel with the tile immediately to its right.",
+            "help.row.swapUp": "<strong>Swap above</strong> — Swaps the position of the active panel with the tile immediately above it.",
+            "help.row.swapDown": "<strong>Swap below</strong> — Swaps the position of the active panel with the tile immediately below it.",
+            "help.zoom.title": "🔍 Enlarged Mode & Geometric Zoom",
+            "help.row.fullscreen": "<strong>Application full screen</strong> — Hides the borders, the title bar and the toolbar. Move the mouse to the very top of the screen to temporarily show the tools without leaving full screen; they collapse again after a few moments. Press F11 again to return to normal window mode.",
+            "help.row.maximize": "<strong>Maximize / Restore a tile</strong> — Toggles between enlarged mode for the active tile (100% of the mosaic's usable space) and the original mosaic mode. The other tiles are temporarily hidden but the application window stays visible.",
+            "help.row.escape": "<strong>Exit enlarged mode / Restore the tile</strong> — Global shortcut that exits the application's full-screen display (F11), and also restores the original mosaic if a tile was maximized (Ctrl+M).",
+            "help.key.aiToggle": "<code>Cmd&nbsp;or&nbsp;Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;A</code>",
+            "help.row.aiToggle": "<strong>Show / Hide the AI Assistant</strong> — Toggles the AI Assistant side panel and dynamically readjusts the mosaic geometry.",
+            "help.focus.title": "🧭 Navigating Between Tiles (Keyboard Focus)",
+            "help.row.nextTile": "<strong>Next tile</strong> — Moves the focus and the blue outline to the next panel (clockwise).",
+            "help.row.prevTile": "<strong>Previous tile</strong> — Moves the focus and the blue outline to the previous panel (counterclockwise).",
+            "help.web.title": "🌐 Web Navigation (In the Focused Tile)",
+            "help.web.intro": "These commands apply directly to the web content displayed in the active panel that has visual focus (blue outline).",
+            "help.row.address": "<strong>Focus the address bar</strong> — Instantly gives focus to the URL input field of the active panel and selects all the text so you can type a new address.",
+            "help.row.back": "<strong>Previous page</strong> — Goes back one step in the navigation history of the active web page.",
+            "help.row.forward": "<strong>Next page</strong> — Goes forward one step in the navigation history of the active web page.",
+            "help.key.refresh": "<code>F5</code>&nbsp;&nbsp;or&nbsp;&nbsp;<code>Ctrl&nbsp;+&nbsp;R</code>",
+            "help.row.refresh": "<strong>Refresh the page</strong> — Reloads the content of the website loaded in the active tile.",
+            "help.row.print": "<strong>Print the active tile</strong> — Opens the operating system's print dialog for the document currently being viewed.",
+            "help.key.help": "<code>F1</code>&nbsp;&nbsp;or&nbsp;&nbsp;<code>Alt&nbsp;+&nbsp;Home</code>",
+            "help.row.help": "<strong>Help</strong> — Instantly loads this help center in the active panel.",
+            "help.sys.title": "❌ System & Security",
+            "help.sys.intro": "Global commands affecting the application's overall interface, the management of browsing data and the security of the browser's lifecycle.",
+            "help.row.private": "<strong>New private tile</strong> — Creates an isolated vertical split in private browsing mode. Cookies and cache are destroyed as soon as this panel is closed.",
+            "help.row.downloads": "<strong>Downloads</strong> — Opens the download manager window (📥 button in the toolbar).",
+            "help.row.duplicate": "<strong>Duplicate the active tile</strong> — Opens a copy of the active panel to its right, on the same address. A copy of a private tile stays private.",
+            "help.row.bookmarks": "<strong>Show / Hide bookmarks</strong> — Toggles the display of the top bookmarks bar and dynamically readjusts the mosaic geometry.",
+            "help.key.history": "<code>Ctrl&nbsp;+&nbsp;H</code>&nbsp;(global)",
+            "help.row.history": "<strong>Show history</strong> — Opens and moves focus to the side panel dedicated to the global browsing history.",
+            "help.row.settings": "<strong>Settings</strong> — Instantly opens the application settings window, also accessible via the 🛠️ button in the toolbar.",
+            "help.row.quit": "<strong>Quit the application</strong> — Cleanly shuts down the Hare Browser processes. A security confirmation dialog is shown to prevent accidentally losing your open tiles.",
+            "help.adv.title": "🏗️ Advanced Features",
+            "help.ai.title": "✨ Local Ollama AI Assistant",
+            "help.ai.body": "Hare Browser includes an autonomous conversational agent connected to your local Ollama instance. It can analyze the text content of your active web page to generate concise three-point summaries or extract specific keywords, guaranteeing complete privacy (no data is sent to a third-party server or external cloud).",
+            "help.sec.title": "🕵️ Cyber-Security and Private Browsing",
+            "help.sec.body": "When you open a private tile, the browser creates a purely volatile in-memory partition (an isolated <code>incognito</code> session). When this tile is closed, a script automatically and irreversibly destroys all residual local traces: cookies, LocalStorage, IndexedDB databases, the session and Chromium's HTTP rendering cache.",
+            "help.reader.title": "👓 Reader Mode",
+            "help.reader.body": "The 👓 button turns the displayed page into a clean view: only the article's title, text, images and tables are kept, without menus, ads, banners or comments. It is available in three places: in the toolbar (it acts on the active tile), in each tile's address bar, and in the context menu (right-click, “Reader mode”).",
+            "help.reader.comfort": "<strong>Reading comfort</strong>: centered text in a serif font, adapted to the application's light or dark mode. The <strong>A−</strong> / <strong>A+</strong> buttons adjust the text size.",
+            "help.reader.exit": "<strong>Exit</strong>: click ✕ in the reader mode bar, or 👓 again. The original page is not reloaded: you return to exactly your position.",
+            "help.reader.limits": "<strong>Limits</strong>: unavailable on internal pages or on sleeping tiles. If the page contains too little text, the icon briefly shows ⚠️.",
+            "help.dl.title": "📥 Download Manager",
+            "help.dl.body": "The 📥 button in the toolbar (or <code>Ctrl + J</code>) opens a window listing your current and past downloads, with the file name, size and source site.",
+            "help.dl.running": "<strong>In progress</strong>: a progress bar is displayed and the “Cancel” button interrupts the download.",
+            "help.dl.done": "<strong>Completed</strong>: the “Show in folder” button reveals the file in Explorer. If the file was moved or deleted, the row says so.",
+            "help.dl.list": "<strong>List</strong>: ✕ removes a row, “Clear list” removes all completed downloads (files are never deleted). History is kept between launches, except for private tiles: their downloads are never saved to disk.",
+            "help.cont.title": "🗂️ Container Tiles (Multi-Account)",
+            "help.cont.body": "Each container has its own persistent partition: cookies, LocalStorage and sessions are isolated from the other containers and from the default session. You can therefore open two tiles side by side and sign in to two different Google or Outlook accounts at the same time. Unlike private browsing, sign-ins are kept between launches.",
+            "help.cont.open": "<strong>Opening</strong>: 🗂️ button in the toolbar, or right-click a tile then “Split into an isolated container (multiple accounts)”, then choose the container.",
+            "help.cont.mark": "<strong>Identification</strong>: a container tile's tab is topped with a colored strip; the container name appears on hover.",
+            "help.cont.limits": "<strong>Limits</strong>: unavailable from a private tile or in enlarged mode. “Duplicate this tile” creates the copy in the default session, not in the same container.",
+            "help.block.title": "🚫 Built-in Ad & Tracker Blocker",
+            "help.block.body": "Every network request issued by a tile (public or private) is analyzed on the fly by the application's main process through Electron's <code>webRequest</code> API.",
+            "help.block.speed": "<strong>Faster loading</strong>: Heavy advertising scripts and intrusive images are cancelled <strong>before</strong> they are downloaded.",
+            "help.block.privacy": "<strong>Full privacy</strong>: Natively blocks the behavioral tracking beacons of the major ad networks.",
+            "help.block.incognito": "<strong>Incognito protection</strong>: Filtering is applied tightly on your volatile partitions without leaving traces in memory.",
+            "help.block.disable": "<strong>Disable the blocker on a site</strong>: if a site misbehaves, click the 🛡️ icon in its address bar, or right-click the tile then “Disable the blocker on <em>site-name</em>”. The page is reloaded without filtering. The icon turns green to indicate the exception; clicking again re-enables the blocker. Exceptions are saved per site and kept between launches.",
+            "help.pwd.title": "🔑 Secure Password Manager",
+            "help.pwd.body": "Your saved credentials and passwords are protected by strong encryption. In development mode or on compatible target systems, the browser relies on the <code>safeStorage</code> module to apply internal asymmetric encryption (Alternative Encryption), preventing any unauthorized reading of the storage file by third-party applications.",
+            "help.footer": "Hare Browser • Built on Electron • Ollama AI engine • SearXNG search",
             "welcome.footer": "Hare Browser: productive, private, modern.",
             "welcome.credits": "Powered by SearXNG • Ollama • Electron",
             "welcome.themeButton": "🌗 Theme",
@@ -974,6 +1288,15 @@
             if (id && element.textContent !== t(id, lang)) element.textContent = t(id, lang);
         });
 
+        // Variante pour les textes contenant du balisage (strong, code, entités) : catalogue de confiance uniquement.
+        scope.querySelectorAll?.("[data-i18n-html]").forEach((element) => {
+            const id = element.getAttribute("data-i18n-html");
+            if (id && element.getAttribute("data-i18n-html-lang") !== lang) {
+                element.innerHTML = t(id, lang);
+                element.setAttribute("data-i18n-html-lang", lang);
+            }
+        });
+
 
         // Recherchez ce bloc existant dans la fonction apply() :
         scope.querySelectorAll?.("[data-i18n-title], [data-i18n-placeholder], [data-i18n-aria-label], [data-i18n-alt]").forEach((element) => {
@@ -1006,6 +1329,8 @@
         textNodes.forEach((node) => {
             const parent = node.parentElement;
             if (!parent || ["SCRIPT", "STYLE", "TEXTAREA", "INPUT"].includes(parent.tagName)) return;
+            // Le contenu géré par une clé data-i18n* est déjà traduit : évite de réécrire (espaces de fin) en boucle.
+            if (parent.closest?.("[data-i18n], [data-i18n-html]")) return;
             const translated = translateText(node.nodeValue, lang);
             if (translated !== node.nodeValue) node.nodeValue = translated;
         });
