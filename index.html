@@ -862,9 +862,9 @@ html.dark #pwd-modal {
    
     <button id="forward-button" data-i18n-title="toolbar.forward" title="Avancer (Alt+Flêche droite)" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">&#9654;</button>
 
-    <button id="home-button" data-i18n-title="toolbar.home" title="Accueil" aria-label="Accueil" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:13px; cursor:pointer;">🏠</button>
-    
     <button id="refresh-button" data-i18n-title="toolbar.refresh" title="Actualiser (Ctrl+R ou F5)" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:14px; cursor:pointer;">&#8635;</button>
+
+    <button id="home-button" data-i18n-title="toolbar.home" title="Accueil" aria-label="Accueil" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:13px; cursor:pointer;">🏠</button>
     
     <!-- AJOUT ICI : Le bouton Mode Sombre -->
     <button id="dark-mode-button" data-i18n-title="toolbar.darkMode" title="Activer le mode sombre" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🌙</button>
@@ -1102,6 +1102,12 @@ let activePanel = null;
 let currentPanels = []; // Stockage global pour maintenir la liste des panneaux
 let currentMaximizedId = null; // Mémoire globale du mode zoom
 let applicationTitle = "Hare Browser";
+
+const mainNavigationButtonIds = new Set(["back-button", "forward-button", "refresh-button", "home-button"]);
+const mainNavigationOrder = Array.from(document.getElementById("toolbar-buttons")?.children || [])
+    .filter((element) => mainNavigationButtonIds.has(element.id))
+    .map((element) => element.id);
+console.log("[NAVBAR] Ordre principal :", mainNavigationOrder);
 
 document.getElementById("reset-workspace-button")
     .addEventListener("click", () => {

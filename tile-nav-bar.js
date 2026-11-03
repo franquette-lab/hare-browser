@@ -282,11 +282,15 @@
     resizeHandle.title = "Resize";
     resizeHandle.setAttribute("aria-label", "Resize");
 
-    const controls = [backButton, forwardButton, homeButton, reloadButton, addressInput, closeButton, dragHandle, resizeHandle];
+    const controls = [backButton, forwardButton, reloadButton, homeButton, addressInput, closeButton, dragHandle, resizeHandle];
     for (const control of controls) {
         const controlName = control.id || control.className || control.tagName;
         runStage(`Ajout du contrôle ${controlName}`, () => navBar.appendChild(control));
     }
+    const floatingNavigationOrder = controls
+        .filter((control) => ["float-back", "float-forward", "float-reload", "float-home", "float-url"].includes(control.id))
+        .map((control) => control.id);
+    console.log("[FLOATING NAV] Ordre flottant :", floatingNavigationOrder);
     runStage("Ajout de la barre au document", () => document.documentElement.appendChild(navBar));
     navBar.dataset.hareFloatingNavState = "initializing";
 
