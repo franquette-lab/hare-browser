@@ -7083,10 +7083,20 @@ async function createWindow() {
                 },
                 {
                     label: tr("toolbar.home"),
-                    accelerator: 'Alt+Home',
                     click: () => {
                         const targetPanel = findPanelNode(rootNode, activePanel) || getLeftmostPanel();
                         void navigatePanelToHome(targetPanel);
+                    }
+                },
+                {
+                    label: tr("toolbar.help"),
+                    accelerator: 'Alt+Home',
+                    click: () => {
+                        console.log("[SHORTCUT] Alt+Home détecté");
+                        const targetPanel = findPanelNode(rootNode, activePanel) || getLeftmostPanel();
+                        if (!targetPanel) return;
+                        console.log("[SHORTCUT] Ouverture de help.html");
+                        openHelpInPanel(targetPanel).catch(console.error);
                     }
                 },
 
