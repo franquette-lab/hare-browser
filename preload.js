@@ -51,6 +51,9 @@ contextBridge.exposeInMainWorld(
         onFullscreenToolbarState: (callback) => {
             ipcRenderer.on("fullscreen-toolbar-state", (_event, state) => callback(state));
         },
+        onMainToolbarVisibilityChanged: (callback) => {
+            ipcRenderer.on("main-toolbar-visibility-changed", (_event, visible) => callback(visible));
+        },
         requestFullscreenToolbar: (visible) => {
             ipcRenderer.send("fullscreen-toolbar-request", visible);
         },

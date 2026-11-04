@@ -948,6 +948,7 @@ function setFloatingNavigationOpacity(value) {
 }
 
 let saveLayoutOnExit = true;
+let isMainToolbarVisible = true;
 let sessionLayoutBaseline = null;
 let sessionLayoutBaselineCaptured = false;
 let isQuitConfirmationOpen = false;
@@ -956,18 +957,21 @@ function loadClosePreferences() {
     try {
         const settings = JSON.parse(fs.readFileSync(getClosePreferencesPath(), "utf-8"));
         saveLayoutOnExit = typeof settings.saveLayoutOnExit === "boolean" ? settings.saveLayoutOnExit : true;
+        isMainToolbarVisible = typeof settings.showMainToolbar === "boolean" ? settings.showMainToolbar : true;
     } catch (error) {
         saveLayoutOnExit = true;
+        isMainToolbarVisible = true;
         if (error.code !== "ENOENT") {
             console.error("Impossible de lire les préférences de fermeture :", error);
         }
     }
+    TOOLBAR_HEIGHT = getPreferredToolbarHeight();
 }
 
 function saveClosePreferences() {
     try {
         fs.mkdirSync(appDataPath, { recursive: true });
-        fs.writeFileSync(getClosePreferencesPath(), JSON.stringify({ saveLayoutOnExit }, null, 2), "utf-8");
+        fs.writeFileSync(getClosePreferencesPath(), JSON.stringify({ saveLayoutOnExit, showMainToolbar: isMainToolbarVisible }, null, 2), "utf-8");
     } catch (error) {
         console.error("Impossible d’enregistrer les préférences de fermeture :", error);
     }
@@ -1124,9 +1128,15 @@ const TOOLBAR_ROW_HEIGHT = 38;
 const URL_BAR_HEIGHT = isBookmarksBarVisible ? 30 : 0; // Vaut 0 si masqué
 let TOOLBAR_HEIGHT = TOOLBAR_ROW_HEIGHT + URL_BAR_HEIGHT;
 
+function getPreferredToolbarHeight() {
+    return isMainToolbarVisible
+        ? normalToolbarHeight || (TOOLBAR_ROW_HEIGHT + URL_BAR_HEIGHT)
+        : Math.max(0, (normalToolbarHeight || (TOOLBAR_ROW_HEIGHT + URL_BAR_HEIGHT)) - TOOLBAR_ROW_HEIGHT);
+}
 
 
-const TOOLBAR_MIN_HEIGHT = TOOLBAR_HEIGHT;
+
+const TOOLBAR_MIN_HEIGHT = TOOLBAR_ROW_HEIGHT + URL_BAR_HEIGHT;
 const FULLSCREEN_COLLAPSED_TOOLBAR_HEIGHT = 8;
 let normalToolbarHeight = TOOLBAR_HEIGHT;
 let isFullscreenMode = false;
@@ -1345,17 +1355,39 @@ ipcMain.on("close-settings-window", (event) => {
 function setNormalToolbarHeight(height) {
     normalToolbarHeight = height;
     if (!isFullscreenMode || isFullscreenToolbarVisible) {
-        TOOLBAR_HEIGHT = height;
+        TOOLBAR_HEIGHT = getPreferredToolbarHeight();
         forceRebuildSplitters = true;
         resizeViews();
     }
+}
+
+function setMainToolbarVisible(visible) {
+    if (typeof visible !== "boolean") return isMainToolbarVisible;
+    if (isMainToolbarVisible === visible) return isMainToolbarVisible;
+
+    isMainToolbarVisible = visible;
+    normalToolbarHeight = normalToolbarHeight || (TOOLBAR_ROW_HEIGHT + URL_BAR_HEIGHT);
+    if (!isFullscreenMode || isFullscreenToolbarVisible) {
+        TOOLBAR_HEIGHT = getPreferredToolbarHeight();
+    }
+    forceRebuildSplitters = true;
+    resizeViews();
+
+    if (win && !win.isDestroyed()) {
+        win.webContents.send("main-toolbar-visibility-changed", isMainToolbarVisible);
+    }
+    if (settingsWindow && !settingsWindow.isDestroyed()) {
+        settingsWindow.webContents.send("main-toolbar-visibility-changed", isMainToolbarVisible);
+    }
+    saveClosePreferences();
+    return isMainToolbarVisible;
 }
 
 function setFullscreenToolbarVisible(visible) {
     if (!isFullscreenMode || !win || win.isDestroyed()) return;
 
     isFullscreenToolbarVisible = visible;
-    TOOLBAR_HEIGHT = visible ? normalToolbarHeight : FULLSCREEN_COLLAPSED_TOOLBAR_HEIGHT;
+    TOOLBAR_HEIGHT = visible ? getPreferredToolbarHeight() : FULLSCREEN_COLLAPSED_TOOLBAR_HEIGHT;
     win.webContents.send("fullscreen-toolbar-state", {
         fullscreen: true,
         visible
@@ -1482,6 +1514,12 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
                 }
                 scheduleSessionLayoutSave();
             }
+        },
+        {
+            label: tr("context.mainToolbar.show"),
+            type: "checkbox",
+            checked: isMainToolbarVisible,
+            click: (menuItem) => setMainToolbarVisible(menuItem.checked)
         },
         ...(!floatingNavigationGloballyEnabled ? [{
             label: tr("context.floatingNavigation.disabledGlobally"),
@@ -2164,6 +2202,19 @@ ipcMain.handle("set-bookmarks-visibility-preference", (event, visible) => {
     }
     // Appelle votre fonction globale existante qui modifie l'état et synchronise les fenêtres
     return setBookmarksBarVisible(visible);
+});
+
+ipcMain.handle("get-main-toolbar-visibility-preference", (event) => {
+    const authorized = (settingsWindow && !settingsWindow.isDestroyed() && event.sender === settingsWindow.webContents) ||
+        (win && !win.isDestroyed() && event.sender === win.webContents);
+    return authorized ? isMainToolbarVisible : true;
+});
+
+ipcMain.handle("set-main-toolbar-visibility-preference", (event, visible) => {
+    if (!settingsWindow || settingsWindow.isDestroyed() || event.sender !== settingsWindow.webContents || typeof visible !== "boolean") {
+        return isMainToolbarVisible;
+    }
+    return setMainToolbarVisible(visible);
 });
 
 
@@ -7489,7 +7540,9 @@ async function createWindow() {
     win.setAutoHideMenuBar(true);
     win.setMenuBarVisibility(false); // Supprime définitivement la ligne vide sous Windows
 
-    win.loadFile('index.html');
+    win.loadFile('index.html', {
+        query: { mainToolbarVisible: String(isMainToolbarVisible) }
+    });
     
     forceRebuildSplitters = true;
     resizeViews();
@@ -7503,6 +7556,7 @@ async function createWindow() {
 
         // ✨ AJOUTEZ CETTE LIGNE ICI :
         win.webContents.send("toggle-bookmarks-bar", isBookmarksBarVisible);
+        win.webContents.send("main-toolbar-visibility-changed", isMainToolbarVisible);
 
         const startupActive = activePanel && findPanelNode(rootNode, activePanel);
         if (startupActive) {
@@ -7564,7 +7618,6 @@ async function createWindow() {
     });
 
     win.on("enter-full-screen", () => {
-        normalToolbarHeight = TOOLBAR_HEIGHT;
         isFullscreenMode = true;
         isFullscreenToolbarVisible = false;
         TOOLBAR_HEIGHT = FULLSCREEN_COLLAPSED_TOOLBAR_HEIGHT;
@@ -7576,7 +7629,7 @@ async function createWindow() {
     win.on("leave-full-screen", () => {
         isFullscreenMode = false;
         isFullscreenToolbarVisible = true;
-        TOOLBAR_HEIGHT = normalToolbarHeight;
+        TOOLBAR_HEIGHT = getPreferredToolbarHeight();
         win.webContents.send("fullscreen-toolbar-state", { fullscreen: false, visible: true });
         forceRebuildSplitters = true;
         resizeViews();

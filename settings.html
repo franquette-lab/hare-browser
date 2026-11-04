@@ -60,6 +60,13 @@
 
 
         <p data-i18n="app.settings.language.help">Le changement est appliqué immédiatement et conservé pour les prochains démarrages.</p>
+        <section class="settings-section" aria-labelledby="interface-heading">
+            <h2 id="interface-heading" data-i18n="settings.interface.title">● Interface</h2>
+            <label class="checkbox-row" for="main-toolbar-visible">
+                <input id="main-toolbar-visible" type="checkbox" checked>
+                <span data-i18n="settings.mainToolbar.visible">Afficher la barre de menu principale</span>
+            </label>
+        </section>
         <section class="settings-section" aria-labelledby="favorites-heading">
             <h2 id="favorites-heading" data-i18n="settings.favorites.title">● Favoris</h2>
             <label class="checkbox-row" for="favorites-visible">
@@ -114,6 +121,7 @@
         const floatingNavigationOpacitySlider = document.getElementById("floating-navigation-opacity");
         const floatingNavigationOpacityValue = document.getElementById("floating-navigation-opacity-value");
         const favoritesVisibleCheckbox = document.getElementById("favorites-visible");
+        const mainToolbarVisibleCheckbox = document.getElementById("main-toolbar-visible");
         const savedMessage = document.getElementById("saved");
 
         HareI18n.languages.forEach((language) => {
@@ -141,6 +149,12 @@
         window.settingsApi.getFloatingNavigationOpacity().then(renderFloatingNavigationOpacity);
         window.settingsApi.getBookmarksVisible().then((visible) => {
             favoritesVisibleCheckbox.checked = visible === true;
+        });
+        window.settingsApi.getMainToolbarVisible().then((visible) => {
+            mainToolbarVisibleCheckbox.checked = visible !== false;
+        });
+        window.settingsApi.onMainToolbarVisibilityChanged((visible) => {
+            mainToolbarVisibleCheckbox.checked = visible === true;
         });
         window.settingsApi.onBookmarksVisibilityChanged((visible) => {
             favoritesVisibleCheckbox.checked = visible === true;
@@ -172,6 +186,10 @@
         });
         favoritesVisibleCheckbox.addEventListener("change", async () => {
             favoritesVisibleCheckbox.checked = await window.settingsApi.setBookmarksVisible(favoritesVisibleCheckbox.checked);
+            savedMessage.textContent = HareI18n.t("app.settings.saved", document.documentElement.lang || "fr");
+        });
+        mainToolbarVisibleCheckbox.addEventListener("change", async () => {
+            mainToolbarVisibleCheckbox.checked = await window.settingsApi.setMainToolbarVisible(mainToolbarVisibleCheckbox.checked);
             savedMessage.textContent = HareI18n.t("app.settings.saved", document.documentElement.lang || "fr");
         });
         document.getElementById("close-button").addEventListener("click", () => window.settingsApi.close());

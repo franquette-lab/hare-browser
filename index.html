@@ -159,6 +159,18 @@ body.fullscreen-toolbar-active #url-bar {
 body.fullscreen-toolbar-hidden #find-in-page-bar { transform: translateY(-200%); }
 body.fullscreen-toolbar-active #find-in-page-bar { transform: translateY(0); }
 
+html.main-toolbar-hidden #toolbar-buttons {
+    display: none !important;
+}
+
+html.main-toolbar-hidden #url-bar {
+    right: var(--window-controls-width);
+}
+
+html.main-toolbar-hidden #find-in-page-bar {
+    right: calc(var(--window-controls-width) + 12px);
+}
+
 body.fullscreen-toolbar-hidden #fullscreen-reveal-zone {
     display: block;
     position: fixed;
@@ -851,6 +863,16 @@ html.dark #pwd-modal {
 
 
 </style>
+
+<script>
+    const initialMainToolbarPreference = new URLSearchParams(location.search).get("mainToolbarVisible");
+    if (initialMainToolbarPreference !== null) {
+        const initiallyVisible = initialMainToolbarPreference !== "false";
+        document.documentElement.classList.toggle("main-toolbar-hidden", !initiallyVisible);
+        document.documentElement.style.setProperty("--toolbar-row-height", initiallyVisible ? "38px" : "0px");
+        history.replaceState(null, "", location.pathname + location.hash);
+    }
+</script>
 
 <body class="m-0 flex items-center justify-center bg-gray-100 dark:bg-zinc-900 min-h-screen">
 
@@ -3652,6 +3674,12 @@ function renderOllamaStatus(status) {
         loading: translateUi("ai.ollamaModelLoading", { model }),
         ready: translateUi("ai.ollamaReady", { model })
     };
+
+    window.api.onMainToolbarVisibilityChanged?.((visible) => {
+        const isVisible = visible !== false;
+        document.documentElement.classList.toggle("main-toolbar-hidden", !isVisible);
+        document.documentElement.style.setProperty("--toolbar-row-height", isVisible ? "38px" : "0px");
+    });
 
     aiOllamaStatus.dataset.state = status.state || "checking";
     aiOllamaStatusText.textContent = messages[status.state] || messages.checking;

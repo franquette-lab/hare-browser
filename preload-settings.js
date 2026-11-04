@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld("settingsApi", {
     setFloatingNavigationOpacity: (opacity) => ipcRenderer.invoke("set-floating-navigation-opacity", opacity),
     getBookmarksVisible: () => ipcRenderer.invoke("get-bookmarks-visibility-preference"),
     setBookmarksVisible: (visible) => ipcRenderer.invoke("set-bookmarks-visibility-preference", visible),
+    getMainToolbarVisible: () => ipcRenderer.invoke("get-main-toolbar-visibility-preference"),
+    setMainToolbarVisible: (visible) => ipcRenderer.invoke("set-main-toolbar-visibility-preference", visible),
+    onMainToolbarVisibilityChanged: (callback) => ipcRenderer.on("main-toolbar-visibility-changed", (_event, visible) => callback(visible)),
     onBookmarksVisibilityChanged: (callback) => ipcRenderer.on("bookmarks-visibility-changed", (_event, visible) => callback(visible)),
     close: () => ipcRenderer.send("close-settings-window")
 });
