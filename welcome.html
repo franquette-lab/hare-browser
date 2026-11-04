@@ -226,102 +226,17 @@
     margin-bottom: 12px;
 }
 
-/* --- ICÔNE AGRANDIE ET SÉCURISÉE POUR LA BULLE --- */
+/* --- ICÔNE AGRANDIE (l'info-bulle est gérée par tooltip-glass.js via data-tooltip) --- */
 .arrow-right-icon {
     font-size: 18px; /* Apparence agrandie (passée de 14px à 18px) */
-    position: relative; /* Indispensable pour caler la bulle par rapport à l'icône */
     cursor: pointer;
     user-select: none;
     padding-right: 4px;
 }
 
-/* --- CRÉATION DE LA BULLE D'AIDE (TOOLTIP) --- */
-.arrow-right-icon::after {
-    content: attr(data-tooltip); /* Récupère le texte du HTML */
-    position: absolute;
-    bottom: 130%; /* Positionne la bulle juste au-dessus de l'émoji */
-    right: 0;
-    white-space: nowrap; /* Empêche le texte de revenir à la ligne de force */
-    background-color: #1e1e24; /* Fond sombre élégant */
-    color: #ffffff;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    font-size: 11px;
-    font-weight: normal;
-    padding: 6px 10px;
-    border-radius: 6px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-    
-    /* ÉTAT INITIAL : Caché et transparent */
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(4px);
-    transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-/* --- PETITE FLÈCHE SOUS LA BULLE --- */
-.arrow-right-icon::before {
-    content: "";
-    position: absolute;
-    bottom: 110%;
-    right: 8px;
-    border-width: 5px;
-    border-style: solid;
-    border-color: #1e1e24 transparent transparent transparent; /* Crée un triangle pointant vers le bas */
-    
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s ease;
-}
-
-/* --- ÉTAT SURVOLÉ : Affichage fluide de la bulle --- */
-.arrow-right-icon:hover::after,
-.arrow-right-icon:hover::before {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-/* --- CORRECTION SUR MESURE POUR LE MODE SOMBRE GLOBAL --- */
-.mw-theme-client-dark .arrow-right-icon::after {
-    background-color: #3f3f46; /* Fond un peu plus clair en mode sombre pour rester lisible */
-    border: 1px solid #52525b;
-}
-.mw-theme-client-dark .arrow-right-icon::before {
-    border-color: #3f3f46 transparent transparent transparent;
-}
-
-[data-theme="light"] [data-tooltip]::before {
-    background-color: #ffffff !important;
-    color: #1a1a1a !important;
-    border: 1px solid #dcdcdc !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
-}
-
-/* --- CONFIGURATION STRICTE MODE CLAIR --- */
-html.mw-theme-client-light .arrow-right-icon::after {
-    background-color: #ffffff !important;
-    color: #1f2937 !important;
-    border: 1px solid #e5e7eb !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
-}
-
-html.mw-theme-client-light .arrow-right-icon::before {
-    border-color: #ffffff transparent transparent transparent !important;
-}
-
-/* --- CONFIGURATION STRICTE MODE SOMBRE --- */
-html.mw-theme-client-dark .arrow-right-icon::after {
-    background-color: #3f3f46 !important;
-    color: #ffffff !important;
-    border: 1px solid #52525b !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35) !important;
-}
-
-html.mw-theme-client-dark .arrow-right-icon::before {
-    border-color: #3f3f46 transparent transparent transparent !important;
-}
 </style>
 </head>
-<body>
+<body data-tooltip-position="top">
    
 <div class="container">
 
@@ -476,6 +391,7 @@ html.mw-theme-client-dark .arrow-right-icon::before {
 </div>
 
 <script src="i18n.js"></script>
+<script src="tooltip-glass.js"></script>
 <script>HareI18n.attach(window.tileLanguage);</script>
 
 <script>

@@ -1094,6 +1094,18 @@ html.dark #pwd-modal {
 
 
 <script src="i18n.js"></script>
+<script src="tooltip-glass.js"></script>
+<script>
+    // Les tuiles (vues natives) recouvrent le HTML sous la barre d'outils : les bulles doivent rester au-dessus.
+    HareTooltipGlass.configure({
+        safeBottom: () => {
+            const toolbar = document.getElementById("toolbar-buttons")?.getBoundingClientRect().bottom || 0;
+            const urlBar = document.getElementById("url-bar")?.getBoundingClientRect();
+            const urlBottom = urlBar && urlBar.height > 0 ? urlBar.bottom : 0;
+            return Math.max(toolbar, urlBottom) || 68;
+        }
+    });
+</script>
 <script>
     HareI18n.attach(window.api);
 </script>

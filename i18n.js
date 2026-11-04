@@ -1307,7 +1307,9 @@
                 ["data-i18n-alt", "alt"]
             ].forEach(([dataAttribute, targetAttribute]) => {
                 const id = element.getAttribute(dataAttribute);
-                if (id && element.getAttribute(targetAttribute) !== t(id, lang)) element.setAttribute(targetAttribute, t(id, lang));
+                // Pendant l'affichage de l'info-bulle, le title est mis de côté dans data-hare-tip.
+                const target = targetAttribute === "title" && element.hasAttribute("data-hare-tip") ? "data-hare-tip" : targetAttribute;
+                if (id && element.getAttribute(target) !== t(id, lang)) element.setAttribute(target, t(id, lang));
             });
         });
 
@@ -1316,7 +1318,7 @@
             const id = element.getAttribute("data-i18n-tooltip");
             if (id) {
                 const translatedTooltip = t(id, lang);
-                // Met à jour dynamiquement l'attribut exploité par votre pseudo-élément CSS (content: attr(data-tooltip))
+                // Met à jour l'attribut data-tooltip lu par tooltip-glass.js
                 if (element.getAttribute("data-tooltip") !== translatedTooltip) {
                     element.setAttribute("data-tooltip", translatedTooltip);
                 }

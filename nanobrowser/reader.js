@@ -187,6 +187,7 @@
     page.appendChild(doc);
     wrap.append(bar, page);
     shadow.appendChild(wrap);
+    if (window.HareTooltipGlass) window.HareTooltipGlass.attach(shadow);
     page.scrollTop = Number.isFinite(savedScrollTop) ? Math.max(0, savedScrollTop) : 0;
 
     function saveReaderPreferences() {

@@ -292,6 +292,7 @@
         .map((control) => control.id);
     console.log("[FLOATING NAV] Ordre flottant :", floatingNavigationOrder);
     runStage("Ajout de la barre au document", () => document.documentElement.appendChild(navBar));
+    runStage("Info-bulles verre dépoli", () => window.HareTooltipGlass?.attach(navBar));
     navBar.dataset.hareFloatingNavState = "initializing";
 
     log("Éléments DOM créés sans innerHTML", {

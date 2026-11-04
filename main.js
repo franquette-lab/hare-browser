@@ -3002,6 +3002,7 @@ async function executeReaderScript(panel) {
     if (!contents || contents.isDestroyed()) throw new Error('La vue du panneau n’est pas disponible.');
 
     const script = await fsPromises.readFile(path.join(__dirname, 'nanobrowser', 'reader.js'), 'utf8');
+    const tooltipScript = await fsPromises.readFile(path.join(__dirname, 'tooltip-glass.js'), 'utf8');
     const readerStrings = {
         title: tr("reader.title"),
         smaller: tr("reader.smaller"),
@@ -3010,6 +3011,7 @@ async function executeReaderScript(panel) {
     };
     const preferences = normalizeReaderPreferences(panel.readerModePreferences);
     return contents.executeJavaScript(
+        `${tooltipScript};\n` +
         `window.__hareReaderDark = ${isDarkModeForced};` +
         `window.__hareReaderStrings = ${JSON.stringify(readerStrings)};` +
         `window.__hareReaderPreferences = ${JSON.stringify(preferences)};\n${script}`
@@ -4931,6 +4933,7 @@ await panel.view.webContents.executeJavaScript(`
                 });
             } else {
                 const navBarCode = fs.readFileSync(scriptPath, "utf8");
+                const tooltipCode = fs.readFileSync(path.join(__dirname, "tooltip-glass.js"), "utf8");
                 console.info("[HARE NAV] Exécution du script", {
                     panelId: panel.id,
                     url: injectionUrl,
@@ -4939,7 +4942,7 @@ await panel.view.webContents.executeJavaScript(`
                     contextIsolation: true,
                     sandbox: true
                 });
-                const result = await panel.view.webContents.executeJavaScript(navBarCode);
+                const result = await panel.view.webContents.executeJavaScript(`${tooltipCode};\n${navBarCode}`);
                 if (result?.ok === false) {
                     console.error("[HARE NAV] Script exécuté avec un diagnostic d’échec", {
                         panelId: panel.id,
