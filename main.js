@@ -6892,9 +6892,7 @@ async function createWindow() {
         titleBarOverlay: {
             color: isDarkModeForced ? '#252526' : '#ffffff',
             symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937',
-            // ✨ FIX : On baisse la hauteur de 38px à 22px pour redonner l'accès 
-            // de clic à votre bouton Paramètres dans l'IHM HTML
-            height: 22 
+            height: TOOLBAR_ROW_HEIGHT
         },
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
