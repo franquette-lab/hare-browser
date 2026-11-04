@@ -109,9 +109,10 @@
     sheet.replaceSync(
         ":host{all:initial}" +
         ".wrap{position:fixed;inset:0;background:" + theme.bg + ";color:" + theme.fg + ";display:flex;flex-direction:column;font-family:'Segoe UI',system-ui,sans-serif}" +
-        ".bar{display:flex;align-items:center;gap:8px;padding:6px 14px;background:" + theme.bar + ";border-bottom:1px solid " + theme.border + ";flex:0 0 auto}" +
-        ".bar .site{flex:1;font-size:12px;color:" + theme.muted + ";overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
-        ".bar button{font:inherit;font-size:13px;min-width:30px;height:26px;border-radius:5px;cursor:pointer;border:1px solid " + theme.border + ";background:" + theme.bg + ";color:" + theme.fg + "}" +
+        ".bar{display:flex;align-items:center;gap:8px;box-sizing:border-box;min-height:40px;padding:8px 56px 8px 76px;background:" + theme.bar + ";border-bottom:1px solid " + theme.border + ";flex:0 0 auto}" +
+        ".bar .site{flex:1 1 auto;min-width:0;font-size:12px;color:" + theme.muted + ";overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
+        ".bar button{flex:0 0 auto;font:inherit;font-size:13px;min-width:30px;height:26px;border-radius:5px;cursor:pointer;border:1px solid " + theme.border + ";background:" + theme.bg + ";color:" + theme.fg + "}" +
+        "@media (max-width:480px){.bar{padding-left:68px;padding-right:48px;gap:4px}.bar button{min-width:26px}}" +
         ".bar button:hover{border-color:" + theme.link + "}" +
         ".page{flex:1;overflow-y:auto;padding:32px 20px 80px}" +
         ".doc{max-width:700px;margin:0 auto;font-family:Georgia,'Times New Roman',serif;line-height:1.75}" +
@@ -140,9 +141,22 @@
     var smaller = document.createElement("button");
     var larger = document.createElement("button");
     var close = document.createElement("button");
+    function shouldDisplayHostname(hostname) {
+        var host = String(hostname || "").trim().toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+        if (!host || host.indexOf(".") === -1 && host.indexOf(":") === -1) return false;
+        if (host === "localhost" || /\.localhost$/.test(host) || /\.(local|internal|lan)$/.test(host)) return false;
+        if (host === "129.151.254.175") return false;
+        if (host.indexOf(":") !== -1) return false;
+        if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return false;
+        return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host);
+    }
     function applyReaderLanguage(strings) {
         strings = strings || window.__hareReaderStrings || {};
-        site.textContent = (strings.title || "Mode lecture") + " · " + location.hostname;
+        var title = strings.title || "Mode lecture";
+        site.textContent = shouldDisplayHostname(location.hostname)
+            ? title + " \u00b7 " + location.hostname
+            : title;
+        site.title = site.textContent;
         smaller.title = strings.smaller || "Texte plus petit";
         larger.title = strings.larger || "Texte plus grand";
         close.title = strings.close || "Quitter le mode lecture";
