@@ -159,13 +159,16 @@
         site.title = site.textContent;
         smaller.title = strings.smaller || "Texte plus petit";
         larger.title = strings.larger || "Texte plus grand";
-        close.title = strings.close || "Quitter le mode lecture";
+        close.title = strings.close || "Retour \u00e0 la page normale";
+        smaller.setAttribute("aria-label", smaller.title);
+        larger.setAttribute("aria-label", larger.title);
+        close.setAttribute("aria-label", close.title);
     }
     applyReaderLanguage();
     document.addEventListener("hare-language-changed", function () { applyReaderLanguage(); });
     smaller.textContent = "A\u2212";
     larger.textContent = "A+";
-    close.textContent = "\u2715";
+    close.textContent = "\u21A9\uFE0E";
     bar.append(site, smaller, larger, close);
 
     var page = document.createElement("div");
