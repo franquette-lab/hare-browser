@@ -1004,6 +1004,10 @@ let borderViews = [];
 
 let handleViews = {}; 
 let closeViews = {};
+let tileHeaderTooltipWindow = null;
+let tileHeaderTooltipReady = null;
+let tileHeaderTooltipHideTimer = null;
+let tileHeaderTooltipRequest = 0;
 
 let win;
 let rootNode = null;
@@ -1023,7 +1027,6 @@ let resizeTimer = null;
 
 let currentOllamaRequest = null; // Stocke la requête HTTP Ollama en cours
 
-// ==========================================
 // ✨ PLACEZ LES DEUX LIGNES ICI TOUT EN HAUT
 // ==========================================
 
@@ -3588,11 +3591,33 @@ function updatePanelHandles() {
             </head>
             <body>
             <div id="container" class="${containerClass}">
-                <div id="drag-btn" class="btn" title="${tr("panel.drag")}">&#9776;</div>
-                <div id="zoom-btn" class="btn action" title="${tr(isMaximized ? "panel.restore" : "panel.enlarge")}">${isMaximized ? '&#128471;' : '&#128470;'}</div>
-                <div id="fullscreen-btn" class="btn action trailing-control" title="${tr("panel.detach")}">&#8599;</div>
+                <div id="drag-btn" class="btn" data-hare-tip="${tr("panel.drag")}" role="img" aria-label="${tr("panel.drag")}">&#9776;</div>
+                <div id="zoom-btn" class="btn action" data-hare-tip="${tr(isMaximized ? "panel.restore" : "panel.enlarge")}" role="button" tabindex="0" aria-label="${tr(isMaximized ? "panel.restore" : "panel.enlarge")}">${isMaximized ? '&#128471;' : '&#128470;'}</div>
+                <div id="fullscreen-btn" class="btn action trailing-control" data-hare-tip="${tr("panel.detach")}" role="button" tabindex="0" aria-label="${tr("panel.detach")}">&#8599;</div>
             </div>
             <script>
+                const tooltipControls = document.querySelectorAll("[data-hare-tip]");
+                tooltipControls.forEach((control) => {
+                    const showTooltip = () => {
+                        const rect = control.getBoundingClientRect();
+                        window.tileTooltipGlass?.show(control.dataset.hareTip, {
+                            x: rect.left + rect.width / 2,
+                            y: rect.bottom
+                        });
+                    };
+                    control.addEventListener("pointerenter", showTooltip);
+                    control.addEventListener("pointerleave", () => window.tileTooltipGlass?.hide());
+                    control.addEventListener("pointerdown", () => window.tileTooltipGlass?.hide());
+                    if (control.tabIndex >= 0) control.addEventListener("focus", showTooltip);
+                    control.addEventListener("blur", () => window.tileTooltipGlass?.hide());
+                    control.addEventListener("keydown", (event) => {
+                        window.tileTooltipGlass?.hide();
+                        if (control.tabIndex >= 0 && (event.key === "Enter" || event.key === " ")) {
+                            event.preventDefault();
+                            control.click();
+                        }
+                    });
+                });
                 let dragging = false;
                 const dragBtn = document.getElementById("drag-btn");
                 if (dragBtn) {
@@ -3687,10 +3712,31 @@ function updatePanelHandles() {
                 </head>
                 <body>
                     <div id="container">
-                        <div id="close-btn" class="btn action trailing-control" title="${tr("panel.close")}">&#10006;</div>
+                        <div id="close-btn" class="btn action trailing-control" data-hare-tip="${tr("panel.close")}" role="button" tabindex="0" aria-label="${tr("panel.close")}">&#10006;</div>
                     </div>
                     <script>
-                        document.getElementById("close-btn").addEventListener("click", () => { document.title = "action-close"; });
+                        const closeButton = document.getElementById("close-btn");
+                        document.querySelectorAll("[data-hare-tip]").forEach((control) => {
+                            const showTooltip = () => {
+                                const rect = control.getBoundingClientRect();
+                                window.tileTooltipGlass?.show(control.dataset.hareTip, {
+                                    x: rect.left + rect.width / 2,
+                                    y: rect.bottom
+                                });
+                            };
+                            control.addEventListener("pointerenter", showTooltip);
+                            control.addEventListener("pointerleave", () => window.tileTooltipGlass?.hide());
+                            control.addEventListener("pointerdown", () => window.tileTooltipGlass?.hide());
+                            if (control.tabIndex >= 0) control.addEventListener("focus", showTooltip);
+                            control.addEventListener("blur", () => window.tileTooltipGlass?.hide());
+                            control.addEventListener("keydown", (event) => {
+                                window.tileTooltipGlass?.hide();
+                                if (control.tabIndex < 0 || (event.key !== "Enter" && event.key !== " ")) return;
+                                event.preventDefault();
+                                control.click();
+                            });
+                        });
+                        closeButton.addEventListener("click", () => { document.title = "action-close"; });
                     </script>
                 </body>
                 </html>
@@ -3710,6 +3756,140 @@ function updatePanelHandles() {
         }
     });
 }
+
+function isTileHeaderControlContents(contents) {
+    if (!contents || contents.isDestroyed()) return false;
+    return Object.values(handleViews).some((view) => view?.webContents === contents) ||
+        Object.values(closeViews).some((view) => view?.webContents === contents);
+}
+
+async function ensureTileHeaderTooltipWindow() {
+    if (tileHeaderTooltipWindow && !tileHeaderTooltipWindow.isDestroyed()) {
+        return tileHeaderTooltipWindow;
+    }
+    if (tileHeaderTooltipReady) return tileHeaderTooltipReady;
+    if (!win || win.isDestroyed()) return null;
+
+    tileHeaderTooltipWindow = new BrowserWindow({
+        width: 360,
+        height: 72,
+        parent: win,
+        frame: false,
+        transparent: true,
+        backgroundColor: "#00000000",
+        show: false,
+        focusable: false,
+        skipTaskbar: true,
+        resizable: false,
+        hasShadow: false,
+        webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false }
+    });
+    const tooltipWindow = tileHeaderTooltipWindow;
+    tooltipWindow.setIgnoreMouseEvents(true);
+    tooltipWindow.setAlwaysOnTop(true, "pop-up-menu");
+    const html = `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;width:100%;height:100%;overflow:hidden;background:transparent"></body></html>`;
+    tileHeaderTooltipReady = tooltipWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+        .then(async () => {
+            const tooltipCode = await fsPromises.readFile(path.join(__dirname, "tooltip-glass.js"), "utf8");
+            await tooltipWindow.webContents.executeJavaScript(tooltipCode);
+            return tooltipWindow;
+        })
+        .catch((error) => {
+            console.warn("[Tooltip] Impossible de charger la bulle des en-têtes :", error.message);
+            if (tileHeaderTooltipWindow === tooltipWindow) tileHeaderTooltipWindow = null;
+            return null;
+        })
+        .finally(() => { tileHeaderTooltipReady = null; });
+    return tileHeaderTooltipReady;
+}
+
+ipcMain.on("tile-header-tooltip-show", async (event, text, anchor = {}) => {
+    if (!isTileHeaderControlContents(event.sender) || event.senderFrame !== event.sender.mainFrame ||
+        typeof text !== "string" || !text.trim() || text.length > 512) return;
+    const requestId = ++tileHeaderTooltipRequest;
+    const sourceView = [...Object.values(handleViews), ...Object.values(closeViews)]
+        .find((view) => view?.webContents === event.sender);
+    if (!sourceView || !win || win.isDestroyed()) return;
+
+    clearTimeout(tileHeaderTooltipHideTimer);
+    const tooltipWindow = await ensureTileHeaderTooltipWindow();
+    if (requestId !== tileHeaderTooltipRequest || !tooltipWindow || !isTileHeaderControlContents(event.sender) || win.isDestroyed()) return;
+
+    const anchorX = Number.isFinite(anchor.x) ? anchor.x : null;
+    const anchorY = Number.isFinite(anchor.y) ? anchor.y : null;
+    const measurementBounds = win.getContentBounds();
+    const maxTooltipWidth = Math.max(24, Math.min(360, measurementBounds.width - 8));
+
+    // Mesure la bulle avec une largeur suffisante avant de placer sa fenêtre native.
+    // Une largeur fixe de 360 px forçait le placement à se rabattre au bord de la
+    // fenêtre pour plusieurs boutons voisins, leur donnant visuellement le même ancrage.
+    tooltipWindow.hide();
+    tooltipWindow.setBounds({
+        x: measurementBounds.x + 4,
+        y: measurementBounds.y + 4,
+        width: maxTooltipWidth,
+        height: 180
+    });
+    const measured = await tooltipWindow.webContents.executeJavaScript(
+        `window.HareTooltipGlass?.showOverlay(${JSON.stringify(text)}, ${isDarkModeForced === true}, ${maxTooltipWidth - 12})`
+    );
+    if (requestId !== tileHeaderTooltipRequest || !measured || !tooltipWindow || tooltipWindow.isDestroyed() ||
+        !isTileHeaderControlContents(event.sender) || win.isDestroyed()) return;
+
+    const sourceBounds = sourceView.getBounds();
+    const contentBounds = win.getContentBounds();
+    const resolvedAnchorX = anchorX == null ? sourceBounds.width / 2 : anchorX;
+    const resolvedAnchorY = anchorY == null ? sourceBounds.height : anchorY;
+    const tooltipWidth = Math.min(maxTooltipWidth, Math.ceil(measured.width) + 12);
+    const tooltipHeight = Math.ceil(measured.height) + 12;
+    const leftLimit = contentBounds.x + 4;
+    const rightLimit = Math.max(leftLimit, contentBounds.x + contentBounds.width - tooltipWidth - 4);
+    const anchorScreenX = contentBounds.x + sourceBounds.x + resolvedAnchorX;
+    const centeredX = anchorScreenX - tooltipWidth / 2;
+    let alignment = "center";
+    let x = centeredX;
+
+    // Aux bords, aligne la bulle vers l'intérieur plutôt que de déplacer son
+    // centre vers une coordonnée commune après écrêtage.
+    if (centeredX < leftLimit) {
+        alignment = "start";
+        x = anchorScreenX - 6;
+    } else if (centeredX > rightLimit) {
+        alignment = "end";
+        x = anchorScreenX - tooltipWidth + 6;
+    }
+
+    const topLimit = contentBounds.y + 4;
+    const bottomLimit = Math.max(topLimit, contentBounds.y + contentBounds.height - tooltipHeight - 4);
+    const anchorScreenY = contentBounds.y + sourceBounds.y + resolvedAnchorY;
+    const y = Math.round(Math.max(topLimit, Math.min(anchorScreenY, bottomLimit)));
+
+    if (!win.isDestroyed() && !tooltipWindow.isDestroyed()) {
+        tooltipWindow.setBounds({
+            x: Math.round(Math.max(leftLimit, Math.min(x, rightLimit))),
+            y,
+            width: tooltipWidth,
+            height: tooltipHeight
+        });
+        await tooltipWindow.webContents.executeJavaScript(
+            `window.HareTooltipGlass?.setOverlayAlignment(${JSON.stringify(alignment)})`
+        );
+        if (!tooltipWindow.isDestroyed() && requestId === tileHeaderTooltipRequest) tooltipWindow.showInactive();
+    }
+});
+
+ipcMain.on("tile-header-tooltip-hide", (event) => {
+    if (!isTileHeaderControlContents(event.sender) || event.senderFrame !== event.sender.mainFrame) return;
+    tileHeaderTooltipRequest += 1;
+    clearTimeout(tileHeaderTooltipHideTimer);
+    tileHeaderTooltipHideTimer = setTimeout(() => {
+        if (!tileHeaderTooltipWindow || tileHeaderTooltipWindow.isDestroyed()) return;
+        tileHeaderTooltipWindow.webContents.executeJavaScript(
+            'window.HareTooltipGlass?.hideOverlay()'
+        ).catch(() => {});
+        if (!tileHeaderTooltipWindow.isDestroyed()) tileHeaderTooltipWindow.hide();
+    }, 60);
+});
 
 function findNeighborPanel(activeBounds, direction, panelsList) {
     if (!activeBounds) return null;

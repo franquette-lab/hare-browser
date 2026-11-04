@@ -191,6 +191,11 @@ contextBridge.exposeInMainWorld("tileFloatingNavigation", {
     onOpacityChanged: (callback) => ipcRenderer.on("floating-navigation-opacity-changed", (_event, opacity) => callback(opacity))
 });
 
+contextBridge.exposeInMainWorld("tileTooltipGlass", Object.freeze({
+    show: (text, rect) => ipcRenderer.send("tile-header-tooltip-show", text, rect),
+    hide: () => ipcRenderer.send("tile-header-tooltip-hide")
+}));
+
 // Expose les méthodes IPC pour welcome.html à travers la sandbox Chromium
 contextBridge.exposeInMainWorld('tutorials', {
     openVideo: (videoFile) => {

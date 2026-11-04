@@ -22,11 +22,20 @@
         "transition:opacity .16s ease,transform .16s ease,visibility 0s linear .16s;" +
         "-webkit-backdrop-filter:blur(10px) saturate(160%);backdrop-filter:blur(10px) saturate(160%);" +
         "background:rgba(255,255,255,.78);color:#111827;border:1px solid rgba(255,255,255,.65);" +
-        "box-shadow:0 6px 20px rgba(0,0,0,.18),0 1px 3px rgba(0,0,0,.12)}" +
+        "box-shadow:0 1px 2px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.08),0 18px 48px rgba(15,23,42,.04)}" +
         ".tip.dark{background:rgba(28,28,32,.78);color:#f3f4f6;border-color:rgba(255,255,255,.14);" +
-        "box-shadow:0 6px 20px rgba(0,0,0,.5),0 1px 3px rgba(0,0,0,.4)}" +
+        "box-shadow:0 1px 2px rgba(0,0,0,.18),0 8px 24px rgba(0,0,0,.22),0 18px 48px rgba(0,0,0,.14)}" +
         ".tip.show{opacity:1;visibility:visible;transform:scale(1);transition:opacity .16s ease,transform .16s ease,visibility 0s}" +
-        "@media (prefers-reduced-motion:reduce){.tip,.tip.show{transition:opacity .01s linear;transform:none}}";
+        ".tip.overlay{left:50%!important;white-space:nowrap;word-break:normal;overflow-wrap:normal;transform:translateX(-50%) scale(.94);transform-origin:top center}" +
+        ".tip.overlay.multiline{white-space:pre-wrap;overflow-wrap:anywhere}" +
+        ".tip.overlay.show{transform:translateX(-50%) scale(1)}" +
+        ".tip.overlay.start{left:6px!important;transform:scale(.94);transform-origin:top left}" +
+        ".tip.overlay.start.show{transform:scale(1)}" +
+        ".tip.overlay.end{left:calc(100% - 6px)!important;transform:translateX(-100%) scale(.94);transform-origin:top right}" +
+        ".tip.overlay.end.show{transform:translateX(-100%) scale(1)}" +
+        "@media (prefers-reduced-motion:reduce){.tip,.tip.show{transition:opacity .01s linear;transform:none}" +
+        ".tip.overlay{transform:translateX(-50%)}.tip.overlay.start{transform:none}" +
+        ".tip.overlay.end{transform:translateX(-100%)}}";
 
     var HOST_CSS = "position:fixed!important;left:0!important;top:0!important;width:0!important;height:0!important;" +
         "margin:0!important;padding:0!important;border:0!important;overflow:visible!important;display:block!important;" +
@@ -174,6 +183,8 @@
         if (root && root.lastElementChild !== state.host) root.appendChild(state.host);
         state.box.textContent = text;
         state.box.className = "tip" + (isDarkBehind(src) ? " dark" : "");
+        state.box.style.removeProperty("max-width");
+        state.box.setAttribute("aria-hidden", "false");
         place(src);
         state.box.classList.add("show");
         state.visible = true;
@@ -191,9 +202,42 @@
         state.source = null;
         if (state.visible && state.box) {
             state.box.classList.remove("show");
+            state.box.setAttribute("aria-hidden", "true");
             state.visible = false;
             state.lastHide = Date.now();
         }
+    }
+
+    function showOverlay(text, dark, availableWidth) {
+        if (typeof text !== "string" || !text.trim()) return;
+        ensureHost();
+        var root = document.documentElement;
+        if (root && state.host.parentNode !== root) root.appendChild(state.host);
+        state.box.textContent = text;
+        state.box.className = "tip overlay" + (dark === true ? " dark" : "");
+        state.box.setAttribute("aria-hidden", "false");
+        state.box.style.left = MARGIN + "px";
+        state.box.style.top = MARGIN + "px";
+        state.box.style.maxWidth = "none";
+        var naturalWidth = state.box.offsetWidth;
+        var viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+        var maxWidth = Number.isFinite(availableWidth) && availableWidth > 0
+            ? Math.min(360, availableWidth)
+            : Math.min(360, Math.max(12, viewportWidth - 12));
+        state.box.style.maxWidth = maxWidth + "px";
+        if (naturalWidth > maxWidth) state.box.classList.add("multiline");
+        state.box.classList.add("show");
+        state.visible = true;
+        return { width: state.box.offsetWidth, height: state.box.offsetHeight };
+    }
+
+    function setOverlayAlignment(alignment) {
+        if (!state.box || !state.box.classList.contains("overlay")) return;
+        state.box.style.setProperty("transition", "none", "important");
+        state.box.classList.remove("start", "end");
+        if (alignment === "start" || alignment === "end") state.box.classList.add(alignment);
+        void state.box.offsetWidth;
+        state.box.style.removeProperty("transition");
     }
 
     function activate(src, immediate) {
@@ -240,6 +284,9 @@
     window.HareTooltipGlass = Object.freeze({
         attach: attach,
         hide: hide,
+        showOverlay: showOverlay,
+        setOverlayAlignment: setOverlayAlignment,
+        hideOverlay: hide,
         configure: function (options) {
             if (options && "safeBottom" in options) config.safeBottom = options.safeBottom;
         }
