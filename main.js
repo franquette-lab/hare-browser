@@ -1506,18 +1506,23 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
             }
         ] : []),
 
-
-
-
-
         { type: "separator" },
-
-
 
         {
             label: tr("context.displayOptions"),
             enabled: false
         },
+
+        {
+            label: tr("context.mainToolbar.show"),
+            type: "checkbox",
+            checked: isMainToolbarVisible,
+            click: (menuItem) => setMainToolbarVisible(menuItem.checked)
+        },
+        ...(!floatingNavigationGloballyEnabled ? [{
+            label: tr("context.floatingNavigation.disabledGlobally"),
+            enabled: false
+        }] : []),
 
         {
             label: tr("context.floatingNavigation.show"),
@@ -1534,16 +1539,6 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
                 scheduleSessionLayoutSave();
             }
         },
-        {
-            label: tr("context.mainToolbar.show"),
-            type: "checkbox",
-            checked: isMainToolbarVisible,
-            click: (menuItem) => setMainToolbarVisible(menuItem.checked)
-        },
-        ...(!floatingNavigationGloballyEnabled ? [{
-            label: tr("context.floatingNavigation.disabledGlobally"),
-            enabled: false
-        }] : []),
 
         // =========================================================================
         // ✨ VERSION CORRIGÉE : ÉVITE LE CRASH IPC EN MODIFIANT DIRECTEMENT L'ÉTAT
@@ -2087,8 +2082,7 @@ ipcMain.handle("open-tutorial-video", async (event, videoFile) => {
         },
 
         ACTION_OPEN_SEARCH_HOME: {
-//          url: getHomePageUrl(),
-            url: `${getPathToFileURL(path.join(__dirname, "home.html")).href}`,
+            url: `${getPathToFileURL(path.join(__dirname, "home.html")).href}?welcome=private-search`,
             adjacent: true
         },
         ACTION_OPEN_PRIVATE_PANEL: {

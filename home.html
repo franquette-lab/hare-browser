@@ -86,6 +86,142 @@ h1 {
     box-shadow: 0 4px 12px var(--shadow-color);
 }
 
+.search-wrapper.search-welcome-highlight {
+    animation: searchWelcomeHighlight 2.8s ease-out both;
+}
+
+@keyframes searchWelcomeHighlight {
+    0%, 35% {
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, .45), 0 4px 12px var(--shadow-color);
+        border-color: var(--accent-color);
+    }
+    100% {
+        box-shadow: 0 0 0 10px rgba(37, 99, 235, 0), 0 4px 12px var(--shadow-color);
+        border-color: var(--input-border);
+    }
+}
+
+.search-welcome-toast {
+    position: fixed;
+    z-index: 20;
+    right: 22px;
+    bottom: 22px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: min(390px, calc(100vw - 32px));
+    padding: 15px 14px 15px 16px;
+    color: var(--text-color);
+    background: var(--card-color);
+    border: 1px solid var(--input-border);
+    border-left: 3px solid var(--accent-color);
+    border-radius: 12px;
+    box-shadow: 0 12px 32px var(--shadow-color);
+    opacity: 0;
+    transform: translateY(10px);
+    pointer-events: none;
+    transition: opacity .24s ease, transform .24s ease;
+}
+
+html.mw-theme-client-light .search-welcome-toast {
+    --text-color: #222222;
+    --card-color: #ffffff;
+    --secondary-color: #666666;
+    --input-border: #d0d7de;
+    --accent-color: #2563eb;
+}
+
+html.mw-theme-client-dark .search-welcome-toast {
+    --text-color: #f3f3f3;
+    --card-color: #2b2d31;
+    --secondary-color: #b0b0b0;
+    --input-border: #444444;
+    --accent-color: #60a5fa;
+}
+
+.search-welcome-toast[hidden] {
+    display: none !important;
+}
+
+.search-welcome-toast.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.search-welcome-toast-icon {
+    display: grid;
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    place-items: center;
+    color: var(--accent-color);
+    background: rgba(37, 99, 235, .10);
+    border-radius: 9px;
+    font-size: 15px;
+}
+
+.search-welcome-toast-copy {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+}
+
+.search-welcome-toast-title {
+    margin: 0 22px 4px 0;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.search-welcome-toast-message {
+    margin: 0;
+    color: var(--secondary-color);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.search-welcome-toast-close {
+    flex: 0 0 26px;
+    width: 26px;
+    height: 26px;
+    margin: -5px -5px 0 0;
+    padding: 0;
+    color: var(--secondary-color);
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.search-welcome-toast-close:hover {
+    color: var(--text-color);
+    background: rgba(127, 127, 127, .12);
+}
+
+html.mw-theme-client-dark .search-welcome-toast-icon {
+    background: rgba(96, 165, 250, .14);
+}
+
+@media (max-width: 520px) {
+    .search-welcome-toast {
+        right: 12px;
+        bottom: 12px;
+        width: calc(100vw - 24px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .search-welcome-toast,
+    .search-wrapper.search-welcome-highlight {
+        animation: none;
+        transition: none;
+    }
+}
+
 .search-input {
     flex: 1;
     border: none;
@@ -219,6 +355,15 @@ html.mw-theme-client-dark button[type="submit"]:hover {
 
 <body>
 
+<aside id="search-welcome-toast" class="search-welcome-toast" role="status" aria-live="polite" hidden>
+    <span class="search-welcome-toast-icon" aria-hidden="true">🔒</span>
+    <div class="search-welcome-toast-copy">
+        <h2 class="search-welcome-toast-title" data-i18n="home.privateSearchToast.title">Private Search Opened</h2>
+        <p class="search-welcome-toast-message" data-i18n="home.privateSearchToast.message">Powered by SearXNG. Search the web without advertising profiles or tracking.</p>
+    </div>
+    <button class="search-welcome-toast-close" type="button" data-i18n-title="home.privateSearchToast.close" aria-label="Close notification">×</button>
+</aside>
+
 <div class="container">
 
     <!-- Remplacer par votre image -->
@@ -288,6 +433,36 @@ html.mw-theme-client-dark button[type="submit"]:hover {
         // Active l'animation dès que le formulaire est envoyé
         searchButton.classList.add('searching');
     });
+
+    const welcomeSearchToast = document.getElementById('search-welcome-toast');
+    const welcomeSearchToastClose = welcomeSearchToast?.querySelector('.search-welcome-toast-close');
+    const searchWrapper = document.querySelector('.search-wrapper');
+    const openedFromPrivateSearchCard = new URLSearchParams(window.location.search).get('welcome') === 'private-search';
+
+    if (openedFromPrivateSearchCard && welcomeSearchToast && searchWrapper) {
+        // Consume the one-shot marker so refreshes or history navigation don't replay the toast.
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('welcome');
+        history.replaceState(null, '', cleanUrl.pathname + cleanUrl.hash);
+
+        let toastDismissTimer;
+        let toastRemoveTimer;
+        const dismissToast = () => {
+            clearTimeout(toastDismissTimer);
+            clearTimeout(toastRemoveTimer);
+            welcomeSearchToast.classList.remove('is-visible');
+            toastRemoveTimer = setTimeout(() => { welcomeSearchToast.hidden = true; }, 260);
+        };
+
+        welcomeSearchToast.hidden = false;
+        requestAnimationFrame(() => {
+            welcomeSearchToast.classList.add('is-visible');
+            searchWrapper.classList.add('search-welcome-highlight');
+        });
+        welcomeSearchToastClose?.addEventListener('click', dismissToast);
+        toastDismissTimer = setTimeout(dismissToast, 5200);
+        setTimeout(() => searchWrapper.classList.remove('search-welcome-highlight'), 2900);
+    }
 </script>
 
 </body>
