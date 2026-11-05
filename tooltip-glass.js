@@ -255,6 +255,14 @@
         }
     }
 
+    function refresh() {
+        var source = state.source;
+        if (!source || !source.isConnected) return;
+        var shouldShow = state.visible || source.matches(":hover") || source.matches(":focus-visible");
+        hide();
+        if (shouldShow) activate(source, true);
+    }
+
     function once(event) {
         if (handled.has(event)) return false;
         handled.add(event);
@@ -284,6 +292,7 @@
     window.HareTooltipGlass = Object.freeze({
         attach: attach,
         hide: hide,
+        refresh: refresh,
         showOverlay: showOverlay,
         setOverlayAlignment: setOverlayAlignment,
         hideOverlay: hide,

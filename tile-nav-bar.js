@@ -51,6 +51,7 @@
 
     const applicationTitle = window.applicationTitle || "Hare Browser";
     let currentLanguage = "fr";
+    let tileTranslations = {};
     let localVisible = true;
     let globallyEnabled = true;
     let floatingNavigationOpacity = null;
@@ -214,12 +215,13 @@
     navBar.id = "hare-floating-nav";
     navBar.style.visibility = "hidden";
     navBar.setAttribute("role", "toolbar");
-    const makeButton = (id, title, label, text = "") => {
+    const makeButton = (id, translationKey, text = "") => {
         const button = document.createElement("button");
         button.id = id;
         button.type = "button";
-        button.title = title;
-        button.setAttribute("aria-label", label);
+        button.dataset.i18nTooltipKey = translationKey;
+        button.title = tileTranslations[translationKey] || "";
+        button.setAttribute("aria-label", button.title);
         if (text) button.textContent = text;
         return button;
     };
@@ -235,10 +237,10 @@
         return svg;
     };
 
-    const backButton = makeButton("float-back", "Back", "Back", "◀");
-    const forwardButton = makeButton("float-forward", "Forward", "Forward", "▶");
-    const homeButton = makeButton("float-home", "Home", "Home", "🏠");
-    const reloadButton = makeButton("float-reload", "Reload", "Reload");
+    const backButton = makeButton("float-back", "toolbar.back", "◀");
+    const forwardButton = makeButton("float-forward", "toolbar.forward", "▶");
+    const homeButton = makeButton("float-home", "toolbar.home", "🏠");
+    const reloadButton = makeButton("float-reload", "toolbar.refresh");
     const reloadIcon = runStage("Création de l’icône actualiser", () => makeSvg("0 0 24 24", [
         { d: "M21 2v6h-6" },
         { d: "M20.49 15A9 9 0 1 1 21 8" }
@@ -258,9 +260,9 @@
     addressInput.id = "float-url";
     addressInput.type = "text";
     addressInput.autocomplete = "off";
-    addressInput.setAttribute("aria-label", "Address");
+    addressInput.dataset.i18nAriaLabelKey = "tileNavigation.address";
 
-    const closeButton = makeButton("float-close", "Hide floating navigation", "Hide floating navigation");
+    const closeButton = makeButton("float-close", "tileNavigation.hide");
     const closeIcon = runStage("Création de l’icône fermeture", () => makeSvg("0 0 24 24", [{
         d: "M6 6L18 18M18 6L6 18",
         fill: "none",
@@ -271,16 +273,18 @@
     if (closeIcon) runStage("Ajout de l’icône fermeture", () => closeButton.appendChild(closeIcon));
 
     const dragHandle = document.createElement("div");
+    dragHandle.id = "float-drag-handle";
     dragHandle.className = "float-drag-handle";
     dragHandle.setAttribute("role", "presentation");
-    dragHandle.title = "Drag to move";
-    dragHandle.setAttribute("aria-label", "Drag to move");
+    dragHandle.dataset.i18nTooltipKey = "tileNavigation.drag";
+    dragHandle.dataset.i18nAriaLabelKey = "tileNavigation.drag";
 
     const resizeHandle = document.createElement("div");
+    resizeHandle.id = "float-resize-handle";
     resizeHandle.className = "float-resize-handle";
     resizeHandle.setAttribute("role", "presentation");
-    resizeHandle.title = "Resize";
-    resizeHandle.setAttribute("aria-label", "Resize");
+    resizeHandle.dataset.i18nTooltipKey = "tileNavigation.resize";
+    resizeHandle.dataset.i18nAriaLabelKey = "tileNavigation.resize";
 
     const controls = [backButton, forwardButton, reloadButton, homeButton, addressInput, closeButton, dragHandle, resizeHandle];
     for (const control of controls) {
@@ -501,22 +505,25 @@
     });
 
     runStage("Configuration des libellés et de la langue", () => {
-    const updateLanguage = (language) => {
+    const updateLanguage = (language, translations = {}) => {
         currentLanguage = language === "en" ? "en" : "fr";
-        backButton.title = currentLanguage === "en" ? "Back" : "Revenir";
-        forwardButton.title = currentLanguage === "en" ? "Forward" : "Avancer";
-        homeButton.title = currentLanguage === "en" ? "Home" : "Accueil";
-        homeButton.setAttribute("aria-label", homeButton.title);
-        reloadButton.title = currentLanguage === "en" ? "Reload" : "Actualiser";
-        closeButton.title = currentLanguage === "en" ? "Hide floating navigation" : "Masquer la navigation flottante";
-        closeButton.setAttribute("aria-label", closeButton.title);
-        addressInput.setAttribute("aria-label", currentLanguage === "en" ? "Address" : "Adresse");
-        dragHandle.title = currentLanguage === "en" ? "Drag to move" : "Glisser pour déplacer";
-        dragHandle.setAttribute("aria-label", dragHandle.title);
-        resizeHandle.title = currentLanguage === "en" ? "Resize" : "Redimensionner";
-        resizeHandle.setAttribute("aria-label", resizeHandle.title);
+        tileTranslations = translations || {};
+        navBar.querySelectorAll("[data-i18n-tooltip-key]").forEach((element) => {
+            const text = tileTranslations[element.dataset.i18nTooltipKey];
+            if (!text) return;
+            element.setAttribute("data-hare-tip", text);
+            element.title = text;
+        });
+        navBar.querySelectorAll("[data-i18n-aria-label-key]").forEach((element) => {
+            const text = tileTranslations[element.dataset.i18nAriaLabelKey];
+            if (text) element.setAttribute("aria-label", text);
+        });
+        window.HareTooltipGlass?.refresh?.();
     };
-    window.tileLanguage?.get().then(updateLanguage).catch((error) => {
+    window.tileLanguage?.get().then(async (language) => {
+        const translations = await window.tileLanguage.getTooltipTranslations();
+        updateLanguage(language, translations);
+    }).catch((error) => {
         logError("récupération de la langue", error);
     });
     window.tileLanguage?.onChanged(updateLanguage);

@@ -6,7 +6,7 @@
     // Keep message IDs stable; add another catalog here when introducing a language.
     const catalogs = {
         fr: {
-            "app.settings": "Paramètres",
+            "app.settings": "Paramètres (Ctrl+,)",
             "app.settings.title": "Paramètres de Hare Browser",
             "app.settings.language": "● Langue de l’interface",
             "app.settings.language.help": "Le changement est appliqué immédiatement et conservé pour les prochains démarrages.",
@@ -40,6 +40,10 @@
             "toolbar.forward": "Avancer (Alt+Flèche droite)",
             "toolbar.home": "Accueil",
             "toolbar.refresh": "Actualiser (Ctrl+R ou F5)",
+            "tileNavigation.address": "Adresse",
+            "tileNavigation.hide": "Masquer la navigation flottante",
+            "tileNavigation.drag": "Glisser pour déplacer",
+            "tileNavigation.resize": "Redimensionner",
             "toolbar.darkMode": "Activer le mode sombre",
             "toolbar.history": "Historique (Ctrl+H)",
             "toolbar.downloads": "Téléchargements (Ctrl+J)",
@@ -58,7 +62,7 @@
             "toolbar.duplicate": "Dupliquer cette tuile (Ctrl+Shift+D)",
             "toolbar.splitRight": "Scinder à droite (Ctrl+T)",
             "toolbar.splitDown": "Scinder vers le bas (Ctrl+Maj+H)",
-            "toolbar.ai": "Demander à l’IA Ollama",
+            "toolbar.ai": "Demander à l’IA Ollama (Ctrl+Shift+A)",
             "toolbar.help": "Aide de Hare Browser (F1 / Alt+Home)",
             "toolbar.undo": "Rouvrir le dernier panneau fermé (Ctrl+Z)",
             "toolbar.close": "Fermer le panneau actif (Ctrl+W)",
@@ -206,8 +210,6 @@
             "common.reset": "Réinitialiser",
             "common.cancel": "Annuler",
 
-
-
             "context.edit": "✏️ Édition",
             "context.selectAll": "Sélectionner tout",
             "context.splitVertical": "✂️ Scinder verticalement (Ctrl+T)",
@@ -219,29 +221,25 @@
             "context.summarize": "📝 Résumer cette tuile web",
             "context.keywords": "🔍 Analyser les mots-clés de la page",
             "context.panel": "📌 Gestion du panneau",
-
-//          "context.floatingNavigation": "Navigation flottante",
             "context.displayOptions": "Options d'affichage",
-
             "context.floatingNavigation.show": "  Barre de navigation flottante",
             "context.mainToolbar.show": "  Barre de menu principale",
             "context.floatingNavigation.disabledGlobally": "Désactivée dans les paramètres globaux",
             "context.reader": "👓 Mode lecture",
             "context.print": "🖨️ Imprimer le contenu de la page (Ctrl+P)",
             "context.close": "❌ Fermer cette tuile (Ctrl+W)",
+
             "menu.saveLayout": "Sauvegarder l'agencement",
             "menu.switchLeft": "Intervertir avec la tuile à gauche",
             "menu.switchRight": "Intervertir avec la tuile à droite",
             "menu.switchUp": "Intervertir avec la tuile au-dessus",
             "menu.switchDown": "Intervertir avec la tuile en dessous",
-
             "menu.sleepOn": "⏸ Veille automatique activée (cliquer pour désactiver)",
             "menu.sleepOff": "💤 Veille automatique désactivée (cliquer pour activer)",
-
-
             "menu.bookmarks": "Masquer/Afficher la barre de favoris",
             "menu.autoSleepOn": "Activer la veille automatique",
             "menu.autoSleepOff": "Désactiver la veille automatique",
+
             "context.cut": "Couper",
             "context.copy": "Copier",
             "context.paste": "Coller",
@@ -260,17 +258,21 @@
             "context.openLinkSplitBottom": "Scinder vers le bas",
             "context.openLinkNewWindow": "Ouvrir dans une nouvelle fenêtre",
             "context.containers": "🗂️ Scinder dans un conteneur isolé (comptes multiples)",
+
             "container.personal": "Personnel",
             "container.work": "Travail",
             "container.account2": "Compte 2",
             "container.account3": "Compte 3",
+
             "dialog.account.title": "Choisir un compte",
             "dialog.account.message": "Plusieurs identifiants sont enregistrés pour {hostname}.",
             "dialog.account.detail": "Sélectionnez le compte à remplir dans le formulaire.",
             "dialog.downloadComplete": "Téléchargement terminé : {filename}",
             "dialog.configFiles": "Fichiers de configuration (*.json)",
+
             "panel.noActive": "Aucun panneau actif",
             "panel.notFound": "Tuile introuvable.",
+
             "main.menuEqualize": "Réinitialiser la mosaïque à tailles égales",
             "main.menuAi": "Afficher / Masquer le volet de l’assistant IA",
             "main.menuSplit": "Scinder verticalement",
@@ -296,23 +298,16 @@
             "main.menuSwitchRight": "Intervertir avec la tuile à droite",
             "main.menuSwitchUp": "Intervertir avec la tuile au-dessus",
             "main.menuSwitchDown": "Intervertir avec la tuile en dessous",
+
             "welcome.title": "Bienvenue",
             "welcome.tileNav": "🧩 Navigation mosaïque",
-
             "welcome.tileNavText": "Naviguez sur plusieurs sites simultanément grâce aux panneaux redimensionnables.",
-
             "welcome.adblock": "🚫 Bloqueur intégré",
-
             "welcome.adblockText": "Publicités et trackers masqués par défaut pour accélérer le chargement.",
-
             "welcome.search": "🔍 Recherche privée",
-
             "welcome.searchText": "Recherchez avec SearXNG, un métamoteur open source et respectueux de la vie privée.",
-
             "welcome.localAi": "✨ IA locale",
-
             "welcome.localAiText": "Une IA locale et sans cloud pour plus de confidentialité et d'écologie.",
-
             "welcome.privacy": "🔒 Confidentialité",
             "welcome.privacyText": "Une IA locale et sans cloud distant pour plus de confidentialité et d'écologie.",
             "welcome.themes": "🌗 Clair / Sombre",
@@ -320,12 +315,12 @@
             "welcome.history": "📜 Historique",
             "welcome.historyText": "Retrouvez facilement les pages récemment visitées depuis l’historique intégré.",
             "welcome.productivity": "⚡ Productivité, espaces",
-
             "welcome.productivityText": "Scindez vos panneaux, pilotez au clavier et sauvegardez vos dispositions.",
 
             "home.featureSpeed": "🐇 Rapidité",
             "home.featurePrivacy": "🔒 Confidentialité",
             "home.featureAi": "✨ IA locale",
+
             "help.welcome": "Bienvenue dans le centre d’aide officiel de <strong>Hare Browser</strong>. Ce navigateur web combine un environnement de navigation multi-panneaux avancé (mode mosaïque dynamique), un moteur de recherche SearXNG respectueux de la vie privée et un assistant d’intelligence artificielle locale propulsé par Ollama.",
             "help.mac": "🍏 Configuration macOS : Pour les utilisateurs d’Apple Mac, remplacez systématiquement la touche Ctrl par la touche Cmd (Commande) pour l’ensemble des raccourcis ci-dessous.",
             "help.panels": "🧱 Gestion des panneaux & fonctionnement du fractionnement",
@@ -633,7 +628,7 @@
 
         },
         en: {
-            "app.settings": "Settings",
+            "app.settings": "Settings (Ctrl+,)",
             "app.settings.title": "Hare Browser Settings",
             "app.settings.language": "● Interface language",
             "app.settings.language.help": "Changes apply immediately and are saved for your next launch.",
@@ -667,6 +662,10 @@
             "toolbar.forward": "Forward (Alt+Right)",
             "toolbar.home": "Home",
             "toolbar.refresh": "Refresh (Ctrl+R or F5)",
+            "tileNavigation.address": "Address",
+            "tileNavigation.hide": "Hide floating navigation",
+            "tileNavigation.drag": "Drag to move",
+            "tileNavigation.resize": "Resize",
             "toolbar.darkMode": "Enable dark mode",
             "toolbar.history": "History (Ctrl+H)",
             "toolbar.downloads": "Downloads (Ctrl+J)",
@@ -685,7 +684,7 @@
             "toolbar.duplicate": "Duplicate this tile (Ctrl+Shift+D)",
             "toolbar.splitRight": "Split to the right (Ctrl+T)",
             "toolbar.splitDown": "Split downward (Ctrl+Shift+H)",
-            "toolbar.ai": "Ask Ollama AI",
+            "toolbar.ai": "Ask Ollama AI (Ctrl+Shift+A)",
             "toolbar.help": "Hare Browser help (F1 / Alt+Home)",
             "toolbar.undo": "Reopen the last closed panel (Ctrl+Z)",
             "toolbar.close": "Close the active panel (Ctrl+W)",
@@ -1337,6 +1336,23 @@
             }
         });
 
+        scope.querySelectorAll?.("[data-i18n-tooltip-key], [data-tooltip-key]").forEach((element) => {
+            const id = element.getAttribute("data-i18n-tooltip-key") || element.getAttribute("data-tooltip-key");
+            if (!id) return;
+            const translatedTooltip = t(id, lang);
+            if (element.getAttribute("data-hare-tip") !== translatedTooltip) element.setAttribute("data-hare-tip", translatedTooltip);
+            if (element.getAttribute("data-tooltip") !== translatedTooltip) element.setAttribute("data-tooltip", translatedTooltip);
+            if (element.getAttribute("title") !== translatedTooltip) element.setAttribute("title", translatedTooltip);
+        });
+
+        scope.querySelectorAll?.("[data-i18n-aria-label-key]").forEach((element) => {
+            const id = element.getAttribute("data-i18n-aria-label-key");
+            if (id) {
+                const translatedLabel = t(id, lang);
+                if (element.getAttribute("aria-label") !== translatedLabel) element.setAttribute("aria-label", translatedLabel);
+            }
+        });
+
         const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
         const textNodes = [];
         while (walker.nextNode()) textNodes.push(walker.currentNode);
@@ -1372,6 +1388,7 @@
         // 1. Traduction de la page au démarrage
         apply(document, current);
         traduireLesInfoBullesWelcome(current);
+        window.HareTooltipGlass?.refresh?.();
 
         // 2. Écoute dynamique du changement de langue (Bascule en temps réel)
         if (typeof onLanguageChanged === "function") {
@@ -1379,6 +1396,7 @@
                 current = normalizeLanguage(language);
                 apply(document, current);
                 traduireLesInfoBullesWelcome(current); // Met à jour les bulles d'aide
+                window.HareTooltipGlass?.refresh?.();
             });
         }
 
@@ -1400,7 +1418,10 @@
             subtree: true, 
             characterData: true, 
             attributes: true, 
-            attributeFilter: ["title", "placeholder", "aria-label", "alt"] 
+            attributeFilter: [
+                "title", "placeholder", "aria-label", "alt",
+                "data-i18n-tooltip-key", "data-tooltip-key", "data-i18n-aria-label-key"
+            ]
         });
     }
 

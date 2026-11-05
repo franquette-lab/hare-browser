@@ -1,616 +1,590 @@
 <!DOCTYPE html>
 <html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title data-i18n="welcome.title">Bienvenue</title>
 
-<style>
-    :root {
-        --bg: #f5f7fb;
-        --card: #ffffff;
-        --text: #1f2937;
-        --text-secondary: #6b7280;
-        --border: #e5e7eb;
-        --accent: #2563eb;
-        --accent-hover: #1d4ed8;
-        --shadow: rgba(0,0,0,.08);
-    }
+    <head>
 
-    @media (prefers-color-scheme: dark) {
-        :root {
-            --bg: #1f232a;
-            --card: #2b313a;
-            --text: #f3f4f6;
-            --text-secondary: #b5bec8;
-            --border: #404854;
-            --accent: #60a5fa;
-            --accent-hover: #3b82f6;
-            --shadow: rgba(0,0,0,.35);
-        }
-    }
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    * {
-        box-sizing: border-box;
-    }
+        <title data-i18n="welcome.title">Bienvenue</title>
 
-    body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--text);
-        font-family: "Segoe UI", sans-serif;
-    }
+        <style>
+            :root {
+                --bg: #f5f7fb;
+                --card: #ffffff;
+                --text: #1f2937;
+                --text-secondary: #6b7280;
+                --border: #e5e7eb;
+                --accent: #2563eb;
+                --accent-hover: #1d4ed8;
+                --shadow: rgba(0,0,0,.08);
+            }
 
-    .container {
-        max-width: 1200px;
-        margin: auto;
-        padding: 15px 30px;
-    }
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --bg: #1f232a;
+                    --card: #2b313a;
+                    --text: #f3f4f6;
+                    --text-secondary: #b5bec8;
+                    --border: #404854;
+                    --accent: #60a5fa;
+                    --accent-hover: #3b82f6;
+                    --shadow: rgba(0,0,0,.35);
+                }
+            }
 
-    .hero {
-        text-align: center;
-        margin-bottom: 20px;
-    }
+            * {
+                box-sizing: border-box;
+            }
 
-    .hero h1 {
-        margin: 0;
-        font-size: 48px;
-        font-weight: 700;
-    }
+            body {
+                margin: 0;
+                background: var(--bg);
+                color: var(--text);
+                font-family: "Segoe UI", sans-serif;
+            }
 
-    .hero p {
-        margin-top: 10px;
-        margin-bottom: 4px;
-        color: var(--text-secondary);
-        font-size: 14px;
-    }
+            .container {
+                max-width: 1200px;
+                margin: auto;
+                padding: 15px 30px;
+            }
 
-    .badge {
-        display: inline-block;
-        padding: 8px 16px;
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 999px;
-        box-shadow: 0 4px 12px var(--shadow);
-        top: 4px;
-        margin-top: 10px !important;
-    }
+            .hero {
+                text-align: center;
+                margin-bottom: 20px;
+            }
 
-    .cards {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 15px;
-        margin-top: 10px;
-        position: relative;
-        top: 0;
-    }
+            .hero h1 {
+                margin: 0;
+                font-size: 48px;
+                font-weight: 700;
+            }
 
-    .card {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 18px;
-        padding: 18px;
-        box-shadow: 0 4px 12px var(--shadow);
-        transition: transform .15s ease;
-    }
+            .hero p {
+                margin-top: 10px;
+                margin-bottom: 4px;
+                color: var(--text-secondary);
+                font-size: 14px;
+            }
 
-    .card:hover {
-        transform: translateY(-3px);
-    }
+            .badge {
+                display: inline-block;
+                padding: 8px 16px;
+                background: var(--card);
+                border: 1px solid var(--border);
+                border-radius: 999px;
+                box-shadow: 0 4px 12px var(--shadow);
+                top: 4px;
+                margin-top: 10px !important;
+            }
 
-    .card[data-tutorial-video] {
-        cursor: pointer;
-    }
+            .cards {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                gap: 15px;
+                margin-top: 10px;
+                position: relative;
+                top: 0;
+            }
 
-    .card[data-tutorial-video]:focus-visible {
-        outline: 3px solid var(--accent);
-        outline-offset: 3px;
-    }
+            .card {
+                background: var(--card);
+                border: 1px solid var(--border);
+                border-radius: 18px;
+                padding: 18px;
+                box-shadow: 0 4px 12px var(--shadow);
+                transition: transform .15s ease;
+            }
 
-    #tutorial-error {
-        margin: 12px auto 0;
-        max-width: 720px;
-        padding: 10px 14px;
-        color: #991b1b;
-        background: #fef2f2;
-        border: 1px solid #fecaca;
-        border-radius: 8px;
-        font-size: 13px;
-    }
+            .card:hover {
+                transform: translateY(-3px);
+            }
 
-    html.mw-theme-client-dark #tutorial-error {
-        color: #fecaca;
-        background: #450a0a;
-        border-color: #7f1d1d;
-    }
+            .card[data-tutorial-video] {
+                cursor: pointer;
+            }
 
-    .card h2 {
-        margin: 0 0 8px 0;
-        font-size: 18px;
-    }
+            .card[data-tutorial-video]:focus-visible {
+                outline: 3px solid var(--accent);
+                outline-offset: 3px;
+            }
 
-    .card p {
-        margin: 0;
-        color: var(--text-secondary);
-        line-height: 1.5;
-    }
+            #tutorial-error {
+                margin: 12px auto 0;
+                max-width: 720px;
+                padding: 10px 14px;
+                color: #991b1b;
+                background: #fef2f2;
+                border: 1px solid #fecaca;
+                border-radius: 8px;
+                font-size: 13px;
+            }
 
-    .welcome-buttons-container {
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
-        width: 100% !important;
+            html.mw-theme-client-dark #tutorial-error {
+                color: #fecaca;
+                background: #450a0a;
+                border-color: #7f1d1d;
+            }
 
-        /* Descend les boutons et le footer */
-        margin: 65px 0 0 0 !important;
-    }
+            .card h2 {
+                margin: 0 0 8px 0;
+                font-size: 18px;
+            }
 
-    .welcome-btn {
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        padding: 10px 24px !important;
-        border-radius: 20px !important;
-        font-size: 14px !important;
-        font-weight: 600 !important;
-        text-decoration: none !important;
-        margin: 0 8px !important;
-        border: none !important;
-        transition: background-color .2s ease-in-out !important;
-    }
+            .card p {
+                margin: 0;
+                color: var(--text-secondary);
+                line-height: 1.5;
+            }
 
-    html.mw-theme-client-light .welcome-btn,
-    .mw-theme-client-light .welcome-btn,
-    body .welcome-btn {
-        background-color: #2563eb !important;
-        color: #ffffff !important;
-    }
+            .welcome-buttons-container {
+                display: flex !important;
+                justify-content: center !important;
+                align-items: center !important;
+                width: 100% !important;
 
-    html.mw-theme-client-light .welcome-btn:hover {
-        background-color: #1d4ed8 !important;
-    }
+                /* Descend les boutons et le footer */
+                margin: 65px 0 0 0 !important;
+            }
 
-    html.mw-theme-client-dark .welcome-btn,
-    .mw-theme-client-dark .welcome-btn {
-        background-color: #3b82f6 !important;
-        color: #ffffff !important;
-    }
+            .welcome-btn {
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                padding: 10px 24px !important;
+                border-radius: 20px !important;
+                font-size: 14px !important;
+                font-weight: 600 !important;
+                text-decoration: none !important;
+                margin: 0 8px !important;
+                border: none !important;
+                transition: background-color .2s ease-in-out !important;
+            }
 
-    html.mw-theme-client-dark .welcome-btn:hover {
-        background-color: #60a5fa !important;
-    }
+            html.mw-theme-client-light .welcome-btn,
+            .mw-theme-client-light .welcome-btn,
+            body .welcome-btn {
+                background-color: #2563eb !important;
+                color: #ffffff !important;
+            }
 
-    .footer {
-        width: 100%;
-        margin-top: 24px;
-        padding-bottom: 15px;
-        text-align: center;
-        color: var(--text-secondary);
-        font-size: 14px;
-        line-height: 1.6;
-    }
+            html.mw-theme-client-light .welcome-btn:hover {
+                background-color: #1d4ed8 !important;
+            }
 
-    .version {
-        margin-top: 0;
-        font-size: 13px;
-    }
+            html.mw-theme-client-dark .welcome-btn,
+            .mw-theme-client-dark .welcome-btn {
+                background-color: #3b82f6 !important;
+                color: #ffffff !important;
+            }
 
-    h1 {
-        margin-top: 40px !important; /* Ajustez la valeur en pixels selon vos besoins */
-    }
+            html.mw-theme-client-dark .welcome-btn:hover {
+                background-color: #60a5fa !important;
+            }
 
+            .footer {
+                width: 100%;
+                margin-top: 24px;
+                padding-bottom: 15px;
+                text-align: center;
+                color: var(--text-secondary);
+                font-size: 14px;
+                line-height: 1.6;
+            }
 
-    /* Style pour rendre la tuile interactive et élégante au survol */
-    .clickable-card {
-        cursor: pointer;
-        transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
-    }
-    .clickable-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        background-color: rgba(255, 255, 255, 0.95);
-    }
-    /* Adaptation automatique si l'utilisateur est en mode sombre */
-    .mw-theme-client-dark .clickable-card:hover {
-        background-color: rgba(255, 255, 255, 0.05);
-    }
+            .version {
+                margin-top: 0;
+                font-size: 13px;
+            }
 
+            h1 {
+                margin-top: 40px !important; /* Ajustez la valeur en pixels selon vos besoins */
+            }
 
-/* --- EN-TÊTE DE LA CARTE --- */
-.ai-tile-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    margin-top: 0;
-    margin-bottom: 12px;
-}
+            /* Style pour rendre la tuile interactive et élégante au survol */
+            .clickable-card {
+                cursor: pointer;
+                transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+            }
+            .clickable-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                background-color: rgba(255, 255, 255, 0.95);
+            }
+            /* Adaptation automatique si l'utilisateur est en mode sombre */
+            .mw-theme-client-dark .clickable-card:hover {
+                background-color: rgba(255, 255, 255, 0.05);
+            }
 
-/* --- ICÔNE AGRANDIE (l'info-bulle est gérée par tooltip-glass.js via data-tooltip) --- */
-.arrow-right-icon {
-    font-size: 18px; /* Apparence agrandie (passée de 14px à 18px) */
-    cursor: pointer;
-    user-select: none;
-    padding-right: 4px;
-}
+            /* --- EN-TÊTE DE LA CARTE --- */
+            .ai-tile-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                width: 100%;
+                margin-top: 0;
+                margin-bottom: 12px;
+            }
 
-</style>
-</head>
-<body data-tooltip-position="top">
-   
-<div class="container">
+            /* --- ICÔNE AGRANDIE (l'info-bulle est gérée par tooltip-glass.js via data-tooltip) --- */
+            .arrow-right-icon {
+                font-size: 18px; /* Apparence agrandie (passée de 14px à 18px) */
+                cursor: pointer;
+                user-select: none;
+                padding-right: 4px;
+            }
 
-    <div class="hero">
-        <h1>Hare Browser</h1>
+        </style>
 
-        <p data-i18n="welcome.subtitle">
-            Mosaïque • Recherche • IA locale • Confidentialité
-        </p>
+    </head>
 
-        <div class="badge">
-            Version 1.0.0
-        </div>
-    </div>
-
-<div class="cards">
-
-    <!-- 1. Carte Navigation Mosaïque -->
-    <div class="card" data-tutorial-video="Mosaic_browsing.mp4" role="button" tabindex="0">
-        <h2 class="ai-tile-header">
-            <span data-i18n="welcome.tileNav">🧩 Navigation mosaïque</span>
-            <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.tutorial">🎦</span>
-        </h2>
-        <p data-i18n="welcome.tileNavText">
-            Organisez votre navigation dans several panneaux indépendants et redimensionnables pour afficher several sites simultanément.
-        </p>
-    </div>
+    <body data-tooltip-position="top">
         
-    <!-- 2. Carte Bloqueur -->
-    <div class="card" data-tutorial-video="Blocker.mp4" role="button" tabindex="0">
-        <h2 class="ai-tile-header">
-            <span data-i18n="welcome.adblock">🚫 Bloqueur intégré</span>
-            <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.tutorial">🎦</span>
-        </h2>
-        <p data-i18n="welcome.adblockText">
-            Publicités et trackers masqués par défaut pour accélérer le chargement.
-        </p>
-    </div>
+        <div class="container">
 
-    <!-- 3. Carte Recherche -->
+            <div class="hero">
+                <h1>Hare Browser</h1>
 
-<!--    
-    <div class="card">
-        <h2 data-i18n="welcome.search">🔍 Recherche respectueuse</h2>
-        <p data-i18n="welcome.searchText">
-            Effectuez vos recherches grâce à SearXNG, un métamoteur open source respectueux de la confidentialité et sans profilage des utilisateurs.
-        </p>
-    </div>
--->
+                <p data-i18n="welcome.subtitle">
+                    Mosaïque • Recherche • IA locale • Confidentialité
+                </p>
 
-    <!-- Recherche respectueuse -->
-    <div class="card clickable-card" id="search-tile" role="button" tabindex="0">
-        <h2 class="ai-tile-header">
-            <span data-i18n="welcome.search">🔍 Recherche privée</span>
-            <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.openHome">🚀</span>
-        </h2>
-        <p data-i18n="welcome.searchText">
-            Effectuez vos recherches grâce à SearXNG, un métamoteur open source respectueux de la confidentialité et sans profilage des utilisateurs.
-        </p>
-    </div>
+                <div class="badge">
+                    Version 1.0.0
+                </div>
+            </div>
 
+        <div class="cards">
 
+            <!-- 1. Carte Navigation Mosaïque -->
+            <div class="card" data-tutorial-video="Mosaic_browsing.mp4" role="button" tabindex="0">
+                <h2 class="ai-tile-header">
+                    <span data-i18n="welcome.tileNav">🧩 Navigation mosaïque</span>
+                    <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.tutorial">🎦</span>
+                </h2>
+                <p data-i18n="welcome.tileNavText">
+                    Organisez votre navigation dans several panneaux indépendants et redimensionnables pour afficher several sites simultanément.
+                </p>
+            </div>
+                
+            <!-- 2. Carte Bloqueur -->
+            <div class="card" data-tutorial-video="Blocker.mp4" role="button" tabindex="0">
+                <h2 class="ai-tile-header">
+                    <span data-i18n="welcome.adblock">🚫 Bloqueur intégré</span>
+                    <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.tutorial">🎦</span>
+                </h2>
+                <p data-i18n="welcome.adblockText">
+                    Publicités et trackers masqués par défaut pour accélérer le chargement.
+                </p>
+            </div>
 
-    <!-- 4. Carte IA Locale -->
-    <div class="card clickable-card" id="local-ai-tile">
-        <h2 class="ai-tile-header">
-            <span data-i18n="welcome.localAi">✨ IA locale</span>
-            <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.ai">🚀</span>
-        </h2>
-        <p data-i18n="welcome.localAiText">
-            Une IA locale et sans cloud pour plus de confidentialité et d'écologie.
-        </p>
-    </div>
+            <!-- Recherche respectueuse -->
+            <div class="card clickable-card" id="search-tile" role="button" tabindex="0">
+                <h2 class="ai-tile-header">
+                    <span data-i18n="welcome.search">🔍 Recherche privée</span>
+                    <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.openHome">🚀</span>
+                </h2>
+                <p data-i18n="welcome.searchText">
+                    Effectuez vos recherches grâce à SearXNG, un métamoteur open source respectueux de la confidentialité et sans profilage des utilisateurs.
+                </p>
+            </div>
 
-    <!-- 5. Carte Confidentialité -->
-    <div class="card clickable-card" id="privacy-tile" role="button" tabindex="0">
-        <h2 class="ai-tile-header">
-            <span data-i18n="welcome.privacy">🔒 Confidentialité</span>
-            <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.openPrivate">🚀</span>
-        </h2>
-        <p data-i18n="welcome.privacyText">
-            Une IA locale et sans cloud distant pour plus de confidentialité et d'écologie.
-        </p>
-    </div>
+            <!-- 4. Carte IA Locale -->
+            <div class="card clickable-card" id="local-ai-tile">
+                <h2 class="ai-tile-header">
+                    <span data-i18n="welcome.localAi">✨ IA locale</span>
+                    <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.ai">🚀</span>
+                </h2>
+                <p data-i18n="welcome.localAiText">
+                    Une IA locale et sans cloud pour plus de confidentialité et d'écologie.
+                </p>
+            </div>
 
-    <!-- 6. Carte Thèmes -->
-    <div class="card clickable-card" id="theme-tile">
-        <h2 class="ai-tile-header">
-            <span data-i18n="welcome.themes">🌗 Clair / Sombre</span>
-            <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.theme">🚀</span>
-        </h2>
-        <p data-i18n="welcome.themesText">
-            Basculez instantanément entre les modes clair et sombre selon vos préférences.
-        </p>
-    </div>
+            <!-- 5. Carte Confidentialité -->
+            <div class="card clickable-card" id="privacy-tile" role="button" tabindex="0">
+                <h2 class="ai-tile-header">
+                    <span data-i18n="welcome.privacy">🔒 Confidentialité</span>
+                    <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.openPrivate">🚀</span>
+                </h2>
+                <p data-i18n="welcome.privacyText">
+                    Une IA locale et sans cloud distant pour plus de confidentialité et d'écologie.
+                </p>
+            </div>
 
-    <!-- 7. Carte Historique -->
-    <div class="card clickable-card" id="history-tile">
-        <h2 class="ai-tile-header">
-            <span data-i18n="welcome.history">📜 Historique</span>
-            <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.history">🚀</span>
-        </h2>
-        <p data-i18n="welcome.historyText">
-            Retrouvez facilement les pages récemment visitées depuis l’historique intégré.
-        </p>
-    </div>
+            <!-- 6. Carte Thèmes -->
+            <div class="card clickable-card" id="theme-tile">
+                <h2 class="ai-tile-header">
+                    <span data-i18n="welcome.themes">🌗 Clair / Sombre</span>
+                    <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.theme">🚀</span>
+                </h2>
+                <p data-i18n="welcome.themesText">
+                    Basculez instantanément entre les modes clair et sombre selon vos préférences.
+                </p>
+            </div>
 
-<div class="card clickable-card" id="productivity-tile" role="button" tabindex="0">
-    <h2 class="ai-tile-header">
-        <span data-i18n="welcome.productivity">⚡ Productivité, espaces </span>
-        <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.openHelp">🚀</span>
-    </h2>
-    <p data-i18n="welcome.productivityText">
-        Scindez vos panneaux, pilotez au clavier et sauvegardez vos dispositions.
-    </p>
-</div>
+            <!-- 7. Carte Historique -->
+            <div class="card clickable-card" id="history-tile">
+                <h2 class="ai-tile-header">
+                    <span data-i18n="welcome.history">📜 Historique</span>
+                    <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.history">🚀</span>
+                </h2>
+                <p data-i18n="welcome.historyText">
+                    Retrouvez facilement les pages récemment visitées depuis l’historique intégré.
+                </p>
+            </div>
 
-</div>
-
-<div id="tutorial-error" role="alert" hidden></div>
-
-<div class="welcome-buttons-container">
-
-    <!--
-    <a href="hare://history" class="welcome-btn" data-i18n="welcome.history">📜&nbsp;Historique</a>
-    -->
-
-    <a href="hare://close-panel" class="welcome-btn" data-i18n="welcome.close">
-        ❌&nbsp;Fermer la fenêtre
-    </a>
-
-    <!--
-    <a href="#"
-        class="welcome-btn"
-        data-i18n="welcome.themeButton"
-        onclick="window.location.href='hare://toggle-theme'; return false;">
-        🌗&nbsp;Thème
-    </a>
-    -->
-
-</div>
-
-    <div class="footer">
-        <div>
-            <span data-i18n="welcome.footer">Hare Browser : productif, privé, moderne.</span>
+        <div class="card clickable-card" id="productivity-tile" role="button" tabindex="0">
+            <h2 class="ai-tile-header">
+                <span data-i18n="welcome.productivity">⚡ Productivité, espaces </span>
+                <span class="arrow-right-icon" data-i18n-tooltip="welcome.tooltip.openHelp">🚀</span>
+            </h2>
+            <p data-i18n="welcome.productivityText">
+                Scindez vos panneaux, pilotez au clavier et sauvegardez vos dispositions.
+            </p>
         </div>
-        <div class="version">
-            <span data-i18n="welcome.credits">Propulsé par SearXNG • Ollama • Electron</span>
+
         </div>
-    </div>
 
-</div>
+        <div id="tutorial-error" role="alert" hidden></div>
 
-<script src="i18n.js"></script>
-<script src="tooltip-glass.js"></script>
-<script>HareI18n.attach(window.tileLanguage);</script>
+        <div class="welcome-buttons-container">
+            <a href="hare://close-panel" class="welcome-btn" data-i18n="welcome.close">
+                ❌&nbsp;Fermer la fenêtre
+            </a>
+        </div>
 
-<script>
-(() => {
+            <div class="footer">
+                <div>
+                    <span data-i18n="welcome.footer">Hare Browser : productif, privé, moderne.</span>
+                </div>
+                <div class="version">
+                    <span data-i18n="welcome.credits">Propulsé par SearXNG • Ollama • Electron</span>
+                </div>
+            </div>
 
+        </div>
 
+        <script src="i18n.js"></script>
 
+        <script src="tooltip-glass.js"></script>
 
-    // --- 1. CONFIGURATION DU TUTORIEL (Corrigé pour cartes multiples) ---
-    // Utilisation de querySelectorAll pour récupérer toutes les cartes configurées
-    const tutorialCards = document.querySelectorAll('[data-tutorial-video]');
-    const errorNotice = document.getElementById('tutorial-error');
+        <script>HareI18n.attach(window.tileLanguage);</script>
 
+        <script>
 
-    async function openInternalPage(action) {
-        if (!window.tutorials || typeof window.tutorials.openVideo !== "function") {
-            const message = HareI18n.t("welcome.internalPage.error", document.documentElement.lang || "fr");
-            console.error("[Aide] " + message);
-            if (errorNotice) {
-                errorNotice.textContent = message;
-                errorNotice.hidden = false;
-            }
-            return;
-        }
+            (() => {
 
-        try {
-            const result = await window.tutorials.openVideo(action);
-            if (!result?.ok) throw new Error(result?.error || HareI18n.t("welcome.internalPage.error", document.documentElement.lang || "fr"));
-            if (errorNotice) errorNotice.hidden = true;
-        } catch (error) {
-            console.error("[Navigation interne] Échec de l’ouverture de la page :", error);
-            if (errorNotice) {
-                errorNotice.textContent = error.message || String(error);
-                errorNotice.hidden = false;
-            }
-        }
-    }
+                // --- 1. CONFIGURATION DU TUTORIEL (Corrigé pour cartes multiples) ---
+                // Utilisation de querySelectorAll pour récupérer toutes les cartes configurées
+                const tutorialCards = document.querySelectorAll('[data-tutorial-video]');
+                const errorNotice = document.getElementById('tutorial-error');
 
-    const internalPageCards = [
-        [document.getElementById("productivity-tile"), "ACTION_HELP_PRODUCTIVITY"],
-        [document.getElementById("search-tile"), "ACTION_OPEN_SEARCH_HOME"],
-        [document.getElementById("privacy-tile"), "ACTION_OPEN_PRIVATE_PANEL"]
-    ];
-    internalPageCards.forEach(([card, action]) => {
-        if (!card) return;
-        card.addEventListener("click", () => openInternalPage(action));
-        card.addEventListener("keydown", (event) => {
-            if (event.key !== "Enter" && event.key !== " ") return;
-            event.preventDefault();
-            openInternalPage(action);
-        });
-    });
+                async function openInternalPage(action) {
+                    if (!window.tutorials || typeof window.tutorials.openVideo !== "function") {
+                        const message = HareI18n.t("welcome.internalPage.error", document.documentElement.lang || "fr");
+                        console.error("[Aide] " + message);
+                        if (errorNotice) {
+                            errorNotice.textContent = message;
+                            errorNotice.hidden = false;
+                        }
+                        return;
+                    }
 
-    async function openTutorial(event) {
-        // 🎯 Modification essentielle : currentTarget cible la carte exacte cliquée
-        const currentCard = event.currentTarget;
-        const videoFile = currentCard.dataset.tutorialVideo;
-        
-        console.info('[Tutoriel] Clic détecté sur la carte :', videoFile);
-        if (errorNotice) errorNotice.hidden = true;
+                    try {
+                        const result = await window.tutorials.openVideo(action);
+                        if (!result?.ok) throw new Error(result?.error || HareI18n.t("welcome.internalPage.error", document.documentElement.lang || "fr"));
+                        if (errorNotice) errorNotice.hidden = true;
+                    } catch (error) {
+                        console.error("[Navigation interne] Échec de l’ouverture de la page :", error);
+                        if (errorNotice) {
+                            errorNotice.textContent = error.message || String(error);
+                            errorNotice.hidden = false;
+                        }
+                    }
+                }
 
-        if (!window.tutorials || typeof window.tutorials.openVideo !== 'function') {
-            const message = 'Le pont Electron window.tutorials est indisponible (preload-tile.js non chargé).';
-            console.error('[Tutoriel] ' + message);
-            if (errorNotice) {
-                errorNotice.textContent = message;
-                errorNotice.hidden = false;
-            }
-            return;
-        }
+                const internalPageCards = [
+                    [document.getElementById("productivity-tile"), "ACTION_HELP_PRODUCTIVITY"],
+                    [document.getElementById("search-tile"), "ACTION_OPEN_SEARCH_HOME"],
+                    [document.getElementById("privacy-tile"), "ACTION_OPEN_PRIVATE_PANEL"]
+                ];
+                internalPageCards.forEach(([card, action]) => {
+                    if (!card) return;
+                    card.addEventListener("click", () => openInternalPage(action));
+                    card.addEventListener("keydown", (event) => {
+                        if (event.key !== "Enter" && event.key !== " ") return;
+                        event.preventDefault();
+                        openInternalPage(action);
+                    });
+                });
 
-        try {
-            console.info('[Tutoriel] Appel de window.tutorials.openVideo().');
-            const result = await window.tutorials.openVideo(videoFile);
-            if (!result?.ok) throw new Error(result?.error || 'Le processus principal n’a pas pu ouvrir la vidéo.');
-            console.info('[Tutoriel] Confirmation reçue du processus principal.');
-        } catch (error) {
-            console.error('[Tutoriel] Échec de l’ouverture :', error);
-            if (errorNotice) {
-                errorNotice.textContent = `Impossible d’ouvrir le tutoriel : ${error.message || error}`;
-                errorNotice.hidden = false;
-            }
-        }
-    }
+                async function openTutorial(event) {
 
-    // Attribution des écouteurs d'événements à chaque carte présente
-    tutorialCards.forEach(card => {
-        card.addEventListener('click', openTutorial);
-        card.addEventListener('keydown', (event) => {
-            if (event.key !== 'Enter' && event.key !== ' ') return;
-            event.preventDefault();
-            openTutorial(event);
-        });
-    });
-   
+                    // 🎯 Modification essentielle : currentTarget cible la carte exacte cliquée
+                    const currentCard = event.currentTarget;
+                    const videoFile = currentCard.dataset.tutorialVideo;
+                    
+                    console.info('[Tutoriel] Clic détecté sur la carte :', videoFile);
+                    
+                    if (errorNotice) errorNotice.hidden = true;
 
-    // --- 2. CONFIGURATION DE LA TUILE IA LOCALE (Rétablie) ---
-    const localAiCard = document.getElementById('local-ai-tile');
+                    if (!window.tutorials || typeof window.tutorials.openVideo !== 'function') {
+                        const message = 'Le pont Electron window.tutorials est indisponible (preload-tile.js non chargé).';
+                        console.error('[Tutoriel] ' + message);
+                        if (errorNotice) {
+                            errorNotice.textContent = message;
+                            errorNotice.hidden = false;
+                        }
+                        return;
+                    }
 
-    function openLocalAiSidebar() {
-        if (window.tutorials && typeof window.tutorials.openAiSidebar === 'function') {
-            window.tutorials.openAiSidebar();
-        } else {
-            console.error('[IA Locale] Le pont sécurisé openAiSidebar est introuvable.');
-        }
-    }
+                    try {
+                        console.info('[Tutoriel] Appel de window.tutorials.openVideo().');
+                        const result = await window.tutorials.openVideo(videoFile);
+                        if (!result?.ok) throw new Error(result?.error || 'Le processus principal n’a pas pu ouvrir la vidéo.');
+                        console.info('[Tutoriel] Confirmation reçue du processus principal.');
+                    } catch (error) {
+                        console.error('[Tutoriel] Échec de l’ouverture :', error);
+                        if (errorNotice) {
+                            errorNotice.textContent = `Impossible d’ouvrir le tutoriel : ${error.message || error}`;
+                            errorNotice.hidden = false;
+                        }
+                    }
+                }
 
-    if (localAiCard) {
-        localAiCard.addEventListener('click', openLocalAiSidebar);
-        localAiCard.addEventListener('keydown', (event) => {
-            if (event.key !== 'Enter' && event.key !== ' ') return;
-            event.preventDefault();
-            openLocalAiSidebar();
-        });
-        localAiCard.setAttribute('tabindex', '0');
-        localAiCard.setAttribute('role', 'button');
-    }
+                // Attribution des écouteurs d'événements à chaque carte présente
+                tutorialCards.forEach(card => {
+                    card.addEventListener('click', openTutorial);
+                    card.addEventListener('keydown', (event) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') return;
+                        event.preventDefault();
+                        openTutorial(event);
+                    });
+                });
 
-    // --- 3. CONFIGURATION DE LA TUILE DES THÈMES (Modifié et Réparé) ---
-    const themeCard = document.getElementById('theme-tile');
+                // --- 2. CONFIGURATION DE LA TUILE IA LOCALE (Rétablie) ---
+                const localAiCard = document.getElementById('local-ai-tile');
 
-    function basculerThemeGlobal() {
-        if (window.tutorials && typeof window.tutorials.toggleTheme === 'function') {
-            window.tutorials.toggleTheme();
-            console.info('[Thème] Demande de bascule envoyée via le canal sécurisé tutorials.');
-        } else {
-            console.error('[Thème] Le pont sécurisé window.tutorials.toggleTheme est introuvable.');
-        }
-    }
+                function openLocalAiSidebar() {
+                    if (window.tutorials && typeof window.tutorials.openAiSidebar === 'function') {
+                        window.tutorials.openAiSidebar();
+                    } else {
+                        console.error('[IA Locale] Le pont sécurisé openAiSidebar est introuvable.');
+                    }
+                }
 
-    if (themeCard) {
-        themeCard.addEventListener('click', basculerThemeGlobal);
-        themeCard.addEventListener('keydown', (event) => {
-            if (event.key !== 'Enter' && event.key !== ' ') return;
-            event.preventDefault();
-            basculerThemeGlobal();
-        });
-        // Accessibilité complète au clavier
-        themeCard.setAttribute('tabindex', '0');
-        themeCard.setAttribute('role', 'button');
-    }
+                if (localAiCard) {
+                    localAiCard.addEventListener('click', openLocalAiSidebar);
+                    localAiCard.addEventListener('keydown', (event) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') return;
+                        event.preventDefault();
+                        openLocalAiSidebar();
+                    });
+                    localAiCard.setAttribute('tabindex', '0');
+                    localAiCard.setAttribute('role', 'button');
+                }
 
-    console.info('[Initialisation] Gestionnaires d’IHM welcome.html réparés, tuile thème incluse et opérationnels.');
+                // --- 3. CONFIGURATION DE LA TUILE DES THÈMES (Modifié et Réparé) ---
+                const themeCard = document.getElementById('theme-tile');
 
+                function basculerThemeGlobal() {
+                    if (window.tutorials && typeof window.tutorials.toggleTheme === 'function') {
+                        window.tutorials.toggleTheme();
+                        console.info('[Thème] Demande de bascule envoyée via le canal sécurisé tutorials.');
+                    } else {
+                        console.error('[Thème] Le pont sécurisé window.tutorials.toggleTheme est introuvable.');
+                    }
+                }
 
-    // --- 4. CONFIGURATION DE LA TUILE HISTORIQUE (Nouveau) ---
-    const historyCard = document.getElementById('history-tile');
+                if (themeCard) {
+                    themeCard.addEventListener('click', basculerThemeGlobal);
+                    themeCard.addEventListener('keydown', (event) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') return;
+                        event.preventDefault();
+                        basculerThemeGlobal();
+                    });
+                    // Accessibilité complète au clavier
+                    themeCard.setAttribute('tabindex', '0');
+                    themeCard.setAttribute('role', 'button');
+                }
 
-    function declencherOuvertureHistorique() {
-        if (window.tutorials && typeof window.tutorials.openHistory === 'function') {
-            window.tutorials.openHistory();
-            console.info('[Historique] Demande d’ouverture transmise via le canal tutorials.');
-        } else {
-            console.error('[Historique] Le pont sécurisé window.tutorials.openHistory est introuvable.');
-        }
-    }
+                console.info('[Initialisation] Gestionnaires d’IHM welcome.html réparés, tuile thème incluse et opérationnels.');
 
-    if (historyCard) {
-        historyCard.addEventListener('click', declencherOuvertureHistorique);
-        historyCard.addEventListener('keydown', (event) => {
-            if (event.key !== 'Enter' && event.key !== ' ') return;
-            event.preventDefault();
-            declencherOuvertureHistorique();
-        });
-        // Rendre la tuile accessible et navigable au clavier (Touche Tab)
-        historyCard.setAttribute('tabindex', '0');
-        historyCard.setAttribute('role', 'button');
-    }
+                // --- 4. CONFIGURATION DE LA TUILE HISTORIQUE (Nouveau) ---
+                const historyCard = document.getElementById('history-tile');
 
+                function declencherOuvertureHistorique() {
+                    if (window.tutorials && typeof window.tutorials.openHistory === 'function') {
+                        window.tutorials.openHistory();
+                        console.info('[Historique] Demande d’ouverture transmise via le canal tutorials.');
+                    } else {
+                        console.error('[Historique] Le pont sécurisé window.tutorials.openHistory est introuvable.');
+                    }
+                }
 
-    // --- 5. SYNCHRONISATION FORCÉE DES INFO-BULLES (CORRECTIF CACHE) ---
-    function forcerTraductionDesTooltips(langue) {
-        const dictionnaire = {
-            fr: {
-                "welcome.tooltip.tutorial": "Cliquez pour lancer le tutoriel vidéo",
-                "welcome.tooltip.ai": "Cliquez pour ouvrir l'assistant IA local",
-                "welcome.tooltip.theme": "Cliquez pour basculer entre les modes clair et sombre",
-                "welcome.tooltip.history": "Cliquez pour ouvrir la fenêtre d'historique"
-            },
-            en: {
-                "welcome.tooltip.tutorial": "Click to launch the video tutorial",
-                "welcome.tooltip.ai": "Click to open the local AI assistant",
-                "welcome.tooltip.theme": "Click to toggle between light and dark modes",
-                "welcome.tooltip.history": "Click to open the browsing history window"
-            }
-        };
+                if (historyCard) {
+                    historyCard.addEventListener('click', declencherOuvertureHistorique);
+                    historyCard.addEventListener('keydown', (event) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') return;
+                        event.preventDefault();
+                        declencherOuvertureHistorique();
+                    });
+                    // Rendre la tuile accessible et navigable au clavier (Touche Tab)
+                    historyCard.setAttribute('tabindex', '0');
+                    historyCard.setAttribute('role', 'button');
+                }
 
-        const lang = langue === "en" ? "en" : "fr";
-        console.log(`[welcome.html] Injection forcie des tooltips en langue : ${lang}`);
+                // --- 5. SYNCHRONISATION FORCÉE DES INFO-BULLES (CORRECTIF CACHE) ---
+                function forcerTraductionDesTooltips(langue) {
 
-        document.querySelectorAll("[data-i18n-tooltip]").forEach((element) => {
-            const cle = element.getAttribute("data-i18n-tooltip");
-            if (cle && dictionnaire[lang][cle]) {
-                element.setAttribute("data-tooltip", dictionnaire[lang][cle]);
-            }
-        });
-    }
+                    const dictionnaire = {
+                        fr: {
+                            "welcome.tooltip.tutorial": "Cliquez pour lancer le tutoriel vidéo",
+                            "welcome.tooltip.ai": "Cliquez pour ouvrir l'assistant IA local",
+                            "welcome.tooltip.theme": "Cliquez pour basculer entre les modes clair et sombre",
+                            "welcome.tooltip.history": "Cliquez pour ouvrir la fenêtre d'historique"
+                        },
+                        en: {
+                            "welcome.tooltip.tutorial": "Click to launch the video tutorial",
+                            "welcome.tooltip.ai": "Click to open the local AI assistant",
+                            "welcome.tooltip.theme": "Click to toggle between light and dark modes",
+                            "welcome.tooltip.history": "Click to open the browsing history window"
+                        }
+                    };
 
-    // 1. Déclenchement immédiat au chargement de la page de bienvenue
-// Écoute le signal envoyé par le preload-tile et applique la traduction
-if (window.tileLanguage && typeof window.tileLanguage.onChanged === "function") {
-    window.tileLanguage.onChanged((nouvelleLangue) => {
-        console.log("[IHM welcome] Changement de langue détecté :", nouvelleLangue);
-        
-        // Si votre projet utilise un dictionnaire global HareI18n mis à disposition :
-        if (window.HareI18n && typeof window.HareI18n.apply === "function") {
-            window.HareI18n.apply(document, nouvelleLangue);
-        } else {
-            // Option de secours universelle : recharge proprement la tuile avec la nouvelle langue
-            window.location.reload();
-        }
-    });
-}
+                    const lang = langue === "en" ? "en" : "fr";
 
+                    console.log(`[welcome.html] Injection forcie des tooltips en langue : ${lang}`);
 
+                    document.querySelectorAll("[data-i18n-tooltip]").forEach((element) => {
+                        const cle = element.getAttribute("data-i18n-tooltip");
+                        if (cle && dictionnaire[lang][cle]) {
+                            element.setAttribute("data-tooltip", dictionnaire[lang][cle]);
+                        }
+                    });
+                }
 
-})();
-</script>
+                // 1. Déclenchement immédiat au chargement de la page de bienvenue
+                // Écoute le signal envoyé par le preload-tile et applique la traduction
+                if (window.tileLanguage && typeof window.tileLanguage.onChanged === "function") {
+                    window.tileLanguage.onChanged((nouvelleLangue) => {
+                        console.log("[IHM welcome] Changement de langue détecté :", nouvelleLangue);
+                        
+                        // Le projet utilise un dictionnaire global HareI18n mis à disposition :
+                        if (window.HareI18n && typeof window.HareI18n.apply === "function") {
+                            window.HareI18n.apply(document, nouvelleLangue);
+                        } else {
+                            // Option de secours universelle : recharge proprement la tuile avec la nouvelle langue
+                            window.location.reload();
+                        }
+                    });
+                }
 
+            })();
 
-</body>
+        </script>
+
+    </body>
+
 </html>

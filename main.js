@@ -161,6 +161,66 @@ function tr(id, replacements = {}) {
     return HareI18n.t(id, currentLanguage, replacements);
 }
 
+const TILE_TOOLTIP_TRANSLATION_KEYS = Object.freeze([
+    "toolbar.back",
+    "toolbar.forward",
+    "toolbar.home",
+    "toolbar.refresh",
+    "tileNavigation.address",
+    "tileNavigation.hide",
+    "tileNavigation.drag",
+    "tileNavigation.resize",
+    "panel.drag",
+    "panel.enlarge",
+    "panel.restore",
+    "panel.detach",
+    "panel.close"
+]);
+
+function getTileTooltipTranslations(language = currentLanguage) {
+    return Object.fromEntries(TILE_TOOLTIP_TRANSLATION_KEYS.map((key) => [key, HareI18n.t(key, language)]));
+}
+
+function refreshTileTooltipsTranslations(language = currentLanguage) {
+    const translations = getTileTooltipTranslations(language);
+    const translationPayload = JSON.stringify(translations);
+    const updateHeaderTooltips = `(() => {
+        const t = ${translationPayload};
+        const setTooltip = (id, value) => {
+            const element = document.getElementById(id);
+            if (!element) return;
+            element.setAttribute("data-hare-tip", value);
+            element.setAttribute("title", value);
+            element.setAttribute("aria-label", value);
+        };
+        setTooltip("drag-btn", t["panel.drag"]);
+        const zoomKey = document.getElementById("container")?.classList.contains("flex-3-btns") ? "panel.restore" : "panel.enlarge";
+        setTooltip("zoom-btn", t[zoomKey]);
+        setTooltip("fullscreen-btn", t["panel.detach"]);
+        setTooltip("close-btn", t["panel.close"]);
+        window.HareTooltipGlass?.refresh?.();
+    })()`;
+
+    const panels = collectPanelNodes(rootNode);
+    for (const panel of panels) {
+        const contents = panel.view?.webContents;
+        if (!contents || contents.isDestroyed()) continue;
+        contents.send("language-changed", language, translations);
+    }
+
+    for (const view of [...Object.values(handleViews), ...Object.values(closeViews)]) {
+        const contents = view?.webContents;
+        if (!contents || contents.isDestroyed()) continue;
+        contents.executeJavaScript(updateHeaderTooltips).catch((error) => {
+            console.debug("[Langue] Infobulle de commande de tuile non actualisée :", error.message);
+        });
+    }
+
+    tileHeaderTooltipRequest += 1;
+    clearTimeout(tileHeaderTooltipHideTimer);
+    if (tileHeaderTooltipWindow && !tileHeaderTooltipWindow.isDestroyed()) tileHeaderTooltipWindow.hide();
+}
+
 function translateMenuTemplate(items) {
     return items.map((item) => ({
         ...item,
@@ -774,7 +834,7 @@ function loadLanguagePreference() {
 }
 
 // =========================================================================
-// ✨ VERSION CORRIGÉE : RECHARGEMENT DES TUILES AU CHANGEMENT DE LANGUE
+// Met à jour la langue et les infobulles sans recharger les tuiles.
 // =========================================================================
 async function saveLanguagePreference(language) {
     currentLanguage = HareI18n.normalizeLanguage(language);
@@ -782,24 +842,7 @@ async function saveLanguagePreference(language) {
     rebuildApplicationMenu();
     
     if (win && !win.isDestroyed()) win.webContents.send('language-changed', currentLanguage);
-    
-    // 🌐 Parcourt toutes les tuiles de la mosaïque pour appliquer la langue
-    if (rootNode) {
-        collectPanelNodes(rootNode).forEach((panel) => {
-            const contents = panel.view?.webContents;
-            if (contents && !contents.isDestroyed()) {
-                contents.send('language-changed', currentLanguage);
-                
-                // ✨ FIX RADICAL : Si la tuile affiche welcome.html ou une page locale file://, 
-                // on la force à se recharger pour reconstruire son DOM avec la bonne langue
-                const currentUrl = contents.getURL();
-                if (currentUrl.includes("welcome.html") || currentUrl.startsWith("file:")) {
-                    contents.reload();
-                    console.log(`[Langue] Tuile locale ${panel.id} rechargée de force en : ${currentLanguage}`);
-                }
-            }
-        });
-    }
+    void refreshTileTooltipsTranslations(currentLanguage);
     
     // Synchronise les autres fenêtres secondaires ouvertes
     for (const secondaryWindow of [historyWindow, downloadsWindow, pwdWindow, settingsWindow]) {
@@ -8952,6 +8995,11 @@ ipcMain.handle("get-theme-preference", () => {
 });
 
 ipcMain.handle("get-language", () => currentLanguage);
+
+ipcMain.handle("get-tile-tooltip-translations", (event) => {
+    if (!findPanelByWebContents(event.sender)) return {};
+    return getTileTooltipTranslations(currentLanguage);
+});
 
 // =========================================================================
 // ✨ VERSION REPARÉE : AUTORISE LA MODALE DES PARAMÈTRES À CHANGER LA LANGUE

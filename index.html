@@ -954,24 +954,20 @@ html.dark #pwd-modal {
 
     <button id="home-button" data-i18n-title="toolbar.home" title="Accueil" aria-label="Accueil" style="width:28px; height:24px; background:#2d2d30; color:#d4d4d4; border:1px solid #3c3c3c; font-size:13px; cursor:pointer;">🏠</button>
     
-    <!-- AJOUT ICI : Le bouton Mode Sombre -->
     <button id="dark-mode-button" data-i18n-title="toolbar.darkMode" title="Activer le mode sombre" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🌙</button>
 
     <!-- L'attribut onclick appelle directement notre nouveau pont preload de manière brute -->
     <button id="history-button" title="Historique (Ctrl+H)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer; position:relative; z-index:999999 !important;">🕒</button>
 
     <button id="downloads-button" title="Téléchargements (Ctrl+J)" onclick="window.api.openDownloadsWindow()" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">📥</button>
-
  
     <!-- Bouton Gestionnaire de mots de passe -->
     <button id="pwd-manager-btn" title="Gestionnaire de mots de passe" style="width:28px; height:24px; background:#2d2d30; color:#fbbf24; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🔑</button>
 
-    <!-- À insérer dans votre bloc #toolbar-buttons (par exemple à côté de votre bouton d'impression ou d'historique) -->
     <button id="save-config-btn" title="Sauver la configuration des panneaux (Ctrl+S)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">💾</button>
    
     <button id="load-config-btn" title="Charger une configuration des panneaux (Ctrl+O)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">📂</button>
 
-    <!-- À placer dans votre div #toolbar-buttons (par exemple juste avant le bouton de fermeture "close-panel") -->
     <button id="print-button" title="Imprimer le panneau actif (Ctrl+P)" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:12px; cursor:pointer;">🖨️</button>
 
     <!-- Remplacement dans la barre d'outils de index.html -->
@@ -994,8 +990,16 @@ html.dark #pwd-modal {
 
     <button id="reader-mode-button" data-i18n-title="toolbar.reader" aria-label="Mode lecture" style="width:28px; height:24px; background:#2d2d30; color:#cfcfcf; border:1px solid #3c3c3c; font-size:13px; cursor:pointer;">👓</button>
 
-    <!-- Dans index.html -> Dans la div #toolbar-buttons -->
-    <button id="ai-sidebar-button" title="Demander à l'IA Ollama" style="width:28px; height:24px; background:#2d2d30; color:#4ade80; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer;">✨</button>
+    <!--
+    <button id="ai-sidebar-button" title="Demander à l'IA Ollama (Ctrl+Shift+A)" style="width:28px; height:24px; background:#2d2d30; color:#4ade80; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer;">✨</button>
+    -->
+    <button
+		id="ai-sidebar-button"
+		title="Demander à l'IA Ollama (Ctrl+Shift+A)"
+		data-i18n-title="toolbar.ai"
+		style="width:28px; height:24px; background:#2d2d30; color:#4ade80; border:1px solid #3c3c3c; font-size:12px; font-weight:bold; cursor:pointer;">
+		✨
+	</button>
 
     <button id="settings-button"
             type="button"
@@ -1010,7 +1014,6 @@ html.dark #pwd-modal {
                 cursor:pointer;">
         🛠️
     </button>
-    
 
     <button id="reset-workspace-button"
             type="button"

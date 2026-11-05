@@ -219,7 +219,8 @@ contextBridge.exposeInMainWorld('tutorials', {
 // Permet à welcome.html de capter les changements de langue d'Electron
 contextBridge.exposeInMainWorld("tileLanguage", {
     get: () => ipcRenderer.invoke("get-language"),
+    getTooltipTranslations: () => ipcRenderer.invoke("get-tile-tooltip-translations"),
     onChanged: (callback) => {
-        ipcRenderer.on("language-changed", (_event, language) => callback(language));
+        ipcRenderer.on("language-changed", (_event, language, translations) => callback(language, translations));
     }
 });
