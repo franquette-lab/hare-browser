@@ -1121,17 +1121,34 @@ let activeDownloads = {};
 // Stocke l'ID du panneau actuellement zoomé/maximisé au premier plan (null si aucun)
 let maximizedPanelId = null; 
 
-// Hauteur compacte réservée à la barre supérieure et à la zone URL.
+// En mode compact, la barre URL remplace la rangée d'outils dans l'overlay natif.
 
 // ====== CALCUL DYNAMIQUE DE LA HAUTEUR INITIALE ======
 const TOOLBAR_ROW_HEIGHT = 38;
-const URL_BAR_HEIGHT = isBookmarksBarVisible ? 30 : 0; // Vaut 0 si masqué
+const URL_BAR_HEIGHT = 30;
 let TOOLBAR_HEIGHT = TOOLBAR_ROW_HEIGHT + URL_BAR_HEIGHT;
+let lastCompactGeometryLogSignature = "";
 
 function getPreferredToolbarHeight() {
-    return isMainToolbarVisible
-        ? normalToolbarHeight || (TOOLBAR_ROW_HEIGHT + URL_BAR_HEIGHT)
-        : Math.max(0, (normalToolbarHeight || (TOOLBAR_ROW_HEIGHT + URL_BAR_HEIGHT)) - TOOLBAR_ROW_HEIGHT);
+    if (!isMainToolbarVisible) {
+        // La barre URL occupe l'overlay natif en mode compact.
+        return isFullscreenMode ? URL_BAR_HEIGHT : getTitleBarOverlayHeight();
+    }
+    return normalToolbarHeight || (TOOLBAR_ROW_HEIGHT + URL_BAR_HEIGHT);
+}
+
+function getTitleBarOverlayHeight() {
+    if (isFullscreenMode) return 0;
+    return isMainToolbarVisible ? TOOLBAR_ROW_HEIGHT : URL_BAR_HEIGHT;
+}
+
+function updateTitleBarOverlay() {
+    if (isFullscreenMode || !win || win.isDestroyed() || typeof win.setTitleBarOverlay !== "function") return;
+    win.setTitleBarOverlay({
+        color: isDarkModeForced ? "#252526" : "#ffffff",
+        symbolColor: isDarkModeForced ? "#cfcfcf" : "#1f2937",
+        height: getTitleBarOverlayHeight()
+    });
 }
 
 
@@ -1367,6 +1384,7 @@ function setMainToolbarVisible(visible) {
 
     isMainToolbarVisible = visible;
     normalToolbarHeight = normalToolbarHeight || (TOOLBAR_ROW_HEIGHT + URL_BAR_HEIGHT);
+    updateTitleBarOverlay();
     if (!isFullscreenMode || isFullscreenToolbarVisible) {
         TOOLBAR_HEIGHT = getPreferredToolbarHeight();
     }
@@ -1375,6 +1393,7 @@ function setMainToolbarVisible(visible) {
 
     if (win && !win.isDestroyed()) {
         win.webContents.send("main-toolbar-visibility-changed", isMainToolbarVisible);
+        win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId, activePanel);
     }
     if (settingsWindow && !settingsWindow.isDestroyed()) {
         settingsWindow.webContents.send("main-toolbar-visibility-changed", isMainToolbarVisible);
@@ -5055,12 +5074,12 @@ function setupNavigationTracking(panel) {
     // Écouteur pour intercepter le clic droit sur la page web de la tuile
     panel.view.webContents.on("context-menu", (event, params) => {
         event.preventDefault();
+        const contextPanelBounds = panel.bounds ? { ...panel.bounds } : null;
         
         // Forcer le focus et l'activation visuelle sur ce panneau
         setActivePanelId(panel.id);
         if (win && !win.isDestroyed()) {
             win.webContents.send("active-panel-changed", { id: panel.id, bounds: panel.bounds });
-            win.webContents.send("panels-updated", collectPanels(rootNode), maximizedPanelId);
         }
         updateActiveBorder(panel.bounds);
 
@@ -5069,9 +5088,9 @@ function setupNavigationTracking(panel) {
         let menuX = params.x;
         let menuY = params.y;
 
-        if (panel.bounds) {
-            menuX = panel.bounds.x + params.x;
-            menuY = panel.bounds.y + params.y;
+        if (contextPanelBounds) {
+            menuX = contextPanelBounds.x + params.x;
+            menuY = contextPanelBounds.y + params.y;
         }
 
         // On affiche maintenant le menu d'actions au pixel exact sous la souris
@@ -6892,7 +6911,7 @@ async function createWindow() {
         titleBarOverlay: {
             color: isDarkModeForced ? '#252526' : '#ffffff',
             symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937',
-            height: TOOLBAR_ROW_HEIGHT
+            height: getTitleBarOverlayHeight()
         },
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
@@ -7628,6 +7647,7 @@ async function createWindow() {
         isFullscreenMode = false;
         isFullscreenToolbarVisible = true;
         TOOLBAR_HEIGHT = getPreferredToolbarHeight();
+        updateTitleBarOverlay();
         win.webContents.send("fullscreen-toolbar-state", { fullscreen: false, visible: true });
         forceRebuildSplitters = true;
         resizeViews();
@@ -7960,6 +7980,13 @@ function resetTreeRatiosEqual(node) {
 
 function resizeViews() {
     if (!win || win.isDestroyed()) return;
+    const preferredToolbarHeight = isFullscreenMode && !isFullscreenToolbarVisible
+        ? FULLSCREEN_COLLAPSED_TOOLBAR_HEIGHT
+        : getPreferredToolbarHeight();
+    if (TOOLBAR_HEIGHT !== preferredToolbarHeight) {
+        TOOLBAR_HEIGHT = preferredToolbarHeight;
+    }
+
     const bounds = win.getContentBounds();
     if (bounds.width <= 0 || bounds.height <= 0) return;
 
@@ -7993,6 +8020,28 @@ function resizeViews() {
     }
 
     layoutNode(rootNode, 0, TOOLBAR_HEIGHT, width, height - TOOLBAR_HEIGHT);
+
+    if (rootNode) {
+        const firstPanel = collectPanelNodes(rootNode).find((panel) => panel.bounds);
+        const urlBarTop = isMainToolbarVisible ? TOOLBAR_ROW_HEIGHT : 0;
+        const geometry = {
+            toolbarVisible: isMainToolbarVisible,
+            windowHeight: height,
+            nativeTitlebarHeight: getTitleBarOverlayHeight(),
+            applicationToolbarHeight: isMainToolbarVisible ? TOOLBAR_ROW_HEIGHT : 0,
+            urlBarTop,
+            urlBarHeight: URL_BAR_HEIGHT,
+            browserViewTop: firstPanel?.bounds?.y ?? TOOLBAR_HEIGHT,
+            browserViewHeight: firstPanel?.bounds?.height ?? Math.max(0, height - TOOLBAR_HEIGHT)
+        };
+        const signature = JSON.stringify(geometry);
+        if (signature !== lastCompactGeometryLogSignature) {
+            lastCompactGeometryLogSignature = signature;
+            console.info("[Layout] Géométrie mesurée :", geometry);
+        }
+    } else {
+        lastCompactGeometryLogSignature = "";
+    }
 
     while (splitterViews.length > splitters.length) {
         const oldSplitter = splitterViews.pop();
@@ -8969,13 +9018,7 @@ ipcMain.on("toggle-dark-mode-request", (_event, enabled) => {
 
     if (win && !win.isDestroyed()) {
         win.setBackgroundColor(backgroundColor);
-        if (typeof win.setTitleBarOverlay === "function") {
-            win.setTitleBarOverlay({
-                color: isDarkModeForced ? "#252526" : "#ffffff",
-                symbolColor: isDarkModeForced ? "#cfcfcf" : "#1f2937",
-                height: TOOLBAR_ROW_HEIGHT
-            });
-        }
+        updateTitleBarOverlay();
 
         collectPanelNodes(rootNode).forEach((panel) => {
             if (!panel.view || panel.view.webContents.isDestroyed()) return;

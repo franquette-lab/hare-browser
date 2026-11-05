@@ -15,6 +15,8 @@
     --window-controls-width: 148px;
     --toolbar-row-height: 38px;
     --url-row-height: 30px;
+    --native-titlebar-height: var(--toolbar-row-height);
+    --url-row-top: var(--native-titlebar-height);
     /* Fonds */
     --bg-main: #f3f4f6;
     --bg-toolbar: #ffffff;
@@ -119,15 +121,6 @@ body {
     -webkit-app-region: no-drag;
 }
 
-#toolbar-panel-actions {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    flex: 0 0 auto;
-    height: 100%;
-    -webkit-app-region: no-drag;
-}
-
 #toolbar-scroll-area:focus-visible {
     outline: 1px solid var(--button-border);
     outline-offset: -2px;
@@ -198,14 +191,6 @@ body.fullscreen-toolbar-active #find-in-page-bar { transform: translateY(0); }
 
 html.main-toolbar-hidden #toolbar-buttons {
     display: none !important;
-}
-
-html.main-toolbar-hidden #url-bar {
-    right: 0;
-}
-
-html.main-toolbar-hidden #find-in-page-bar {
-    right: calc(var(--window-controls-width) + 12px);
 }
 
 body.fullscreen-toolbar-hidden #fullscreen-reveal-zone {
@@ -356,11 +341,21 @@ html.dark #settings-button.enfonce {
     gap: 10px;
     padding: 0;
     position: fixed;
-    top: var(--toolbar-row-height);
+    top: var(--url-row-top);
     left: 0;
     right: 0;
     width: auto;
     box-sizing: border-box;
+}
+
+html.main-toolbar-hidden {
+    --native-titlebar-height: var(--url-row-height);
+    --url-row-top: 0px;
+}
+
+html.main-toolbar-hidden #url-bar {
+    padding-right: var(--window-controls-width);
+    -webkit-app-region: drag;
 }
 
 #url-bar-content {
@@ -371,10 +366,11 @@ html.dark #settings-button.enfonce {
     width: 100%;
     height: 100%;
     overflow: hidden;
+    -webkit-app-region: drag;
 }
 
-html.main-toolbar-hidden #url-bar {
-    padding-right: var(--window-controls-width);
+#url-bar-content * {
+    -webkit-app-region: no-drag;
 }
 
 body.fullscreen-toolbar-active #url-bar {
@@ -382,8 +378,18 @@ body.fullscreen-toolbar-active #url-bar {
     padding-right: 0;
 }
 
+html.main-toolbar-hidden body.fullscreen-toolbar-active,
+html.main-toolbar-hidden body.fullscreen-toolbar-hidden {
+    --native-titlebar-height: 0px;
+    --url-row-top: 0px;
+}
+
 body.fullscreen-toolbar-active #find-in-page-bar {
     right: 12px;
+}
+
+html.main-toolbar-hidden #find-in-page-bar {
+    right: calc(var(--window-controls-width) + 12px);
 }
 
 #url-bar::before {
@@ -392,7 +398,7 @@ body.fullscreen-toolbar-active #find-in-page-bar {
 
 #find-in-page-bar {
     position: fixed;
-    top: var(--toolbar-row-height);
+    top: var(--url-row-top);
     right: 12px;
     z-index: 2147483646;
     display: none;
@@ -928,7 +934,6 @@ html.dark #pwd-modal {
     if (initialMainToolbarPreference !== null) {
         const initiallyVisible = initialMainToolbarPreference !== "false";
         document.documentElement.classList.toggle("main-toolbar-hidden", !initiallyVisible);
-        document.documentElement.style.setProperty("--toolbar-row-height", initiallyVisible ? "38px" : "0px");
         history.replaceState(null, "", location.pathname + location.hash);
     }
 </script>
@@ -1199,6 +1204,33 @@ let activePanel = null;
 let currentPanels = []; // Stockage global pour maintenir la liste des panneaux
 let currentMaximizedId = null; // Mémoire globale du mode zoom
 let applicationTitle = "Hare Browser";
+let lastToolbarLayoutMeasurement = null;
+
+function measureToolbarLayout(reason) {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        const toolbar = document.getElementById("toolbar-buttons");
+        const bookmarks = document.getElementById("bookmarks-bar");
+        const urlBar = document.getElementById("url-bar");
+        const firstPanel = currentPanels.find((panel) => panel?.bounds);
+        const titlebarArea = navigator.windowControlsOverlay?.getTitlebarAreaRect?.();
+        const measurement = {
+            reason,
+            compact: document.documentElement.classList.contains("main-toolbar-hidden"),
+            nativeTitlebarAreaHeight: navigator.windowControlsOverlay?.visible ? titlebarArea?.height ?? null : null,
+            toolbarHeight: toolbar?.getBoundingClientRect().height ?? 0,
+            bookmarksHeight: bookmarks?.getBoundingClientRect().height ?? 0,
+            urlBarTop: urlBar?.getBoundingClientRect().top ?? null,
+            urlBarHeight: urlBar?.getBoundingClientRect().height ?? null,
+            firstPanelY: firstPanel?.bounds?.y ?? null
+        };
+        const previous = lastToolbarLayoutMeasurement;
+        const panelYGain = Number.isFinite(previous?.firstPanelY) && Number.isFinite(measurement.firstPanelY)
+            ? previous.firstPanelY - measurement.firstPanelY
+            : null;
+        console.info("[Layout header] Mesure réelle :", { ...measurement, panelYGain });
+        lastToolbarLayoutMeasurement = measurement;
+    }));
+}
 
 const mainNavigationButtonIds = new Set(["back-button", "forward-button", "refresh-button", "home-button"]);
 const mainNavigationOrder = Array.from(document.getElementById("toolbar-buttons")?.children || [])
@@ -1206,7 +1238,7 @@ const mainNavigationOrder = Array.from(document.getElementById("toolbar-buttons"
     .map((element) => element.id);
 console.log("[NAVBAR] Ordre principal :", mainNavigationOrder);
 
-// Keep reader and both split actions visible; allow the remaining toolbar actions to scroll.
+// Keep every tool in the left-side group in its source order; keep favorites separate.
 const toolbar = document.getElementById("toolbar-buttons");
 if (toolbar && !document.getElementById("toolbar-scroll-area")) {
     const scrollArea = document.createElement("div");
@@ -1215,16 +1247,13 @@ if (toolbar && !document.getElementById("toolbar-scroll-area")) {
     scrollArea.setAttribute("role", "group");
     scrollArea.setAttribute("aria-label", "Commandes de la barre d'outils");
 
-    const panelActions = document.createElement("div");
-    panelActions.id = "toolbar-panel-actions";
-    panelActions.setAttribute("role", "group");
-    panelActions.setAttribute("aria-label", "Lecture et fractionnement");
-
-    const pinnedActionIds = new Set(["split-vertical", "split-horizontal", "reader-mode-button"]);
+    const bookmarksBar = document.getElementById("bookmarks-bar");
     Array.from(toolbar.children).forEach((element) => {
-        (pinnedActionIds.has(element.id) ? panelActions : scrollArea).appendChild(element);
+        if (element === bookmarksBar) return;
+        scrollArea.appendChild(element);
     });
-    toolbar.append(scrollArea, panelActions);
+    toolbar.insertBefore(scrollArea, bookmarksBar || null);
+    if (bookmarksBar) toolbar.appendChild(bookmarksBar);
 }
 
 document.getElementById("reset-workspace-button")
@@ -1352,10 +1381,21 @@ function syncWindowControlsInset() {
     const titlebarArea = controlsOverlay.getTitlebarAreaRect();
     const measuredInset = Math.ceil(window.innerWidth - (titlebarArea.x + titlebarArea.width)) + 8;
     if (Number.isFinite(measuredInset) && measuredInset >= 0) {
+        const root = document.documentElement;
+        const currentInset = Number.parseFloat(
+            getComputedStyle(root).getPropertyValue("--window-controls-width")
+        ) || 0;
         document.documentElement.style.setProperty(
             "--window-controls-width",
             `${measuredInset}px`
         );
+        if (
+            Math.abs(currentInset - measuredInset) >= 1 &&
+            root.classList.contains("main-toolbar-hidden") &&
+            currentPanels.length > 0
+        ) {
+            alignUrlTabsToPanels(currentPanels);
+        }
     }
 }
 
@@ -1683,13 +1723,34 @@ function alignUrlTabsToPanels(panels = currentPanels) {
 
     const gaps = ordered.slice(1).map((rect, index) => rect.x - (ordered[index].x + ordered[index].width));
     const splitterGap = gaps.length ? Math.round(gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length) : 0;
-    urlBar.style.gap = `${splitterGap}px`;
+    const isCompactTitlebar = document.documentElement.classList.contains("main-toolbar-hidden");
+    let renderedGap = splitterGap;
+    let compactWidthScale = 1;
+
+    if (isCompactTitlebar) {
+        const availableWidth = urlBar.clientWidth;
+        const totalPanelWidth = ordered.reduce((sum, rect) => sum + rect.width, 0);
+        const totalPanelGap = gaps.reduce((sum, gap) => sum + gap, 0);
+        const panelRowWidth = totalPanelWidth + totalPanelGap;
+
+        if (panelRowWidth > availableWidth && totalPanelWidth > 0) {
+            const gapCount = Math.max(0, ordered.length - 1);
+            renderedGap = gapCount > 0
+                ? Math.min(splitterGap, availableWidth / gapCount)
+                : 0;
+            const availableTabWidth = Math.max(0, availableWidth - renderedGap * gapCount);
+            compactWidthScale = Math.min(1, availableTabWidth / totalPanelWidth);
+        }
+    }
+
+    urlBar.style.gap = `${renderedGap}px`;
 
     panels.forEach(panel => {
         const tab = urlBar.querySelector(`#${CSS.escape(panel.id)}-url`)?.closest(".url-tab");
         if (!tab || !panel.bounds) return;
-        tab.style.flex = `0 0 ${panel.bounds.width}px`;
-        tab.style.width = `${panel.bounds.width}px`;
+        const tabWidth = panel.bounds.width * compactWidthScale;
+        tab.style.flex = `0 0 ${tabWidth}px`;
+        tab.style.width = `${tabWidth}px`;
     });
 }
 
@@ -1863,6 +1924,7 @@ window.api.onPanelsUpdated((panelsList, zoomPanelId, activePanelId) => {
         }
     }
     updateReaderModeButtons();
+    measureToolbarLayout("panels-updated");
 
     // 3. Exécution compartimentée pour isoler et identifier les bugs
     // Ne pas reconstruire la barre si l'utilisateur édite une URL : set-active-panel
@@ -2743,20 +2805,33 @@ restoreBookmarksButton?.addEventListener("click", () => {
     window.api.setBookmarksBarVisible(true);
 });
 
+let bookmarksPreferenceVisible = true;
+
+function syncBookmarksBarVisibility() {
+    const mainToolbarVisible = !document.documentElement.classList.contains("main-toolbar-hidden");
+    const bookmarksVisible = mainToolbarVisible && bookmarksPreferenceVisible;
+    document.body.classList.toggle("bookmarks-hidden", !bookmarksVisible);
+    if (bookmarksVisible || !mainToolbarVisible) hideBookmarksRestoreNotice();
+    else showBookmarksRestoreNotice();
+}
+
 // Cet écouteur reçoit l’état confirmé par Electron sans reconstruire les favoris.
 window.api.onToggleBookmarksBar?.((isVisible) => {
-    if (isVisible) {
-        document.body.classList.remove("bookmarks-hidden");
-        hideBookmarksRestoreNotice();
-    } else {
-        document.body.classList.add("bookmarks-hidden");
-        showBookmarksRestoreNotice();
-    }
+    bookmarksPreferenceVisible = isVisible === true;
+    syncBookmarksBarVisibility();
 });
 
 window.api.onInitialBookmarksVisibility?.((isVisible) => {
-    document.body.classList.toggle("bookmarks-hidden", isVisible !== true);
+    bookmarksPreferenceVisible = isVisible === true;
+    syncBookmarksBarVisibility();
     hideBookmarksRestoreNotice();
+});
+
+window.api.onMainToolbarVisibilityChanged?.((visible) => {
+    const mainToolbarVisible = visible !== false;
+    document.documentElement.classList.toggle("main-toolbar-hidden", !mainToolbarVisible);
+    syncBookmarksBarVisibility();
+    measureToolbarLayout("main-toolbar-visibility-changed");
 });
 
 
@@ -2829,6 +2904,7 @@ window.api.onActivePanelChanged((data) => {
     activePanel = data.id;
     console.log("[STARTUP] active-panel-changed reçu", activePanel);
     updateReaderModeButtons();
+    updateCloseButtonState();
 
     if (findBar?.classList.contains("open") && previousFindPanelId !== data.id) {
         if (previousFindPanelId && window.api.findInPage) {
@@ -3756,12 +3832,6 @@ function renderOllamaStatus(status) {
         loading: translateUi("ai.ollamaModelLoading", { model }),
         ready: translateUi("ai.ollamaReady", { model })
     };
-
-    window.api.onMainToolbarVisibilityChanged?.((visible) => {
-        const isVisible = visible !== false;
-        document.documentElement.classList.toggle("main-toolbar-hidden", !isVisible);
-        document.documentElement.style.setProperty("--toolbar-row-height", isVisible ? "38px" : "0px");
-    });
 
     aiOllamaStatus.dataset.state = status.state || "checking";
     aiOllamaStatusText.textContent = messages[status.state] || messages.checking;
