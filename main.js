@@ -7070,27 +7070,11 @@ async function createWindow() {
                         if (filePath) {
                             try {
                                 await fsPromises.writeFile(filePath, JSON.stringify(snapshot, null, 2), 'utf-8');
-//                              console.log("Configuration sauvegardée via raccourci.");
                             } catch (error) {
-//                              console.error("Erreur raccourci sauvegarde :", error);
                             }
                         }
                     }
                 },
-
-                /*
-                {
-                    label: "Ouvrir le gestionnaire des tâches",
-                    accelerator: "CmdOrCtrl+Alt+T",
-                    click: () => {
-                        // La méthode correcte en Electron pour ouvrir les DevTools de la fenêtre 
-                        // principale et accéder à l'onglet de monitoring des processus
-                        if (win && !win.isDestroyed()) {
-                            win.webContents.openDevTools({ mode: 'detach' });
-                        }
-                    }
-                },
-                */
 
                 {
                     label: 'Réinitialiser la mosaïque à tailles égales',
@@ -7107,12 +7091,21 @@ async function createWindow() {
                         // 3. Force Electron à recalculer et ré-afficher les vues web instantanément
                         forceRebuildSplitters = true;
                         resizeViews();
-
-//                      console.log("[Mosaïque] Ratios réinitialisés à parts égales.");
                     }
                 },
 
-
+                {
+                    label: 'Basculer le mode clair / sombre',
+                    accelerator: 'CmdOrCtrl+Shift+M',
+                    click: () => {
+                        ipcMain.emit(
+                            'toggle-dark-mode-request',
+                            null,
+                            !isDarkModeForced
+                        );
+                    }
+                },
+                
                 {
                     label: "Ouvrir les Paramètres",
                     accelerator: "CmdOrCtrl+,",
@@ -7371,6 +7364,7 @@ async function createWindow() {
                 },
                 {
                     label: tr("toolbar.home"),
+                    accelerator: "Ctrl+Home",          
                     click: () => {
                         const targetPanel = findPanelNode(rootNode, activePanel) || getLeftmostPanel();
                         void navigatePanelToHome(targetPanel);
