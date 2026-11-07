@@ -1520,6 +1520,12 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
         ]
     }, { type: "separator" }] : [];
 
+
+    const displayHost =
+        adBlockHost === SEARCH_ENGINE_HOST
+            ? "Hare Search"
+            : adBlockHost;
+
     const menuTemplate = [
         ...linkMenuItems,
         {
@@ -1538,7 +1544,14 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
         ...(adBlockHost ? [
             { type: "separator" },
             {
-                label: `   🛡️ ${tr(siteHasAdBlockException ? "context.reenableBlocker" : "context.disableBlocker", { host: adBlockHost })}`,
+
+//              label: `   🛡️ ${tr(siteHasAdBlockException ? "context.reenableBlocker" : "context.disableBlocker", { host: adBlockHost })}`,
+                label: `   🛡️ ${tr(
+                    siteHasAdBlockException
+                        ? "context.reenableBlocker"
+                        : "context.disableBlocker",
+                    { host: displayHost }
+                )}`,
                 click: async () => {
                     await toggleAdBlockException(adBlockHost);
                     const panelToReload = findPanelNode(rootNode, panelId);
