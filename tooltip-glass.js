@@ -70,6 +70,11 @@
     function arm(el) {
         var title = el.getAttribute("title");
         if (title == null || !title.trim()) return;
+        if (el.closest && el.closest("#hare-floating-nav")) {
+            if (!el.hasAttribute("data-tooltip")) el.setAttribute("data-tooltip", title);
+            el.removeAttribute("title");
+            return;
+        }
         el.setAttribute("data-hare-tip", title);
         el.removeAttribute("title");
         if (!el.hasAttribute("aria-label") && !el.hasAttribute("aria-labelledby") && !(el.textContent || "").trim()) {
@@ -80,6 +85,12 @@
 
     function disarm(el) {
         if (!el.hasAttribute("data-hare-tip")) return;
+        if (el.closest && el.closest("#hare-floating-nav")) {
+            el.removeAttribute("title");
+            el.removeAttribute("data-hare-tip");
+            el.removeAttribute("data-hare-tip-aria");
+            return;
+        }
         if (!el.hasAttribute("title")) el.setAttribute("title", el.getAttribute("data-hare-tip"));
         el.removeAttribute("data-hare-tip");
         if (el.hasAttribute("data-hare-tip-aria")) {

@@ -7095,7 +7095,7 @@ async function createWindow() {
                 },
 
                 {
-                    label: 'Basculer le mode clair / sombre',
+                    label: tr("menu.toggleTheme"),
                     accelerator: 'CmdOrCtrl+Shift+M',
                     click: () => {
                         ipcMain.emit(
@@ -7105,7 +7105,7 @@ async function createWindow() {
                         );
                     }
                 },
-                
+
                 {
                     label: "Ouvrir les Paramètres",
                     accelerator: "CmdOrCtrl+,",
@@ -7362,6 +7362,7 @@ async function createWindow() {
                         }
                     }
                 },
+
                 {
                     label: tr("toolbar.home"),
                     accelerator: "Ctrl+Home",          
@@ -7370,6 +7371,7 @@ async function createWindow() {
                         void navigatePanelToHome(targetPanel);
                     }
                 },
+
                 {
                     label: tr("toolbar.help"),
                     accelerator: 'Alt+Home',
@@ -7565,7 +7567,7 @@ async function createWindow() {
                 },
 
                 {
-                    label: 'Actualiser la page (Ctrl+R)',
+                    label: 'Actualiser la page (Ctrl + R)',
                     accelerator: 'CmdOrCtrl+R',
                     click: () => {
                         if (activePanel) {

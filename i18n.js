@@ -44,7 +44,7 @@
             "tileNavigation.hide": "Masquer la navigation flottante",
             "tileNavigation.drag": "Glisser pour déplacer",
             "tileNavigation.resize": "Redimensionner",
-            "toolbar.darkMode": "Activer le mode sombre (Ctrl+Shift+M)",
+            "toolbar.darkMode": "Basculer le mode clair / sombre (Ctrl+Maj+M)",
             "toolbar.history": "Historique (Ctrl+H)",
             "toolbar.downloads": "Téléchargements (Ctrl+J)",
             "toolbar.reader": "Mode lecture : affiche la page sans distractions",
@@ -212,11 +212,11 @@
 
             "context.edit": "✏️ Édition",
             "context.selectAll": "Sélectionner tout",
-            "context.splitVertical": "✂️ Scinder verticalement (Ctrl+T)",
-            "context.splitHorizontal": "⚍ Scinder horizontalement (Ctrl+Maj+H)",
-            "context.privateSplit": "🕵️ Scinder en navigation privée (Ctrl+Shift+N)",
+            "context.splitVertical": "✂️ Scinder verticalement (Ctrl + T)",
+            "context.splitHorizontal": "⚍ Scinder horizontalement (Ctrl + Maj + H)",
+            "context.privateSplit": "🕵️ Scinder en navigation privée (Ctrl + Shift + N)",
             "context.publicTile": "🕵️ Ouvrir une tuile publique classique",
-            "context.duplicate": "📋 Dupliquer cette tuile (Ctrl+Shift+D)",
+            "context.duplicate": "📋 Dupliquer cette tuile (Ctrl + Shift + D)",
             "context.ai": "✨ Actions IA (Assistant)",
             "context.summarize": "📝 Résumer cette tuile web",
             "context.keywords": "🔍 Analyser les mots-clés de la page",
@@ -226,8 +226,8 @@
             "context.mainToolbar.show": "  Barre de menu principale",
             "context.floatingNavigation.disabledGlobally": "Désactivée dans les paramètres globaux",
             "context.reader": "👓 Mode lecture",
-            "context.print": "🖨️ Imprimer le contenu de la page (Ctrl+P)",
-            "context.close": "❌ Fermer cette tuile (Ctrl+W)",
+            "context.print": "🖨️ Imprimer le contenu de la page (Ctrl + P)",
+            "context.close": "❌ Fermer cette tuile (Ctrl + W)",
 
             "menu.saveLayout": "Sauvegarder l'agencement",
             "menu.switchLeft": "Intervertir avec la tuile à gauche",
@@ -293,7 +293,7 @@
             "main.menuPrivate": "Nouvelle tuile privée",
             "main.menuPrint": "Imprimer la tuile active",
             "main.menuRefresh": "Actualiser la page (F5)",
-            "main.menuRefreshCtrl": "Actualiser la page (Ctrl+R)",
+            "main.menuRefreshCtrl": "Actualiser la page (Ctrl + R)",
             "main.menuSwitchLeft": "Intervertir avec la tuile à gauche",
             "main.menuSwitchRight": "Intervertir avec la tuile à droite",
             "main.menuSwitchUp": "Intervertir avec la tuile au-dessus",
@@ -322,29 +322,30 @@
             "home.featureAi": "✨ IA locale",
 
             "help.welcome": "Bienvenue dans le centre d’aide officiel de <strong>Hare Browser</strong>. Ce navigateur web combine un environnement de navigation multi-panneaux avancé (mode mosaïque dynamique), un moteur de recherche SearXNG respectueux de la vie privée et un assistant d’intelligence artificielle locale propulsé par Ollama.",
-            "help.mac": "🍏 Configuration macOS : Pour les utilisateurs d’Apple Mac, remplacez systématiquement la touche Ctrl par la touche Cmd (Commande) pour l’ensemble des raccourcis ci-dessous.",
+            "help.mac": "🍏 macOS : pour les raccourcis indiqués « Cmd ou Ctrl », utilisez Cmd sur Mac. Le raccourci Accueil reste Ctrl+Home.",
             "help.panels": "🧱 Gestion des panneaux & fonctionnement du fractionnement",
             "help.panelsIntro": "Le cœur de Hare Browser repose sur un arbre binaire de division (Split Nodes). Chaque panneau actif peut être subdivisé géométriquement à l’infini pour organiser votre espace de travail sans manipuler des dizaines d’onglets superposés traditionnels.",
             "help.shortcuts": "⌨️ Répertoire Exhaustif des Raccourcis Clavier",
             "help.panelLayout": "🧱 Gestion des Panneaux & Agencement",
             "help.diagramsTitle": "Schémas géométriques de fractionnement des tuiles :",
             "help.splitV.desc": "<strong>1. Scission Verticale Initiale (Ctrl&nbsp;+&nbsp;T) :</strong> Divise l'espace actif en deux colonnes égales et ouvre une nouvelle tuile indépendante sur le flanc droit.",
-            "help.diagram.splitV": `    ┌──────────────────────────────────────┐          ┌──────────────────┬──────────────────┐
-    │                                      │          │                  │                  │
+            "help.diagram.splitV":
+`    ┌──────────────────────────────────────┐                 ┌──────────────────┬──────────────────┐
+    │                                      │                 │                  │                  │
     │                                      │ Ctrl + T │                  │                  │
-    │            PANNEAU INITIAL           │ ───────> │  PANNEAU INITIAL │  NOUVELLE TUILE  │
-    │               (Actif)                │          │                  │     (À droite)   │
-    │                                      │          │                  │                  │
-    └──────────────────────────────────────┘          └──────────────────┴──────────────────┘
+    │            PANNEAU INITIAL           │ ──────────────> │  PANNEAU INITIAL │  NOUVELLE TUILE  │
+    │               (Actif)                │                 │                  │     (À droite)   │
+    │                                      │                 │                  │                  │
+    └──────────────────────────────────────┘                 └──────────────────┴──────────────────┘
 `,
-            "help.splitH.desc": "<strong>2. Scission Horizontale Subsidiaire (Ctrl + H) :</strong> Sélectionne un panneau spécifique et le fracture en deux rangées horizontales, créant une nouvelle tuile en contrebas.",
-            "help.diagram.splitH": `    ┌──────────────────┬───────────────────┐          ┌──────────────────┬──────────────────┐
-    │                  │      FOCUS        │          │                  │   TUILE DU HAUT  │
-    │                  │     (Actif)       │ Ctrl + H │                  ├──────────────────┤
-    │ PANNEAU INITIAL  ├───────────────────┤ ───────> │ PANNEAU INITIAL  │                  │
-    │                  │                   │          │                  │  NOUVELLE TUILE  │
-    │                  │                   │          │                  │     (En bas)     │
-    └──────────────────┴───────────────────┘          └──────────────────┴──────────────────┘
+            "help.splitH.desc": "<strong>2. Scission Horizontale Subsidiaire (Ctrl + Maj + H) :</strong> Sélectionne un panneau spécifique et le fracture en deux rangées horizontales, créant une nouvelle tuile en contrebas.",
+            "help.diagram.splitH": `       ┌───────────────────────┬───────────────────┐          ┌──────────────────┬──────────────────┐
+    │                  │      FOCUS        │                       │                  │   TUILE DU HAUT  │
+    │                  │     (Actif)       │ Ctrl + Maj + H │                  ├──────────────────┤
+    │ PANNEAU INITIAL  ├───────────────────┤ ────────────────────> │ PANNEAU INITIAL  │                  │
+    │                  │                   │                       │                  │  NOUVELLE TUILE  │
+    │                  │                   │                       │                  │     (En bas)     │
+    └──────────────────┴───────────────────┘                       └──────────────────┴──────────────────┘
 `,
             "help.plus.title": "➕ Scinder un panneau avec le bouton +",
             "help.plus.intro": "Vous pouvez créer rapidement un nouveau panneau sans utiliser le clavier. Cliquez simplement sur le bouton <strong>+</strong> situé à droite de la barre d'adresse du panneau actif.",
@@ -384,7 +385,7 @@
             "help.ctx.keywords": "<strong>Analyser les mots-clés de la page</strong> : extrait les principaux thèmes et mots importants du contenu.",
             "help.ctx.layoutTitle": "🧱 Agencement de la mosaïque",
             "help.ctx.splitV": "<strong>Scinder verticalement</strong> (Ctrl + T) : crée un nouveau panneau à droite.",
-            "help.ctx.splitH": "<strong>Scinder horizontalement</strong> (Ctrl + H) : crée un nouveau panneau en dessous.",
+            "help.ctx.splitH": "<strong>Scinder horizontalement</strong> (Ctrl + Maj + H) : crée un nouveau panneau en dessous.",
             "help.ctx.splitPrivate": "<strong>Scinder en Navigation Privée</strong> (Ctrl + Shift + N) : ouvre un nouveau panneau privé isolé.",
             "help.ctx.splitContainer": "<strong>Scinder dans un conteneur isolé</strong> (🗂️ dans la barre d'outils) : ouvre un nouveau panneau dans un conteneur (Personnel, Travail, Compte 2, Compte 3) pour se connecter à plusieurs comptes simultanément.",
             "help.ctx.duplicate": "<strong>Dupliquer cette tuile</strong> (Ctrl + Shift + D, 📋 dans la barre d'outils, ou clic droit sur la tuile) : ouvre une copie du panneau à sa droite, sur la même adresse. La copie d'une tuile privée reste privée ; celle d'une tuile conteneur est créée dans la session par défaut.",
@@ -418,7 +419,7 @@
             "help.row.save": "<strong>Sauvegarder l'agencement</strong> — Exporte la structure actuelle de votre mosaïque de tuiles dans un fichier JSON pour la recharger plus tard.",
             "help.key.load": "<code>Cmd&nbsp;ou&nbsp;Ctrl&nbsp;+&nbsp;O</code>",
             "help.row.load": "<strong>Charger un agencement</strong> — Importe un fichier de configuration JSON pour restaurer instantanément un espace de travail complet.",
-            "help.key.equalize": "<code>Cmd&nbsp;ou&nbsp;Ctrl&nbsp;+&nbsp;R</code>",
+            "help.key.equalize": "<code>Cmd&nbsp;ou&nbsp;Ctrl&nbsp;+&nbsp;Maj&nbsp;+&nbsp;R</code>",
             "help.row.equalize": "<strong>Égaliser la mosaïque</strong> — Réinitialise instantanément l'intégralité de la mosaïque à des tailles égales, peu importe le nombre de tuiles actives, en repositionnant tous les séparateurs au centre.",
             "help.swap.title": "🔄 Réorganisation des Tuiles au Clavier",
             "help.swap.intro": "Permet d'intervertir instantanément l'emplacement physique du panneau actif avec le panneau adjacent dans la direction ciblée, sans utiliser la poignée de glissement à la souris.",
@@ -440,10 +441,12 @@
             "help.row.address": "<strong>Cibler la barre d'adresse</strong> — Donne instantanément le focus au champ de saisie d'URL du panneau actif et sélectionne l'intégralité du texte pour taper une nouvelle adresse.",
             "help.row.back": "<strong>Page précédente</strong> — Recule d'un niveau dans l'historique de navigation de la page web active.",
             "help.row.forward": "<strong>Page suivante</strong> — Avance d'un niveau dans l'historique de navigation de la page web active.",
-            "help.key.refresh": "<code>F5</code>&nbsp;&nbsp;ou&nbsp;&nbsp;<code>Ctrl&nbsp;+&nbsp;R</code>",
+            "help.key.home": "<code>Cmd&nbsp;ou&nbsp;Ctrl&nbsp;+&nbsp;Home</code>",
+            "help.row.home": "<strong>Accueil</strong> — Charge la page d'accueil dans le panneau actif.",
+            "help.key.refresh": "<code>F5</code>&nbsp;&nbsp;ou&nbsp;&nbsp;<code>Cmd&nbsp;ou&nbsp;Ctrl&nbsp;+&nbsp;R</code>",
             "help.row.refresh": "<strong>Actualiser la page</strong> — Recharge le contenu du site internet chargé dans la tuile active.",
             "help.row.print": "<strong>Imprimer la tuile active</strong> — Ouvre la boîte de dialogue d'impression du système d'exploitation pour le document en cours de consultation.",
-            "help.key.help": "<code>F1</code>&nbsp;&nbsp;ou&nbsp;&nbsp;<code>Alt&nbsp;+&nbsp;Home</code>",
+            "help.key.help": "<code>F1</code>&nbsp;&nbsp;ou&nbsp;&nbsp;<code>Cmd&nbsp;ou&nbsp;Ctrl&nbsp;+&nbsp;Home</code>",
             "help.row.help": "<strong>Aide</strong> — Charge instantanément ce centre d'aide au sein du panneau actif.",
             "help.sys.title": "❌ Système & Sécurité",
             "help.sys.intro": "Commandes globales affectant l'interface générale de l'application, la gestion des données de navigation et la sécurité du cycle de vie du navigateur.",
@@ -454,6 +457,8 @@
             "help.key.history": "<code>Ctrl&nbsp;+&nbsp;H</code>&nbsp;(global)",
             "help.row.history": "<strong>Afficher l'historique</strong> — Ouvre et bascule le focus vers le volet latéral dédié à l'historique global de navigation.",
             "help.row.settings": "<strong>Paramètres</strong> — Ouvre instantanément la fenêtre des paramètres de l'application, accessible également via le bouton 🛠️ de la barre d'outils.",
+            "help.key.theme": "<code>Ctrl&nbsp;+&nbsp;Maj&nbsp;+&nbsp;M</code>",
+            "help.row.theme": "<strong>Basculer le mode clair / sombre</strong> — Change le thème global de l'application et de ses panneaux web.",
             "help.row.quit": "<strong>Quitter l'application</strong> — Interrompt proprement les processus de Hare Browser. Une boîte de dialogue de confirmation de sécurité vous est présentée pour éviter la perte accidentelle de vos tuiles en cours.",
             "help.adv.title": "🏗️ Fonctions Avancées",
             "help.ai.title": "✨ Assistant IA Ollama Local",
@@ -554,7 +559,8 @@
             "fullscreen.exit": "Quitter le plein écran (F11)",
             "fullscreen.enterLabel": "Activer le plein écran",
             "fullscreen.exitLabel": "Quitter le plein écran",
-            "toolbar.lightMode": "Activer le mode clair",
+            "toolbar.lightMode": "Basculer le mode clair / sombre (Ctrl+Maj+M)",
+            "menu.toggleTheme": "Basculer le mode clair / sombre",
             "panel.noneSelected": "Aucun panneau sélectionné",
             "panel.closeActive": "Fermer le panneau actif",
             "panel.drag": "Glisser pour déplacer",
@@ -568,7 +574,7 @@
             "ai.summaryActiveTitle": "Résumer la page active",
             "ai.stopGenerationTitle": "Interrompre la génération en cours",
             "ai.availableAfterResponse": "Disponible après la réponse en cours",
-            "main.refreshCtrl": "Actualiser la page (Ctrl+R)",
+            "main.refreshCtrl": "Actualiser la page (Ctrl + R)",
             "menu.itemClearHistory": "Effacer tout votre historique",
             "ai.summaryPrompt": "Fais-moi un résumé concis en trois points clés de cette page.",
             "ai.keywordPrompt": "Extrais les mots-clés et les thèmes principaux de ce texte sous forme de liste.",
@@ -660,13 +666,13 @@
             "app.settings.saved": "Language updated.",
             "toolbar.back": "Back (Alt+Left)",
             "toolbar.forward": "Forward (Alt+Right)",
-            "toolbar.home": "Home (Ctrl+Home",
+            "toolbar.home": "Home (Ctrl+Home)",
             "toolbar.refresh": "Refresh (Ctrl+R or F5)",
             "tileNavigation.address": "Address",
             "tileNavigation.hide": "Hide floating navigation",
             "tileNavigation.drag": "Drag to move",
             "tileNavigation.resize": "Resize",
-            "toolbar.darkMode": "Enable dark mode (Ctrl+Shift+M)",
+            "toolbar.darkMode": "Toggle light / dark mode (Ctrl+Shift+M or Cmd+Shift+M on macOS)",
             "toolbar.history": "History (Ctrl+H)",
             "toolbar.downloads": "Downloads (Ctrl+J)",
             "toolbar.reader": "Reader mode: view the page without distractions",
@@ -838,11 +844,11 @@
 
             "context.edit": "✏️ Edit",
             "context.selectAll": "Select all",
-            "context.splitVertical": "✂️ Split vertically (Ctrl+T)",
-            "context.splitHorizontal": "⚍ Split horizontally (Ctrl+Shift+H)",
-            "context.privateSplit": "🕵️ Split into private browsing (Ctrl+Shift+N)",
+            "context.splitVertical": "✂️ Split vertically (Ctrl + T)",
+            "context.splitHorizontal": "⚍ Split horizontally (Ctrl + Shift + H)",
+            "context.privateSplit": "🕵️ Split into private browsing (Ctrl + Shift + N)",
             "context.publicTile": "🕵️ Open a regular public tile",
-            "context.duplicate": "📋 Duplicate this tile (Ctrl+Shift+D)",
+            "context.duplicate": "📋 Duplicate this tile (Ctrl + Shift + D)",
             "context.ai": "✨ AI actions (Assistant)",
             "context.summarize": "📝 Summarize this web tile",
             "context.keywords": "🔍 Analyze page keywords",
@@ -853,8 +859,8 @@
             "context.mainToolbar.show": "  Main toolbar",
             "context.floatingNavigation.disabledGlobally": "Disabled in global settings",
             "context.reader": "👓 Reader mode",
-            "context.print": "🖨️ Print page content (Ctrl+P)",
-            "context.close": "❌ Close this tile (Ctrl+W)",
+            "context.print": "🖨️ Print page content (Ctrl + P)",
+            "context.close": "❌ Close this tile (Ctrl + W)",
             "menu.saveLayout": "Save layout",
             "menu.switchLeft": "Swap with tile to the left",
             "menu.switchRight": "Swap with tile to the right",
@@ -943,29 +949,31 @@
             "home.featurePrivacy": "🔒 Privacy",
             "home.featureAi": "✨ Local AI",
             "help.welcome": "Welcome to the official <strong>Hare Browser</strong> help center. This web browser combines an advanced multi-panel browsing environment (dynamic mosaic mode), a privacy-friendly SearXNG search engine, and a local AI assistant powered by Ollama.",
-            "help.mac": "🍏 macOS setup: On Apple Mac, replace Ctrl with Cmd (Command) for all the keyboard shortcuts below.",
+            "help.mac": "🍏 macOS: for shortcuts shown as “Cmd or Ctrl,” use Cmd on Mac. The Home shortcut remains Ctrl+Home.",
             "help.panels": "🧱 Panel management & splitting",
             "help.panelsIntro": "Hare Browser is built around a binary split tree (split nodes). Each active panel can be split repeatedly to organize your workspace without managing dozens of traditional overlapping tabs.",
             "help.shortcuts": "⌨️ Complete Keyboard Shortcut Reference",
             "help.panelLayout": "🧱 Panel Management & Layout",
             "help.diagramsTitle": "Geometric tile-splitting diagrams:",
             "help.splitV.desc": "<strong>1. Initial Vertical Split (Ctrl&nbsp;+&nbsp;T):</strong> Divides the active space into two equal columns and opens a new, independent tile on the right side.",
-            "help.diagram.splitV": `    ┌──────────────────────────────────────┐          ┌──────────────────┬──────────────────┐
-    │                                      │          │                  │                  │
+            "help.diagram.splitV": 
+`    ┌──────────────────────────────────────┐                 ┌──────────────────┬──────────────────┐
+    │                                      │                 │                  │                  │
     │                                      │ Ctrl + T │                  │                  │
-    │            INITIAL PANEL             │ ───────> │  INITIAL PANEL   │     NEW TILE     │
-    │               (Active)               │          │                  │      (Right)     │
-    │                                      │          │                  │                  │
-    └──────────────────────────────────────┘          └──────────────────┴──────────────────┘
+    │            INITIAL PANEL             │ ──────────────> │  INITIAL PANEL   │     NEW TILE     │
+    │               (Active)               │                 │                  │      (Right)     │
+    │                                      │                 │                  │                  │
+    └──────────────────────────────────────┘                 └──────────────────┴──────────────────┘
 `,
-            "help.splitH.desc": "<strong>2. Secondary Horizontal Split (Ctrl + H):</strong> Selects a specific panel and splits it into two horizontal rows, creating a new tile below.",
-            "help.diagram.splitH": `    ┌──────────────────┬───────────────────┐          ┌──────────────────┬──────────────────┐
-    │                  │      FOCUS        │          │                  │      TOP TILE    │
-    │                  │     (Active)      │ Ctrl + H │                  ├──────────────────┤
-    │ INITIAL PANEL    ├───────────────────┤ ───────> │ INITIAL PANEL    │                  │
-    │                  │                   │          │                  │     NEW TILE     │
-    │                  │                   │          │                  │     (Bottom)     │
-    └──────────────────┴───────────────────┘          └──────────────────┴──────────────────┘
+            "help.splitH.desc": "<strong>2. Secondary Horizontal Split (Ctrl + Shift + H):</strong> Selects a specific panel and splits it into two horizontal rows, creating a new tile below.",
+            "help.diagram.splitH":
+`    ┌──────────────────┬───────────────────┐                         ┌──────────────────┬──────────────────┐
+    │                  │      FOCUS        │                         │                  │      TOP TILE    │
+    │                  │     (Active)      │ Ctrl + Shift + H │                 ├──────────────────┤
+    │ INITIAL PANEL    ├───────────────────┤ ──────────────────────> │ INITIAL PANEL    │                  │
+    │                  │                   │                         │                  │     NEW TILE     │
+    │                  │                   │                         │                  │     (Bottom)     │
+    └──────────────────┴───────────────────┘                         └──────────────────┴──────────────────┘
 `,
             "help.plus.title": "➕ Split a panel with the + button",
             "help.plus.intro": "You can quickly create a new panel without using the keyboard. Simply click the <strong>+</strong> button located to the right of the active panel's address bar.",
@@ -1005,7 +1013,7 @@
             "help.ctx.keywords": "<strong>Analyze page keywords</strong>: extracts the main themes and important words from the content.",
             "help.ctx.layoutTitle": "🧱 Mosaic layout",
             "help.ctx.splitV": "<strong>Split vertically</strong> (Ctrl + T): creates a new panel on the right.",
-            "help.ctx.splitH": "<strong>Split horizontally</strong> (Ctrl + H): creates a new panel below.",
+            "help.ctx.splitH": "<strong>Split horizontally</strong> (Ctrl + Shift + H): creates a new panel below.",
             "help.ctx.splitPrivate": "<strong>Split into private browsing</strong> (Ctrl + Shift + N): opens a new isolated private panel.",
             "help.ctx.splitContainer": "<strong>Split into an isolated container</strong> (🗂️ in the toolbar): opens a new panel in a container (Personal, Work, Account 2, Account 3) so you can sign in to several accounts at the same time.",
             "help.ctx.duplicate": "<strong>Duplicate this tile</strong> (Ctrl + Shift + D, 📋 in the toolbar, or right-click the tile): opens a copy of the panel to its right, on the same address. A copy of a private tile stays private; a copy of a container tile is created in the default session.",
@@ -1039,7 +1047,7 @@
             "help.row.save": "<strong>Save layout</strong> — Exports the current structure of your tile mosaic to a JSON file so you can reload it later.",
             "help.key.load": "<code>Cmd&nbsp;or&nbsp;Ctrl&nbsp;+&nbsp;O</code>",
             "help.row.load": "<strong>Load a layout</strong> — Imports a JSON configuration file to instantly restore a complete workspace.",
-            "help.key.equalize": "<code>Cmd&nbsp;or&nbsp;Ctrl&nbsp;+&nbsp;R</code>",
+            "help.key.equalize": "<code>Cmd&nbsp;or&nbsp;Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R</code>",
             "help.row.equalize": "<strong>Equalize the mosaic</strong> — Instantly resets the entire mosaic to equal sizes, regardless of the number of active tiles, by repositioning all separators to the center.",
             "help.swap.title": "🔄 Reordering Tiles with the Keyboard",
             "help.swap.intro": "Instantly swaps the physical position of the active panel with the adjacent panel in the targeted direction, without using the drag handle with the mouse.",
@@ -1061,6 +1069,8 @@
             "help.row.address": "<strong>Focus the address bar</strong> — Instantly gives focus to the URL input field of the active panel and selects all the text so you can type a new address.",
             "help.row.back": "<strong>Previous page</strong> — Goes back one step in the navigation history of the active web page.",
             "help.row.forward": "<strong>Next page</strong> — Goes forward one step in the navigation history of the active web page.",
+            "help.key.home": "<code>Ctrl&nbsp;+&nbsp;Home</code>",
+            "help.row.home": "<strong>Home</strong> — Loads the home page in the active panel.",
             "help.key.refresh": "<code>F5</code>&nbsp;&nbsp;or&nbsp;&nbsp;<code>Ctrl&nbsp;+&nbsp;R</code>",
             "help.row.refresh": "<strong>Refresh the page</strong> — Reloads the content of the website loaded in the active tile.",
             "help.row.print": "<strong>Print the active tile</strong> — Opens the operating system's print dialog for the document currently being viewed.",
@@ -1075,6 +1085,8 @@
             "help.key.history": "<code>Ctrl&nbsp;+&nbsp;H</code>&nbsp;(global)",
             "help.row.history": "<strong>Show history</strong> — Opens and moves focus to the side panel dedicated to the global browsing history.",
             "help.row.settings": "<strong>Settings</strong> — Instantly opens the application settings window, also accessible via the 🛠️ button in the toolbar.",
+            "help.key.theme": "<code>Cmd&nbsp;or&nbsp;Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;M</code>",
+            "help.row.theme": "<strong>Toggle light / dark mode</strong> — Changes the application-wide theme and the theme of its web panels.",
             "help.row.quit": "<strong>Quit the application</strong> — Cleanly shuts down the Hare Browser processes. A security confirmation dialog is shown to prevent accidentally losing your open tiles.",
             "help.adv.title": "🏗️ Advanced Features",
             "help.ai.title": "✨ Local Ollama AI Assistant",
@@ -1175,7 +1187,8 @@
             "fullscreen.exit": "Exit full screen (F11)",
             "fullscreen.enterLabel": "Enable full screen",
             "fullscreen.exitLabel": "Exit full screen",
-            "toolbar.lightMode": "Enable light mode",
+            "toolbar.lightMode": "Toggle light / dark mode (Ctrl+Shift+M or Cmd+Shift+M on macOS)",
+            "menu.toggleTheme": "Toggle light / dark mode",
             "toolbar.resetWorkspace": "Reset workspace (Ctrl+Shift+Home)",
             "panel.noneSelected": "No panel selected",
             "panel.closeActive": "Close active panel",
@@ -1340,6 +1353,12 @@
             const id = element.getAttribute("data-i18n-tooltip-key") || element.getAttribute("data-tooltip-key");
             if (!id) return;
             const translatedTooltip = t(id, lang);
+            if (element.closest?.("#hare-floating-nav")) {
+                if (element.getAttribute("data-tooltip") !== translatedTooltip) element.setAttribute("data-tooltip", translatedTooltip);
+                element.removeAttribute("data-hare-tip");
+                element.removeAttribute("title");
+                return;
+            }
             if (element.getAttribute("data-hare-tip") !== translatedTooltip) element.setAttribute("data-hare-tip", translatedTooltip);
             if (element.getAttribute("data-tooltip") !== translatedTooltip) element.setAttribute("data-tooltip", translatedTooltip);
             if (element.getAttribute("title") !== translatedTooltip) element.setAttribute("title", translatedTooltip);

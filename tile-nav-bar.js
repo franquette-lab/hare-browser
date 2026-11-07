@@ -220,8 +220,8 @@
         button.id = id;
         button.type = "button";
         button.dataset.i18nTooltipKey = translationKey;
-        button.title = tileTranslations[translationKey] || "";
-        button.setAttribute("aria-label", button.title);
+        button.dataset.tooltip = tileTranslations[translationKey] || "";
+        button.setAttribute("aria-label", button.dataset.tooltip);
         if (text) button.textContent = text;
         return button;
     };
@@ -511,8 +511,9 @@
         navBar.querySelectorAll("[data-i18n-tooltip-key]").forEach((element) => {
             const text = tileTranslations[element.dataset.i18nTooltipKey];
             if (!text) return;
-            element.setAttribute("data-hare-tip", text);
-            element.title = text;
+            element.setAttribute("data-tooltip", text);
+            element.removeAttribute("data-hare-tip");
+            element.removeAttribute("title");
         });
         navBar.querySelectorAll("[data-i18n-aria-label-key]").forEach((element) => {
             const text = tileTranslations[element.dataset.i18nAriaLabelKey];
