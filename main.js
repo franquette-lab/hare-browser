@@ -11,14 +11,14 @@ const {
     Menu,
     nativeImage,
     nativeTheme,
+    clipboard,
     dialog,
     globalShortcut,
     screen,
     safeStorage,
     session,
     shell
-} = require('electron');
-
+} = require('electron');    
 
 const fs = require("fs");
 const fsPromises = require("fs/promises");
@@ -573,6 +573,19 @@ function resolveContextLinkUrl(rawLinkUrl, pageUrl = "") {
     }
 
     return "";
+}
+
+function resolveContextImageUrl(rawImageUrl, pageUrl = "") {
+    if (typeof rawImageUrl !== "string" || !rawImageUrl.trim()) return "";
+    try {
+        const imageUrl = new URL(rawImageUrl.trim(), pageUrl || undefined);
+        if (imageUrl.protocol !== "http:" && imageUrl.protocol !== "https:") return "";
+        imageUrl.username = "";
+        imageUrl.password = "";
+        return imageUrl.href;
+    } catch {
+        return "";
+    }
 }
 
 function getContextLinkHost(linkUrl) {
@@ -1477,6 +1490,10 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
 
     const targetPanel = findPanelNode(rootNode, panelId);
     const isPrivate = targetPanel ? targetPanel.isPrivate : false;
+    const hasClickedImage = contextParams.hasImageContents === true;
+    const clickedImageUrl = hasClickedImage
+        ? resolveContextImageUrl(contextParams.srcURL, contextParams.pageURL || webContents.getURL())
+        : "";
     const hasClickedLink = typeof contextParams.linkURL === "string" && contextParams.linkURL.trim().length > 0;
     const clickedLinkUrl = hasClickedLink
         ? resolveContextLinkUrl(contextParams.linkURL, contextParams.pageURL || webContents.getURL())
@@ -1526,7 +1543,7 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
             ? "Hare Search"
             : adBlockHost;
 
-    const menuTemplate = [
+    const normalMenuTemplate = [
         ...linkMenuItems,
         {
             label: tr("context.edit"),
@@ -1562,6 +1579,7 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
             }
         ] : []),
 
+        ...(!hasClickedLink ? [
         { type: "separator" },
 
         {
@@ -1629,10 +1647,7 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
             }
         },
 
-
         { type: "separator" },
-
-
         {
             label: `${tr("main.menuMosaicEqual")}`,
             // Calcul direct et sécurisé : désactivé si zoom actif OU s'il y a 1 tuile ou moins
@@ -1644,8 +1659,8 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
                 forceRebuildSplitters = true;
                 resizeViews(); // Relance le calcul géométrique
             }
-        },
-
+        }
+        ] : []),
         { type: "separator" },
         {
             label: tr("context.ai"),
@@ -1684,6 +1699,7 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
         },
 
 
+        ...(!hasClickedLink ? [
         { type: "separator" },
         {
             label: tr("context.panel"),
@@ -1753,9 +1769,154 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
             label: `${tr("context.close")}`,
             click: () => ipcMain.emit('close-panel', null, panelId)
         }
+        ] : [])
     ];
 
-    const contextMenu = Menu.buildFromTemplate(translateMenuTemplate(menuTemplate));
+    const linkFavoriteExists = clickedLinkUrl && getFavoris().some((favorite) => favorite.url === clickedLinkUrl);
+    const linkContextMenuTemplate = hasClickedLink && clickedLinkUrl ? [
+        {
+            label: tr("context.openLinkIn"),
+            submenu: [
+                {
+                    label: tr("context.openLinkCurrentTile"),
+                    click: () => openContextLinkInPanel(panelId, clickedLinkUrl)
+                },
+                { type: "separator" },
+                {
+                    label: tr("context.openLinkSplitRight"),
+                    enabled: !isZoomActive,
+                    click: () => ipcMain.emit("split-panel", null, panelId, "vertical", false, null, clickedLinkUrl)
+                },
+                {
+                    label: tr("context.openLinkSplitBottom"),
+                    enabled: !isZoomActive,
+                    click: () => ipcMain.emit("split-panel", null, panelId, "horizontal", false, null, clickedLinkUrl)
+                },
+                { type: "separator" },
+                {
+                    label: tr("context.openLinkNewWindow"),
+                    click: () => openContextLinkInNewWindow(clickedLinkUrl, panelId)
+                }
+            ]
+        },
+        {
+            label: tr("context.duplicateLink"),
+            enabled: !isZoomActive,
+            click: () => ipcMain.emit("split-panel", null, panelId, "vertical", false, null, clickedLinkUrl)
+        },
+        {
+            label: tr("context.openLinkPrivate"),
+            enabled: !isZoomActive,
+            click: () => ipcMain.emit("split-panel", null, panelId, "vertical", true, null, clickedLinkUrl)
+        },
+        {
+            label: tr("context.openLinkContainer"),
+            enabled: !isZoomActive,
+            submenu: Object.keys(TILE_CONTAINERS).map((containerId) => ({
+                label: getContainerLabel(containerId),
+                click: () => ipcMain.emit("split-panel", null, panelId, "vertical", false, containerId, clickedLinkUrl)
+            }))
+        },
+        { type: "separator" },
+        {
+            label: tr(linkFavoriteExists ? "context.removeLinkFavorite" : "context.addLinkFavorite"),
+            click: () => { void toggleFavoriByUrl(clickedLinkUrl); }
+        },
+        {
+            label: tr("context.copyLinkAddress"),
+            click: () => clipboard.writeText(clickedLinkUrl)
+        },
+        {
+            label: tr("context.downloadLink"),
+            click: () => {
+                if (targetPanel?.view?.webContents && !targetPanel.view.webContents.isDestroyed()) {
+                    targetPanel.view.webContents.downloadURL(clickedLinkUrl);
+                }
+            }
+        }
+    ] : (hasClickedLink ? [] : normalMenuTemplate);
+
+    const imageFavoriteExists = clickedImageUrl && getFavoris().some((favorite) => favorite.url === clickedImageUrl);
+    const imageContextMenuTemplate = hasClickedImage ? [
+        ...(clickedImageUrl ? [
+            {
+                label: tr("context.openImageCurrentTile"),
+                click: () => openContextLinkInPanel(panelId, clickedImageUrl)
+            },
+            {
+                label: tr("context.openImageNewTile"),
+                enabled: !isZoomActive,
+                click: () => ipcMain.emit("split-panel", null, panelId, "vertical", false, null, clickedImageUrl)
+            },
+            {
+                label: tr("context.openImageSplitDown"),
+                enabled: !isZoomActive,
+                click: () => ipcMain.emit("split-panel", null, panelId, "horizontal", false, null, clickedImageUrl)
+            },
+            {
+                label: tr("context.openImagePrivate"),
+                enabled: !isZoomActive,
+                click: () => ipcMain.emit("split-panel", null, panelId, "vertical", true, null, clickedImageUrl)
+            },
+            {
+                label: tr("context.openImageContainer"),
+                enabled: !isZoomActive,
+                submenu: Object.keys(TILE_CONTAINERS).map((containerId) => ({
+                    label: getContainerLabel(containerId),
+                    click: () => ipcMain.emit("split-panel", null, panelId, "vertical", false, containerId, clickedImageUrl)
+                }))
+            },
+            {
+                label: tr("context.openImageNewWindow"),
+                click: () => openContextLinkInNewWindow(clickedImageUrl, panelId)
+            },
+            { type: "separator" },
+            {
+                label: tr("context.saveImage"),
+                click: () => {
+                    if (targetPanel?.view?.webContents && !targetPanel.view.webContents.isDestroyed()) {
+                        targetPanel.view.webContents.downloadURL(clickedImageUrl);
+                    }
+                }
+            }
+        ] : []),
+        {
+            label: tr("context.copyImage"),
+            click: () => {
+                if (typeof webContents.copyImageAt === "function") {
+                    webContents.copyImageAt(contextParams.x, contextParams.y);
+                }
+            }
+        },
+        ...(clickedImageUrl ? [
+            {
+                label: tr("context.copyImageAddress"),
+                click: () => clipboard.writeText(clickedImageUrl)
+            },
+            {
+                label: tr(imageFavoriteExists ? "context.removeImageFavorite" : "context.addImageFavorite"),
+                click: () => { void toggleFavoriByUrl(clickedImageUrl); }
+            }
+        ] : [])
+    ] : null;
+
+    const normalizeMenuSeparators = (items) => {
+        const normalized = [];
+        for (const item of items) {
+            const normalizedItem = item.submenu
+                ? { ...item, submenu: normalizeMenuSeparators(item.submenu) }
+                : item;
+            if (normalizedItem.type === "separator" &&
+                (!normalized.length || normalized[normalized.length - 1].type === "separator")) continue;
+            normalized.push(normalizedItem);
+        }
+        if (normalized[normalized.length - 1]?.type === "separator") normalized.pop();
+        return normalized;
+    };
+
+    const selectedMenuTemplate = imageContextMenuTemplate || linkContextMenuTemplate;
+    if (selectedMenuTemplate.length === 0) return;
+    const contextMenu = Menu.buildFromTemplate(translateMenuTemplate(normalizeMenuSeparators(selectedMenuTemplate)));
     contextMenu.popup({ window: win, x, y });
 }
 
@@ -9161,6 +9322,25 @@ async function removeFavoriByUrl(url) {
     return true;
 }
 
+async function toggleFavoriByUrl(url) {
+    if (typeof url !== "string" || !url.trim()) return false;
+
+    const favoris = getFavoris();
+    const index = favoris.findIndex((favori) => favori.url === url);
+    if (index >= 0) {
+        favoris.splice(index, 1);
+    } else if (isInternalFavoriteUrl(url)) {
+        return false;
+    } else {
+        favoris.push({ url });
+    }
+
+    const saved = await safeWriteJsonAsync(getFavorisPath(), favoris);
+    if (!saved) return false;
+    if (win && !win.isDestroyed()) win.webContents.send("favoris-updated", favoris);
+    return index < 0;
+}
+
 ipcMain.handle("remove-favori", (event, url) => {
     if (!win || win.isDestroyed() || event.sender !== win.webContents) return false;
     return removeFavoriByUrl(url);
@@ -9179,26 +9359,8 @@ ipcMain.on("show-bookmark-context-menu", (event, url) => {
 
 // Remplacement du gestionnaire d'ajout/suppression des favoris
 ipcMain.handle('toggle-favori', async (event, { url } = {}) => {
-    try {
-        let favoris = getFavoris();
-        const index = favoris.findIndex(f => f.url === url);
-
-        if (index >= 0) {
-            favoris.splice(index, 1);
-        } else if (isInternalFavoriteUrl(url)) {
-            return false;
-        } else {
-            favoris.push({ url });
-        }
-
-        // Sauvegarde sécurisée, asynchrone et atomique (.tmp -> renommé)
-        await safeWriteJsonAsync(getFavorisPath(), favoris); 
-        
-        if (win && !win.isDestroyed()) {
-            win.webContents.send('favoris-updated', favoris);
-        }
-        return index < 0; // Renvoie vrai si ajouté, faux si retiré
-    } catch (error) {
+    try { return await toggleFavoriByUrl(url); }
+    catch (error) {
         console.error("Erreur lors du toggle-favori :", error);
         return false;
     }
