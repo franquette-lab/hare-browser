@@ -414,7 +414,7 @@ html.mw-theme-client-dark button[type="submit"]:hover {
         <span data-i18n="home.credits">Propulsé par SearXNG</span>
 
         <div class="version">
-            <span data-i18n="home.version">2026.9.10+ba055b3e0 • un métamoteur respectueux de la vie privée</span>
+            <span id="searxng-version-text" data-i18n="home.version">Chargement de la version... • un métamoteur respectueux de la vie privée</span>
         </div>
 
     </div>
@@ -426,14 +426,36 @@ html.mw-theme-client-dark button[type="submit"]:hover {
 <script src="tooltip-glass.js"></script>
 <script>HareI18n.attach(window.tileLanguage);</script>
 <script>
+    // --- Gestion de l'affichage dynamique de la version ---
+    const versionElement = document.getElementById('searxng-version-text');
+    if (versionElement) {
+        fetch('/status')
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.version) {
+                    // Remplace le tiret par un plus pour garder votre format visuel (ex: 2026.9.10+ba055b3e0)
+                    const formattedVersion = data.version.replace('-', '+');
+                    versionElement.textContent = `${formattedVersion} • un métamoteur respectueux de la vie privée`;
+                }
+            })
+            .catch(error => {
+                console.error('Impossible de récupérer la version en temps réel :', error);
+                // Laisse la version codée en dur par défaut dans le HTML si la requête échoue
+            });
+    }
+
+    // --- Logique d'animation du formulaire de recherche ---
     const searchForm = document.querySelector('.search-form');
     const searchButton = document.querySelector('.search-button');
 
-    searchForm.addEventListener('submit', function() {
-        // Active l'animation dès que le formulaire est envoyé
-        searchButton.classList.add('searching');
-    });
+    if (searchForm && searchButton) {
+        searchForm.addEventListener('submit', function() {
+            // Active l'animation dès que le formulaire est envoyé
+            searchButton.classList.add('searching');
+        });
+    }
 
+    // --- Logique du Toast d'accueil (Private Search) ---
     const welcomeSearchToast = document.getElementById('search-welcome-toast');
     const welcomeSearchToastClose = welcomeSearchToast?.querySelector('.search-welcome-toast-close');
     const searchWrapper = document.querySelector('.search-wrapper');
