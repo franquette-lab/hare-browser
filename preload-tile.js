@@ -199,7 +199,9 @@ contextBridge.exposeInMainWorld("tileTooltipGlass", Object.freeze({
 // Expose les méthodes IPC pour welcome.html à travers la sandbox Chromium
 contextBridge.exposeInMainWorld('tutorials', {
     openVideo: (videoFile) => {
-        console.info('[Tutoriel] Appel IPC demandé depuis une tuile :', videoFile);
+
+//      console.info('[Tutoriel] Appel IPC demandé depuis une tuile :', videoFile);
+
         return ipcRenderer.invoke('open-tutorial-video', videoFile);
     },
     openAiSidebar: () => {

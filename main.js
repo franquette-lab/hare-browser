@@ -63,7 +63,8 @@ async function ouvrirVideoTutoriel(videoFile) {
         throw new Error(`Fichier vidéo introuvable : ${videoPath}`);
     }
     const videoUrl = getPathToFileURL(videoPath).href;
-    console.info("[Tutoriel] Création de la fenêtre vidéo :", videoPath);
+
+//  console.info("[Tutoriel] Création de la fenêtre vidéo :", videoPath);
 
     const videoWindow = new BrowserWindow({
         width: 1280,
@@ -79,23 +80,27 @@ async function ouvrirVideoTutoriel(videoFile) {
     });
 
     videoWindow.webContents.on("did-finish-load", () => {
-        console.info("[Tutoriel] video-player.html chargé avec succès.");
+//      console.info("[Tutoriel] video-player.html chargé avec succès.");
     });
+
     videoWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
         console.error("[Tutoriel] Échec du chargement du lecteur :", {
             errorCode, errorDescription, validatedURL
         });
     });
-    videoWindow.webContents.on("console-message", (_event, details) => {
-        const log = details.level >= 2 ? console.error : console.info;
+    videoWindow.webContents.on("console-message", (details) => {
+        const log = details.level === "error"
+            ? console.error
+            : details.level === "warning" ? console.warn : console.info;
         log.call(console, `[Tutoriel player ${details.sourceId}:${details.lineNumber}] ${details.message}`);
     });
+
 
     try {
         await videoWindow.loadFile(path.join(__dirname, "video-player.html"), {
             query: { src: videoUrl }
         });
-        console.info("[Tutoriel] Lecteur ouvert, source vidéo :", videoUrl);
+//      console.info("[Tutoriel] Lecteur ouvert, source vidéo :", videoUrl);
         return { ok: true };
     } catch (error) {
         console.error("[Tutoriel] Impossible de charger video-player.html :", error);
@@ -103,60 +108,6 @@ async function ouvrirVideoTutoriel(videoFile) {
         throw error;
     }
 }
-async function ouvrirVideoTutoriel(videoFile) {
-    // ✨ CORRECTIF SÉCURITÉ : Ajout de Blocker.mp4 (et Search.mp4 par anticipation si besoin)
-    const allowedTutorials = new Set(["Mosaic_browsing.mp4", "Blocker.mp4", "Search.mp4"]);
-    if (typeof videoFile !== "string" || !allowedTutorials.has(videoFile)) {
-        throw new Error(`Fichier de tutoriel non autorisé : ${String(videoFile)}`);
-    }
-
-    const videoPath = path.join(__dirname, "videos", videoFile);
-    if (!fs.existsSync(videoPath)) {
-        throw new Error(`Fichier vidéo introuvable : ${videoPath}`);
-    }
-    const videoUrl = getPathToFileURL(videoPath).href;
-    console.info("[Tutoriel] Création de la fenêtre vidéo :", videoPath);
-
-    const videoWindow = new BrowserWindow({
-        width: 1280,
-        height: 720,
-        title: "Tutoriel Hare Browser",
-        autoHideMenuBar: true,
-        backgroundColor: "#1e1e1e",
-        webPreferences: {
-            contextIsolation: true,
-            nodeIntegration: false,
-            sandbox: true
-        }
-    });
-
-    videoWindow.webContents.on("did-finish-load", () => {
-        console.info("[Tutoriel] video-player.html chargé avec succès.");
-    });
-    videoWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
-        console.error("[Tutoriel] Échec du chargement du lecteur :", {
-            errorCode, errorDescription, validatedURL
-        });
-    });
-    videoWindow.webContents.on("console-message", (_event, details) => {
-        const log = details.level >= 2 ? console.error : console.info;
-        log.call(console, `[Tutoriel player ${details.sourceId}:${details.lineNumber}] ${details.message}`);
-    });
-
-    try {
-        await videoWindow.loadFile(path.join(__dirname, "video-player.html"), {
-            query: { src: videoUrl }
-        });
-        console.info("[Tutoriel] Lecteur ouvert, source vidéo :", videoUrl);
-        return { ok: true };
-    } catch (error) {
-        console.error("[Tutoriel] Impossible de charger video-player.html :", error);
-        if (!videoWindow.isDestroyed()) videoWindow.close();
-        throw error;
-    }
-}
-    
-
 function tr(id, replacements = {}) {
     return HareI18n.t(id, currentLanguage, replacements);
 }
@@ -298,6 +249,7 @@ function requestOllama({ method = "GET", route, payload = null, timeoutMs = OLLA
         headers["Content-Length"] = Buffer.byteLength(body);
     }
 
+/*    
     if (log) {
         console.info(`[OLLAMA][${requestId}] Requête`, {
             method,
@@ -311,7 +263,7 @@ function requestOllama({ method = "GET", route, payload = null, timeoutMs = OLLA
             payloadBytes: body === null ? 0 : Buffer.byteLength(body)
         });
     }
-
+*/
     return new Promise((resolve, reject) => {
         let settled = false;
         let responseBody = "";
@@ -344,6 +296,7 @@ function requestOllama({ method = "GET", route, payload = null, timeoutMs = OLLA
             });
             res.on("end", () => {
                 const durationMs = Date.now() - startedAt;
+/*
                 if (log) {
                     console.info(`[OLLAMA][${requestId}] Réponse HTTP`, {
                         method,
@@ -355,7 +308,7 @@ function requestOllama({ method = "GET", route, payload = null, timeoutMs = OLLA
                         body: responseBody
                     });
                 }
-
+*/
                 if (res.statusCode < 200 || res.statusCode >= 300) {
                     const error = new Error(`HTTP ${res.statusCode} ${res.statusMessage || ""}: ${responseBody}`.trim());
                     error.statusCode = res.statusCode;
@@ -416,12 +369,13 @@ function startEmbeddedOllama() {
     }
 
     const bundledModels = path.join(OLLAMA_BUNDLE_DIR, "models");
+/*
     console.info("[OLLAMA] Démarrage du serveur embarqué", {
         executable: ollamaPath,
         host: OLLAMA_BASE_URL,
         modelsDirectory: fs.existsSync(bundledModels) ? bundledModels : (process.env.OLLAMA_MODELS || "défaut Ollama")
     });
-
+*/
     ollamaProcess = spawn(ollamaPath, ["serve"], {
         windowsHide: true,
         env: {
@@ -446,12 +400,13 @@ function startEmbeddedOllama() {
 async function waitForOllama(timeoutMs = OLLAMA_STARTUP_TIMEOUT_MS) {
     const startedAt = Date.now();
     let lastError = null;
-    console.info("[OLLAMA] Vérification du serveur", { url: `${OLLAMA_BASE_URL}/api/tags`, timeoutMs });
+
+//  console.info("[OLLAMA] Vérification du serveur", { url: `${OLLAMA_BASE_URL}/api/tags`, timeoutMs });
 
     while (Date.now() - startedAt < timeoutMs) {
         try {
             await requestOllama({ route: "/api/tags", timeoutMs: 2000, log: false });
-            console.info("[OLLAMA] Serveur disponible", { url: OLLAMA_BASE_URL, durationMs: Date.now() - startedAt });
+//          console.info("[OLLAMA] Serveur disponible", { url: OLLAMA_BASE_URL, durationMs: Date.now() - startedAt });
             return true;
         } catch (error) {
             lastError = error;
@@ -1379,34 +1334,12 @@ const findInPageRequests = new Map();
 ipcMain.on("request-open-ai-sidebar", (event) => {
     // Appelle votre fonction existante pour afficher le volet d'IA
     setAiSidebarVisible(true);
-    console.log("[IA Locale] Volet ouvert automatiquement suite à un clic sur welcome.html");
+//  console.log("[IA Locale] Volet ouvert automatiquement suite à un clic sur welcome.html");
 });
-
-
-
-
-
-
-
-
-
-
-
 
 ipcMain.on("open-settings-window", () => {
     openSettingsWindow();
 });
-
-
-
-
-
-
-
-
-
-
-
 
 ipcMain.on("check-settings-window-opened", (event) => {
     const isOpened =
@@ -1623,11 +1556,9 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
             checked: autoSleepEnabled,
             click: () => {
                 setAutoSleepEnabled(!autoSleepEnabled);
-                console.log(`[Auto-Sleep Menu] Mode changé : ${autoSleepEnabled ? "ACTIVÉ" : "DÉSACTIVÉ"}`);
+//              console.log(`[Auto-Sleep Menu] Mode changé : ${autoSleepEnabled ? "ACTIVÉ" : "DÉSACTIVÉ"}`);
             }
         },
-
-
 
         {
             label: `   ${tr("context.reader")}`,
@@ -1966,7 +1897,9 @@ async function inspectOllamaStatus(modelName = DEFAULT_OLLAMA_MODEL, { publish =
             loadedModels: loadedModels.map((entry) => entry.name || entry.model).filter(Boolean),
             checkedAt
         };
-        console.info("[OLLAMA] État de disponibilité", status);
+
+//      console.info("[OLLAMA] État de disponibilité", status);
+
         return publish ? publishOllamaStatus(status) : status;
     } catch (error) {
         const status = {
@@ -2003,11 +1936,13 @@ async function ensureOllamaModelLoaded(modelName) {
     if (status.loaded) return status;
 
     publishOllamaStatus({ ...status, state: "loading", model: modelName });
+/*
     console.info("[OLLAMA] Chargement préalable du modèle avant génération", {
         model: modelName,
         url: `${OLLAMA_BASE_URL}/api/generate`,
         timeoutMs: OLLAMA_MODEL_LOAD_TIMEOUT_MS
     });
+*/
     try {
         await requestOllama({
             method: "POST",
@@ -2057,19 +1992,23 @@ async function pullOllamaModel(modelName) {
 
         pullProcess.stdout.on("data", data => {
 
+/*
             console.log(
                 "[OLLAMA PULL]",
                 data.toString()
             );
+*/
 
         });
 
         pullProcess.stderr.on("data", data => {
 
+/*            
             console.log(
                 "[OLLAMA PULL]",
                 data.toString()
             );
+*/            
 
         });
 
@@ -2290,7 +2229,8 @@ app.on('ready', () => {
 
 
 ipcMain.handle("open-tutorial-video", async (event, videoFile) => {
-    console.info("[Tutoriel] IPC open-tutorial-video reçu :", videoFile);
+
+//  console.info("[Tutoriel] IPC open-tutorial-video reçu :", videoFile);
 
     const internalPageActions = Object.freeze({
         ACTION_HELP_PRODUCTIVITY: {
@@ -2408,7 +2348,9 @@ ipcMain.handle("open-tutorial-video", async (event, videoFile) => {
 
     try {
         const result = await ouvrirVideoTutoriel(videoFile);
-        console.info("[Tutoriel] Fenêtre vidéo créée et lecteur chargé.");
+
+//      console.info("[Tutoriel] Fenêtre vidéo créée et lecteur chargé.");
+
         return result;
     } catch (error) {
         console.error("[Tutoriel] Erreur pendant l'ouverture de la vidéo :", error);
@@ -4885,7 +4827,7 @@ async function sleepPanel(panel, expectedLastActivityAt = panel?.lastActivityAt)
     const delayDescription = autoSleepDelayMinutes === AUTO_SLEEP_DELAY_IMMEDIATE
         ? "immédiatement"
         : `après ${autoSleepDelayMinutes} minute(s)`;
-    console.log(`[Tab Sleeping] Tuile ${panel.id} mise en veille ${delayDescription} d’inactivité.`);
+//  console.log(`[Tab Sleeping] Tuile ${panel.id} mise en veille ${delayDescription} d’inactivité.`);
 }
 
 
@@ -5103,6 +5045,7 @@ function setupNavigationTracking(panel) {
     if (navigationTrackedContents.has(trackedContents)) return;
     navigationTrackedContents.add(trackedContents);
 
+  /*
     trackedContents.on("console-message", (consoleEvent) => {
         const message = consoleEvent?.message;
         if (typeof message !== "string") return;
@@ -5120,8 +5063,26 @@ function setupNavigationTracking(panel) {
         if (diagnostic.level === "error" || diagnostic.level === 3) {
             console.error("[HARE NAV][renderer]", diagnostic);
         } else {
-            console.info("[HARE NAV][renderer]", diagnostic);
+           console.info("[HARE NAV][renderer]", diagnostic);
         }
+    });
+*/
+
+    // ✨ CORRECTIF MODERNISATION 'console-message' : Alignement sur l'API moderne d'Electron
+    trackedContents.on("console-message", (event) => {
+        const message = event?.message;
+        if (typeof message !== "string") return;
+        const isNavigationDiagnostic = message.includes("[HARE NAV]") ||
+            /TrustedHTML|Trusted Types|Content Security Policy|Refused to apply inline style/i.test(message);
+        if (!isNavigationDiagnostic) return;
+
+        const diagnostic = {
+            panelId: panel.id,
+            level: event.level,
+            line: event.lineNumber,
+            source: event.sourceId,
+            message: message
+        };
     });
 
     trackedContents.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => {
@@ -5337,11 +5298,14 @@ function setupNavigationTracking(panel) {
     });
 
     panel.view.webContents.on("did-finish-load", async () => {
+
+/*
         console.info("[HARE NAV] did-finish-load reçu", {
             panelId: panel.id,
             url: panel.view.webContents.getURL(),
             readyState: "document loaded"
         });
+*/
         // 1. Propose les identifiants déjà existants si la tuile est éligible
 
         // 2. ✨ RÉ-INJECTION DE L'INJECTEUR DE FORMULAIRES DURCI
@@ -5360,10 +5324,12 @@ function setupNavigationTracking(panel) {
 
 
 
-                console.log(`[SÉCURITÉ] Injecteur de formulaires activé sur la tuile ${panel.id}`);
-await panel.view.webContents.executeJavaScript(`
-    console.log("injector.js chargé dans la page");
-`);                
+//              console.log(`[SÉCURITÉ] Injecteur de formulaires activé sur la tuile ${panel.id}`);
+
+                await panel.view.webContents.executeJavaScript(`
+                   console.log("injector.js chargé dans la page");
+                `); 
+
                 // Vérification immédiate : si la page contient déjà un formulaire rempli, on lève l'alerte
                 const hasForm = await panel.view.webContents.executeJavaScript("window.NanobrowserExecutor?.hasLoginForm() === true");
                 if (hasForm && !panel.isPrivate) {
@@ -5380,12 +5346,14 @@ await panel.view.webContents.executeJavaScript(`
         try {
             const scriptPath = path.join(__dirname, "tile-nav-bar.js");
             const injectionUrl = panel.view.webContents.getURL();
+/*
             console.info("[HARE NAV] Préparation de l’injection", {
                 panelId: panel.id,
                 injectionUrl,
                 scriptPath,
                 scriptExists: fs.existsSync(scriptPath)
             });
+*/            
             if (!fs.existsSync(scriptPath)) {
                 console.error("[HARE NAV] Script d’injection introuvable", {
                     panelId: panel.id,
@@ -5395,6 +5363,8 @@ await panel.view.webContents.executeJavaScript(`
             } else {
                 const navBarCode = fs.readFileSync(scriptPath, "utf8");
                 const tooltipCode = fs.readFileSync(path.join(__dirname, "tooltip-glass.js"), "utf8");
+
+                /*
                 console.info("[HARE NAV] Exécution du script", {
                     panelId: panel.id,
                     url: injectionUrl,
@@ -5403,6 +5373,7 @@ await panel.view.webContents.executeJavaScript(`
                     contextIsolation: true,
                     sandbox: true
                 });
+*/                
                 const result = await panel.view.webContents.executeJavaScript(`${tooltipCode};\n${navBarCode}`);
                 if (result?.ok === false) {
                     console.error("[HARE NAV] Script exécuté avec un diagnostic d’échec", {
@@ -5410,12 +5381,14 @@ await panel.view.webContents.executeJavaScript(`
                         url: injectionUrl,
                         result
                     });
+/*
                 } else {
                     console.info("[HARE NAV] Injection exécutée", {
                         panelId: panel.id,
                         url: injectionUrl,
                         result
                     });
+*/
                 }
             }
         } catch (err) {
@@ -5786,13 +5759,12 @@ ipcMain.on("reset-workspace", async () => {
             win.webContents.send("active-panel-changed", { id: firstPanel.id, bounds: firstPanel.bounds });
         }
 
-        console.log("[Mosaïque] Espace de travail réinitialisé.");
+//      console.log("[Mosaïque] Espace de travail réinitialisé.");
+
     } catch (error) {
         console.error("Impossible de réinitialiser l'espace de travail :", error);
     }
 });
-
-
 
 ipcMain.on("show-url-context-menu", (event) => {
     const menu = Menu.buildFromTemplate(translateMenuTemplate([
@@ -5825,7 +5797,7 @@ ipcMain.on("toggle-ai-sidebar-request", (event, requestedVisibility) => {
         ? requestedVisibility
         : !isAiSidebarVisible;
     setAiSidebarVisible(nextState);
-    console.log(`[IA Locale] Bascule déclenchée par l'icône. Nouvel état : ${nextState ? "OUVERT" : "FERMÉ"}`);
+//  console.log(`[IA Locale] Bascule déclenchée par l'icône. Nouvel état : ${nextState ? "OUVERT" : "FERMÉ"}`);
 });
 
 
@@ -5986,7 +5958,7 @@ ipcMain.on("navigate", (event, panelId, input) => {
 ipcMain.on("cancel-download", (event, panelId) => {
     const item = activeDownloads[panelId];
     if (item && !item.isDestroyed?.()) {
-        console.log(`Téléchargement du panneau ${panelId} annulé manuellement.`);
+//      console.log(`Téléchargement du panneau ${panelId} annulé manuellement.`);
         item.cancel();
     }
 });
@@ -6098,7 +6070,7 @@ ipcMain.on("move-panel", (event, draggedPanelId, targetPanelId) => {
 
 async function purgePrivateSession(targetSession, panelId) {
     const storagePath = targetSession.getStoragePath();
-    console.log(`[SÉCURITÉ] Purge de la session privée ${panelId} (stockage: ${storagePath || 'mémoire volatile'}).`);
+//  console.log(`[SÉCURITÉ] Purge de la session privée ${panelId} (stockage: ${storagePath || 'mémoire volatile'}).`);
 
     try {
         await targetSession.closeAllConnections();
@@ -6118,7 +6090,7 @@ async function purgePrivateSession(targetSession, panelId) {
     });
 
     if (cleanupResults.every((result) => result.status === 'fulfilled')) {
-        console.log(`[SÉCURITÉ] Données, authentification et cache de ${panelId} purgés.`);
+//      console.log(`[SÉCURITÉ] Données, authentification et cache de ${panelId} purgés.`);
     }
 }
 
@@ -7195,7 +7167,7 @@ async function createWindow() {
     if (!(await restorePersistedSession())) {
         await createDefaultLayout();
     }
-    console.log("[STARTUP] activePanel =", activePanel);
+//  console.log("[STARTUP] activePanel =", activePanel);
     initializeAutoSleepForRestoredPanels();
 
     collectPanelNodes(rootNode).forEach(panel => {
@@ -7550,10 +7522,10 @@ async function createWindow() {
                     label: tr("toolbar.help"),
                     accelerator: 'Alt+Home',
                     click: () => {
-                        console.log("[SHORTCUT] Alt+Home détecté");
+//                      console.log("[SHORTCUT] Alt+Home détecté");
                         const targetPanel = findPanelNode(rootNode, activePanel) || getLeftmostPanel();
                         if (!targetPanel) return;
-                        console.log("[SHORTCUT] Ouverture de help.html");
+//                      console.log("[SHORTCUT] Ouverture de help.html");
                         openHelpInPanel(targetPanel).catch(console.error);
                     }
                 },
@@ -7784,7 +7756,7 @@ async function createWindow() {
 
         const startupActive = activePanel && findPanelNode(rootNode, activePanel);
         if (startupActive) {
-            console.info(`[DÉMARRAGE] Tuile active : ${startupActive.id}.`);
+//          console.info(`[DÉMARRAGE] Tuile active : ${startupActive.id}.`);
         } else {
             console.warn("[DÉMARRAGE] Aucun panneau actif détecté après création/restauration de la session.");
         }
@@ -8244,7 +8216,7 @@ function resizeViews() {
         const signature = JSON.stringify(geometry);
         if (signature !== lastCompactGeometryLogSignature) {
             lastCompactGeometryLogSignature = signature;
-            console.info("[Layout] Géométrie mesurée :", geometry);
+//          console.info("[Layout] Géométrie mesurée :", geometry);
         }
     } else {
         lastCompactGeometryLogSignature = "";
@@ -8811,6 +8783,7 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, {
         return tr("ollama.selectTile");
     }
 
+/*
     console.info("[OLLAMA][IPC] Demande reçue", {
         senderId: event.sender.id,
         model,
@@ -8818,6 +8791,7 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, {
         compareVisiblePanels: compareVisiblePanelsArg === true,
         fullMode: fullMode === true
     });
+*/
 
     // ✨ 2. LA CORRECTION : Déclaration explicite de la variable avec 'let' pour éviter le crash
     let compareVisiblePanels = compareVisiblePanelsArg;
@@ -9040,6 +9014,7 @@ if (!modelInstalled) {
                     payload: ollamaPayload,
                     timeoutMs: OLLAMA_REQUEST_TIMEOUT_MS
                 }).then((result) => {
+/*
                     console.info("[OLLAMA] Génération terminée", {
                         url: `${OLLAMA_BASE_URL}/api/generate`,
                         statusCode: 200,
@@ -9051,6 +9026,7 @@ if (!modelInstalled) {
                         promptEvalCount: result.prompt_eval_count,
                         evalCount: result.eval_count
                     });
+*/                    
                     resolve(result.response || tr("ai.empty"));
                 }).catch((error) => {
                     console.error("[OLLAMA] Échec de la génération", {
@@ -9308,7 +9284,7 @@ async function removeFavoriByUrl(url) {
     if (index < 0) return false;
 
     const favori = favoris[index];
-    console.log("[FAVORIS] Suppression :", favori);
+//  console.log("[FAVORIS] Suppression :", favori);
     favoris.splice(index, 1);
     const saved = await safeWriteJsonAsync(getFavorisPath(), favoris);
     if (!saved) {
@@ -9490,7 +9466,7 @@ app.whenReady().then(async () => {
 
         // Réutiliser un Ollama déjà démarré évite un conflit de port sur 11434.
         if (await isOllamaRunning()) {
-            console.info("[OLLAMA] Serveur déjà actif, réutilisation", { url: OLLAMA_BASE_URL });
+//          console.info("[OLLAMA] Serveur déjà actif, réutilisation", { url: OLLAMA_BASE_URL });
         } else {
             startEmbeddedOllama();
         }

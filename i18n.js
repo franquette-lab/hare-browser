@@ -348,27 +348,29 @@
             "help.diagramsTitle": "Schémas géométriques de fractionnement des tuiles :",
             "help.splitV.desc": "<strong>1. Scission Verticale Initiale (Ctrl&nbsp;+&nbsp;T) :</strong> Divise l'espace actif en deux colonnes égales et ouvre une nouvelle tuile indépendante sur le flanc droit.",
             "help.diagram.splitV":
-`    ┌──────────────────────────────────────┐                 ┌──────────────────┬──────────────────┐
-    │                                      │                 │                  │                  │
-    │                                      │ Ctrl + T │                  │                  │
-    │            PANNEAU INITIAL           │ ──────────────> │  PANNEAU INITIAL │  NOUVELLE TUILE  │
-    │               (Actif)                │                 │                  │     (À droite)   │
-    │                                      │                 │                  │                  │
-    └──────────────────────────────────────┘                 └──────────────────┴──────────────────┘
+`    ┌──────────────────────────────────────┐            ┌──────────────────┬──────────────────┐
+    │                                      │            │                  │                  │
+    │                                      │  Ctrl + T  │                  │                  │
+    │            PANNEAU INITIAL           │ ─────────> │  PANNEAU INITIAL │  NOUVELLE TUILE  │
+    │               (Actif)                │            │                  │     (À droite)   │
+    │                                      │            │                  │                  │
+    └──────────────────────────────────────┘            └──────────────────┴──────────────────┘
 `,
             "help.splitH.desc": "<strong>2. Scission Horizontale Subsidiaire (Ctrl + Maj + H) :</strong> Sélectionne un panneau spécifique et le fracture en deux rangées horizontales, créant une nouvelle tuile en contrebas.",
-            "help.diagram.splitH": `       ┌───────────────────────┬───────────────────┐          ┌──────────────────┬──────────────────┐
-    │                  │      FOCUS        │                       │                  │   TUILE DU HAUT  │
-    │                  │     (Actif)       │ Ctrl + Maj + H │                  ├──────────────────┤
-    │ PANNEAU INITIAL  ├───────────────────┤ ────────────────────> │ PANNEAU INITIAL  │                  │
-    │                  │                   │                       │                  │  NOUVELLE TUILE  │
-    │                  │                   │                       │                  │     (En bas)     │
-    └──────────────────┴───────────────────┘                       └──────────────────┴──────────────────┘
+            "help.diagram.splitH": 
+`    ┌──────────────────┬───────────────────┐                  ┌──────────────────┬──────────────────┐
+    │                  │      FOCUS        │                  │                  │   TUILE DU HAUT  │
+    │                  │     (Actif)       │  Ctrl + Maj + H  │                  ├──────────────────┤
+    │ PANNEAU INITIAL  ├───────────────────┤ ───────────────> │ PANNEAU INITIAL  │                  │
+    │                  │                   │                  │                  │  NOUVELLE TUILE  │
+    │                  │                   │                  │                  │     (En bas)     │
+    └──────────────────┴───────────────────┘                  └──────────────────┴──────────────────┘
 `,
             "help.plus.title": "➕ Scinder un panneau avec le bouton +",
             "help.plus.intro": "Vous pouvez créer rapidement un nouveau panneau sans utiliser le clavier. Cliquez simplement sur le bouton <strong>+</strong> situé à droite de la barre d'adresse du panneau actif.",
             "help.plus.news": "💡 <strong>Nouveauté</strong> : un clic sur le bouton <strong>+</strong> fait désormais apparaître un sous-menu contextuel vous laissant le choix entre <strong>\"Scinder à droite\"</strong> (division verticale) ou <strong>\"Scinder vers le bas\"</strong> (division horizontale).",
-            "help.diagram.plus": `        ┌──────────────────────────────┐
+            "help.diagram.plus":
+`        ┌──────────────────────────────┐
         │                          [+] │
         │                              │
         │      PANNEAU ACTIF           │
@@ -993,28 +995,29 @@
             "help.diagramsTitle": "Geometric tile-splitting diagrams:",
             "help.splitV.desc": "<strong>1. Initial Vertical Split (Ctrl&nbsp;+&nbsp;T):</strong> Divides the active space into two equal columns and opens a new, independent tile on the right side.",
             "help.diagram.splitV": 
-`    ┌──────────────────────────────────────┐                 ┌──────────────────┬──────────────────┐
-    │                                      │                 │                  │                  │
-    │                                      │ Ctrl + T │                  │                  │
-    │            INITIAL PANEL             │ ──────────────> │  INITIAL PANEL   │     NEW TILE     │
-    │               (Active)               │                 │                  │      (Right)     │
-    │                                      │                 │                  │                  │
-    └──────────────────────────────────────┘                 └──────────────────┴──────────────────┘
+`    ┌──────────────────────────────────────┐             ┌──────────────────┬──────────────────┐
+    │                                      │             │                  │                  │
+    │                                      │   Ctrl + T  │                  │                  │
+    │            INITIAL PANEL             │ ──────────> │  INITIAL PANEL   │     NEW TILE     │
+    │               (Active)               │             │                  │      (Right)     │
+    │                                      │             │                  │                  │
+    └──────────────────────────────────────┘             └──────────────────┴──────────────────┘
 `,
             "help.splitH.desc": "<strong>2. Secondary Horizontal Split (Ctrl + Shift + H):</strong> Selects a specific panel and splits it into two horizontal rows, creating a new tile below.",
             "help.diagram.splitH":
-`    ┌──────────────────┬───────────────────┐                         ┌──────────────────┬──────────────────┐
-    │                  │      FOCUS        │                         │                  │      TOP TILE    │
-    │                  │     (Active)      │ Ctrl + Shift + H │                 ├──────────────────┤
-    │ INITIAL PANEL    ├───────────────────┤ ──────────────────────> │ INITIAL PANEL    │                  │
-    │                  │                   │                         │                  │     NEW TILE     │
-    │                  │                   │                         │                  │     (Bottom)     │
-    └──────────────────┴───────────────────┘                         └──────────────────┴──────────────────┘
+`    ┌──────────────────┬───────────────────┐                  ┌──────────────────┬──────────────────┐
+    │                  │      FOCUS        │                  │                  │      TOP TILE    │
+    │                  │     (Active)      │ Ctrl + Shift + H │                  ├──────────────────┤
+    │ INITIAL PANEL    ├───────────────────┤ ───────────────> │ INITIAL PANEL    │                  │
+    │                  │                   │                  │                  │     NEW TILE     │
+    │                  │                   │                  │                  │     (Bottom)     │
+    └──────────────────┴───────────────────┘                  └──────────────────┴──────────────────┘
 `,
             "help.plus.title": "➕ Split a panel with the + button",
             "help.plus.intro": "You can quickly create a new panel without using the keyboard. Simply click the <strong>+</strong> button located to the right of the active panel's address bar.",
             "help.plus.news": "💡 <strong>New</strong>: clicking the <strong>+</strong> button now opens a context submenu that lets you choose between <strong>“Split to the right”</strong> (vertical split) or <strong>“Split downward”</strong> (horizontal split).",
-            "help.diagram.plus": `        ┌──────────────────────────────┐
+            "help.diagram.plus":
+`        ┌──────────────────────────────┐
         │                          [+] │
         │                              │
         │       ACTIVE PANEL           │

@@ -1669,11 +1669,12 @@ function refreshTabBorders(reason = "appel direct") {
         tabWrapper.classList.toggle("private-url-tab", isPrivateTab);
         addressGroup?.classList.toggle("active-url-address", isActiveTab);
 
+  /*
         if (isActiveTab && addressGroup) {
             console.log("[STARTUP] sélection URL appliquée", { panelId, reason });
             console.log("[STARTUP] classe CSS présente =", addressGroup.classList.value);
         }
-
+*/
         if (isPrivateTab) {
             tabWrapper.style.background = isDark
                 ? (isActiveTab ? "#2a193d" : "#1e112c")
@@ -1938,8 +1939,10 @@ window.api.onPanelsUpdated((panelsList, zoomPanelId, activePanelId) => {
         activePanel = activePanelExists ? activePanelId : null;
         if (!activePanel) {
             console.warn(`[DÉMARRAGE] Aucun panneau actif valide dans la mise à jour des panneaux (reçu : ${activePanelId || "aucun"}).`);
+/*
         } else {
             console.info(`[DÉMARRAGE] Tuile active reçue avec la liste des panneaux : ${activePanel}.`);
+*/
         }
     }
     updateReaderModeButtons();
@@ -2194,7 +2197,8 @@ function refreshUrlBarLanguage(panels = currentPanels) {
 }
 
 function rebuildUrlBar(panels) {
-    console.log("[STARTUP] updateAddressBar appelé", { activePanel, panelCount: panels?.length ?? 0 });
+
+//  console.log("[STARTUP] updateAddressBar appelé", { activePanel, panelCount: panels?.length ?? 0 });
 
     // 1. Ciblage de votre élément conteneur d'origine
     const urlBar = document.getElementById("url-bar");
@@ -2921,7 +2925,7 @@ window.api.onActivePanelChanged((data) => {
 
     const previousFindPanelId = findPanelId;
     activePanel = data.id;
-    console.log("[STARTUP] active-panel-changed reçu", activePanel);
+//  console.log("[STARTUP] active-panel-changed reçu", activePanel);
     updateReaderModeButtons();
     updateCloseButtonState();
 

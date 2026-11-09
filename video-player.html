@@ -55,7 +55,7 @@ if (!source) {
     try {
         const videoUrl = new URL(source);
         if (videoUrl.protocol !== "file:") throw new Error("La source vidéo doit être un fichier local.");
-        console.info("[Tutoriel player] Chargement de la vidéo :", videoUrl.href);
+//      console.info("[Tutoriel player] Chargement de la vidéo :", videoUrl.href);
         player.addEventListener("loadeddata", () => console.info("[Tutoriel player] Première image vidéo chargée."), { once: true });
         player.addEventListener("error", () => {
             const message = `Le fichier vidéo n’a pas pu être lu (code média ${player.error?.code ?? "inconnu"}).`;

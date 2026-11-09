@@ -440,7 +440,7 @@
                     }
 
                     try {
-                        console.info('[Tutoriel] Appel de window.tutorials.openVideo().');
+//                      console.info('[Tutoriel] Appel de window.tutorials.openVideo().');
                         const result = await window.tutorials.openVideo(videoFile);
                         if (!result?.ok) throw new Error(result?.error || 'Le processus principal n’a pas pu ouvrir la vidéo.');
                         console.info('[Tutoriel] Confirmation reçue du processus principal.');

@@ -260,7 +260,9 @@ onActivePanelChanged: (callback) => {
 
 contextBridge.exposeInMainWorld("tutorials", {
     openVideo: (videoFile) => {
-        console.info("[Tutoriel] Appel IPC demandé depuis la fenêtre principale :", videoFile);
+
+//      console.info("[Tutoriel] Appel IPC demandé depuis la fenêtre principale :", videoFile);
+
         return ipcRenderer.invoke("open-tutorial-video", videoFile);
     },
     openAiSidebar: () => {

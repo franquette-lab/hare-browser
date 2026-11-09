@@ -1,5 +1,5 @@
 {
-	"name": "hare-browser",
+	"name": "HareBrowser",
 	"version": "1.0.0",
 	"description": "Navigateur internet multi-tuiles avec assistant IA local connecté à Ollama.",
 	"main": "main.js",
@@ -10,7 +10,7 @@
 		"dist:store": "npm run prepare-ollama && electron-builder --windows appx:x64"
 	},
 	"keywords": [],
-	"author": "",
+	"author": "Richard Clermont",
 	"license": "ISC",
 	"type": "commonjs",
 	"dependencies": {
@@ -28,6 +28,13 @@
 "build": {
   "appId": "com.harebrowser.app",
   "productName": "Hare Browser",
+
+  "appx": {
+    "applicationId": "HareBrowser",
+    "identityName": "RichardClermont.HareBrowser",
+    "publisherDisplayName": "Richard Clermont"
+  },
+
   "asarUnpack": [
     "node_modules/@napi-rs/**/*.node"
   ],
