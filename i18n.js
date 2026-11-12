@@ -1316,20 +1316,20 @@
     Object.entries(catalogs.en).forEach(([id, text]) => sourceToId.set(canonicalize(text), id));
 
     function normalizeLanguage(language) {
-        const candidate = typeof language === "string" ? language.toLowerCase().split("-")[0] : "";
-        return Object.prototype.hasOwnProperty.call(catalogs, candidate) ? candidate : "fr";
+        const candidate = typeof language === "string" ? language.toLowerCase() : "";
+        return Object.prototype.hasOwnProperty.call(catalogs, candidate) ? candidate : "en";
     }
 
-    function t(id, language = "fr", replacements = {}) {
+    function t(id, language = "en", replacements = {}) {
         const lang = normalizeLanguage(language);
-        let result = catalogs[lang][id] || catalogs.fr[id] || id;
+        let result = catalogs[lang][id] || catalogs.en[id] || id;
         Object.entries(replacements).forEach(([key, value]) => {
             result = result.replaceAll(`{${key}}`, String(value));
         });
         return result;
     }
 
-    function translateText(text, language = "fr") {
+    function translateText(text, language = "en") {
         const id = sourceToId.get(canonicalize(text));
         if (!id) return text;
         const translated = t(id, language);
@@ -1338,7 +1338,7 @@
         return leading + translated + trailing;
     }
 
-    function apply(rootElement, language = "fr") {
+    function apply(rootElement, language = "en") {
         if (!rootElement) return;
         const lang = normalizeLanguage(language);
         if (rootElement.documentElement) rootElement.documentElement.lang = lang;
@@ -1440,7 +1440,7 @@
         const onLanguageChanged = languageApi.onLanguageChanged || languageApi.onChanged;
         if (typeof getLanguage !== "function") return;
         
-        let current = "fr";
+        let current = "en";
         try { current = normalizeLanguage(await getLanguage()); } catch {}
         
         // 1. Traduction de la page au démarrage

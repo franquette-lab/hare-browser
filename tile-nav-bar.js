@@ -50,7 +50,7 @@
     log("DOM prêt pour l’injection", { hasBody: Boolean(document.body) });
 
     const applicationTitle = window.applicationTitle || "Hare Browser";
-    let currentLanguage = "fr";
+    let currentLanguage = "en";
     let tileTranslations = {};
     let localVisible = true;
     let globallyEnabled = true;
@@ -62,17 +62,17 @@
             const parsedUrl = new URL(url);
             if (parsedUrl.protocol === "file:") {
                 const localPage = parsedUrl.pathname.toLowerCase();
-                if (localPage.endsWith("/help.html")) return currentLanguage === "en" ? "Help" : "Aide";
-                if (localPage.endsWith("/home.html")) return currentLanguage === "en" ? "Home" : "Accueil";
-                if (localPage.endsWith("/welcome.html")) return currentLanguage === "en" ? "Welcome" : "Bienvenue";
+                if (localPage.endsWith("/help.html")) return currentLanguage === "fr" ? "Aide" : "Help";
+                if (localPage.endsWith("/home.html")) return currentLanguage === "fr" ? "Accueil" : "Home";
+                if (localPage.endsWith("/welcome.html")) return currentLanguage === "fr" ? "Bienvenue" : "Welcome";
             }
             const isSearch = typeof window.isSearchResultsUrl === "function" && window.isSearchResultsUrl(url);
             const query = isSearch && typeof window.getSearchQueryFromUrl === "function"
                 ? window.getSearchQueryFromUrl(url, fallbackQuery)
                 : null;
-            if (query !== null) return `${query} - ${currentLanguage === "en" ? "Search" : "Recherche"} ${applicationTitle}`;
+            if (query !== null) return `${query} - ${currentLanguage === "fr" ? "Recherche" : "Search"} ${applicationTitle}`;
             if (parsedUrl.hostname === "129.151.254.175") {
-                return `${currentLanguage === "en" ? "Search engine" : "Moteur de recherche"} ${applicationTitle}`;
+                return `${currentLanguage === "fr" ? "Moteur de recherche" : "Search engine"} ${applicationTitle}`;
             }
             return parsedUrl.hostname.replace(/^www\./, "");
         } catch {
@@ -506,7 +506,7 @@
 
     runStage("Configuration des libellés et de la langue", () => {
     const updateLanguage = (language, translations = {}) => {
-        currentLanguage = language === "en" ? "en" : "fr";
+        currentLanguage = language === "fr" ? "fr" : "en";
         tileTranslations = translations || {};
         navBar.querySelectorAll("[data-i18n-tooltip-key]").forEach((element) => {
             const text = tileTranslations[element.dataset.i18nTooltipKey];

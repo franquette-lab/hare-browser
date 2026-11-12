@@ -1391,7 +1391,7 @@ if (boutonTelechargements) {
 
 
 
-const translateUi = (id, replacements = {}) => HareI18n.t(id, document.documentElement.lang || "fr", replacements);
+const translateUi = (id, replacements = {}) => HareI18n.t(id, document.documentElement.lang || "en", replacements);
 
 function syncWindowControlsInset() {
     const controlsOverlay = navigator.windowControlsOverlay;
@@ -1832,7 +1832,7 @@ function getDisplayUrl(url, fallbackQuery = "") {
         if (parsedUrl.protocol === "file:") {
             const localPage = parsedUrl.pathname.toLowerCase();
             if (localPage.endsWith("/help.html")) return translateUi("help.title");
-            if (localPage.endsWith("/home.html")) return document.documentElement.lang === "en" ? "Home" : "Accueil";
+            if (localPage.endsWith("/home.html")) return document.documentElement.lang === "fr" ? "Accueil" : "Home";
             if (localPage.endsWith("/welcome.html")) return translateUi("welcome.title");
         }
         const searchQuery = isSearchResultsUrl(url)
@@ -3884,7 +3884,7 @@ window.api.nanobrowser.getOllamaStatus?.()
         });
     });
 
-function refreshAiSidebarTranslations(language = document.documentElement.lang || "fr") {
+function refreshAiSidebarTranslations(language = document.documentElement.lang || "en") {
     if (aiSidebar) HareI18n.apply(aiSidebar, language);
 
     if (aiInputField) aiInputField.placeholder = translateUi("ai.placeholder");

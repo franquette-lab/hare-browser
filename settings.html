@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -53,8 +53,8 @@
         <section class="settings-section" aria-labelledby="language-heading">
             <h2 id="language-heading" data-i18n="app.settings.language">● Langue de l’interface</h2>
             <select id="language-select">
+                <option value="en" data-i18n="app.settings.language.en" selected>English</option>
                 <option value="fr" data-i18n="app.settings.language.fr">Français</option>
-                <option value="en" data-i18n="app.settings.language.en">English</option>
             </select>
         </section>
 
@@ -168,11 +168,11 @@
             const delay = Number(autoSleepDelaySelect.value);
             const savedDelay = await window.settingsApi.setAutoSleepDelay(delay);
             autoSleepDelaySelect.value = String(savedDelay);
-            savedMessage.textContent = HareI18n.t("app.settings.autoSleep.saved", document.documentElement.lang || "fr");
+            savedMessage.textContent = HareI18n.t("app.settings.autoSleep.saved", document.documentElement.lang || "en");
         });
         floatingNavigationCheckbox.addEventListener("change", async () => {
             floatingNavigationCheckbox.checked = await window.settingsApi.setFloatingNavigationEnabled(floatingNavigationCheckbox.checked);
-            savedMessage.textContent = HareI18n.t("app.settings.saved", document.documentElement.lang || "fr");
+            savedMessage.textContent = HareI18n.t("app.settings.saved", document.documentElement.lang || "en");
         });
         floatingNavigationOpacitySlider.addEventListener("input", async () => {
             const opacity = Number(floatingNavigationOpacitySlider.value) / 100;
@@ -186,11 +186,11 @@
         });
         favoritesVisibleCheckbox.addEventListener("change", async () => {
             favoritesVisibleCheckbox.checked = await window.settingsApi.setBookmarksVisible(favoritesVisibleCheckbox.checked);
-            savedMessage.textContent = HareI18n.t("app.settings.saved", document.documentElement.lang || "fr");
+            savedMessage.textContent = HareI18n.t("app.settings.saved", document.documentElement.lang || "en");
         });
         mainToolbarVisibleCheckbox.addEventListener("change", async () => {
             mainToolbarVisibleCheckbox.checked = await window.settingsApi.setMainToolbarVisible(mainToolbarVisibleCheckbox.checked);
-            savedMessage.textContent = HareI18n.t("app.settings.saved", document.documentElement.lang || "fr");
+            savedMessage.textContent = HareI18n.t("app.settings.saved", document.documentElement.lang || "en");
         });
         document.getElementById("close-button").addEventListener("click", () => window.settingsApi.close());
         document.addEventListener("keydown", (event) => {

@@ -1,78 +1,81 @@
 {
-	"name": "HareBrowser",
-	"version": "1.0.0",
-	"description": "Navigateur internet multi-tuiles avec assistant IA local connecté à Ollama.",
-	"main": "main.js",
-	"scripts": {
-		"start": "electron .",
-		"prepare-ollama": "node scripts/prepare-ollama.js",
-		"dist": "npm run prepare-ollama && electron-builder --windows nsis-web:x64",
-		"dist:store": "npm run prepare-ollama && electron-builder --windows appx:x64"
-	},
-	"keywords": [],
-	"author": "Richard Clermont",
-	"license": "ISC",
-	"type": "commonjs",
-	"dependencies": {
-		"@napi-rs/keyring": "^2.1.2",
-		"react": "^19.2.8",
-		"react-dom": "^19.2.8",
-		"react-mosaic-component": "^7.0.0",
-		"typescript": "^5.9.2"
-	},
-	"devDependencies": {
-		"electron": "^44.7.0",
-		"electron-builder": "^26.15.3"
-	},
-	
-"build": {
-  "appId": "com.harebrowser.app",
-  "productName": "Hare Browser",
+  "name": "hare-browser",
+  "version": "1.0.0",
+  "description": "Multi-tile web browser with a local AI assistant powered by Ollama.",
+  "main": "main.js",
+  "license": "MIT",
+  "author": "Richard Clermont",
+  "type": "commonjs",
 
-  "appx": {
-    "applicationId": "HareBrowser",
-    "identityName": "RichardClermont.HareBrowser",
-    "publisherDisplayName": "Richard Clermont"
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --windows nsis:x64",
+    "dist:web": "electron-builder --windows nsis-web:x64",
+    "dist:store": "electron-builder --windows appx:x64"
   },
 
-  "asarUnpack": [
-    "node_modules/@napi-rs/**/*.node"
-  ],
+  "keywords": [],
 
-  "win": {
-    "target": [
-      "nsis-web"
+  "dependencies": {
+    "@napi-rs/keyring": "^2.1.2",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-mosaic-component": "^7.0.0",
+    "typescript": "^5.9.2"
+  },
+
+  "devDependencies": {
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3"
+  },
+
+  "build": {
+    "appId": "com.harebrowser.app",
+    "productName": "Hare Browser",
+
+    "win": {
+      "icon": "build/icon.ico",
+      "artifactName": "Hare-Browser-Setup-${version}.${ext}"
+    },
+
+    "appx": {
+      "applicationId": "HareBrowser",
+      "identityName": "Franquette.HareBrowser",
+      "publisher": "CN=B49C3D6A-5F00-415C-A291-F423E2F180AA",
+      "publisherDisplayName": "Franquette"
+    },
+
+    "asarUnpack": [
+      "node_modules/@napi-rs/**/*.node"
     ],
-    "icon": "build/icon.ico",
-    "artifactName": "Hare-Browser-Setup-${version}.${ext}"
-  },
 
-  "extraResources": [
-    {
-      "from": "ollama-bundle",
-      "to": "ollama"
-    }
-  ],
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Hare Browser",
+      "runAfterFinish": true,
+      "include": "build/installer.nsh"
+    },
 
-	"nsisWeb": {
-	  "oneClick": false,
-	  "perMachine": true,
-	  "allowToChangeInstallationDirectory": true,
-	  "createDesktopShortcut": true,
-	  "createStartMenuShortcut": true,
-	  "shortcutName": "Hare Browser",
-	  "include": "build/installer.nsh"
-	  },
-  
+    "nsisWeb": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Hare Browser",
+      "include": "build/installer.nsh"
+    },
 
-  "files": [
-    "**/*",
-    "!out/**/*",
-    "!dist/**/*",
-    "!bin/**/*",
-    "!ollama-bundle",
-    "!searxng/**/*"
-  ]
-}
-
+    "files": [
+      "**/*",
+      "!out/**/*",
+      "!dist/**/*",
+      "!bin/**/*",
+      "!ollama-bundle/**/*",
+      "!searxng/**/*"
+    ]
+  }
 }

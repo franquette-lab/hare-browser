@@ -25,22 +25,18 @@ const fsPromises = require("fs/promises");
 const path = require("path");
 const net = require("net");
 const https = require("https");
+const os = require("os");
 const { spawn } = require("child_process");
+const { execFile } = require("child_process");
 const HareI18n = require("./i18n.js");
-
-let ollamaProcess = null;
-
-// Runtime et modèle embarqués dans le package (Microsoft Store : aucun téléchargement/installeur exécuté au runtime).
-const OLLAMA_BUNDLE_DIR = app.isPackaged
-    ? path.join(process.resourcesPath, "ollama")
-    : path.join(__dirname, "ollama-bundle");
 
 const DEFAULT_OLLAMA_MODEL = "qwen2.5:1.5b";
 const OLLAMA_BASE_URL = "http://127.0.0.1:11434";
 const OLLAMA_REQUEST_TIMEOUT_MS = 15 * 60 * 1000;
 const OLLAMA_MODEL_LOAD_TIMEOUT_MS = 5 * 60 * 1000;
 const OLLAMA_STARTUP_TIMEOUT_MS = 30 * 1000;
-let currentLanguage = "fr";
+const OLLAMA_INSTALLER_URL = "https://ollama.com/download/OllamaSetup.exe";
+let currentLanguage = "en";
 let ollamaStatus = {
     state: "checking",
     endpoint: OLLAMA_BASE_URL,
@@ -48,6 +44,7 @@ let ollamaStatus = {
     checkedAt: null
 };
 let ollamaRequestSequence = 0;
+let ollamaStartupPromise = null;
 
 let applicationMenuTemplate = null;
 
@@ -221,18 +218,13 @@ function setBookmarksBarVisible(visible) {
 }
 
 function getOllamaExePath() {
-    const fs = require("fs");
-    const path = require("path");
-    const candidates = [];
-
-    if (app.isPackaged) {
-        candidates.push(path.join(process.resourcesPath, "ollama", "ollama.exe"));
-    } else {
-        candidates.push(path.join(__dirname, "ollama-bundle", "ollama.exe"));
-    }
-
-    candidates.push(path.join(process.env.LOCALAPPDATA || "", "Ollama", "ollama.exe"));
-    return candidates.find((candidate) => fs.existsSync(candidate)) || null;
+    const candidate = path.join(
+        process.env.LOCALAPPDATA || "",
+        "Programs",
+        "Ollama",
+        "ollama.exe"
+    );
+    return fs.existsSync(candidate) ? candidate : null;
 }
 
 
@@ -359,44 +351,6 @@ function requestOllama({ method = "GET", route, payload = null, timeoutMs = OLLA
     });
 }
 
-function startEmbeddedOllama() {
-    if (ollamaProcess && !ollamaProcess.killed) return ollamaProcess;
-
-    const ollamaPath = getOllamaExePath();
-    if (!ollamaPath) {
-        console.error("[OLLAMA] Runtime introuvable : aucun ollama.exe embarqué ou installé.");
-        return null;
-    }
-
-    const bundledModels = path.join(OLLAMA_BUNDLE_DIR, "models");
-/*
-    console.info("[OLLAMA] Démarrage du serveur embarqué", {
-        executable: ollamaPath,
-        host: OLLAMA_BASE_URL,
-        modelsDirectory: fs.existsSync(bundledModels) ? bundledModels : (process.env.OLLAMA_MODELS || "défaut Ollama")
-    });
-*/
-    ollamaProcess = spawn(ollamaPath, ["serve"], {
-        windowsHide: true,
-        env: {
-            ...process.env,
-            OLLAMA_ORIGINS: "*",
-            OLLAMA_HOST: "127.0.0.1:11434",
-            ...(fs.existsSync(bundledModels) ? { OLLAMA_MODELS: bundledModels } : {})
-        }
-    });
-
-    ollamaProcess.on("spawn", () => console.info("[OLLAMA] Processus serveur démarré", { pid: ollamaProcess.pid }));
-    ollamaProcess.stdout.on("data", (data) => console.info("[OLLAMA][stdout]", data.toString().trimEnd()));
-    ollamaProcess.stderr.on("data", (data) => console.warn("[OLLAMA][stderr]", data.toString().trimEnd()));
-    ollamaProcess.on("error", (error) => console.error("[OLLAMA] Échec du processus serveur", error, error.stack));
-    ollamaProcess.on("close", (code, signal) => {
-        console.info("[OLLAMA] Processus serveur arrêté", { code, signal });
-        ollamaProcess = null;
-    });
-    return ollamaProcess;
-}
-
 async function waitForOllama(timeoutMs = OLLAMA_STARTUP_TIMEOUT_MS) {
     const startedAt = Date.now();
     let lastError = null;
@@ -419,9 +373,6 @@ async function waitForOllama(timeoutMs = OLLAMA_STARTUP_TIMEOUT_MS) {
     console.error("[OLLAMA] Serveur non disponible au démarrage", error, error.stack);
     throw error;
 }
-``
-
-
 let splash = null; // ✨ AJOUT : Variable globale pour le Splash Screen
 
 const { extractMainArticleContent } = require('./nanobrowser/readability-light.js');
@@ -790,13 +741,17 @@ function getLanguagePath() {
     return path.join(appDataPath, 'language.json');
 }
 
-function loadLanguagePreference() {
+async function loadLanguagePreference() {
     try {
         const saved = JSON.parse(fs.readFileSync(getLanguagePath(), 'utf8'));
         currentLanguage = HareI18n.normalizeLanguage(saved.language);
+        if (saved.language !== currentLanguage) {
+            await safeWriteJsonAsync(getLanguagePath(), { language: currentLanguage });
+        }
     } catch (error) {
-        currentLanguage = 'fr';
+        currentLanguage = 'en';
         if (error.code !== 'ENOENT') console.error('Impossible de lire la langue préférée :', error);
+        await safeWriteJsonAsync(getLanguagePath(), { language: currentLanguage });
     }
     return currentLanguage;
 }
@@ -1185,32 +1140,172 @@ let isDarkModeForced = false;
   let lastAiSidebarWidth = 300;
 
 
+async function downloadFile(url, destination) {
+    return new Promise((resolve, reject) => {
+        const file = fs.createWriteStream(destination);
+
+        https.get(url, response => {
+            if (response.statusCode !== 200) {
+                reject(
+                    new Error(
+                        `Download failed (${response.statusCode})`
+                    )
+                );
+                return;
+            }
+
+            response.pipe(file);
+
+            file.on("finish", () => {
+                file.close(resolve);
+            });
+
+        }).on("error", reject);
+    });
+}
+
+async function installOllamaSilently() {
+
+    const installerPath =
+        path.join(
+            os.tmpdir(),
+            "OllamaSetup.exe"
+        );
+
+    await downloadFile(
+        OLLAMA_INSTALLER_URL,
+        installerPath
+    );
+
+    return new Promise((resolve, reject) => {
+
+        const child =
+            execFile(
+                installerPath,
+                ["/S"],
+                {
+                    windowsHide: true
+                }
+            );
+
+        child.on("exit", code => {
+
+            if (code === 0) {
+                resolve();
+            } else {
+                reject(
+                    new Error(
+                        `Installation failed (${code})`
+                    )
+                );
+            }
+
+        });
+
+        child.on("error", reject);
+    });
+}
+
+async function waitForOllamaInstallation(
+    timeoutMs = 120000
+) {
+
+    const start = Date.now();
+
+    while (
+        Date.now() - start <
+        timeoutMs
+    ) {
+
+        if (getOllamaExePath()) {
+            return true;
+        }
+
+        await new Promise(
+            resolve => setTimeout(resolve, 1000)
+        );
+    }
+
+    throw new Error(
+        "Ollama installation timeout"
+    );
+}
+
 async function ensureOllamaInstalled() {
 
     if (getOllamaExePath()) {
         return true;
     }
 
-    const result = await dialog.showMessageBox({
-        type: "question",
-        title: tr("dialog.installAi.title"),
-        message: tr("dialog.installAi.message"),
-        buttons: [
-            tr("dialog.install"),
-            tr("dialog.later")
-        ],
-        defaultId: 0,
-        cancelId: 1
-    });
+    const result =
+        await dialog.showMessageBox({
+            type: "question",
+            title: "Ollama",
+            message:
+                "Ollama is required for local AI features.",
+            detail:
+                "Ollama will be automatically downloaded and installed.",
+            buttons: [
+                "Install",
+                "Cancel"
+            ],
+            defaultId: 0,
+            cancelId: 1
+        });
 
-    if (result.response === 0) {
-
-        shell.openExternal(
-            "https://ollama.com/download"
-        );
+    if (result.response !== 0) {
+        return false;
     }
 
-    return false;
+    await installOllamaSilently();
+
+    await waitForOllamaInstallation();
+
+    return true;
+}
+
+async function ensureOllamaRunning() {
+    if (ollamaStartupPromise) {
+        return ollamaStartupPromise;
+    }
+
+    const startup = (async () => {
+        const installed = await ensureOllamaInstalled();
+        if (!installed) return false;
+
+        if (await isOllamaRunning()) {
+            return true;
+        }
+
+        const ollamaPath = getOllamaExePath();
+        if (!ollamaPath) {
+            throw new Error("Ollama executable not found");
+        }
+
+        const child = spawn(ollamaPath, ["serve"], {
+            detached: true,
+            windowsHide: true,
+            stdio: "ignore"
+        });
+
+        await new Promise((resolve, reject) => {
+            child.once("spawn", resolve);
+            child.once("error", reject);
+        });
+
+        child.unref();
+        await waitForOllama(OLLAMA_STARTUP_TIMEOUT_MS);
+        return true;
+    })();
+
+    ollamaStartupPromise = startup;
+    try {
+        return await startup;
+    } finally {
+        if (ollamaStartupPromise === startup) {
+            ollamaStartupPromise = null;
+        }
+    }
 }
 
 function getAiSidebarWidth(windowWidth) {
@@ -1602,7 +1697,7 @@ function afficherMenuContextuelPanneau(webContents, x, y, contextParams = {}) {
             label: `   ${tr("context.summarize")}`,
             click: async () => {
 
-                if (!(await ensureOllamaInstalled())) {
+                if (!(await ensureOllamaRunning())) {
                     return;
                 }
 
@@ -6336,38 +6431,6 @@ ipcMain.on('history-data-changed', () => {
     updateHistoryWindowContent();
 });
 
-// D. Suppression d'une seule entrée d'historique
-ipcMain.on('delete-single-history', (event, index) => {
-    let historyList = getNavigationHistory();
-    if (index >= 0 && index < historyList.length) {
-        historyList.splice(index, 1);
-        fs.writeFileSync(getHistoryPath(), JSON.stringify(historyList, null, 2));
-        
-        ipcMain.emit('history-data-changed');
-        if (win && !win.isDestroyed()) win.webContents.send('history-updated', historyList);
-    }
-});
-
-// E. Effacer tout l'historique d'un coup
-ipcMain.on('clear-all-history', () => {
-    fs.writeFileSync(getHistoryPath(), JSON.stringify([]));
-    ipcMain.emit('history-data-changed');
-    if (win && !win.isDestroyed()) win.webContents.send('history-updated', []);
-});
-
-// F. Clic sur un lien de l'historique
-ipcMain.on("history-click", (event, url) => {
-    if (activePanel) {
-        const panel = findPanelNode(rootNode, activePanel);
-        if (panel && panel.view) {
-            panel.view.webContents.loadURL(url);
-            if (historyWindow && !historyWindow.isDestroyed()) {
-                historyWindow.close();
-            }
-        }
-    }
-});
-
 // ✨ AJOUT : Répond à l'IHM pour synchroniser le bouton au démarrage de l'application
 ipcMain.on("check-history-window-opened", (event) => {
     const isOpened = historyWindow !== null && !historyWindow.isDestroyed();
@@ -6410,22 +6473,6 @@ ipcMain.on("history-click", (event, url) => {
         }
     }
 });
-
-// 3. CORRECTIF RADICAL pour la fenêtre de gestion des mots de passe
-if (pwdWindow && !pwdWindow.isDestroyed()) {
-    // Si elle est ouverte, on la ferme et on la réouvre instantanément au même endroit.
-    // Cela force Windows à recalculer les couleurs de la barre de titre et du cadre natif.
-    const bounds = pwdWindow.getBounds();
-    pwdWindow.close(); 
-    
-    // Petite temporisation de 50ms pour laisser le système détruire l'ancienne bordure
-    setTimeout(() => {
-        ipcMain.emit('open-password-manager-window');
-        if (pwdWindow && !pwdWindow.isDestroyed()) {
-            pwdWindow.setBounds(bounds);
-        }
-    }, 50);
-}
 
 // === Rafraîchissement des éléments natifs ===
 
@@ -6920,7 +6967,7 @@ ipcMain.on("split-panel", (event, panelId, direction, isPrivate = false, contain
                     "private.visibleIsp": "private-visible-isp", "private.search": "private-search"
                 };
                 function applyPrivateLanguage(language) {
-                    const locale = language === "en" ? "en" : "fr";
+                    const locale = language === "fr" ? "fr" : "en";
                     document.documentElement.lang = locale;
                     Object.entries(privateElements).forEach(([key, elementId]) => {
                         const element = document.getElementById(elementId);
@@ -7047,10 +7094,8 @@ async function createDefaultLayout() {
 
 async function createWindow() {
 
-
-    loadLanguagePreference();
-
-        await fsPromises.mkdir(appDataPath, { recursive: true }); //
+    await fsPromises.mkdir(appDataPath, { recursive: true });
+    await loadLanguagePreference();
         loadClosePreferences();
         captureSessionLayoutBaseline();
     
@@ -8803,18 +8848,8 @@ ipcMain.handle("nanobrowser-ask-ollama", async (event, {
 
     try {
 
-        // Vérifie qu'Ollama est installé
-        const installed = await ensureOllamaInstalled();
-
-        if (!installed) {
+        if (!(await ensureOllamaRunning())) {
             return tr("ollama.notInstalled");
-        }
-
-        // S'assurer que le serveur est joignable avant de consulter sa liste de modèles.
-        if (!(await isOllamaRunning())) {
-            console.warn("[OLLAMA] Serveur absent, tentative de démarrage embarqué", { url: OLLAMA_BASE_URL });
-            startEmbeddedOllama();
-            await waitForOllama(OLLAMA_STARTUP_TIMEOUT_MS);
         }
 
         const modelInstalled =
@@ -9251,7 +9286,7 @@ ipcMain.handle('delete-history-item', async (event, index) => {
         let historyList = getNavigationHistory();
         if (index >= 0 && index < historyList.length) {
             historyList.splice(index, 1); // Supprime l'élément ciblé
-            fs.writeFileSync(getHistoryPath(), JSON.stringify(historyList, null, 2));
+            await safeWriteJsonAsync(getHistoryPath(), historyList);
             
             // Notifie la fenêtre principale
             if (win && !win.isDestroyed()) {
@@ -9405,16 +9440,6 @@ ipcMain.handle("find-in-page", (event, { panelId, text, action = "start" } = {})
 });
 
 
-app.on("before-quit", () => {
-    if (ollamaProcess) {
-        try {
-            ollamaProcess.kill();
-        } catch (e) {}
-    }
-});
-
-
-// Modifiez votre écouteur existant app.on('will-quit')
 app.on('will-quit', () => {
     if (sessionSaveTimer) {
         clearTimeout(sessionSaveTimer);
@@ -9423,15 +9448,6 @@ app.on('will-quit', () => {
     saveAutoSleepPreference();
     persistSessionLayout();
     globalShortcut.unregisterAll();
-
-    // 🔥 ARRÊT D'OLLAMA : Tue le processus enfant pour ne pas le laisser tourner en zombie sur l'OS de l'utilisateur
-    if (
-        ollamaProcess &&
-        !ollamaProcess.killed
-    ) {
-        ollamaProcess.kill("SIGINT");
-    }
-
 
 });
 
@@ -9464,28 +9480,8 @@ app.whenReady().then(async () => {
             return;
         }
 
-        // Réutiliser un Ollama déjà démarré évite un conflit de port sur 11434.
-        if (await isOllamaRunning()) {
-//          console.info("[OLLAMA] Serveur déjà actif, réutilisation", { url: OLLAMA_BASE_URL });
-        } else {
-            startEmbeddedOllama();
-        }
-
-        try {
-            await waitForOllama(OLLAMA_STARTUP_TIMEOUT_MS);
-        } catch (error) {
-            publishOllamaStatus({
-                state: "unavailable",
-                endpoint: OLLAMA_BASE_URL,
-                model: DEFAULT_OLLAMA_MODEL,
-                installed: false,
-                loaded: false,
-                error: { message: error.message, code: error.code || null }
-            });
-        }
-
         createWindow();
-        // Contrôle automatique au démarrage : serveur, modèles installés et modèle actif.
+        // Vérifie l'état sans installer ni démarrer Ollama au lancement.
         void inspectOllamaStatus(DEFAULT_OLLAMA_MODEL);
 
     } catch (err) {

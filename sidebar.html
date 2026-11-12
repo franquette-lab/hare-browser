@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <style>
@@ -235,7 +235,7 @@ console.log("disabled =", sendBtn.disabled);
         });
 
         function getAiLoadingMessage(text) {
-            const language = document.documentElement.lang || "fr";
+            const language = document.documentElement.lang || "en";
             const normalizedText = text
                 .normalize('NFD')
                 .replace(/[\u0300-\u036f]/g, '')

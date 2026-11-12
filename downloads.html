@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
@@ -41,7 +41,7 @@
 <script>
 function formatSize(bytes) {
     if (!bytes || bytes < 0) return "";
-    const units = document.documentElement.lang === "en" ? ["B", "KB", "MB", "GB"] : ["o", "Ko", "Mo", "Go"];
+    const units = document.documentElement.lang === "fr" ? ["o", "Ko", "Mo", "Go"] : ["B", "KB", "MB", "GB"];
     let value = bytes, unit = 0;
     while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit++; }
     return value.toFixed(unit === 0 ? 0 : 1) + " " + units[unit];
@@ -55,7 +55,7 @@ function makeButton(label, onClick) {
 }
 
 function statusText(entry) {
-    const language = document.documentElement.lang || "fr";
+    const language = document.documentElement.lang || "en";
     const translate = (id, replacements) => window.HareI18n.t(id, language, replacements);
     const size = formatSize(entry.total || entry.received);
     const source = entry.source ? " · " + entry.source : "";

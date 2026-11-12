@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 
     <head>
 
@@ -382,7 +382,7 @@
 
                 async function openInternalPage(action) {
                     if (!window.tutorials || typeof window.tutorials.openVideo !== "function") {
-                        const message = HareI18n.t("welcome.internalPage.error", document.documentElement.lang || "fr");
+                        const message = HareI18n.t("welcome.internalPage.error", document.documentElement.lang || "en");
                         console.error("[Aide] " + message);
                         if (errorNotice) {
                             errorNotice.textContent = message;
@@ -393,7 +393,7 @@
 
                     try {
                         const result = await window.tutorials.openVideo(action);
-                        if (!result?.ok) throw new Error(result?.error || HareI18n.t("welcome.internalPage.error", document.documentElement.lang || "fr"));
+                        if (!result?.ok) throw new Error(result?.error || HareI18n.t("welcome.internalPage.error", document.documentElement.lang || "en"));
                         if (errorNotice) errorNotice.hidden = true;
                     } catch (error) {
                         console.error("[Navigation interne] Échec de l’ouverture de la page :", error);
@@ -553,7 +553,7 @@
                         }
                     };
 
-                    const lang = langue === "en" ? "en" : "fr";
+                    const lang = langue === "fr" ? "fr" : "en";
 
                     console.log(`[welcome.html] Injection forcie des tooltips en langue : ${lang}`);
 
