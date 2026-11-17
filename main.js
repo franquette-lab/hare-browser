@@ -2,6 +2,56 @@
 // SCRIPT : main.js //
 // ---------------- //
 
+// Capture les erreurs de chargement des modules natifs avant toute initialisation Electron.
+const Module = require("module");
+const startupLogPath = require("path").join(
+    process.env.LOCALAPPDATA || require("os").tmpdir(),
+    "HareBrowser-startup.log"
+);
+
+function logStartupFailure(category, details) {
+    const line = `[${new Date().toISOString()}] ${category} ${JSON.stringify(details)}\n`;
+    try {
+        require("fs").appendFileSync(startupLogPath, line, "utf8");
+    } catch (logError) {
+        console.error("[STARTUP-LOG] Impossible d'écrire le journal :", logError.message);
+    }
+    console.error(line.trimEnd());
+}
+
+const originalModuleLoad = Module._load;
+Module._load = function (request, parent, isMain) {
+    try {
+        return originalModuleLoad.apply(this, arguments);
+    } catch (error) {
+        logStartupFailure("MODULE_LOAD_FAILED", {
+            request,
+            parent: parent?.filename || null,
+            platform: process.platform,
+            arch: process.arch,
+            electron: process.versions.electron || null,
+            message: error?.message || String(error),
+            stack: error?.stack || null
+        });
+        throw error;
+    }
+};
+
+process.on("uncaughtExceptionMonitor", (error, origin) => {
+    logStartupFailure("UNCAUGHT_EXCEPTION", {
+        origin,
+        message: error?.message || String(error),
+        stack: error?.stack || null
+    });
+});
+
+process.on("unhandledRejection", (reason) => {
+    logStartupFailure("UNHANDLED_REJECTION", {
+        message: reason?.message || String(reason),
+        stack: reason?.stack || null
+    });
+});
+
 const {
     app,
     BrowserWindow,
@@ -24,7 +74,9 @@ const fs = require("fs");
 const fsPromises = require("fs/promises");
 const path = require("path");
 const net = require("net");
-const https = require("https");
+
+const { https } = require("follow-redirects");
+
 const os = require("os");
 const { spawn } = require("child_process");
 const { execFile } = require("child_process");
@@ -34,8 +86,12 @@ const DEFAULT_OLLAMA_MODEL = "qwen2.5:1.5b";
 const OLLAMA_BASE_URL = "http://127.0.0.1:11434";
 const OLLAMA_REQUEST_TIMEOUT_MS = 15 * 60 * 1000;
 const OLLAMA_MODEL_LOAD_TIMEOUT_MS = 5 * 60 * 1000;
-const OLLAMA_STARTUP_TIMEOUT_MS = 30 * 1000;
-const OLLAMA_INSTALLER_URL = "https://ollama.com/download/OllamaSetup.exe";
+const OLLAMA_STARTUP_TIMEOUT_MS = 60 * 1000;
+
+//const OLLAMA_INSTALLER_URL = "https://ollama.com/download/OllamaSetup.exe";
+const OLLAMA_INSTALLER_URL =
+    "https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe";
+
 let currentLanguage = "en";
 let ollamaStatus = {
     state: "checking",
@@ -1141,69 +1197,82 @@ let isDarkModeForced = false;
 
 
 async function downloadFile(url, destination) {
-    return new Promise((resolve, reject) => {
-        const file = fs.createWriteStream(destination);
+    await fsPromises.rm(destination, { force: true });
 
-        https.get(url, response => {
+    return new Promise((resolve, reject) => {
+        let settled = false;
+        let file = null;
+
+        const fail = (error) => {
+            if (settled) return;
+            settled = true;
+
+            const removePartialFile = () =>
+                fsPromises.rm(destination, { force: true }).catch(() => {});
+
+            if (file && !file.closed) {
+                const closed = new Promise((closeResolve) => file.once("close", closeResolve));
+                file.destroy();
+                void closed.then(removePartialFile).finally(() => reject(error));
+            } else {
+                void removePartialFile().finally(() => reject(error));
+            }
+        };
+
+        const request = https.get(url, { maxRedirects: 10 }, (response) => {
             if (response.statusCode !== 200) {
-                reject(
-                    new Error(
-                        `Download failed (${response.statusCode})`
-                    )
-                );
+                response.resume();
+                fail(new Error(`Download failed (${response.statusCode || "unknown status"}) from ${url}`));
                 return;
             }
 
-            response.pipe(file);
-
-            file.on("finish", () => {
-                file.close(resolve);
+            file = fs.createWriteStream(destination);
+            response.once("error", fail);
+            file.once("error", fail);
+            file.once("finish", () => {
+                file.close(() => {
+                    if (settled) return;
+                    settled = true;
+                    resolve();
+                });
             });
+            response.pipe(file);
+        });
 
-        }).on("error", reject);
+        request.setTimeout(120000, () => request.destroy(new Error("Ollama installer download timed out")));
+        request.once("error", fail);
     });
 }
 
 async function installOllamaSilently() {
-
     const installerPath =
         path.join(
             os.tmpdir(),
-            "OllamaSetup.exe"
+            `OllamaSetup-${process.pid}.exe`
         );
 
-    await downloadFile(
-        OLLAMA_INSTALLER_URL,
-        installerPath
-    );
+    try {
+        await downloadFile(OLLAMA_INSTALLER_URL, installerPath);
 
-    return new Promise((resolve, reject) => {
-
-        const child =
-            execFile(
+        await new Promise((resolve, reject) => {
+            const child = execFile(
                 installerPath,
-                ["/S"],
-                {
-                    windowsHide: true
-                }
+                ["/VERYSILENT", "/NORESTART", "/SUPPRESSMSGBOXES"],
+                { windowsHide: true }
             );
 
-        child.on("exit", code => {
-
-            if (code === 0) {
-                resolve();
-            } else {
-                reject(
-                    new Error(
-                        `Installation failed (${code})`
-                    )
-                );
-            }
-
+            child.once("error", reject);
+            child.once("exit", (code, signal) => {
+                if (code === 0) {
+                    resolve();
+                } else {
+                    reject(new Error(`Installation failed (${code ?? signal ?? "unknown exit"})`));
+                }
+            });
         });
-
-        child.on("error", reject);
-    });
+    } finally {
+        await fsPromises.rm(installerPath, { force: true }).catch(() => {});
+    }
 }
 
 async function waitForOllamaInstallation(
@@ -1257,9 +1326,14 @@ async function ensureOllamaInstalled() {
         return false;
     }
 
-    await installOllamaSilently();
-
-    await waitForOllamaInstallation();
+    try {
+        await installOllamaSilently();
+        await waitForOllamaInstallation();
+    } catch (cause) {
+        const error = new Error(`Ollama installation failed: ${cause.message}`, { cause });
+        error.code = "OLLAMA_INSTALL_FAILED";
+        throw error;
+    }
 
     return true;
 }
@@ -1358,6 +1432,26 @@ function setAiSidebarVisible(visible) {
         // Envoie la notification d'état ET de géométrie pour ouvrir/fermer le volet CSS
         win.webContents.send("ai-sidebar-visibility-changed", isAiSidebarVisible);
         win.webContents.send("ai-sidebar-geometry-update", { topPosition: TOOLBAR_HEIGHT });
+    }
+
+    if (visibilityChanged && nextVisibility) {
+        publishOllamaStatus({
+            state: "checking",
+            endpoint: OLLAMA_BASE_URL,
+            model: DEFAULT_OLLAMA_MODEL
+        });
+        void ensureOllamaRunning()
+            .then(() => inspectOllamaStatus(DEFAULT_OLLAMA_MODEL))
+            .catch((error) => {
+                publishOllamaStatus({
+                    state: "unavailable",
+                    endpoint: OLLAMA_BASE_URL,
+                    model: DEFAULT_OLLAMA_MODEL,
+                    installed: false,
+                    loaded: false,
+                    error: { message: error.message, code: error.code || null }
+                });
+            });
     }
     return isAiSidebarVisible;
 }
@@ -2516,7 +2610,6 @@ ipcMain.handle('adblock-toggle-exception', async (event, requestedHost) => {
 // COFFRE-FORT NATIF & CRYPTOGRAPHIE AVANCÉE (AES-256-GCM + KEYCHAIN)
 // -----------------------------------------------------------------
 const crypto = require('crypto');
-const { AsyncEntry } = require('@napi-rs/keyring');
 const PASSWORD_KEYRING_SERVICE = 'com.harebrowser.passwords.v1';
 
 /** Lit l'index non secret des identifiants enregistrés. */
@@ -2545,6 +2638,49 @@ function passwordEntryFor(url, username) {
     if (!site || !isSecureCredentialOrigin(site) || typeof username !== 'string' || !username.trim()) {
         throw new Error('Origine ou identifiant invalide.');
     }
+
+    // Chargement différé : l'indisponibilité du binding désactive le coffre,
+    // mais ne doit jamais interrompre le démarrage ou les autres fonctions.
+    const moduleName = '@napi-rs/keyring';
+    let AsyncEntry = null;
+    try {
+        const keyring = getNodeModule(moduleName);
+        AsyncEntry = keyring?.AsyncEntry;
+        if (typeof AsyncEntry !== 'function') {
+            throw new TypeError(`${moduleName} ne fournit pas de constructeur AsyncEntry`);
+        }
+        console.info('[KEYRING] Binding chargé', {
+            module: moduleName,
+            platform: process.platform,
+            arch: process.arch,
+            electron: process.versions.electron || null,
+            node: process.versions.node,
+            napi: process.versions.napi || null
+        });
+    } catch (err) {
+        let resolvedModule = null;
+        try {
+            resolvedModule = require.resolve(moduleName);
+        } catch {}
+        console.error('[KEYRING] Binding natif indisponible; coffre désactivé pour cette opération.', {
+            module: moduleName,
+            platform: process.platform,
+            arch: process.arch,
+            electron: process.versions.electron || null,
+            node: process.versions.node,
+            napi: process.versions.napi || null,
+            executable: process.execPath,
+            resourcesPath: process.resourcesPath || null,
+            appPath: app?.getAppPath?.() || null,
+            resolvedModule,
+            errorName: err?.name || 'Error',
+            errorCode: err?.code || null,
+            errorMessage: err?.message || String(err),
+            errorStack: err?.stack || null
+        });
+        return null;
+    }
+
     return new AsyncEntry(`${PASSWORD_KEYRING_SERVICE}:${site.origin}`, username, {
         // Exige Secret Service sous Linux et échoue si le trousseau n'est pas disponible.
         linux: { store: 'secret-service' }
@@ -2636,7 +2772,7 @@ async function getStoredPasswords() {
         let entry = null;
         try {
             entry = passwordEntryFor(site.origin, username);
-            password = await entry.getPassword();
+            if (entry) password = await entry.getPassword();
         } catch {
             // Un coffre verrouillé ou absent ne doit pas provoquer de repli vers un fichier.
         }
@@ -2708,6 +2844,7 @@ async function upsertStoredPassword({ url, username, password }) {
                 return { ok: false, updated: false };
             }
             entry = passwordEntryFor(site.origin, normalizedUsername);
+            if (!entry) return { ok: false, updated: false };
             previousPassword = await entry.getPassword();
             await entry.setPassword(password);
         } catch {
@@ -2749,6 +2886,7 @@ async function deleteStoredPassword(record) {
                 return false;
             }
             const entry = passwordEntryFor(site.origin, username);
+            if (!entry) return false;
             await entry.deletePassword();
         } catch {
             return false;
@@ -9107,6 +9245,11 @@ if (!modelInstalled) {
 
         console.error("[IA RAG] Erreur générale :", err, err.stack);
 
+        if (err.code === "OLLAMA_INSTALL_FAILED") {
+            return tr("ai.ollamaInstallError", {
+                error: err.cause?.message || err.message
+            });
+        }
         if (err.message.includes("Annulé par l'utilisateur")) {
             return tr("ai.cancelled");
         }
