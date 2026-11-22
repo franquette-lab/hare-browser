@@ -1,100 +1,49 @@
 # Hare Browser
 
-[![GitHub Release](https://shields.io)](https://github.com)
-[![Download Hare Browser on SourceForge](https://shields.io)](https://sourceforge.net)
-[![License: MIT](https://shields.io)](LICENSE)
+**[📥 Latest Release (v1.0.2)](https://github.com)** • **[📦 Download on SourceForge](https://sourceforge.net)** • **[📄 MIT License](LICENSE)**
 
-**Hare Browser** is a powerful, privacy-focused multi-tile web browser designed for productivity, research, and local AI-assisted browsing on **Windows** and **Linux**.
+**Hare Browser** is a privacy-focused multi-tile web browser for Windows and Linux, featuring split-view workspaces, a floating navigation bar, built-in ad/tracker blocking, and a local AI assistant powered by [Ollama](https://ollama.com).
 
 ---
 
 ## ✨ Features
 
-- **Multi-Tile Mosaic Workspace:** Organize multiple websites side-by-side with horizontal and vertical split views.
-- **Floating Navigation Bar:** Clean, distraction-free navigation controls per tile.
-- **Local AI Assistant (Ollama):** Built-in AI assistant powered by [Ollama](https://ollama.com) so your prompts and browsing data stay 100% private on your machine.
-- **Built-in Ad & Tracker Blocking:** Fast browsing out of the box with privacy-focused search integration.
-- **Session Management:** Save and restore complex multi-tile workspaces anytime.
-- **Smart Bookmarks & Themes:** Advanced bookmark organization with light and dark themes.
+- **Multi-Tile Mosaic Workspace:** Horizontal and vertical split views for side-by-side browsing.
+- **Floating Navigation Bar & Session Management:** Clean per-tile controls with save/restore capabilities.
+- **Local AI Assistant & Privacy:** Private browsing with integrated Ollama and ad/tracker blocking.
+- **Smart Bookmarks & Themes:** Light and dark theme support with organized bookmarks.
+
+---
+
+## 📸 Screenshots
+
+| Multi-Tile Mosaic Workspace | Local AI Assistant (Ollama) |
+| :---: | :---: |
+| ![Multi-Tile Workspace](images/ScreenShot_1_HareBrowser.png) | ![Local AI Assistant](images/ScreenShot_2_HareBrowser.png) |
+
+| Floating Navigation Bar & Themes |
+| :---: |
+| ![Floating Navigation Bar](images/ScreenShot_3_HareBrowser.png) |
 
 ---
 
 ## 📥 Download & Installation
 
-Official installers for Windows and Linux are available on both **[GitHub Releases](https://github.com)** and **[SourceForge](https://sourceforge.net)**:
+Get official installers via **[GitHub Releases](https://github.com)** or **[SourceForge](https://sourceforge.netfiles/latest/download)**:
 
-[![Download Hare Browser](https://fsdn.com)](https://sourceforge.netfiles/latest/download)
-
-### 🪟 Windows (x64)
-
-1. Download **`Hare-Browser-Setup-1.0.2.exe`** from [GitHub Releases](https://github.com) or [SourceForge](https://sourceforge.netfiles/).
-2. Run the installer and follow the setup wizard.
-3. Launch **Hare Browser** from the Start menu or Desktop shortcut.
+- **Windows (x64):** Download `Hare-Browser-Setup-1.0.2.exe` and run the installer.
+- **Linux (Debian/Ubuntu/Mint):** Install via terminal with `sudo apt install ./Hare-Browser-1.0.2-amd64.deb`.
+- **Linux (AppImage):** Make executable (`chmod +x Hare-Browser-1.0.2-x86_64.AppImage`) and run.
 
 ---
 
-### 🐧 Linux (x64)
+## 🤖 Local AI & Development
 
-#### Option 1: Debian / Ubuntu / Linux Mint (`.deb`)
-
-1. Download **`Hare-Browser-1.0.2-amd64.deb`** from [GitHub Releases](https://github.com) or [SourceForge](https://sourceforge.netfiles/).
-2. Install it via terminal:
-   ```bash
-   sudo apt install ./Hare-Browser-1.0.2-amd64.deb
-   ```
-3. Launch **Hare Browser** from your application menu or by running `hare-browser`.
-
-#### Option 2: Universal Linux Binary (`.AppImage`)
-
-Works on Fedora, Arch Linux, openSUSE, Ubuntu, and most x86_64 distributions without installation:
-
-1. Download **`Hare-Browser-1.0.2-x86_64.AppImage`** from [GitHub Releases](https://github.com) or [SourceForge](https://sourceforge.netfiles/).
-2. Make the file executable and run it:
-   ```bash
-   chmod +x Hare-Browser-1.0.2-x86_64.AppImage
-   ./Hare-Browser-1.0.2-x86_64.AppImage
-   ```
-
----
-
-## 🤖 Local AI Setup (Optional)
-
-Hare Browser integrates directly with **Ollama** running locally (`http://127.0.0.1:11434`):
-
-1. Install [Ollama](https://ollama.com) on your system (or install it directly from Hare Browser's built-in assistant prompt).
-2. Pull a model (e.g., `ollama pull llama3.2` or `ollama pull mistral`).
-3. Open the AI sidebar in Hare Browser to summarize pages, compare open tiles, or ask questions privately.
-
----
-
-## 🛠️ Development
-
-### Requirements
-
-- **Node.js** 22+
-- **npm**
-
-### Run from source
-
-```bash
-git clone https://github.com
-cd hare-browser
-npm install
-npm start
-```
-
-### Build installers
-
-```bash
-# Windows installer (.exe)
-npm run build:win
-
-# Linux packages (.deb & .AppImage)
-npm run build:linux
-```
+- **Ollama Setup:** Run locally (`http://127.0.0.1:11434`), pull a model (e.g., `ollama pull llama3.2`), and use the AI sidebar.
+- **Build from Source:** Requires Node.js 22+ and npm (`git clone https://github.com`, `npm install`, `npm start`).
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+Licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
