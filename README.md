@@ -1,6 +1,6 @@
 # Hare Browser
 
-**[📥 Latest Release (v1.0.2)](https://github.com)** • **[📦 Download on SourceForge](https://sourceforge.net)** • **[📄 MIT License](LICENSE)**
+**[📥 Latest Release (v1.0.3)](https://github.com)** • **[📦 Download on SourceForge](https://sourceforge.net)** • **[📄 MIT License](LICENSE)**
 
 **Hare Browser** is a privacy-focused multi-tile web browser for Windows and Linux, featuring split-view workspaces, a floating navigation bar, built-in ad/tracker blocking, and a local AI assistant powered by [Ollama](https://ollama.com).
 
@@ -31,15 +31,15 @@
 
 Get official installers via **[GitHub Releases](https://github.com)** or **[SourceForge](https://sourceforge.netfiles/latest/download)**:
 
-- **Windows (x64):** Download `Hare-Browser-Setup-1.0.2.exe` and run the installer.
-- **Linux (Debian/Ubuntu/Mint):** Install via terminal with `sudo apt install ./Hare-Browser-1.0.2-amd64.deb`.
-- **Linux (AppImage):** Make executable (`chmod +x Hare-Browser-1.0.2-x86_64.AppImage`) and run.
+- **Windows (x64):** Download `Hare-Browser-Setup-1.0.3.exe` and run the installer.
+- **Linux (Debian/Ubuntu/Mint):** Install via terminal with `sudo apt install ./Hare-Browser-1.0.3-amd64.deb`.
+- **Linux (AppImage):** Make executable ( `chmod +x Hare-Browser-1.0.3-x86_64.AppImage` ) and run *(on Fedora/RHEL, install FUSE 2 first: `sudo dnf install fuse fuse-libs`)*.
 
 ---
 
 ## 🤖 Local AI & Development
 
-- **Ollama Setup:** Run locally (`http://127.0.0.1:11434`), pull a model (e.g., `ollama pull llama3.2`), and use the AI sidebar.
+- **Ollama Setup:** Hare Browser can automatically download, install, and start Ollama locally (`http://127.0.0.1:11434`) on both Windows and Linux without requiring `sudo`, or connect to an existing local instance.
 - **Build from Source:** Requires Node.js 22+ and npm (`git clone https://github.com`, `npm install`, `npm start`).
 
 ---
