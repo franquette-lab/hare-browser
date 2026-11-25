@@ -1,17 +1,19 @@
 {
   "name": "hare-browser",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Multi-tile web browser with a local AI assistant powered by Ollama.",
   "main": "main.js",
   "license": "MIT",
-  "author": "Richard Clermont",
+  "author": "Franquette <alabonnefranquette.albf@gmail.com>",
   "type": "commonjs",
-  "scripts": {
+    "scripts": {
     "start": "electron .",
     "dist": "electron-builder --windows nsis:x64",
     "dist:web": "electron-builder --windows nsis-web:x64",
-    "dist:store": "electron-builder --win appx --x64"
-  },
+    "dist:store": "electron-builder --win appx --x64",
+    "dist:linux": "electron-builder --linux --x64",
+    "dist:all": "electron-builder --win --linux --x64"
+    },
   "keywords": [],
   "dependencies": {
     "@napi-rs/keyring": "^2.1.2",
@@ -41,6 +43,39 @@
       ],
       "icon": "build/icon.ico",
       "artifactName": "Hare-Browser-Setup-${version}.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "Network",
+      "artifactName": "Hare-Browser-${version}-${arch}.${ext}",
+      "desktop": {
+        "entry": {
+          "Name": "Hare Browser",
+          "Comment": "Multi-tile web browser with a local AI assistant powered by Ollama.",
+          "Categories": "Network;WebBrowser;"
+        }
+      },
+      "maintainer": "Franquette <alabonnefranquette.albf@gmail.com>"
+    },
+    "deb": {
+      "depends": [
+        "default",
+        "libsecret-1-0"
+      ]
     },
     "appx": {
       "applicationId": "HareBrowser",
@@ -78,5 +113,7 @@
       "!ollama-bundle/**/*",
       "!searxng/**/*"
     ]
-  }
+  },
+  "desktopName": "com.harebrowser.app",
+  "homepage": "https://github.com/franquette-lab/hare-browser"
 }

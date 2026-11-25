@@ -2598,9 +2598,9 @@ addressGroup.appendChild(input);
             activePanel = panel.id;
             const bounds = btnSplit.getBoundingClientRect();
             window.api.showSplitMenu(panel.id, {
-                x: bounds.right,
+                x: bounds.left,
                 y: bounds.bottom
-            }, applicationDarkMode);
+            });
         });
 
         const btnReader = document.createElement("div");

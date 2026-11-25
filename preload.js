@@ -69,7 +69,7 @@ contextBridge.exposeInMainWorld(
         setActivePanel: (panelId, options) => ipcRenderer.send("set-active-panel", panelId, options),
         closePanel: (panelId) => ipcRenderer.send("close-panel", panelId),
         splitPanel: (panelId, direction, isPrivate, initialUrl) => ipcRenderer.send('split-panel', panelId, direction, isPrivate, initialUrl),
-        showSplitMenu: (panelId, anchor, isDark) => ipcRenderer.send("show-split-menu", panelId, anchor, isDark === true),
+        showSplitMenu: (panelId, anchor) => ipcRenderer.send("show-split-menu", panelId, anchor),
         undo: () => ipcRenderer.send("undo"),
 
 

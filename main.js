@@ -101,6 +101,7 @@ let ollamaStatus = {
 };
 let ollamaRequestSequence = 0;
 let ollamaStartupPromise = null;
+let ollamaInstallationPromise = null;
 
 let applicationMenuTemplate = null;
 
@@ -273,16 +274,37 @@ function setBookmarksBarVisible(visible) {
     return isBookmarksBarVisible;
 }
 
-function getOllamaExePath() {
-    const candidate = path.join(
-        process.env.LOCALAPPDATA || "",
-        "Programs",
-        "Ollama",
-        "ollama.exe"
-    );
-    return fs.existsSync(candidate) ? candidate : null;
+function getAppIconPath() {
+    if (process.platform === "win32") {
+        const winIcon = path.join(__dirname, "build", "icon.ico");
+        if (fs.existsSync(winIcon)) return winIcon;
+        return path.join(__dirname, "resources", "icon.ico");
+    }
+    return path.join(__dirname, "build", "icon.png");
 }
 
+function getOllamaExePath() {
+    if (process.platform === "win32") {
+        const candidate = path.join(
+            process.env.LOCALAPPDATA || "",
+            "Programs",
+            "Ollama",
+            "ollama.exe"
+        );
+        return fs.existsSync(candidate) ? candidate : null;
+    }
+
+    const linuxCandidates = [
+        "/usr/local/bin/ollama",
+        "/usr/bin/ollama",
+        "/snap/bin/ollama",
+        path.join(os.homedir(), ".local", "bin", "ollama")
+    ];
+    for (const candidate of linuxCandidates) {
+        if (fs.existsSync(candidate)) return candidate;
+    }
+    return null;
+}
 
 function requestOllama({ method = "GET", route, payload = null, timeoutMs = OLLAMA_REQUEST_TIMEOUT_MS, log = true } = {}) {
     const http = getNodeModule("http");
@@ -1195,17 +1217,113 @@ let isDarkModeForced = false;
   let isAiSidebarWide = false;
   let lastAiSidebarWidth = 300;
 
+let ollamaProgressWin = null;
 
-async function downloadFile(url, destination) {
+function openOllamaProgressWindow() {
+    if (ollamaProgressWin && !ollamaProgressWin.isDestroyed()) {
+        ollamaProgressWin.focus();
+        return ollamaProgressWin;
+    }
+
+    ollamaProgressWin = new BrowserWindow({
+        width: 420,
+        height: 190,
+        parent: win && !win.isDestroyed() ? win : undefined,
+        modal: false,
+        frame: false,
+        resizable: false,
+        alwaysOnTop: true,
+        backgroundColor: isDarkModeForced ? "#252526" : "#ffffff",
+        webPreferences: {
+            contextIsolation: true,
+            nodeIntegration: false,
+            sandbox: true
+        }
+    });
+
+    const isFr = currentLanguage === "fr";
+    const bg = isDarkModeForced ? "#252526" : "#ffffff";
+    const fg = isDarkModeForced ? "#f3f4f6" : "#1f2937";
+    const subFg = isDarkModeForced ? "#9ca3af" : "#4b5563";
+    const border = isDarkModeForced ? "#3f3f46" : "#e5e7eb";
+    const trackBg = isDarkModeForced ? "#3f3f46" : "#e5e7eb";
+
+    const html = `<!doctype html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {
+                margin: 0; padding: 20px 24px;
+                font-family: 'Segoe UI', system-ui, sans-serif;
+                background: ${bg}; color: ${fg};
+                border: 1px solid ${border}; border-radius: 10px;
+                box-sizing: border-box; height: 100vh;
+                display: flex; flex-direction: column; justify-content: center;
+                user-select: none;
+            }
+            h3 { margin: 0 0 8px 0; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+            p { margin: 0 0 14px 0; font-size: 12.5px; color: ${subFg}; }
+            .track { width: 100%; height: 8px; background: ${trackBg}; border-radius: 999px; overflow: hidden; }
+            .bar { height: 100%; width: 0%; background: #2563eb; border-radius: 999px; transition: width 0.2s ease; }
+            .bar.indeterminate { width: 40%; animation: slide 1.2s infinite ease-in-out; }
+            @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(260%); } }
+            .stats { margin-top: 8px; font-size: 11.5px; color: ${subFg}; text-align: right; font-variant-numeric: tabular-nums; }
+        </style>
+    </head>
+    <body>
+        <h3>🤖 ${isFr ? "Installation de l'assistant IA (Ollama)" : "Installing AI Assistant (Ollama)"}</h3>
+        <p id="step">${isFr ? "Préparation du téléchargement..." : "Preparing download..."}</p>
+        <div class="track"><div id="bar" class="bar indeterminate"></div></div>
+        <div id="stats" class="stats"></div>
+        <script>
+            window.updateOllamaProgress = ({ step, percent, stats, indeterminate }) => {
+                if (step) document.getElementById("step").textContent = step;
+                if (stats !== undefined) document.getElementById("stats").textContent = stats;
+                const bar = document.getElementById("bar");
+                if (indeterminate) {
+                    bar.classList.add("indeterminate");
+                    bar.style.width = "40%";
+                } else if (typeof percent === "number") {
+                    bar.classList.remove("indeterminate");
+                    bar.style.width = Math.max(0, Math.min(100, percent)) + "%";
+                }
+            };
+        </script>
+    </body>
+    </html>`;
+
+    ollamaProgressWin.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(html));
+    ollamaProgressWin.on("closed", () => { ollamaProgressWin = null; });
+    return ollamaProgressWin;
+}
+
+function updateOllamaProgressWindow(payload) {
+    if (!ollamaProgressWin || ollamaProgressWin.isDestroyed()) return;
+    ollamaProgressWin.webContents.executeJavaScript(
+        `window.updateOllamaProgress?.(${JSON.stringify(payload)})`
+    ).catch(() => {});
+}
+
+function closeOllamaProgressWindow() {
+    if (ollamaProgressWin && !ollamaProgressWin.isDestroyed()) {
+        ollamaProgressWin.close();
+    }
+    ollamaProgressWin = null;
+}
+
+async function downloadFile(url, destination, onProgress = null) {
     await fsPromises.rm(destination, { force: true });
 
     return new Promise((resolve, reject) => {
         let settled = false;
         let file = null;
+        let request = null;
 
         const fail = (error) => {
             if (settled) return;
             settled = true;
+            if (request) request.destroy();
 
             const removePartialFile = () =>
                 fsPromises.rm(destination, { force: true }).catch(() => {});
@@ -1219,11 +1337,26 @@ async function downloadFile(url, destination) {
             }
         };
 
-        const request = https.get(url, { maxRedirects: 10 }, (response) => {
+        request = https.get(url, { maxRedirects: 10 }, (response) => {
             if (response.statusCode !== 200) {
                 response.resume();
                 fail(new Error(`Download failed (${response.statusCode || "unknown status"}) from ${url}`));
                 return;
+            }
+
+            const totalBytes = parseInt(response.headers["content-length"] || "0", 10);
+            let receivedBytes = 0;
+            let lastUpdate = 0;
+
+            if (typeof onProgress === "function") {
+                response.on("data", (chunk) => {
+                    receivedBytes += chunk.length;
+                    const now = Date.now();
+                    if (now - lastUpdate > 200 || receivedBytes === totalBytes) {
+                        lastUpdate = now;
+                        onProgress({ receivedBytes, totalBytes });
+                    }
+                });
             }
 
             file = fs.createWriteStream(destination);
@@ -1245,35 +1378,146 @@ async function downloadFile(url, destination) {
 }
 
 async function installOllamaSilently() {
-    const installerPath =
-        path.join(
-            os.tmpdir(),
-            `OllamaSetup-${process.pid}.exe`
-        );
+    const isFr = currentLanguage === "fr";
+    openOllamaProgressWindow();
+
+    const formatMb = (bytes) => `${(bytes / (1024 * 1024)).toFixed(0)} Mo`;
+    const handleDownloadProgress = ({ receivedBytes, totalBytes }) => {
+        if (totalBytes > 0) {
+            const percent = Math.round((receivedBytes / totalBytes) * 100);
+            updateOllamaProgressWindow({
+                step: isFr ? "Téléchargement du moteur Ollama en cours..." : "Downloading Ollama engine...",
+                percent,
+                stats: `${formatMb(receivedBytes)} / ${formatMb(totalBytes)} (${percent}%)`,
+                indeterminate: false
+            });
+        } else {
+            updateOllamaProgressWindow({
+                step: isFr ? "Téléchargement du moteur Ollama en cours..." : "Downloading Ollama engine...",
+                stats: formatMb(receivedBytes),
+                indeterminate: true
+            });
+        }
+    };
 
     try {
-        await downloadFile(OLLAMA_INSTALLER_URL, installerPath);
+        if (process.platform === "linux") {
+            const ollamaArch = { x64: "amd64", arm64: "arm64" }[process.arch];
+            if (!ollamaArch) {
+                throw new Error(`Architecture Linux non prise en charge : ${process.arch}`);
+            }
 
-        await new Promise((resolve, reject) => {
-            const child = execFile(
-                installerPath,
-                ["/VERYSILENT", "/NORESTART", "/SUPPRESSMSGBOXES"],
-                { windowsHide: true }
-            );
+            const installDir = path.join(os.homedir(), ".local");
+            const tempDownloadDir = path.join(app.getPath("userData"), "ollama-tmp");
+            const archivePath = path.join(tempDownloadDir, `ollama-linux-${ollamaArch}-${process.pid}.tar.zst`);
 
-            child.once("error", reject);
-            child.once("exit", (code, signal) => {
-                if (code === 0) {
-                    resolve();
-                } else {
-                    reject(new Error(`Installation failed (${code ?? signal ?? "unknown exit"})`));
+            try {
+                await fsPromises.mkdir(installDir, { recursive: true });
+                await fsPromises.mkdir(tempDownloadDir, { recursive: true });
+
+                const existingFiles = await fsPromises.readdir(tempDownloadDir).catch(() => []);
+                for (const file of existingFiles) {
+                    if (file.endsWith(".tar.zst")) {
+                        await fsPromises.rm(path.join(tempDownloadDir, file), { force: true }).catch(() => {});
+                    }
                 }
+
+                const ollamaDownloadUrl = new URL("https://ollama.com");
+                ollamaDownloadUrl.pathname = ["", "download", "ollama-linux-" + ollamaArch + ".tar.zst"].join("/");
+
+                await downloadFile(
+                    ollamaDownloadUrl.href,
+                    archivePath,
+                    handleDownloadProgress
+                );
+
+                updateOllamaProgressWindow({
+                    step: isFr ? "Extraction et installation des fichiers (environ 30s)..." : "Extracting and installing files...",
+                    stats: "",
+                    indeterminate: true
+                });
+
+                await new Promise((resolve, reject) => {
+                    const { createZstdDecompress } = require("node:zlib");
+                    const decompressor = createZstdDecompress();
+                    const archive = fs.createReadStream(archivePath);
+                    const child = spawn("tar", ["-xf", "-", "-C", installDir], {
+                        stdio: ["pipe", "ignore", "pipe"]
+                    });
+                    let settled = false;
+                    let stderrOutput = "";
+
+                    child.stderr.on("data", (chunk) => {
+                        stderrOutput += chunk.toString();
+                    });
+
+                    const fail = (error) => {
+                        if (settled) return;
+                        settled = true;
+                        archive.destroy();
+                        decompressor.destroy();
+                        child.kill();
+                        reject(error);
+                    };
+
+                    archive.once("error", fail);
+                    decompressor.once("error", fail);
+                    child.once("error", fail);
+                    child.stdin.once("error", (error) => {
+                        if (error.code !== "EPIPE") fail(error);
+                    });
+                    child.once("close", (code, signal) => {
+                        if (settled) return;
+                        if (code === 0) {
+                            settled = true;
+                            resolve();
+                        } else {
+                            const details = stderrOutput.trim() ? ` : ${stderrOutput.trim()}` : "";
+                            fail(new Error(`Extraction de l'archive Ollama échouée (${code ?? signal ?? "exit"})${details}`));
+                        }
+                    });
+                    archive.pipe(decompressor).pipe(child.stdin);
+                });
+
+                await fsPromises.access(path.join(installDir, "bin", "ollama"), fs.constants.X_OK);
+                return;
+            } finally {
+                await fsPromises.rm(tempDownloadDir, { recursive: true, force: true }).catch(() => {});
+            }
+        }
+
+        // Comportement Windows d'origine avec barre de progression
+        const installerPath = path.join(os.tmpdir(), `OllamaSetup-${process.pid}.exe`);
+        try {
+            await downloadFile(OLLAMA_INSTALLER_URL, installerPath, handleDownloadProgress);
+
+            updateOllamaProgressWindow({
+                step: isFr ? "Installation silencieuse d'Ollama..." : "Installing Ollama...",
+                stats: "",
+                indeterminate: true
             });
-        });
+
+            await new Promise((resolve, reject) => {
+                const child = execFile(
+                    installerPath,
+                    ["/VERYSILENT", "/NORESTART", "/SUPPRESSMSGBOXES"],
+                    { windowsHide: true }
+                );
+                child.once("error", reject);
+                child.once("exit", (code, signal) => {
+                    if (code === 0) resolve();
+                    else reject(new Error(`Installation failed (${code ?? signal ?? "unknown exit"})`));
+                });
+            });
+        } finally {
+            await fsPromises.rm(installerPath, { force: true }).catch(() => {});
+        }
     } finally {
-        await fsPromises.rm(installerPath, { force: true }).catch(() => {});
+        closeOllamaProgressWindow();
     }
 }
+
+
 
 async function waitForOllamaInstallation(
     timeoutMs = 120000
@@ -1301,41 +1545,50 @@ async function waitForOllamaInstallation(
 }
 
 async function ensureOllamaInstalled() {
-
     if (getOllamaExePath()) {
         return true;
     }
 
-    const result =
-        await dialog.showMessageBox({
+    if (ollamaInstallationPromise) {
+        return ollamaInstallationPromise;
+    }
+
+    const installation = (async () => {
+        // Avoid starting an installer if Ollama appeared between concurrent checks.
+        if (getOllamaExePath()) return true;
+
+        const result = await dialog.showMessageBox({
             type: "question",
             title: "Ollama",
-            message:
-                "Ollama is required for local AI features.",
-            detail:
-                "Ollama will be automatically downloaded and installed.",
-            buttons: [
-                "Install",
-                "Cancel"
-            ],
+            message: "Ollama is required for local AI features.",
+            detail: "Ollama will be automatically downloaded and installed.",
+            buttons: ["Install", "Cancel"],
             defaultId: 0,
             cancelId: 1
         });
 
-    if (result.response !== 0) {
-        return false;
-    }
+        if (result.response !== 0) return false;
 
+        try {
+            await installOllamaSilently();
+            await waitForOllamaInstallation();
+        } catch (cause) {
+            const error = new Error(`Ollama installation failed: ${cause.message}`, { cause });
+            error.code = "OLLAMA_INSTALL_FAILED";
+            throw error;
+        }
+
+        return true;
+    })();
+
+    ollamaInstallationPromise = installation;
     try {
-        await installOllamaSilently();
-        await waitForOllamaInstallation();
-    } catch (cause) {
-        const error = new Error(`Ollama installation failed: ${cause.message}`, { cause });
-        error.code = "OLLAMA_INSTALL_FAILED";
-        throw error;
+        return await installation;
+    } finally {
+        if (ollamaInstallationPromise === installation) {
+            ollamaInstallationPromise = null;
+        }
     }
-
-    return true;
 }
 
 async function ensureOllamaRunning() {
@@ -1515,8 +1768,7 @@ function openSettingsWindow() {
 
 let pwdWindow = null;
 let settingsWindow = null;
-let splitMenuWindow = null;
-let splitMenuTargetPanelId = null;
+let splitMenu = null;
 const findInPageRequests = new Map();
 
 // Écouteur pour ouvrir automatiquement le volet IA depuis la page welcome
@@ -2156,74 +2408,80 @@ async function ensureOllamaModelLoaded(modelName) {
 }
 
 async function pullOllamaModel(modelName) {
+    const isFr = currentLanguage === "fr";
+    openOllamaProgressWindow();
 
-    return new Promise((resolve, reject) => {
-
-        const ollamaPath = getOllamaExePath();
-
-        if (!ollamaPath) {
-            reject(
-                new Error("Ollama non installé")
-            );
-            return;
-        }
-
-/*        
-        console.log(
-            `[OLLAMA] Téléchargement du modèle ${modelName}`
-        );
-*/
-
-        const pullProcess = spawn(
-            ollamaPath,
-            ["pull", modelName]
-        );
-
-        pullProcess.stdout.on("data", data => {
-
-/*
-            console.log(
-                "[OLLAMA PULL]",
-                data.toString()
-            );
-*/
-
-        });
-
-        pullProcess.stderr.on("data", data => {
-
-/*            
-            console.log(
-                "[OLLAMA PULL]",
-                data.toString()
-            );
-*/            
-
-        });
-
-        pullProcess.on("close", code => {
-
-            if (code === 0) {
-
-/*                
-                console.log(
-                    `[OLLAMA] Modèle ${modelName} installé`
-                );
-*/
-
-                resolve();
-
-            } else {
-
-                reject(
-                    new Error(
-                        `Échec téléchargement (${code})`
-                    )
-                );
-            }
-        });
-
+    updateOllamaProgressWindow({
+        step: isFr
+            ? `Téléchargement du modèle IA (${modelName})...`
+            : `Downloading AI model (${modelName})...`,
+        stats: isFr ? "Connexion au registre Ollama..." : "Connecting to Ollama registry...",
+        indeterminate: true
     });
+
+    try {
+        return await new Promise((resolve, reject) => {
+            const ollamaPath = getOllamaExePath();
+            if (!ollamaPath) {
+                reject(new Error("Ollama non installé"));
+                return;
+            }
+
+            const pullProcess = spawn(ollamaPath, ["pull", modelName], {
+                windowsHide: true
+            });
+
+            // Nettoie les codes couleurs/curseur ANSI émis par la CLI d'Ollama
+            const stripAnsi = (str) => str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
+
+            const parseOutput = (rawData) => {
+                const clean = stripAnsi(rawData.toString());
+                const lines = clean.split(/[\r\n]+/).filter((l) => l.trim());
+                const lastLine = lines[lines.length - 1] || "";
+
+                // Recherche un pourcentage (ex: "pulling 6a0746a1ec1a:  45% ▕████...▏ 445 MB/986 MB")
+                const percentMatch = lastLine.match(/(\d{1,3})%/);
+                const sizeMatch = lastLine.match(/(\d+(?:\.\d+)?\s*[KMGT]?B\s*\/\s*\d+(?:\.\d+)?\s*[KMGT]?B)/i);
+
+                if (percentMatch) {
+                    const percent = Math.min(100, Math.max(0, parseInt(percentMatch[1], 10)));
+                    updateOllamaProgressWindow({
+                        step: isFr
+                            ? `Téléchargement du modèle IA (${modelName})...`
+                            : `Downloading AI model (${modelName})...`,
+                        percent,
+                        stats: sizeMatch ? `${sizeMatch[1]} (${percent}%)` : `${percent}%`,
+                        indeterminate: false
+                    });
+                } else if (/verifying|writing manifest/i.test(lastLine)) {
+                    updateOllamaProgressWindow({
+                        step: isFr
+                            ? `Vérification et finalisation de ${modelName}...`
+                            : `Verifying and finalizing ${modelName}...`,
+                        stats: "",
+                        indeterminate: true
+                    });
+                }
+            };
+
+            pullProcess.stdout.on("data", parseOutput);
+            pullProcess.stderr.on("data", parseOutput);
+
+            pullProcess.on("error", (err) => {
+                reject(err);
+            });
+
+            pullProcess.on("close", (code) => {
+                if (code === 0) {
+                    resolve();
+                } else {
+                    reject(new Error(`Échec téléchargement (${code})`));
+                }
+            });
+        });
+    } finally {
+        closeOllamaProgressWindow();
+    }
 }
 
 function applyThemeToView(view) {
@@ -6773,91 +7031,76 @@ ipcMain.on("show-container-menu", (event, panelId) => {
 });
 
 function closeSplitMenu() {
-    if (splitMenuWindow && !splitMenuWindow.isDestroyed()) splitMenuWindow.close();
-    splitMenuWindow = null;
-    splitMenuTargetPanelId = null;
+    if (splitMenu && win && !win.isDestroyed()) {
+        try {
+            splitMenu.closePopup(win);
+        } catch (error) {
+            console.warn("[SplitMenu] Could not close native menu:", error.message);
+        }
+    }
+    splitMenu = null;
 }
 
 ipcMain.on("show-split-menu", (event, panelId, anchor = {}, isDark = false) => {
     if (!win || win.isDestroyed() || event.sender !== win.webContents || maximizedPanelId !== null) return;
     if (!findPanelNode(rootNode, panelId)) return;
 
+    console.log("[SplitMenu] Opening");
+    console.log("[SplitMenu] Window bounds:", win.getBounds());
+
     closeSplitMenu();
-    const menuWidth = 212;
-    const menuHeight = 92;
     const contentBounds = win.getContentBounds();
-    const display = screen.getDisplayMatching({
-        x: contentBounds.x + (Number(anchor.x) || 0),
-        y: contentBounds.y + (Number(anchor.y) || 0),
-        width: 1,
-        height: 1
+    const requestedX = Number(anchor?.x);
+    const requestedY = Number(anchor?.y);
+    const clamp = (value, limit) => Math.max(0, Math.min(Math.round(value), Math.max(0, Math.round(limit) - 1)));
+    const x = clamp(Number.isFinite(requestedX) ? requestedX : 0, contentBounds.width);
+    const y = clamp(Number.isFinite(requestedY) ? requestedY : 0, contentBounds.height);
+    const display = screen.getDisplayMatching(win.getBounds());
+    console.log("[SplitMenu] Target position:", x, y);
+    console.log("[SplitMenu] Display metrics:", {
+        platform: process.platform,
+        sessionType: process.env.XDG_SESSION_TYPE || null,
+        scaleFactor: display.scaleFactor,
+        workArea: display.workArea,
+        coordinates: "renderer-relative; passed directly to Electron native Menu"
     });
-    const workArea = display.workArea;
-    const anchorX = contentBounds.x + (Number(anchor.x) || 0);
-    const anchorY = contentBounds.y + (Number(anchor.y) || 0);
-    const x = Math.max(workArea.x, Math.min(workArea.x + workArea.width - menuWidth, Math.round(anchorX - menuWidth)));
-    const y = Math.max(workArea.y, Math.min(workArea.y + workArea.height - menuHeight, Math.round(anchorY + 4)));
+    console.log("[SplitMenu] Menu bounds:", "native OS/compositor-managed; Electron Menu does not expose popup bounds");
 
-    splitMenuTargetPanelId = panelId;
-    splitMenuWindow = new BrowserWindow({
-        width: menuWidth,
-        height: menuHeight,
-        x,
-        y,
-        parent: win,
-        frame: false,
-        transparent: false,
-        resizable: false,
-        movable: false,
-        minimizable: false,
-        maximizable: false,
-        show: false,
-        focusable: true,
-        skipTaskbar: true,
-        hasShadow: true,
-        backgroundColor: isDark ? "#252526" : "#ffffff",
-        webPreferences: {
-            preload: path.join(__dirname, "preload-split-menu.js"),
-            contextIsolation: true,
-            nodeIntegration: false,
-            sandbox: true
+    const menu = Menu.buildFromTemplate([
+        {
+            label: tr("ui.splitRight"),
+            click: () => {
+                closeSplitMenu();
+                if (findPanelNode(rootNode, panelId) && maximizedPanelId === null) {
+                    ipcMain.emit("split-panel", null, panelId, "vertical", false);
+                }
+            }
+        },
+        {
+            label: tr("ui.splitDown"),
+            click: () => {
+                closeSplitMenu();
+                if (findPanelNode(rootNode, panelId) && maximizedPanelId === null) {
+                    ipcMain.emit("split-panel", null, panelId, "horizontal", false);
+                }
+            }
         }
-    });
-
-    const menuWindow = splitMenuWindow;
-    menuWindow.loadFile(path.join(__dirname, "split-menu.html"), {
-        query: {
-            lang: currentLanguage,
-            theme: isDark ? "dark" : "light"
-        }
-    });
-    menuWindow.once("ready-to-show", () => {
-        if (splitMenuWindow === menuWindow && !menuWindow.isDestroyed()) menuWindow.show();
-    });
-    menuWindow.on("blur", () => {
-        if (splitMenuWindow === menuWindow) closeSplitMenu();
-    });
-    menuWindow.on("closed", () => {
-        if (splitMenuWindow === menuWindow) {
-            splitMenuWindow = null;
-            splitMenuTargetPanelId = null;
-        }
-    });
-});
-
-ipcMain.on("split-menu-dismiss", (event) => {
-    if (splitMenuWindow && !splitMenuWindow.isDestroyed() && event.sender === splitMenuWindow.webContents) {
-        closeSplitMenu();
-    }
-});
-
-ipcMain.on("split-menu-choose", (event, direction) => {
-    if (!splitMenuWindow || splitMenuWindow.isDestroyed() || event.sender !== splitMenuWindow.webContents) return;
-    if (direction !== "vertical" && direction !== "horizontal") return;
-    const panelId = splitMenuTargetPanelId;
-    closeSplitMenu();
-    if (panelId && findPanelNode(rootNode, panelId) && maximizedPanelId === null) {
-        ipcMain.emit("split-panel", null, panelId, direction, false);
+    ]);
+    splitMenu = menu;
+    menu.on("menu-will-show", () => console.log("[SplitMenu] Native menu shown"));
+    menu.on("menu-will-close", () => console.log("[SplitMenu] Native menu closed"));
+    try {
+        menu.popup({
+            window: win,
+            x,
+            y,
+            callback: () => {
+                if (splitMenu === menu) splitMenu = null;
+            }
+        });
+    } catch (error) {
+        if (splitMenu === menu) splitMenu = null;
+        console.error("[SplitMenu] Native popup failed:", error);
     }
 });
 
@@ -7252,7 +7495,8 @@ async function createWindow() {
         alwaysOnTop: true, // Évite qu'une autre application ne vienne masquer le chargement
         resizable: false,
         center: true,
-        icon: path.join(__dirname, 'build', 'icon.ico'), //
+//      icon: path.join(__dirname, 'build', 'icon.ico'),
+        icon: getAppIconPath(),
         webPreferences: {
             sandbox: true
         }
@@ -7273,7 +7517,8 @@ async function createWindow() {
         titleBarStyle: 'hidden',
         show: false, 
         backgroundColor: isDarkModeForced ? '#252526' : '#f3f4f6',
-        icon: path.join(__dirname, 'build', 'icon.ico'),
+//      icon: path.join(__dirname, 'build', 'icon.ico'),
+        icon: getAppIconPath(),
         titleBarOverlay: {
             color: isDarkModeForced ? '#252526' : '#ffffff',
             symbolColor: isDarkModeForced ? '#cfcfcf' : '#1f2937',
@@ -8107,8 +8352,8 @@ win.on('close', (e) => {
 
     // ✨ 1. CHARGEMENT DE L'ICÔNE DE L'APPLICATION AVEC NATIVEIMAGE
     // nativeImage permet à Electron de décoder et redimensionner proprement le fichier .ico
-//  const appIcon = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.ico'));
-    const appIcon = nativeImage.createFromPath(path.join(__dirname, 'resources', 'icon.ico'));
+//  const appIcon = nativeImage.createFromPath(path.join(__dirname, 'resources', 'icon.ico'));
+    const appIcon = nativeImage.createFromPath(getAppIconPath());
 
     // 2. Affichage de la boîte de dialogue liée à la fenêtre principale 'win'
     dialog.showMessageBox(win, {

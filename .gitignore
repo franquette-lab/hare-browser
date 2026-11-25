@@ -12,3 +12,8 @@ scripts.txt
 tailwind.css
 .DS_Store
 images/OLD/
+*.deb
+*.AppImage
+*.exe
+dist/
+out/
